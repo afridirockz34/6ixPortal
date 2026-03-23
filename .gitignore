@@ -1,0 +1,37 @@
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# WordPress sensitive files — never commit these
+wp-config.php
+*.log
+debug.log
+
+# Node / build tools (if ever added)
+node_modules/
+npm-debug.log
+yarn.lock
+package-lock.json
+dist/
+build/
+
+# Composer (if ever added)
+vendor/
+composer.lock
+
+# Local dev
+.env
+.env.local
+*.local
+
+# Backups
+*-backup.php
+*-backup/

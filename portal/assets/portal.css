@@ -1,0 +1,962 @@
+/* ============================================================
+   6ix Developers Portal — portal.css
+   Place at: /portal/assets/portal.css
+   ============================================================ */
+
+/* ── FONTS ───────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
+
+/* ── VARIABLES ───────────────────────────────────────────── */
+:root {
+  --pink:    #FF6699;
+  --blue:    #3C6478;
+  --cyan:    #83C5ED;
+  --dark1:   #0F1117;
+  --dark2:   #161B22;
+  --dark3:   #1C2333;
+  --dark4:   #21262D;
+  --border:  #30363D;
+  --text1:   #E6EDF3;
+  --text2:   #8B949E;
+  --text3:   #484F58;
+  --success: #56D364;
+  --warning: #E3B341;
+  --danger:  #FF6B6B;
+  --font-head: 'Syne', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  --radius:  10px;
+  --shadow:  0 2px 12px rgba(0,0,0,0.4);
+}
+
+/* ── RESET / BASE ────────────────────────────────────────── */
+.six-portal-body,
+#six-portal-root {
+  margin: 0;
+  padding: 0;
+  background: var(--dark1);
+  color: var(--text1);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* Kill Divi interference */
+.six-portal-body #page-container,
+.six-portal-body #main-header,
+.six-portal-body #top-header,
+.six-portal-body .et_pb_section,
+.six-portal-body footer {
+  display: none !important;
+}
+
+#six-portal-root *,
+#six-portal-root *::before,
+#six-portal-root *::after {
+  box-sizing: border-box;
+}
+
+#six-portal-root a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* ── TOPBAR ───────────────────────────────────────────────── */
+.six-topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 52px;
+  background: var(--dark2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 14px;
+  z-index: 100;
+}
+
+.six-logo {
+  font-family: var(--font-head);
+  font-size: 16px;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--pink), var(--cyan));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-right: 4px;
+}
+
+.six-role-badge {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 20px;
+  background: rgba(255, 102, 153, 0.15);
+  color: var(--pink);
+  border: 1px solid rgba(255, 102, 153, 0.3);
+}
+.six-role-badge.advisor {
+  background: rgba(131, 197, 237, 0.12);
+  color: var(--cyan);
+  border-color: rgba(131, 197, 237, 0.3);
+}
+.six-role-badge.sales {
+  background: rgba(227, 179, 65, 0.12);
+  color: var(--warning);
+  border-color: rgba(227, 179, 65, 0.3);
+}
+
+.six-topbar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.six-user-name {
+  font-size: 12px;
+  color: var(--text2);
+}
+
+.six-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--pink), #a855f7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-head);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.six-notif-bell {
+  font-size: 14px;
+  color: var(--text2);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+/* ── LAYOUT ───────────────────────────────────────────────── */
+.six-layout {
+  display: flex;
+  margin-top: 52px;
+  min-height: calc(100vh - 52px);
+}
+
+/* ── SIDEBAR ─────────────────────────────────────────────── */
+.six-sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--dark2);
+  border-right: 1px solid var(--border);
+  padding: 16px 0;
+  position: fixed;
+  top: 52px;
+  bottom: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.six-nav-section {
+  padding: 0 12px;
+  margin-bottom: 20px;
+}
+
+.six-nav-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 0 8px;
+  margin-bottom: 6px;
+}
+
+.six-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-bottom: 2px;
+}
+
+.six-nav-item:hover {
+  background: var(--dark4);
+  color: var(--text1);
+}
+
+.six-nav-item.active {
+  background: rgba(255, 102, 153, 0.12);
+  color: var(--pink);
+}
+
+.six-nav-icon {
+  font-size: 14px;
+  opacity: 0.7;
+  width: 18px;
+  text-align: center;
+}
+
+.six-sidebar-bottom {
+  margin-top: auto;
+  padding: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.six-advisor-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: var(--dark4);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  position: relative;
+}
+
+.six-advisor-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--blue), var(--cyan));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-head);
+  flex-shrink: 0;
+}
+
+.six-advisor-avatar-lg {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--blue), var(--cyan));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 700;
+  font-family: var(--font-head);
+  margin: 0 auto 12px;
+}
+
+.six-advisor-info { flex: 1; min-width: 0; }
+.six-advisor-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.six-advisor-role { font-size: 10px; color: var(--text3); }
+
+.six-online-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  box-shadow: 0 0 0 2px var(--dark4);
+}
+
+/* ── MAIN CONTENT ────────────────────────────────────────── */
+.six-main {
+  flex: 1;
+  margin-left: 220px;
+  padding: 24px;
+  min-width: 0;
+}
+
+.six-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.six-page-title {
+  font-family: var(--font-head);
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 4px;
+  color: var(--text1);
+}
+
+.six-page-sub {
+  font-size: 13px;
+  color: var(--text2);
+  margin: 0;
+}
+
+/* ── CARDS ───────────────────────────────────────────────── */
+.six-card {
+  background: var(--dark2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.six-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.six-card-title {
+  font-family: var(--font-head);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text1);
+}
+
+.six-card-body {
+  padding: 16px;
+}
+
+/* ── GRID ────────────────────────────────────────────────── */
+.six-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 900px) {
+  .six-grid-2 { grid-template-columns: 1fr; }
+}
+
+/* ── STATS GRID ──────────────────────────────────────────── */
+.six-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 900px) {
+  .six-stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.six-stat-card {
+  background: var(--dark2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  border-top: 2px solid var(--pink);
+}
+.six-stat-card.cyan  { border-top-color: var(--cyan); }
+.six-stat-card.blue  { border-top-color: var(--blue); }
+.six-stat-card.green { border-top-color: var(--success); }
+.six-stat-card.pink  { border-top-color: var(--pink); }
+
+.six-stat-label { font-size: 11px; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.4px; }
+.six-stat-val   { font-family: var(--font-head); font-size: 28px; font-weight: 700; line-height: 1; }
+
+/* ── BADGES ──────────────────────────────────────────────── */
+.six-badge {
+  background: rgba(255, 102, 153, 0.2);
+  color: var(--pink);
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  min-width: 18px;
+  text-align: center;
+}
+
+/* ── STATUS BADGES ───────────────────────────────────────── */
+.six-status-badge {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  text-transform: capitalize;
+}
+.six-status-badge.active   { background: rgba(86, 211, 100, 0.15); color: var(--success); }
+.six-status-badge.pending  { background: rgba(227, 179, 65, 0.15);  color: var(--warning); }
+.six-status-badge.inactive { background: rgba(72, 79, 88, 0.3);     color: var(--text3); }
+
+/* ── BUTTONS ─────────────────────────────────────────────── */
+.six-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-body);
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.six-btn-primary {
+  background: linear-gradient(135deg, var(--pink), #e0538a);
+  color: #fff;
+}
+.six-btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+
+.six-btn-secondary {
+  background: var(--dark4);
+  color: var(--text1);
+  border: 1px solid var(--border);
+}
+.six-btn-secondary:hover { border-color: var(--pink); color: var(--pink); }
+
+.six-btn-ghost {
+  background: transparent;
+  color: var(--text2);
+  border: 1px solid var(--border);
+}
+.six-btn-ghost:hover { color: var(--text1); border-color: var(--text2); }
+
+.six-btn-cyan {
+  background: rgba(131, 197, 237, 0.15);
+  color: var(--cyan);
+  border: 1px solid rgba(131, 197, 237, 0.3);
+}
+
+.six-btn-sm { padding: 5px 10px; font-size: 11px; }
+
+.six-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* ── FORMS ───────────────────────────────────────────────── */
+.six-form-group { margin-bottom: 14px; }
+
+.six-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 6px;
+}
+
+.six-input {
+  width: 100%;
+  background: var(--dark3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-family: var(--font-body);
+  color: var(--text1);
+  outline: none;
+  transition: border-color 0.15s;
+  resize: vertical;
+}
+
+.six-input:focus { border-color: var(--pink); }
+.six-input::placeholder { color: var(--text3); }
+
+/* ── PROGRESS BAR ────────────────────────────────────────── */
+.six-progress-track {
+  width: 100%;
+  height: 5px;
+  background: var(--dark4);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.six-progress-fill {
+  height: 100%;
+  border-radius: 10px;
+  background: var(--pink);
+  transition: width 0.4s ease;
+}
+
+/* ── METRIC ROWS ─────────────────────────────────────────── */
+.six-metric-row { margin-bottom: 14px; }
+.six-metric-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+.six-metric-label  { font-size: 11px; color: var(--text2); }
+.six-metric-vals   { font-size: 11px; color: var(--text2); }
+.six-metric-vals strong { color: var(--success); }
+.six-metric-footer { font-size: 10px; color: var(--text3); margin-top: 3px; }
+
+.six-pending-msg {
+  font-size: 12px;
+  color: var(--text3);
+  padding: 12px;
+  background: var(--dark3);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.six-empty-metrics {
+  font-size: 12px;
+  color: var(--text3);
+  text-align: center;
+  padding: 12px 0;
+}
+
+/* ── NOTIFICATIONS ───────────────────────────────────────── */
+.six-notif-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--border);
+}
+.six-notif-row:last-child { border-bottom: none; }
+.six-notif-row.unread { background: rgba(255, 102, 153, 0.04); border-radius: 8px; }
+
+.six-notif-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--pink);
+  margin-top: 5px;
+  flex-shrink: 0;
+}
+.six-notif-dot.read { background: var(--text3); }
+
+.six-notif-title { font-size: 12px; font-weight: 600; margin-bottom: 2px; }
+.six-notif-desc  { font-size: 11px; color: var(--text2); }
+.six-notif-time  { font-size: 10px; color: var(--text3); margin-top: 3px; }
+
+/* ── MESSAGES ────────────────────────────────────────────── */
+.six-msg-thread {
+  height: 340px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 0 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.six-msg {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+.six-msg.mine { flex-direction: row-reverse; }
+
+.six-msg-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--blue), var(--cyan));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.six-msg-bubble {
+  background: var(--dark3);
+  border: 1px solid var(--border);
+  border-radius: 14px 14px 14px 4px;
+  padding: 9px 13px;
+  font-size: 13px;
+  max-width: 340px;
+  line-height: 1.45;
+}
+.six-msg.mine .six-msg-bubble {
+  background: linear-gradient(135deg, rgba(255,102,153,0.2), rgba(168,85,247,0.15));
+  border-color: rgba(255, 102, 153, 0.3);
+  border-radius: 14px 14px 4px 14px;
+}
+
+.six-msg-time { font-size: 10px; color: var(--text3); margin-top: 3px; text-align: right; }
+.six-msg.mine .six-msg-time { text-align: left; }
+
+.six-msg-input-row {
+  display: flex;
+  gap: 8px;
+}
+.six-msg-input {
+  flex: 1;
+  background: var(--dark3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-family: var(--font-body);
+  color: var(--text1);
+  outline: none;
+}
+.six-msg-input:focus { border-color: var(--pink); }
+
+/* ── READINESS BANNER ────────────────────────────────────── */
+.six-readiness-banner {
+  background: linear-gradient(135deg, rgba(60,100,120,0.35), rgba(131,197,237,0.1));
+  border: 1px solid rgba(131, 197, 237, 0.25);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.six-readiness-label  { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--cyan); margin-bottom: 4px; }
+.six-readiness-score  { font-family: var(--font-head); font-size: 36px; font-weight: 800; line-height: 1; }
+.six-readiness-sub    { font-size: 12px; color: var(--text2); margin-top: 5px; }
+
+.six-readiness-stats {
+  display: flex;
+  gap: 28px;
+}
+.six-readiness-stat-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 3px; }
+.six-readiness-stat-val   { font-family: var(--font-head); font-size: 22px; font-weight: 700; }
+
+/* ── SERVICES GRID ───────────────────────────────────────── */
+.six-services-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+@media (max-width: 900px) { .six-services-grid { grid-template-columns: 1fr; } }
+
+.six-svc-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+/* ── TABLE ───────────────────────────────────────────────── */
+.six-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.six-table th {
+  text-align: left;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text3);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.six-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(48,54,61,0.5);
+  vertical-align: middle;
+}
+
+.six-table tr:last-child td { border-bottom: none; }
+.six-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+/* ── HEALTH SCORE ────────────────────────────────────────── */
+.six-health {
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: 13px;
+  padding: 3px 8px;
+  border-radius: 20px;
+}
+.six-health.high { background: rgba(86,211,100,0.12); color: var(--success); }
+.six-health.med  { background: rgba(227,179,65,0.12);  color: var(--warning); }
+.six-health.low  { background: rgba(255,107,107,0.12); color: var(--danger); }
+
+/* ── CLIENT INITIALS ─────────────────────────────────────── */
+.six-client-initials {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--blue), var(--cyan));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-head);
+  flex-shrink: 0;
+  color: #fff;
+}
+
+/* ── TAG ─────────────────────────────────────────────────── */
+.six-tag {
+  background: var(--dark4);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 2px 7px;
+  font-size: 10px;
+  color: var(--text2);
+}
+
+/* ── RECOMMENDATIONS ─────────────────────────────────────── */
+.six-rec {
+  display: flex;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.six-rec:last-child { border-bottom: none; }
+.six-rec-icon { font-size: 20px; flex-shrink: 0; margin-top: 2px; }
+.six-rec-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.six-rec-desc  { font-size: 12px; color: var(--text2); }
+.six-rec-body  { flex: 1; }
+
+/* ── REPORT ROW ──────────────────────────────────────────── */
+.six-report-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.six-report-row:last-child { border-bottom: none; }
+.six-report-icon { font-size: 22px; }
+
+/* ── CREDIT CARD ─────────────────────────────────────────── */
+.six-credit-card {
+  background: linear-gradient(135deg, var(--blue), #1a3445);
+  border-radius: 12px;
+  padding: 22px;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.six-credit-card::before {
+  content: '';
+  position: absolute;
+  top: -40px; right: -40px;
+  width: 140px; height: 140px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.05);
+}
+.six-card-chip {
+  width: 36px; height: 28px;
+  background: linear-gradient(135deg, var(--warning), #c9960f);
+  border-radius: 5px;
+  margin-bottom: 18px;
+}
+.six-card-number { font-size: 14px; letter-spacing: 2px; font-family: monospace; color: rgba(255,255,255,0.85); margin-bottom: 14px; }
+.six-card-meta { display: flex; gap: 24px; }
+.six-card-meta-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(255,255,255,0.5); margin-bottom: 2px; }
+.six-card-meta-val { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.9); }
+
+/* ── LEAD PIPELINE (Sales) ───────────────────────────────── */
+.six-lead-section { margin-bottom: 20px; }
+
+.six-lead-section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.six-lead-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+.six-lead-badge.hot  { background: rgba(255,107,107,0.15); color: var(--danger); }
+.six-lead-badge.warm { background: rgba(227,179,65,0.15);  color: var(--warning); }
+.six-lead-badge.cold { background: rgba(131,197,237,0.12); color: var(--cyan); }
+
+.six-lead-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  background: var(--dark2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  transition: border-color 0.15s;
+}
+.six-lead-card:hover { border-color: var(--pink); }
+
+/* ── SERVICE CARD ────────────────────────────────────────── */
+.six-service-card {
+  border-top: 2px solid var(--svc-color, var(--pink));
+}
+
+/* ── SCROLLBAR ───────────────────────────────────────────── */
+#six-portal-root ::-webkit-scrollbar { width: 6px; height: 6px; }
+#six-portal-root ::-webkit-scrollbar-track { background: var(--dark2); }
+#six-portal-root ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+#six-portal-root ::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+/* ── RESPONSIVE ─────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .six-sidebar { display: none; }
+  .six-main { margin-left: 0; padding: 16px; }
+  .six-stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .six-readiness-banner { flex-direction: column; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOBILE RESPONSIVE — DASHBOARDS + ONBOARDING
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Mobile menu toggle button ───────────────────────────────────────────── */
+.six-mobile-menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 38px; height: 38px;
+  border-radius: 8px;
+  background: var(--dark3);
+  border: 1px solid var(--border);
+  color: var(--text1);
+  font-size: 18px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.six-mobile-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 99;
+  backdrop-filter: blur(2px);
+}
+.six-mobile-overlay.open { display: block; }
+
+@media (max-width: 768px) {
+  /* Layout */
+  .six-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Topbar */
+  .six-topbar {
+    padding: 0 16px;
+    height: 54px;
+  }
+  .six-topbar .six-logo { font-size: 16px; }
+  .six-mobile-menu-btn { display: flex; }
+
+  /* Sidebar — slides in as drawer on mobile */
+  .six-sidebar {
+    position: fixed;
+    top: 0; left: -280px;
+    width: 260px;
+    height: 100vh;
+    z-index: 100;
+    transition: left 0.28s cubic-bezier(0.4,0,0.2,1);
+    overflow-y: auto;
+    padding: 24px 20px;
+    box-shadow: 4px 0 32px rgba(0,0,0,0.4);
+  }
+  .six-sidebar.open { left: 0; }
+
+  /* Main content */
+  .six-main {
+    padding: 16px 14px;
+    margin-left: 0 !important;
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* Topbar layout on mobile */
+  .six-topbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .six-topbar-right {
+    margin-left: auto;
+    gap: 8px;
+  }
+  .six-user-name { display: none; }
+
+  /* Grids → single column */
+  .six-grid-2,
+  .six-stats-grid,
+  .six-services-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Stats grid — 2 cols on mobile */
+  .six-stats-grid { grid-template-columns: repeat(2,1fr) !important; }
+
+  /* Page header */
+  .six-page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .six-page-title { font-size: 20px; }
+
+  /* Tables — scroll horizontally */
+  .six-table { font-size: 11px; }
+  .six-table th, .six-table td { padding: 8px 10px; }
+  .six-card-body { overflow-x: auto; }
+
+  /* Readiness banner */
+  .six-readiness-banner {
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px 16px;
+  }
+  .six-readiness-stats { justify-content: flex-start; }
+
+  /* Messages */
+  .six-msg-thread { max-height: 320px; }
+
+  /* Advisor reveal */
+  .ob-advisor-reveal { flex-direction: column; text-align: center; }
+
+  /* Strategy total */
+  .ob-strategy-total { flex-direction: column; gap: 4px; align-items: flex-start; }
+  .ob-strategy-total-val { font-size: 18px; }
+
+  /* Projection grid */
+  .ob-projection-grid { grid-template-columns: 1fr 1fr !important; }
+
+  /* Score cols */
+  .ob-score-cols { grid-template-columns: 1fr !important; }
+
+  /* Service grid in onboarding */
+  .ob-svc-grid { grid-template-columns: 1fr !important; }
+  .ob-svc-card[style*="span 2"] { grid-column: span 1 !important; }
+
+  /* Billing */
+  .six-credit-card { padding: 20px; }
+
+  /* Buttons in rows */
+  .ob-btn-row { flex-wrap: wrap; }
+  .ob-btn-row .ob-btn { flex: 1; min-width: 120px; }
+}
+
+/* ── Narrow phones ────────────────────────────────────────────────────────── */
+@media (max-width: 380px) {
+  .six-main { padding: 12px 10px; }
+  .ob-main  { padding: 20px 14px; }
+  .six-stats-grid { grid-template-columns: 1fr !important; }
+  .ob-btn { padding: 11px 18px; font-size: 13px; }
+}
