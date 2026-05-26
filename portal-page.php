@@ -9,8 +9,14 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 // Redirect guests to login
 if ( ! is_user_logged_in() ) {
-    wp_redirect( wp_login_url( get_permalink() ) );
-    exit;
+    // Use the onboarding page as login — but only if not already redirecting
+    $requested_url = home_url( $_SERVER['REQUEST_URI'] );
+    // Prevent redirect loop: if already on get-started, don't redirect again
+    $current_path = trim( parse_url( $_SERVER['REQUEST_URI'], PHP_URL_PATH ), '/' );
+    if ( strpos( $current_path, 'get-started' ) === false ) {
+        wp_redirect( home_url( '/get-started/' ) );
+        exit;
+    }
 }
 
 $role         = Six_Roles::get_portal_role();
@@ -98,12 +104,21 @@ $js_data = array(
 
 <div id="six-portal-root">
     <?php
+    // Internal hub: access restricted to advisors, sales, editors
+    if ( $current_slug === 'internal-hub' ) {
+        $allowed = ( $role === 'six_advisor' || $role === 'six_sales' || current_user_can('edit_posts') || current_user_can('manage_options') );
+        if ( ! $allowed ) { wp_redirect( home_url('/portal/') ); exit; }
+    }
+
     switch ( $current_slug ) {
         case 'advisor-portal':
             $view = SIX_PLUGIN_DIR . 'templates/advisor-dashboard.php';
             break;
         case 'sales-portal':
             $view = SIX_PLUGIN_DIR . 'templates/sales-dashboard.php';
+            break;
+        case 'internal-hub':
+            $view = get_stylesheet_directory() . '/portal/templates/internal-product-hub.php';
             break;
         default:
             $view = SIX_PLUGIN_DIR . 'templates/customer-dashboard.php';
@@ -134,3 +149,4 @@ var sixPortal = <?php echo wp_json_encode( $js_data ); ?>;
 <?php wp_footer(); ?>
 </body>
 </html>
+

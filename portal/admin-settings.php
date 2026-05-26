@@ -77,8 +77,14 @@ function six_admin_settings() {
         'six_odoo_stage_submitted', 'six_odoo_stage_active',
         'six_stripe_publishable_key', 'six_stripe_secret_key', 'six_stripe_webhook_secret',
         'six_google_client_id', 'six_google_client_secret',
-        'six_gads_developer_token', 'six_gads_manager_id',
+        'six_gads_developer_token', 'six_gads_manager_id', 'six_gads_kw_planner_account_id',
+        'six_dataforseo_login', 'six_dataforseo_password',
         'six_gads_client_id', 'six_gads_client_secret', 'six_gads_refresh_token',
+        'six_anthropic_api_key', 'six_google_analytics_property_id', 'six_google_analytics_key',
+        'six_ga4_property_id', 'six_meta_app_id', 'six_meta_ad_account_id',
+        'six_ga4_property_id', 'six_meta_app_id', 'six_meta_ad_account_id',
+        // Twilio SMS
+        'six_twilio_account_sid', 'six_twilio_auth_token', 'six_twilio_from_number',
     );
 
     if ( isset( $_POST['six_save_settings'] ) && check_admin_referer( 'six_settings' ) ) {
@@ -229,6 +235,32 @@ function six_admin_settings() {
                 </tr>
             </table>
 
+            <!-- ═══ TWILIO SMS ════════════════════════════════════════ -->
+            </table>
+            <h2 style="margin-top:28px">Twilio SMS</h2>
+            <p style="color:#666;font-size:13px;margin-bottom:12px">
+                Sent automatically on abandoned checkout. Get credentials at
+                <a href="https://console.twilio.com" target="_blank">console.twilio.com</a>.
+            </p>
+            <table class="form-table">
+                <tr><th scope="row">Account SID</th><td>
+                    <input name="six_twilio_account_sid" value="<?php echo $s('six_twilio_account_sid'); ?>" class="regular-text" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+                    <p class="description">Twilio Console → Account Info → Account SID</p>
+                </td></tr>
+                <tr><th scope="row">Auth Token</th><td>
+                    <input name="six_twilio_auth_token" type="password" value="<?php echo $s('six_twilio_auth_token',true); ?>" class="regular-text" placeholder="Your auth token">
+                    <p class="description">Twilio Console → Account Info → Auth Token (keep secret)</p>
+                </td></tr>
+                <tr><th scope="row">From Number</th><td>
+                    <input name="six_twilio_from_number" value="<?php echo $s('six_twilio_from_number'); ?>" class="regular-text" placeholder="+14155550000">
+                    <p class="description">Your Twilio phone number in E.164 format (SMS-capable)</p>
+                </td></tr>
+                <?php if(get_option('six_twilio_account_sid')&&get_option('six_twilio_auth_token')&&get_option('six_twilio_from_number')): ?>
+                <tr><th></th><td><span style="color:#155724;background:#d4edda;padding:4px 10px;border-radius:4px;font-weight:600">✅ Twilio credentials set</span></td></tr>
+                <?php endif; ?>
+            </table>
+            <hr>
+
             <!-- ═══ STRIPE ═════════════════════════════════════════════ -->
             <h2 style="border-bottom:3px solid #83C5ED;padding-bottom:8px;margin-top:30px">💳 Stripe</h2>
             <table class="form-table">
@@ -273,6 +305,26 @@ function six_admin_settings() {
                     </td>
                 </tr>
                 <tr>
+                    <th>Keyword Planner Account ID</th>
+                    <td>
+                        <input name="six_gads_kw_planner_account_id" value="<?php echo $s('six_gads_kw_planner_account_id'); ?>" class="regular-text" placeholder="906-224-1852">
+                        <p class="description">A client account under your MCC used for Keyword Planner data. Requires active campaigns with billing to return CPC data.</p>
+                    </td>
+                </tr>
+                <tr><td colspan="2"><hr style="margin:8px 0"><strong>DataForSEO — Keyword CPC Data</strong><br><small style="color:#666">Used for real CPC and search volume when Google Ads Keyword Planner is unavailable. Free trial at <a href="https://dataforseo.com" target="_blank">dataforseo.com</a> — ~$0.002 per keyword.</small></td></tr>
+                <tr>
+                    <th>DataForSEO Login (Email)</th>
+                    <td>
+                        <input name="six_dataforseo_login" value="<?php echo $s('six_dataforseo_login'); ?>" class="regular-text" placeholder="your@email.com">
+                    </td>
+                </tr>
+                <tr>
+                    <th>DataForSEO Password</th>
+                    <td>
+                        <input name="six_dataforseo_password" type="password" value="<?php echo $s('six_dataforseo_password', true); ?>" class="regular-text" placeholder="••••••••">
+                    </td>
+                </tr>
+                <tr>
                     <th>OAuth Client ID</th>
                     <td>
                         <input name="six_gads_client_id" value="<?php echo $s('six_gads_client_id'); ?>" class="regular-text" placeholder="xxxxxx.apps.googleusercontent.com">
@@ -304,6 +356,105 @@ function six_admin_settings() {
                     <td><input name="six_google_client_secret" type="password" value="<?php echo $s('six_google_client_secret',true); ?>" class="regular-text"></td>
                 </tr>
             </table>
+
+            <!-- ═══ AI / ANTHROPIC ════════════════════════════════════ -->
+            <h2 style="border-bottom:3px solid #a855f7;padding-bottom:8px;margin-top:30px">🤖 AI Intelligence (Anthropic)</h2>
+            <p style="color:#666;font-size:13px;margin-bottom:10px">
+                Powers the AI Insights, Growth Opportunities, and Competitor Intelligence tabs in the customer portal.
+                Get your API key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>.
+            </p>
+            <table class="form-table">
+                <tr>
+                    <th>Anthropic API Key</th>
+                    <td>
+                        <input name="six_anthropic_api_key" type="password" value="<?php echo $s('six_anthropic_api_key',true); ?>" class="regular-text" placeholder="sk-ant-...">
+                        <p class="description">Used server-side only. Never exposed to the browser.</p>
+                    </td>
+                </tr>
+            </table>
+
+            <h2 class="title" style="margin-top:24px;color:#4285F4">📊 Google Analytics 4 (GA4)</h2>
+            <table class="form-table">
+                <tr>
+                    <th>GA4 Property ID</th>
+                    <td>
+                        <input type="text" name="six_ga4_property_id" value="<?php echo esc_attr(get_option('six_ga4_property_id','')); ?>" class="regular-text" placeholder="123456789">
+                        <p class="description">9-digit number from GA4 Admin → Property Settings (no G- prefix).</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th>GA4 Service Account JSON</th>
+                    <td>
+                        <textarea name="six_ga4_service_account_json" rows="5" class="large-text" placeholder='{"type":"service_account","project_id":"...","private_key_id":"...","private_key":"-----BEGIN RSA...","client_email":"...@....iam.gserviceaccount.com"}'><?php echo esc_textarea(get_option('six_ga4_service_account_json','')); ?></textarea>
+                        <p class="description">Paste the full JSON of your Google Cloud Service Account key. <a href="https://developers.google.com/analytics/devguides/reporting/data/v1/quickstart-client-libraries" target="_blank">Setup guide →</a></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th>Test GA4</th>
+                    <td>
+                        <button type="button" class="button" id="six-test-ga4">Test GA4 Connection</button>
+                        <span id="six-ga4-result" style="margin-left:12px;font-size:13px"></span>
+                    </td>
+                </tr>
+            </table>
+
+            <h2 class="title" style="margin-top:24px;color:#1877F2">📱 Meta Ads (Facebook / Instagram)</h2>
+            <table class="form-table">
+                <tr>
+                    <th>Meta App ID</th>
+                    <td>
+                        <input type="text" name="six_meta_app_id" value="<?php echo esc_attr(get_option('six_meta_app_id','')); ?>" class="regular-text" placeholder="1234567890">
+                        <p class="description">From <a href="https://developers.facebook.com/apps" target="_blank">Meta for Developers</a> → App → Settings → Basic.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th>Meta App Secret</th>
+                    <td>
+                        <input type="password" name="six_meta_app_secret" class="regular-text" placeholder="Leave blank to keep existing">
+                        <p class="description"><?php echo get_option('six_meta_app_secret') ? '✓ Saved (hidden)' : 'Not set'; ?></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th>Meta System User Access Token</th>
+                    <td>
+                        <input type="password" name="six_meta_access_token" class="large-text" placeholder="EAAxxxxxxx... — Leave blank to keep existing">
+                        <p class="description"><?php echo get_option('six_meta_access_token') ? '✓ Saved (hidden)' : 'Not set'; ?> — System User token from <a href="https://business.facebook.com/settings/system-users" target="_blank">Meta Business Manager</a>.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th>Meta Ad Account ID</th>
+                    <td>
+                        <input type="text" name="six_meta_ad_account_id" value="<?php echo esc_attr(get_option('six_meta_ad_account_id','')); ?>" class="regular-text" placeholder="act_1234567890">
+                        <p class="description">Format: act_XXXXXXXX. Found in Meta Ads Manager URL.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th>Test Meta</th>
+                    <td>
+                        <button type="button" class="button" id="six-test-meta">Test Meta Connection</button>
+                        <span id="six-meta-result" style="margin-left:12px;font-size:13px"></span>
+                    </td>
+                </tr>
+            </table>
+
+            <script>
+            document.getElementById('six-test-ga4').addEventListener('click',function(){
+                var r=document.getElementById('six-ga4-result');
+                r.innerHTML='Testing…';
+                fetch(ajaxurl,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
+                    body:new URLSearchParams({action:'six_test_ga4',_ajax_nonce:'<?php echo wp_create_nonce("six_test_ga4"); ?>',property_id:document.querySelector('[name="six_ga4_property_id"]').value})})
+                .then(function(res){return res.json();})
+                .then(function(d){r.innerHTML=d.success?'<span style="color:#56D364">✓ '+d.data+'</span>':'<span style="color:#FF6B6B">✗ '+(d.data||'Failed')+'</span>';});
+            });
+            document.getElementById('six-test-meta').addEventListener('click',function(){
+                var r=document.getElementById('six-meta-result');
+                r.innerHTML='Testing…';
+                fetch(ajaxurl,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
+                    body:new URLSearchParams({action:'six_test_meta',_ajax_nonce:'<?php echo wp_create_nonce("six_test_meta"); ?>'})})
+                .then(function(res){return res.json();})
+                .then(function(d){r.innerHTML=d.success?'<span style="color:#56D364">✓ '+d.data+'</span>':'<span style="color:#FF6B6B">✗ '+(d.data||'Failed')+'</span>';});
+            });
+            </script>
 
             <?php submit_button( 'Save All Settings', 'primary large', 'six_save_settings' ); ?>
         </form>
@@ -781,4 +932,64 @@ function six_handle_gcal_oauth_callback() {
     // All done — redirect to calendar tab
     wp_redirect( home_url( '/advisor-portal/?tab=calendar&gcal_success=1' ) );
     exit;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TEST AI — visit /wp-admin/?six_test_ai=1 to diagnose API issues
+// ─────────────────────────────────────────────────────────────────────────────
+add_action( 'admin_init', 'six_maybe_test_ai' );
+function six_maybe_test_ai() {
+    if ( empty($_GET['six_test_ai']) || ! current_user_can('manage_options') ) return;
+
+    echo '<div style="font-family:monospace;padding:30px;background:#0d1117;color:#f0f4f8;min-height:100vh">';
+    echo '<h2 style="color:#FF6699;margin-bottom:20px">6ix AI Diagnostic</h2>';
+
+    $key = get_option('six_anthropic_api_key','');
+
+    if ( ! $key ) {
+        echo '<p style="color:#FF6B6B">❌ No API key found in database (option: six_anthropic_api_key)</p>';
+        echo '<p>Go to <a href="'.admin_url('admin.php?page=six-portal-settings').'" style="color:#83C5ED">Integration Settings</a>, enter your key, and save.</p>';
+        echo '</div>'; exit;
+    }
+
+    echo '<p>Key stored: <code>'.esc_html(substr($key,0,12)).'...'.esc_html(substr($key,-4)).'</code> ('.strlen($key).' chars)</p>';
+    echo '<p>Testing Anthropic API…</p>';
+
+    $resp = wp_remote_post('https://api.anthropic.com/v1/messages', array(
+        'timeout' => 30,
+        'headers' => array(
+            'Content-Type'      => 'application/json',
+            'x-api-key'         => $key,
+            'anthropic-version' => '2023-06-01',
+        ),
+        'body' => wp_json_encode(array(
+            'model'      => 'claude-haiku-4-5-20251001',
+            'max_tokens' => 30,
+            'messages'   => array(array('role'=>'user','content'=>'Reply with: AI working'))
+        )),
+    ));
+
+    if ( is_wp_error($resp) ) {
+        echo '<p style="color:#FF6B6B">❌ Network error: '.esc_html($resp->get_error_message()).'</p>';
+        echo '</div>'; exit;
+    }
+
+    $code = wp_remote_retrieve_response_code($resp);
+    $body = json_decode(wp_remote_retrieve_body($resp), true);
+
+    echo '<p>HTTP Response: <strong style="color:'.($code===200?'#56D364':'#FF6B6B').'">'.$code.'</strong></p>';
+    echo '<pre style="background:#1a1a2e;padding:14px;border-radius:8px;font-size:12px;overflow:auto;max-height:300px">'.esc_html(wp_json_encode($body, JSON_PRETTY_PRINT)).'</pre>';
+
+    if ( $code === 200 ) {
+        echo '<p style="color:#56D364;font-size:16px">✅ API is working correctly!</p>';
+    } elseif ( $code === 401 ) {
+        echo '<p style="color:#FF6B6B">❌ 401 — API key invalid. Re-copy it from console.anthropic.com → API Keys and paste it fresh into settings.</p>';
+    } elseif ( $code === 429 ) {
+        echo '<p style="color:#E3B341">⚠ 429 — Key works but rate limited. Wait 60 seconds and try the portal again.</p>';
+    } else {
+        echo '<p style="color:#FF6B6B">❌ Error '.$code.' — see raw response above.</p>';
+    }
+
+    echo '<p style="margin-top:20px"><a href="'.admin_url('admin.php?page=six-portal-settings').'" style="color:#83C5ED">← Back to Settings</a></p>';
+    echo '</div>'; exit;
 }

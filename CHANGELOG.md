@@ -86,3 +86,26 @@ All notable changes to the 6ix Developers Portal are documented here.
 - Odoo JSON-RPC `web/dataset/call_kw` → XML-RPC (JSON-RPC requires session cookie, doesn't work on SaaS)
 - `Six_Stripe::attach_payment_method()` → `save_payment_method()` (method didn't exist)
 - `redirect_uri_mismatch` in Google Calendar OAuth (advisor_id moved to state param)
+
+## [2.5.0] - 2026-05-26 — Final session fixes
+
+### Fixed
+- Service approval: inline onclick replaces broken event delegation; explicit nonce verify returns descriptive errors
+- Onboarding: `six_complete_onboarding` now guarantees all 40+ questionnaire fields save at step 5 completion
+- Onboarding: `resumeLoggedIn` fetches saved state via `six_get_onboarding_state` AJAX — all fields restored on refresh
+- Multi-service Next button: added missing `getHoursVal()` function that was causing ReferenceError crash
+- DB migration v6: auto-adds `ads_schedule`, `seo_competitors`, `seo_crm_tools`, `seo_reviews`, `seo_extra_info`, `gbp_hours` columns
+- Advisor dashboard: WP user meta backfill for clients with empty checkout rows
+- Customer dashboard: same backfill; Growth Opportunities removed from overview
+- Questionnaire: empty-state now only shows when truly no data exists; shows business name when available
+- Approve service: `six_adv_add_client_service` handler added; updates existing service instead of erroring "already exists"
+- Functions.php: auto-run DB v6 migration on init (no manual URL trigger needed)
+- PHP parse errors resolved in advisor-dashboard.php (extra endifs, stray backslash-dollar)
+
+### Added
+- `six_get_onboarding_state` AJAX handler — returns full S.q/S.svcs/S.budgets for refresh resume
+- `getHoursVal(pfx)` JS function — reads qHours day/AM/PM widget values
+- Drop-off funnel in Intelligence tab — shows client count per onboarding step
+- Notification center: categorized, paginated, mark-read per notification
+- Intelligence section: rebuilt clean — no emojis, summary cards, filter pills
+- Advisor service approval: `sixApproveService()` named function with full error surfacing
