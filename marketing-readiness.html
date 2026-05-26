@@ -1,0 +1,347 @@
+<!--
+  WORDPRESS PAGE SETUP
+  ──────────────────────────────────
+  1. WP Admin → Pages → Add New
+  2. Title: "How We Calculate Your Marketing Readiness Score"
+  3. Slug: marketing-readiness-score
+  4. Template: Full Width (no sidebar, no Divi header padding)
+  5. Paste this HTML into a Code block or Custom HTML block
+  6. Publish
+  ──────────────────────────────────
+-->
+<style>
+.mrs-page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 64px 24px 80px;
+  font-family: 'DM Sans', 'Inter', sans-serif;
+  color: #e2e8f0;
+  background: #0d1117;
+  min-height: 100vh;
+}
+.mrs-page * { box-sizing: border-box; }
+
+/* Hero */
+.mrs-hero { text-align: center; margin-bottom: 56px; }
+.mrs-badge {
+  display: inline-block;
+  background: rgba(255,102,153,0.1);
+  color: #FF6699;
+  border: 1px solid rgba(255,102,153,0.2);
+  border-radius: 100px;
+  padding: 5px 18px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  margin-bottom: 24px;
+}
+.mrs-hero h1 {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(26px, 5vw, 42px);
+  font-weight: 800;
+  margin: 0 0 16px;
+  color: #fff;
+  line-height: 1.15;
+}
+.mrs-hero p {
+  font-size: 15px;
+  color: #8b9ab1;
+  max-width: 540px;
+  margin: 0 auto;
+  line-height: 1.7;
+}
+
+/* Score demo */
+.mrs-score-demo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 36px;
+  margin: 44px 0;
+  flex-wrap: wrap;
+}
+.mrs-ring-wrap { position: relative; width: 130px; height: 130px; }
+.mrs-ring-label {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+}
+.mrs-ring-label .num { font-family: 'Syne', sans-serif; font-size: 38px; font-weight: 900; color: #fff; line-height: 1; }
+.mrs-ring-label .den { font-size: 11px; color: rgba(255,255,255,0.3); margin-top: 3px; }
+
+/* Bands */
+.mrs-bands { display: flex; flex-direction: column; gap: 10px; }
+.mrs-band {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.mrs-band-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.mrs-band-name { font-size: 13px; font-weight: 700; color: #e2e8f0; min-width: 70px; }
+.mrs-band-range { font-size: 12px; color: rgba(255,255,255,0.3); min-width: 80px; }
+.mrs-band-desc { font-size: 12px; color: #8b9ab1; }
+
+/* Divider */
+.mrs-divider { height: 1px; background: rgba(255,255,255,0.06); margin: 52px 0; }
+
+/* Section */
+.mrs-section-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 8px;
+}
+.mrs-section-sub {
+  font-size: 14px;
+  color: #8b9ab1;
+  margin: 0 0 28px;
+  line-height: 1.65;
+}
+
+/* Signals grid */
+.mrs-signals { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 40px; }
+@media (max-width: 540px) { .mrs-signals { grid-template-columns: 1fr; } }
+.mrs-signal {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+.mrs-signal::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--sig-color, var(--pink));
+}
+.mrs-signal-weight {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--sig-color);
+  background: rgba(255,255,255,0.05);
+  padding: 2px 8px;
+  border-radius: 20px;
+  margin-bottom: 10px;
+}
+.mrs-signal-title { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+.mrs-signal p { font-size: 12px; color: #8b9ab1; margin: 0; line-height: 1.65; }
+
+/* How it works steps */
+.mrs-steps { display: flex; flex-direction: column; gap: 0; margin-bottom: 40px; }
+.mrs-step { display: flex; gap: 16px; align-items: stretch; }
+.mrs-step-spine { display: flex; flex-direction: column; align-items: center; width: 32px; flex-shrink: 0; }
+.mrs-step-num { width: 32px; height: 32px; border-radius: 50%; background: rgba(255,102,153,0.15); border: 1px solid rgba(255,102,153,0.3); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: #FF6699; flex-shrink: 0; }
+.mrs-step-line { width: 1px; flex: 1; background: rgba(255,255,255,0.06); margin: 6px 0; min-height: 24px; }
+.mrs-step-content { padding: 0 0 28px 4px; flex: 1; }
+.mrs-step-content h4 { font-size: 14px; font-weight: 700; color: #fff; margin: 4px 0 6px; }
+.mrs-step-content p { font-size: 13px; color: #8b9ab1; margin: 0; line-height: 1.65; }
+
+/* FAQ */
+.mrs-faq { display: flex; flex-direction: column; gap: 12px; margin-bottom: 40px; }
+.mrs-faq-item { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 18px 20px; }
+.mrs-faq-item .q { font-size: 14px; font-weight: 700; color: #e2e8f0; margin-bottom: 8px; }
+.mrs-faq-item .a { font-size: 13px; color: #8b9ab1; line-height: 1.7; margin: 0; }
+
+/* CTA */
+.mrs-cta {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 40px 32px;
+  text-align: center;
+}
+.mrs-cta h2 { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; color: #fff; margin: 0 0 10px; }
+.mrs-cta p { font-size: 14px; color: #8b9ab1; margin: 0 0 24px; line-height: 1.6; }
+.mrs-btn {
+  display: inline-block;
+  background: #FF6699;
+  color: white;
+  padding: 13px 28px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.mrs-btn:hover { opacity: 0.88; }
+</style>
+
+<div class="mrs-page">
+
+  <!-- Hero -->
+  <div class="mrs-hero">
+    <div class="mrs-badge">6ix Developers</div>
+    <h1>How We Calculate Your<br>Marketing Readiness Score</h1>
+    <p>Your score is a real-time snapshot of how prepared your business is to grow through marketing. It is built from the answers you provide and updates as your situation changes.</p>
+
+    <!-- Score ring example -->
+    <div class="mrs-score-demo">
+      <div class="mrs-ring-wrap">
+        <svg viewBox="0 0 130 130" width="130" height="130">
+          <circle cx="65" cy="65" r="54" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="10"/>
+          <circle cx="65" cy="65" r="54" fill="none" stroke="#FF6699" stroke-width="10"
+                  stroke-linecap="round" stroke-dasharray="339" stroke-dashoffset="101"
+                  transform="rotate(-90 65 65)"/>
+        </svg>
+        <div class="mrs-ring-label">
+          <span class="num">70</span>
+          <span class="den">/ 100</span>
+        </div>
+      </div>
+
+      <div class="mrs-bands">
+        <div class="mrs-band">
+          <div class="mrs-band-dot" style="background:#56D364"></div>
+          <div class="mrs-band-name">Elite</div>
+          <div class="mrs-band-range">80 – 100</div>
+          <div class="mrs-band-desc">Fully optimised for growth</div>
+        </div>
+        <div class="mrs-band">
+          <div class="mrs-band-dot" style="background:#83C5ED"></div>
+          <div class="mrs-band-name">Advanced</div>
+          <div class="mrs-band-range">60 – 79</div>
+          <div class="mrs-band-desc">Strong foundation in place</div>
+        </div>
+        <div class="mrs-band">
+          <div class="mrs-band-dot" style="background:#E3B341"></div>
+          <div class="mrs-band-name">Growing</div>
+          <div class="mrs-band-range">35 – 59</div>
+          <div class="mrs-band-desc">Good momentum, clear gaps</div>
+        </div>
+        <div class="mrs-band">
+          <div class="mrs-band-dot" style="background:#FF6699"></div>
+          <div class="mrs-band-name">Emerging</div>
+          <div class="mrs-band-range">0 – 34</div>
+          <div class="mrs-band-desc">Early stage, high upside</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mrs-divider"></div>
+
+  <!-- The 6 signals -->
+  <div class="mrs-section-title">The 6 Readiness Signals</div>
+  <p class="mrs-section-sub">Your score is the sum of six weighted signals, each one a real indicator of marketing readiness. No single signal can get you to 100 — growth requires breadth across all of them.</p>
+
+  <div class="mrs-signals">
+    <div class="mrs-signal" style="--sig-color:#83C5ED">
+      <div class="mrs-signal-weight" style="color:#83C5ED">Up to 20 pts</div>
+      <div class="mrs-signal-title">Business Clarity</div>
+      <p>Do you have a clear business name, industry, location, and defined target market? Clarity here directly improves campaign quality and AI recommendation accuracy.</p>
+    </div>
+    <div class="mrs-signal" style="--sig-color:#FF6699">
+      <div class="mrs-signal-weight" style="color:#FF6699">Up to 20 pts</div>
+      <div class="mrs-signal-title">Defined Goals</div>
+      <p>Businesses with clear, specific marketing goals outperform those without. We score both the clarity of your goal and how well it aligns with the channels you have selected.</p>
+    </div>
+    <div class="mrs-signal" style="--sig-color:#56D364">
+      <div class="mrs-signal-weight" style="color:#56D364">Up to 15 pts</div>
+      <div class="mrs-signal-title">Existing Marketing Activity</div>
+      <p>If you are already running campaigns on Google, Meta, SEO, or email, that baseline gives us data to work with and signals market engagement — which compounds results faster.</p>
+    </div>
+    <div class="mrs-signal" style="--sig-color:#a855f7">
+      <div class="mrs-signal-weight" style="color:#a855f7">Up to 20 pts</div>
+      <div class="mrs-signal-title">Budget Commitment</div>
+      <p>Marketing investment level is one of the strongest predictors of growth outcome. Higher committed budgets unlock more aggressive strategies and faster testing cycles.</p>
+    </div>
+    <div class="mrs-signal" style="--sig-color:#E3B341">
+      <div class="mrs-signal-weight" style="color:#E3B341">Up to 15 pts</div>
+      <div class="mrs-signal-title">Challenge Awareness</div>
+      <p>Businesses that clearly identify their biggest obstacles are faster to fix them. Knowing whether your problem is traffic, conversion, or cost tells us exactly where to focus first.</p>
+    </div>
+    <div class="mrs-signal" style="--sig-color:#FF6699">
+      <div class="mrs-signal-weight" style="color:#FF6699">Up to 10 pts</div>
+      <div class="mrs-signal-title">Competitive Awareness</div>
+      <p>If you can name your competitors, you understand your market. Competitor awareness helps us build more targeted positioning and identify gaps your rivals are not filling.</p>
+    </div>
+  </div>
+
+  <div class="mrs-divider"></div>
+
+  <!-- How it works -->
+  <div class="mrs-section-title">How the Score is Calculated</div>
+  <p class="mrs-section-sub">Your score is computed the moment you complete the onboarding consultation and updates automatically as your profile and campaigns evolve.</p>
+
+  <div class="mrs-steps">
+    <div class="mrs-step">
+      <div class="mrs-step-spine"><div class="mrs-step-num">1</div><div class="mrs-step-line"></div></div>
+      <div class="mrs-step-content">
+        <h4>Answers are weighted</h4>
+        <p>Each answer to the consultation questions carries a point value. Specific, detailed answers earn more points than generic or skipped ones.</p>
+      </div>
+    </div>
+    <div class="mrs-step">
+      <div class="mrs-step-spine"><div class="mrs-step-num">2</div><div class="mrs-step-line"></div></div>
+      <div class="mrs-step-content">
+        <h4>Signal scores are summed</h4>
+        <p>The six signal scores are added together for a raw total out of 100. No single area can inflate your score — all six signals contribute.</p>
+      </div>
+    </div>
+    <div class="mrs-step">
+      <div class="mrs-step-spine"><div class="mrs-step-num">3</div><div class="mrs-step-line"></div></div>
+      <div class="mrs-step-content">
+        <h4>Grade is assigned</h4>
+        <p>Your total maps to one of four grades — Emerging, Growing, Advanced, or Elite — which determines the strategic approach your advisor takes with your account.</p>
+      </div>
+    </div>
+    <div class="mrs-step">
+      <div class="mrs-step-spine"><div class="mrs-step-num">4</div><div class="mrs-step-line"></div></div>
+      <div class="mrs-step-content">
+        <h4>Score feeds the AI engine</h4>
+        <p>Your readiness score directly influences the recommendations, growth plans, and AI insights generated in your dashboard. Higher scores unlock more advanced strategies.</p>
+      </div>
+    </div>
+    <div class="mrs-step">
+      <div class="mrs-step-spine"><div class="mrs-step-num">5</div></div>
+      <div class="mrs-step-content">
+        <h4>Score evolves with you</h4>
+        <p>As you add services, set budgets, and complete your profile, your score updates in real time. Elite status is achievable — it takes the right commitment across all six areas.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="mrs-divider"></div>
+
+  <!-- FAQ -->
+  <div class="mrs-section-title">Common Questions</div>
+  <p class="mrs-section-sub">What businesses typically ask about the readiness score.</p>
+
+  <div class="mrs-faq">
+    <div class="mrs-faq-item">
+      <div class="q">Is a low score bad?</div>
+      <p class="a">Not at all. A lower score means there is more untapped opportunity. Most businesses that come to 6ix Developers score in the Growing or Emerging range — and that is exactly why they are here. Your score shows your advisor precisely where to focus first for the fastest results.</p>
+    </div>
+    <div class="mrs-faq-item">
+      <div class="q">Can I improve my score?</div>
+      <p class="a">Yes, and it improves automatically as your engagement with 6ix Developers deepens. Completing your profile, setting a budget, activating services, and adding competitors all raise your score without any extra effort on your part.</p>
+    </div>
+    <div class="mrs-faq-item">
+      <div class="q">Does my score affect the services offered to me?</div>
+      <p class="a">It influences the strategic focus your advisor applies — not which services are available. Every client has access to all five services regardless of score. However, your score helps your advisor prioritise where to invest your budget for maximum early impact.</p>
+    </div>
+    <div class="mrs-faq-item">
+      <div class="q">How is this different from the Marketing Maturity Score in the dashboard?</div>
+      <p class="a">The Readiness Score is calculated during onboarding from your self-reported answers. The Marketing Maturity Score in your dashboard is calculated from your live account activity — active services, tracked metrics, advisor engagement, and verified data. Think of Readiness as the starting line and Maturity as the ongoing measurement of progress.</p>
+    </div>
+    <div class="mrs-faq-item">
+      <div class="q">Is the score shared with anyone?</div>
+      <p class="a">Your score is visible to you and your assigned 6ix Developers advisor. It is never shared with third parties or used for any purpose outside your account.</p>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="mrs-cta">
+    <h2>Ready to improve your score?</h2>
+    <p>Complete your profile and speak with your advisor. Every step forward moves your score and your results.</p>
+    <a href="/get-started/" class="mrs-btn">Start Your Consultation →</a>
+  </div>
+
+</div>

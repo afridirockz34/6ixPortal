@@ -4,28 +4,71 @@
    ============================================================ */
 
 /* ── FONTS ───────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 /* ── VARIABLES ───────────────────────────────────────────── */
+/* ── LIGHT MODE (default) ──────────────────────────────────────── */
 :root {
-  --pink:    #FF6699;
+  /* Brand */
+  --pink:    #E8547A;
+  --pink-soft: #FDE8EF;
+  --cyan:    #3C8FB5;
+  --cyan-soft: #E8F4FB;
   --blue:    #3C6478;
+  --success: #1B9E52;
+  --warning: #C17B1A;
+  --danger:  #D93B3B;
+
+  /* Light surface palette */
+  --dark1:   #F7F8FA;   /* page bg */
+  --dark2:   #FFFFFF;   /* card bg */
+  --dark3:   #F0F2F5;   /* sunken / input bg */
+  --dark4:   #E8EBF0;   /* hover state */
+  --border:  #E2E6ED;
+
+  /* Text */
+  --text1:   #0F1923;   /* headings */
+  --text2:   #4A5568;   /* body */
+  --text3:   #8A96A3;   /* muted */
+
+  /* Fonts */
+  --font-head: 'Syne', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  --font-num:  'Inter', sans-serif;   /* numbers — tabular, crisp */
+
+  --radius:  12px;
+  --shadow:  0 1px 4px rgba(15,25,35,0.08), 0 4px 16px rgba(15,25,35,0.04);
+  --shadow-md: 0 4px 24px rgba(15,25,35,0.1);
+
+  /* Gradient accent */
+  --grad-brand: linear-gradient(135deg, #E8547A 0%, #3C8FB5 100%);
+  --grad-subtle: linear-gradient(135deg, rgba(232,84,122,0.06) 0%, rgba(60,143,181,0.06) 100%);
+}
+
+/* ── DARK MODE ─────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --pink:    #FF6699;
+  --pink-soft: rgba(255,102,153,0.12);
   --cyan:    #83C5ED;
-  --dark1:   #0F1117;
+  --cyan-soft: rgba(131,197,237,0.12);
+  --blue:    #3C6478;
+  --success: #56D364;
+  --warning: #E3B341;
+  --danger:  #FF6B6B;
+
+  --dark1:   #0D1117;
   --dark2:   #161B22;
   --dark3:   #1C2333;
   --dark4:   #21262D;
   --border:  #30363D;
+
   --text1:   #E6EDF3;
   --text2:   #8B949E;
   --text3:   #484F58;
-  --success: #56D364;
-  --warning: #E3B341;
-  --danger:  #FF6B6B;
-  --font-head: 'Syne', sans-serif;
-  --font-body: 'DM Sans', sans-serif;
-  --radius:  10px;
+
   --shadow:  0 2px 12px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 32px rgba(0,0,0,0.5);
+  --grad-subtle: linear-gradient(135deg, rgba(255,102,153,0.06) 0%, rgba(131,197,237,0.06) 100%);
 }
 
 /* ── RESET / BASE ────────────────────────────────────────── */
@@ -39,6 +82,7 @@
   font-size: 14px;
   line-height: 1.5;
   min-height: 100vh;
+  transition: background 0.25s, color 0.25s;
 }
 
 /* Kill Divi interference */
@@ -68,6 +112,7 @@
   height: 52px;
   background: var(--dark2);
   border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 0 var(--border);
   display: flex;
   align-items: center;
   padding: 0 20px;
@@ -77,13 +122,14 @@
 
 .six-logo {
   font-family: var(--font-head);
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 800;
   background: linear-gradient(135deg, var(--pink), var(--cyan));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   margin-right: 4px;
+  white-space: nowrap;
 }
 
 .six-role-badge {
@@ -157,6 +203,7 @@
   flex-shrink: 0;
   background: var(--dark2);
   border-right: 1px solid var(--border);
+  box-shadow: 1px 0 0 var(--border);
   padding: 16px 0;
   position: fixed;
   top: 52px;
@@ -277,6 +324,7 @@
   margin-left: 220px;
   padding: 24px;
   min-width: 0;
+  overflow-x: hidden;
 }
 
 .six-page-header {
@@ -344,7 +392,7 @@
 /* ── STATS GRID ──────────────────────────────────────────── */
 .six-stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
   margin-bottom: 20px;
 }
@@ -366,18 +414,23 @@
 .six-stat-card.pink  { border-top-color: var(--pink); }
 
 .six-stat-label { font-size: 11px; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.4px; }
-.six-stat-val   { font-family: var(--font-head); font-size: 28px; font-weight: 700; line-height: 1; }
+.six-stat-val   { font-family: var(--font-num); font-size: 28px; font-weight: 800; line-height: 1; letter-spacing: -0.5px; font-variant-numeric: tabular-nums; }
 
 /* ── BADGES ──────────────────────────────────────────────── */
 .six-badge {
-  background: rgba(255, 102, 153, 0.2);
-  color: var(--pink);
+  background: var(--pink);
+  color: #fff;
   border-radius: 20px;
   font-size: 10px;
   font-weight: 700;
-  padding: 2px 7px;
-  min-width: 18px;
+  padding: 3px 8px;
+  min-width: 20px;
   text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  letter-spacing: 0;
 }
 
 /* ── STATUS BADGES ───────────────────────────────────────── */
@@ -620,7 +673,7 @@
 }
 
 .six-readiness-label  { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--cyan); margin-bottom: 4px; }
-.six-readiness-score  { font-family: var(--font-head); font-size: 36px; font-weight: 800; line-height: 1; }
+.six-readiness-score  { font-family: var(--font-num); font-size: 36px; font-weight: 900; line-height: 1; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
 .six-readiness-sub    { font-size: 12px; color: var(--text2); margin-top: 5px; }
 
 .six-readiness-stats {
@@ -813,7 +866,26 @@
 
 /* ── RESPONSIVE ─────────────────────────────────────────── */
 @media (max-width: 768px) {
-  .six-sidebar { display: none; }
+  /* Sidebar: NOT display:none — it needs to be in the DOM to slide in */
+  /* Position it off-screen instead */
+  .six-sidebar {
+    display: block !important;  /* MUST be visible to slide in */
+    position: fixed !important;
+    top: 0 !important;
+    left: -100% !important;     /* off-screen by default */
+    width: min(280px, 85vw) !important;
+    height: 100dvh !important;
+    z-index: 500 !important;    /* above everything */
+    overflow-y: auto !important;
+    padding: 20px 0 !important;
+    padding-top: 64px !important; /* clear topbar height */
+    transition: left 0.28s cubic-bezier(0.4,0,0.2,1) !important;
+    box-shadow: none;
+  }
+  .six-sidebar.open {
+    left: 0 !important;
+    box-shadow: 8px 0 40px rgba(15,25,35,0.25) !important;
+  }
   .six-main { margin-left: 0; padding: 16px; }
   .six-stats-grid { grid-template-columns: repeat(2, 1fr); }
   .six-readiness-banner { flex-direction: column; }
@@ -845,6 +917,16 @@
   backdrop-filter: blur(2px);
 }
 .six-mobile-overlay.open { display: block; }
+/* ── Sidebar overlay ─────────────────────────────────────────────────────── */
+.six-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(15,25,35,0.5);
+  z-index: 499; /* just below sidebar (500) */
+  cursor: pointer;
+}
+.six-overlay.open { display: block; }
+
 
 @media (max-width: 768px) {
   /* Layout */
@@ -861,18 +943,7 @@
   .six-mobile-menu-btn { display: flex; }
 
   /* Sidebar — slides in as drawer on mobile */
-  .six-sidebar {
-    position: fixed;
-    top: 0; left: -280px;
-    width: 260px;
-    height: 100vh;
-    z-index: 100;
-    transition: left 0.28s cubic-bezier(0.4,0,0.2,1);
-    overflow-y: auto;
-    padding: 24px 20px;
-    box-shadow: 4px 0 32px rgba(0,0,0,0.4);
-  }
-  .six-sidebar.open { left: 0; }
+  /* sidebar rules consolidated into single rule above */
 
   /* Main content */
   .six-main {
@@ -959,4 +1030,1498 @@
   .ob-main  { padding: 20px 14px; }
   .six-stats-grid { grid-template-columns: 1fr !important; }
   .ob-btn { padding: 11px 18px; font-size: 13px; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   LIGHT MODE OVERRIDES — explicit light-friendly colours
+   ══════════════════════════════════════════════════════════════ */
+
+/* Cards get proper white backgrounds in light mode */
+.six-card,
+.six-stat-card {
+  background: var(--dark2);
+  border-color: var(--border);
+  box-shadow: var(--shadow);
+}
+
+/* Nav items */
+.six-nav-item {
+  color: var(--text2);
+  border-radius: 8px;
+  transition: background 0.15s, color 0.15s;
+}
+.six-nav-item:hover { background: var(--dark3); color: var(--text1); }
+.six-nav-item.active { background: var(--pink-soft); color: var(--pink); font-weight: 600; }
+
+/* Inputs */
+.six-input,
+input.six-input,
+select.six-input,
+textarea.six-input {
+  background: var(--dark3);
+  border: 1px solid var(--border);
+  color: var(--text1);
+}
+.six-input:focus { border-color: var(--pink); outline: none; box-shadow: 0 0 0 3px rgba(232,84,122,0.1); }
+
+/* Tables */
+.six-table thead th {
+  background: var(--dark3);
+  color: var(--text3);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.six-table tbody tr:hover { background: var(--dark3); }
+
+/* Page titles */
+.six-page-title { color: var(--text1); }
+.six-page-sub   { color: var(--text3); }
+
+/* Buttons — refined */
+.six-btn-primary {
+  background: var(--pink);
+  color: #fff;
+  border: none;
+  box-shadow: 0 2px 8px rgba(232,84,122,0.25);
+}
+.six-btn-primary:hover { opacity: 0.9; box-shadow: 0 4px 12px rgba(232,84,122,0.3); }
+
+.six-btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text2);
+}
+.six-btn-ghost:hover { background: var(--dark3); color: var(--text1); }
+
+/* Gradient accent bar on cards */
+.six-card-header {
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── NUMBER DISPLAY FONT — apply to all big number displays ── */
+.six-stat-val,
+.six-readiness-score,
+[style*="font-family:'Syne'"][style*="font-weight:800"],
+[style*="font-family:'Syne'"][style*="font-weight:900"],
+[style*="font-size:28px"],
+[style*="font-size:26px"],
+[style*="font-size:22px"],
+[style*="font-size:30px"],
+[style*="font-size:32px"] {
+  font-family: var(--font-num) !important;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   DARK MODE TOGGLE BUTTON
+   ══════════════════════════════════════════════════════════════ */
+/* ── THEME TOGGLE — iPhone-style iOS switch ──────────────────── */
+.six-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 8px 4px 4px;
+  border-radius: 100px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  font-family: var(--font-body);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.six-theme-toggle:hover { opacity: 0.85; }
+
+/* iOS pill track */
+.six-theme-toggle .toggle-track {
+  width: 44px;
+  height: 26px;
+  background: #D1D5DB;  /* off = grey */
+  border-radius: 100px;
+  position: relative;
+  transition: background 0.25s cubic-bezier(0.4,0,0.2,1);
+  flex-shrink: 0;
+  border: none;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.12);
+}
+/* Thumb */
+.six-theme-toggle .toggle-thumb {
+  width: 22px;
+  height: 22px;
+  background: #FFFFFF;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: left 0.25s cubic-bezier(0.4,0,0.2,1), transform 0.15s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2), 0 2px 8px rgba(0,0,0,0.12);
+  display: flex; align-items: center; justify-content: center;
+}
+/* Thumb active state — squish on press */
+.six-theme-toggle:active .toggle-thumb {
+  transform: scaleX(1.15);
+}
+/* Toggle label */
+.six-theme-toggle #six-theme-label,
+.six-theme-toggle [id*="theme-label"] {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2);
+}
+
+/* Dark mode — track turns pink/brand, thumb slides right */
+[data-theme="dark"] .six-theme-toggle .toggle-track {
+  background: var(--pink);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.2), 0 0 8px rgba(232,84,122,0.3);
+}
+[data-theme="dark"] .six-theme-toggle .toggle-thumb {
+  left: 20px;
+}
+[data-theme="dark"] .six-theme-toggle #six-theme-label,
+[data-theme="dark"] .six-theme-toggle [id*="theme-label"] {
+  color: var(--text2);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   BRAND GRADIENT ACCENTS
+   ══════════════════════════════════════════════════════════════ */
+
+/* Subtle page bg gradient in light mode */
+.six-main::before {
+  content: '';
+  position: fixed;
+  top: 0; right: 0;
+  width: 600px; height: 400px;
+  background: radial-gradient(ellipse at top right, rgba(232,84,122,0.04) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+.six-main { position: relative; }
+.six-main > * { position: relative; z-index: 1; }
+
+/* Topbar gradient line */
+.six-topbar::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--pink), var(--cyan), transparent);
+  opacity: 0.3;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SVG ICON SYSTEM — replaces all emoji usage
+   Usage: <span class="six-icon six-icon-{name}"></span>
+   ══════════════════════════════════════════════════════════════ */
+.six-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1em;
+  height: 1em;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+.six-icon svg {
+  width: 100%;
+  height: 100%;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Icon size modifiers */
+.six-icon-sm  { font-size: 14px; }
+.six-icon-md  { font-size: 18px; }
+.six-icon-lg  { font-size: 22px; }
+.six-icon-xl  { font-size: 28px; }
+
+/* Icon colour modifiers */
+.six-icon-pink    { color: var(--pink); }
+.six-icon-cyan    { color: var(--cyan); }
+.six-icon-success { color: var(--success); }
+.six-icon-warning { color: var(--warning); }
+.six-icon-muted   { color: var(--text3); }
+
+/* Icon containers — coloured background circles/squares */
+.six-icon-wrap {
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+.six-icon-wrap-pink   { background: var(--pink-soft); color: var(--pink); }
+.six-icon-wrap-cyan   { background: var(--cyan-soft); color: var(--cyan); }
+.six-icon-wrap-green  { background: rgba(27,158,82,0.1); color: var(--success); }
+.six-icon-wrap-amber  { background: rgba(193,123,26,0.1); color: var(--warning); }
+.six-icon-wrap-purple { background: rgba(168,85,247,0.1); color: #a855f7; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOBILE-FIRST PREMIUM SaaS OVERHAUL
+   Complete mobile design system — 768px and below
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. BASE RESETS FOR MOBILE ─────────────────────────────────────────── */
+@media (max-width: 768px) {
+
+  /* Prevent ALL horizontal overflow */
+  #six-portal-root,
+  #six-portal-root * {
+    max-width: 100%;
+  }
+  #six-portal-root {
+    overflow-x: hidden;
+  }
+
+  /* Safe-area insets for notched phones */
+  .six-topbar {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+
+  /* Tap target minimum size */
+  .six-btn,
+  .six-nav-item,
+  button,
+  select,
+  .six-input {
+    min-height: 44px;
+  }
+
+  /* Inputs full-width, proper sizing */
+  .six-input,
+  input.six-input,
+  select.six-input,
+  textarea.six-input {
+    font-size: 16px !important; /* prevents iOS zoom */
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+
+  /* Tables scroll inside container */
+  .six-table-wrap,
+  .six-card-body {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .six-table {
+    min-width: 500px; /* let it scroll, not break */
+  }
+}
+
+/* ── 2. TOPBAR MOBILE ───────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .six-topbar {
+    height: 56px;
+    padding: 0 16px;
+    gap: 12px;
+  }
+  .six-logo { font-size: 17px; }
+  .six-role-badge { display: none; }
+  .six-topbar-right { gap: 8px; margin-left: auto; }
+  .six-theme-toggle .toggle-track { display: none; }
+  .six-theme-toggle span#six-theme-label { display: none; }
+  .six-theme-toggle { padding: 5px 8px; min-height: 36px; }
+  .six-user-name { display: none !important; }
+
+  /* Hamburger — bigger tap target */
+  .six-mobile-menu-btn {
+    width: 44px; height: 44px;
+    border-radius: 10px;
+    font-size: 20px;
+    background: var(--dark3);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* ── 3. SIDEBAR DRAWER ──────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .six-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* sidebar z-index:300 removed — consolidated in main 768px block above */
+
+  /* Overlay behind drawer */
+  .six-mobile-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(15,25,35,0.55);
+    z-index: 299;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .six-mobile-overlay.open { display: block; }
+/* ── Sidebar overlay ─────────────────────────────────────────────────────── */
+.six-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(15,25,35,0.5);
+  z-index: 499; /* just below sidebar (500) */
+  cursor: pointer;
+}
+.six-overlay.open { display: block; }
+
+
+  /* Nav items — taller touch targets */
+  .six-nav-item {
+    padding: 12px 20px !important;
+    font-size: 14px !important;
+    min-height: 48px;
+  }
+}
+
+/* ── 4. MAIN CONTENT ────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .six-main {
+    margin-left: 0 !important;
+    padding: 20px 16px 100px !important; /* 100px bottom = room for bottom nav */
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+  }
+
+  /* Page header */
+  .six-page-header {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .six-page-title { font-size: 22px !important; }
+  .six-page-sub   { font-size: 13px; }
+
+  /* Cards full width */
+  .six-card { border-radius: 12px; }
+  .six-card-header { padding: 14px 16px; }
+  .six-card-body   { padding: 14px 16px; }
+
+  /* Grids → single column */
+  .six-grid-2,
+  .six-grid-3,
+  .six-services-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* Stats — 2 col on mobile */
+  .six-stats-grid {
+    grid-template-columns: repeat(2,1fr) !important;
+    gap: 10px !important;
+  }
+  .six-stat-card { padding: 14px !important; }
+  .six-stat-val  { font-size: 22px !important; }
+  .six-stat-label { font-size: 11px; }
+
+  /* Buttons */
+  .six-btn-primary,
+  .six-btn-secondary,
+  .six-btn-ghost {
+    min-height: 44px;
+    font-size: 14px;
+    padding: 10px 18px;
+  }
+
+  /* Readiness banner */
+  .six-readiness-banner {
+    flex-direction: column !important;
+    gap: 16px !important;
+    padding: 18px 16px !important;
+  }
+  .six-readiness-stats {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  /* Messages */
+  .six-msg-thread { max-height: 280px; }
+
+  /* Tables */
+  .six-table { font-size: 12px; }
+  .six-table th,
+  .six-table td { padding: 10px 12px; }
+}
+
+/* ── 5. BOTTOM NAVIGATION BAR ───────────────────────────────────────────── */
+.six-bottom-nav {
+  display: none; /* hidden on desktop */
+}
+
+@media (max-width: 768px) {
+  .six-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 60px;
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--dark2);
+    border-top: 1px solid var(--border);
+    z-index: 200;
+    box-shadow: 0 -4px 20px rgba(15,25,35,0.08);
+  }
+
+  .six-bnav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    color: var(--text3);
+    text-decoration: none;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 6px 4px;
+    transition: color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    border: none; background: none;
+    min-height: 44px;
+    position: relative;
+  }
+  .six-bnav-item svg {
+    width: 20px; height: 20px;
+    stroke: currentColor; fill: none;
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex-shrink: 0;
+  }
+  .six-bnav-item.active {
+    color: var(--pink);
+  }
+  .six-bnav-item.active svg {
+    stroke: var(--pink);
+  }
+  /* Active dot indicator */
+  .six-bnav-item.active::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 24px; height: 2px;
+    background: var(--pink);
+    border-radius: 0 0 2px 2px;
+  }
+  /* Badge on bottom nav items */
+  .six-bnav-badge {
+    position: absolute;
+    top: 5px;
+    right: calc(50% - 18px);
+    min-width: 16px; height: 16px;
+    background: var(--pink);
+    color: white;
+    font-size: 9px;
+    font-weight: 700;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 3px;
+    border: 2px solid var(--dark2);
+  }
+}
+
+/* ── 6. KPI / METRIC CARDS MOBILE ──────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Inline KPI row → scrollable horizontal strip */
+  .six-kpi-strip {
+    display: flex;
+    overflow-x: auto;
+    gap: 10px;
+    padding-bottom: 8px;
+    margin-bottom: 20px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .six-kpi-strip::-webkit-scrollbar { display: none; }
+  .six-kpi-strip .six-stat-card {
+    flex-shrink: 0;
+    min-width: 130px;
+  }
+
+  /* Chart height cap on mobile */
+  .six-chart-wrap { height: 200px !important; }
+
+  /* Score ring — smaller */
+  .six-maturity-ring { width: 100px !important; height: 100px !important; }
+}
+
+/* ── 7. RECOMMENDATIONS — CARD FEED ────────────────────────────────────── */
+@media (max-width: 768px) {
+  .six-rec-card {
+    padding: 16px;
+    border-radius: 12px;
+    margin-bottom: 10px;
+  }
+  .six-rec-title { font-size: 14px; }
+  .six-rec-body  { font-size: 13px; }
+
+  /* Action buttons in rec cards — full width */
+  .six-rec-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .six-rec-actions .six-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ── 8. AI INSIGHT LOADING ──────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .six-ai-loading { padding: 20px 0; font-size: 13px; }
+  .six-ai-loading .six-ai-spinner {
+    width: 18px; height: 18px;
+  }
+}
+
+/* ── 9. MESSAGING MOBILE ────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .six-msg-compose { padding: 12px; }
+  .six-msg-compose textarea.six-input {
+    min-height: 60px;
+    font-size: 15px !important;
+  }
+  .six-msg-bubble { max-width: 85%; font-size: 13px; }
+}
+
+/* ── 10. FORMS MOBILE ───────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Form rows → always single column */
+  .six-form-row,
+  .six-form-group-row {
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+  .six-form-group { margin-bottom: 14px; }
+  .six-label { font-size: 12px; margin-bottom: 5px; }
+
+  /* Advisor dashboard inner tabs → scrollable */
+  .six-inner-tabs,
+  div[style*="overflow-x:auto"] {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ── 11. NOTIFICATION & PROFILE DROPDOWNS ───────────────────────────────── */
+@media (max-width: 768px) {
+  /* Notification panel — full-width bottom sheet feel */
+  .six-notif-panel {
+    position: fixed !important;
+    top: 56px !important;
+    left: 0 !important; right: 0 !important;
+    width: 100% !important;
+    max-height: 70vh !important;
+    border-radius: 0 0 20px 20px !important;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15) !important;
+  }
+}
+
+/* ── 12. BILLING / STRIPE WRAP MOBILE ──────────────────────────────────── */
+@media (max-width: 768px) {
+  .six-credit-card { padding: 16px !important; }
+  .six-stripe-el   { padding: 12px !important; }
+}
+
+/* ── 13. ADVISOR DASHBOARD SPECIFIC ────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Client profile inner tab nav → horizontal scroll */
+  [style*="background:var(--dark3)"][style*="border-radius:10px"] {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap !important;
+    scrollbar-width: none;
+  }
+
+  /* Data source grid → single col */
+  [style*="grid-template-columns:1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Client list table */
+  .six-table td:nth-child(4),
+  .six-table th:nth-child(4),
+  .six-table td:nth-child(5),
+  .six-table th:nth-child(5) {
+    display: none; /* hide less critical cols */
+  }
+}
+
+/* ── 14. NARROW PHONE (iPhone SE etc) ──────────────────────────────────── */
+@media (max-width: 390px) {
+  .six-main { padding: 16px 12px 100px !important; }
+  .six-page-title { font-size: 20px !important; }
+  .six-stats-grid { grid-template-columns: 1fr !important; }
+  .six-stat-val   { font-size: 20px !important; }
+  .six-bnav-item  { font-size: 9px; }
+  .six-bnav-item svg { width: 18px; height: 18px; }
+  .six-btn { padding: 10px 14px; font-size: 13px; }
+}
+
+/* ── 15. TOUCH FEEDBACK ─────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .six-nav-item:active,
+  .six-btn:active,
+  .six-bnav-item:active,
+  .six-card:active {
+    opacity: 0.85;
+    transform: scale(0.99);
+  }
+  * { -webkit-tap-highlight-color: transparent; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOBILE CRITICAL FIXES v2 — based on live device screenshots
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── TOPBAR: fix weird icons and layout ─────────────────────────────────── */
+@media (max-width: 768px) {
+  /* ── TOPBAR: slim, uncluttered ── */
+  .six-topbar {
+    height: 52px;
+    padding: 0 12px;
+    gap: 8px;
+    flex-wrap: nowrap;
+    overflow: visible;
+  }
+  /* Hamburger — first item, proper size */
+  .six-mobile-menu-btn {
+    display: flex !important;
+    width: 40px; height: 40px;
+    align-items: center; justify-content: center;
+    flex-shrink: 0;
+    border-radius: 9px;
+    background: var(--dark3);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    order: 0;
+  }
+  /* Logo — compact, no line break */
+  .six-logo {
+    font-size: 14px !important;
+    white-space: nowrap;
+    flex-shrink: 1;
+    min-width: 0;
+    order: 1;
+  }
+  /* Hide role badge and user name — always */
+  .six-role-badge  { display: none !important; }
+  .six-user-name   { display: none !important; }
+  /* Theme toggle — icon only, no text or track */
+  .six-theme-toggle .toggle-track  { display: none !important; }
+  .six-theme-toggle #six-theme-label,
+  .six-theme-toggle [id*="theme-label"] { display: none !important; }
+  .six-theme-toggle {
+    padding: 5px 7px !important;
+    min-height: 38px !important;
+    min-width: 38px !important;
+    gap: 0 !important;
+    font-size: 14px !important;
+    order: 2;
+  }
+  /* Topbar right group */
+  .six-topbar-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    order: 3;
+  }
+  /* Bell */
+  .six-notif-bell { padding: 5px !important; }
+  /* Avatar */
+  .six-avatar {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 11px !important;
+    flex-shrink: 0;
+  }
+}
+
+/* ── ADVISOR DASHBOARD: fix text overflow and massive stats ─────────────── */
+@media (max-width: 768px) {
+
+  /* Stat cards — proper sizing */
+  .six-stat-card {
+    padding: 12px !important;
+    min-width: 0 !important;
+  }
+  .six-stat-val {
+    font-size: 20px !important;
+    letter-spacing: -0.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .six-stat-label {
+    font-size: 10px !important;
+    line-height: 1.3;
+  }
+  .six-stat-trend { font-size: 10px !important; }
+
+  /* Advisor stats grid — 2 then 2 then 1 layout */
+  .six-stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  /* Page title — no overflow */
+  .six-page-title {
+    font-size: 20px !important;
+    line-height: 1.2;
+    word-break: break-word;
+  }
+  .six-page-sub {
+    font-size: 12px !important;
+    line-height: 1.4;
+  }
+
+  /* Card headers — truncate long titles */
+  .six-card-title {
+    font-size: 13px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* All cards — no overflow */
+  .six-card {
+    overflow: hidden;
+    min-width: 0;
+  }
+
+  /* Main content — proper padding, no overflow */
+  .six-main {
+    padding: 16px 14px 80px !important;
+    overflow-x: hidden !important;
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Inline style grids often used in advisor dash */
+  [style*="display:grid"],
+  [style*="display: grid"] {
+    grid-template-columns: 1fr !important;
+    min-width: 0 !important;
+  }
+
+  /* Advisor client tabs — horizontal scroll, no wrap */
+  .six-tabs-row,
+  [style*="background:var(--dark3)"] {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+}
+
+/* ── ONBOARDING: fix email field hidden + button overlay ────────────────── */
+@media (max-width: 768px) {
+
+  /* Email step — field must be above the fixed button */
+  #ob-login {
+    padding-bottom: 100px !important;
+  }
+
+  /* All panels need bottom clearance for fixed button */
+  .ob-panel {
+    padding-bottom: 100px !important;
+  }
+
+  /* Onboarding wrapper */
+  .ob-wrapper {
+    min-height: 100svh; /* small viewport height = keyboard-aware */
+  }
+
+  /* ob-main — no fixed height, scrollable */
+  .ob-main {
+    height: auto !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+
+  /* Sticky button row — keep it thin and accessible */
+  .ob-btn-row {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important; right: 0 !important;
+    padding: 12px 16px !important;
+    padding-bottom: max(12px, env(safe-area-inset-bottom)) !important;
+    background: var(--dark2) !important;
+    border-top: 1px solid var(--border) !important;
+    box-shadow: 0 -2px 12px rgba(15,25,35,0.08) !important;
+    z-index: 200 !important;
+    display: flex !important;
+    gap: 8px !important;
+    margin: 0 !important;
+  }
+
+  .ob-btn {
+    min-height: 48px !important;
+    font-size: 15px !important;
+    border-radius: 12px !important;
+  }
+  .ob-btn-primary { flex: 1 !important; }
+  .ob-btn-ghost {
+    flex: 0 0 auto !important;
+    padding: 12px 18px !important;
+    font-size: 14px !important;
+  }
+
+  /* Progress bar — sticky, clean */
+  .ob-progress {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 100 !important;
+    background: var(--dark1) !important;
+    padding: 10px 0 10px !important;
+    margin-bottom: 20px !important;
+    border-bottom: 1px solid var(--border) !important;
+  }
+
+  /* Fields — iOS no-zoom */
+  .ob-input,
+  .ob-sign-input,
+  .ob-svc-budget-input {
+    font-size: 16px !important;
+    min-height: 50px !important;
+    padding: 13px 14px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Strategy quote — don't overflow */
+  .ob-strategy-quote {
+    font-size: 14px !important;
+    line-height: 1.6 !important;
+    word-break: break-word;
+  }
+
+  /* Service cards — single column, proper padding */
+  .ob-svc-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .ob-svc-card {
+    padding: 14px !important;
+  }
+  .ob-svc-card[style*="span 2"] {
+    grid-column: span 1 !important;
+  }
+  /* Website card inner flex → stack */
+  .ob-svc-card[data-svc="website"] > div[style*="display:flex"] {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+
+  /* MQ cards */
+  .ob-mq-card { padding: 18px 14px !important; }
+  .ob-mq-question { font-size: 15px !important; }
+
+  /* MQ option grids → 1 col */
+  .ob-mq-options,
+  #mq1 > div,
+  #mq1b > div:not(.ob-mq-continue),
+  #mq2 .ob-mq-options,
+  #mq3 .ob-mq-options {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Budget Q4 — 1 col */
+  #mq4 > div[style*="grid"] {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  /* Contract body */
+  .ob-contract-body {
+    max-height: 180px !important;
+    font-size: 12px !important;
+  }
+
+  /* Score */
+  .ob-score-ring { width: 90px !important; height: 90px !important; }
+  .ob-score-num  { font-size: 24px !important; }
+}
+
+/* ── BOTTOM NAV: ensure it's always above content ───────────────────────── */
+@media (max-width: 768px) {
+  .six-bottom-nav {
+    height: 56px;
+    z-index: 201; /* above main content, below sidebar */
+  }
+  .six-bnav-item { font-size: 10px; gap: 2px; }
+  .six-bnav-item svg { width: 20px; height: 20px; }
+  .six-bnav-item span { display: block; }
+}
+
+/* ── SIDEBAR DRAWER: fix menu button not working ─────────────────────────── */
+@media (max-width: 768px) {
+  /* sidebar rules consolidated into single rule above */
+}
+
+/* ── TABLES: prevent overflow ───────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .six-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 10px;
+  }
+  .six-table { min-width: 480px; }
+  
+  /* Hide less critical columns on tiny screens */
+  @media (max-width: 480px) {
+    .six-table th:nth-child(n+4),
+    .six-table td:nth-child(n+4) { display: none; }
+  }
+}
+
+/* ── GENERAL OVERFLOW PREVENTION ─────────────────────────────────────────── */
+@media (max-width: 768px) {
+  #six-portal-root { overflow-x: hidden !important; }
+  #six-portal-root * { 
+    max-width: 100% !important; 
+    box-sizing: border-box !important;
+  }
+  /* Allow horizontal scroll only where intentional */
+  .six-kpi-strip,
+  .six-table-container,
+  [style*="overflow-x:auto"],
+  [style*="overflow-x: auto"] {
+    max-width: 100% !important;
+    overflow-x: auto !important;
+  }
+}
+
+/* ── RECOMMENDATION ACTION BUTTONS — no overflow on mobile ─────────────── */
+@media (max-width: 768px) {
+  /* The 3-button row in strategy/recommendation cards */
+  .six-intel-opp [style*="display:flex;gap:8px"],
+  .six-intel-opp [style*="display: flex; gap: 8px"] {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+
+  /* Force each button to be properly sized */
+  .six-intel-opp .six-btn {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    font-size: 12px !important;
+    padding: 9px 12px !important;
+    text-align: center !important;
+    justify-content: center !important;
+    white-space: nowrap;
+  }
+
+  /* Approve button — full width on very small */
+  .six-approve-intel-opp {
+    width: 100% !important;
+    flex: 1 0 100% !important;
+  }
+
+  /* Decline + View Client side by side */
+  .six-dismiss-intel-opp,
+  .six-intel-opp a.six-btn {
+    flex: 1 !important;
+  }
+}
+
+/* ── CLIENT LIST TABLE — show all columns properly ──────────────────────── */
+@media (max-width: 768px) {
+  /* Override the aggressive column hiding */
+  .six-table th,
+  .six-table td {
+    display: table-cell !important; /* restore hidden columns */
+    padding: 10px 8px !important;
+    font-size: 12px !important;
+  }
+
+  /* Client table: wrap inside a scrollable container */
+  .six-table-container,
+  .six-card-body:has(.six-table) {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .six-table {
+    min-width: 480px !important; /* force scroll, don't crush */
+    width: 100% !important;
+  }
+}
+
+/* ── SIDEBAR NAV ITEMS — larger touch targets ───────────────────────────── */
+@media (max-width: 768px) {
+  .six-sidebar .six-nav-item {
+    padding: 12px 20px !important;
+    font-size: 14px !important;
+    min-height: 48px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+  }
+  /* Six-nav-icon inside sidebar */
+  .six-sidebar .six-nav-icon {
+    font-size: 16px !important;
+    width: 20px !important;
+    flex-shrink: 0 !important;
+  }
+  /* Sidebar section labels */
+  .six-sidebar .six-nav-section {
+    padding: 12px 20px 4px !important;
+    font-size: 9px !important;
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SIDEBAR DRAWER — DEFINITIVE FIX
+   Overrides any previous conflicting rules
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* Sidebar: always rendered, translated off-screen */
+  .six-sidebar {
+    display: block !important;
+    visibility: visible !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: -100% !important;
+    width: min(280px, 85vw) !important;
+    height: 100dvh !important;
+    z-index: 600 !important;          /* highest of all */
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-top: 60px !important;
+    padding-bottom: 40px !important;
+    transition: left 0.28s cubic-bezier(0.4,0,0.2,1) !important;
+    box-shadow: none;
+    pointer-events: auto !important;  /* MUST be clickable */
+    touch-action: pan-y !important;
+  }
+
+  /* Open state */
+  .six-sidebar.open {
+    left: 0 !important;
+    box-shadow: 6px 0 32px rgba(15,25,35,0.2) !important;
+  }
+
+  /* Overlay — z-index just below sidebar */
+  #six-overlay {
+    z-index: 599 !important;
+    pointer-events: auto !important;
+    touch-action: auto !important;
+  }
+  #six-overlay.open,
+  #six-overlay[style*="block"] {
+    display: block !important;
+  }
+
+  /* Nav items inside drawer — large touch targets */
+  .six-sidebar .six-nav-item {
+    min-height: 50px !important;
+    padding: 13px 20px !important;
+    font-size: 14px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    touch-action: manipulation !important;
+    cursor: pointer !important;
+    -webkit-tap-highlight-color: rgba(232,84,122,0.1);
+  }
+
+  /* Bottom nav sits below sidebar */
+  .six-bottom-nav { z-index: 200 !important; }
+
+  /* Main content — never above sidebar */
+  .six-main { z-index: 1 !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LIGHT MODE: FORCE READABLE COLOURS ON AI CARDS
+   The maturity ring card uses a hardcoded dark gradient — fine in dark mode.
+   In light mode we override it to use theme variables.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root .six-maturity-card,
+[data-theme="light"] .six-maturity-card {
+  background: var(--dark2) !important;
+  border-color: var(--border) !important;
+}
+
+/* AI insight text in both modes */
+.six-ai-insight-text,
+.ob-insight-text,
+.ob-ai-sug {
+  color: var(--text1) !important;
+}
+
+/* AI strategy quote — always readable */
+.ob-strategy-quote {
+  background: var(--pink-soft) !important;
+  color: var(--text1) !important;
+}
+
+/* ── MATURITY CARD — theme-aware ─────────────────────────────── */
+.six-maturity-card {
+  background: var(--dark2) !important;
+  border: 1px solid var(--border) !important;
+}
+/* Dark mode keeps its own dark feel */
+[data-theme="dark"] .six-maturity-card {
+  background: linear-gradient(135deg,#0e1420 0%,#111827 40%,#0e1420 100%) !important;
+  border-color: rgba(255,255,255,0.07) !important;
+}
+/* In LIGHT mode: override all the hardcoded white colours inside maturity card */
+:root:not([data-theme="dark"]) .six-maturity-card [style*="color:#fff"],
+:root:not([data-theme="dark"]) .six-maturity-card [style*="color: #fff"],
+:root:not([data-theme="dark"]) .six-maturity-card [style*="color:white"],
+:root:not([data-theme="dark"]) .six-maturity-card [style*="color: white"] {
+  color: var(--text1) !important;
+}
+:root:not([data-theme="dark"]) .six-maturity-card [style*="color:rgba(255,255,255"] {
+  color: var(--text3) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CLIENT LIST — RESPONSIVE CARD LAYOUT
+   Desktop: table | Mobile: card list
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Desktop shows table, hides cards */
+.six-client-cards  { display: none; }
+.six-client-table-wrap { display: block; }
+
+@media (max-width: 768px) {
+  /* Hide table, show cards */
+  .six-client-desktop,
+  .six-client-table-wrap { display: none !important; }
+  .six-client-cards { display: flex; flex-direction: column; gap: 0; }
+
+  /* Each client card row */
+  .six-client-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--dark2);
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+    -webkit-tap-highlight-color: rgba(232,84,122,0.06);
+  }
+  .six-client-card:first-child { border-top: 1px solid var(--border); border-radius: 12px 12px 0 0; }
+  .six-client-card:last-child  { border-radius: 0 0 12px 12px; }
+  .six-client-card:active { background: var(--dark3); }
+
+  /* Avatar circle */
+  .six-client-card-avatar {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--pink), #a855f7);
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-family: var(--font-head);
+  }
+
+  /* Info block */
+  .six-client-card-info {
+    flex: 1;
+    min-width: 0;
+  }
+  .six-client-card-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+  }
+  .six-client-card-email {
+    font-size: 11px;
+    color: var(--text3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 4px;
+  }
+  .six-client-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .six-client-card-mrr {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--cyan);
+    font-family: 'Inter', sans-serif;
+  }
+
+  /* Health % on the right */
+  .six-client-card-health {
+    font-size: 14px;
+    font-weight: 800;
+    font-family: 'Inter', sans-serif;
+    flex-shrink: 0;
+    min-width: 36px;
+    text-align: right;
+  }
+
+  /* Arrow chevron */
+  .six-client-card-arrow {
+    font-size: 14px;
+    color: var(--text3);
+    flex-shrink: 0;
+    margin-left: 4px;
+  }
+}
+
+/* ── TOPBAR ICON CONSISTENCY ─────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Every icon button in topbar: 40×40 box */
+  .six-topbar .six-mobile-menu-btn,
+  .six-topbar .six-notif-bell,
+  .six-topbar #six-notif-btn {
+    width: 38px !important;
+    height: 38px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    border-radius: 9px !important;
+  }
+  /* All SVGs inside topbar: same 18×18 */
+  .six-topbar svg {
+    width: 18px !important;
+    height: 18px !important;
+    flex-shrink: 0;
+  }
+  /* Avatar: same as icon boxes */
+  .six-topbar .six-avatar {
+    width: 34px !important;
+    height: 34px !important;
+    font-size: 12px !important;
+    flex-shrink: 0 !important;
+  }
+  /* Toggle: same height as icons */
+  .six-topbar .six-theme-toggle {
+    height: 38px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  /* Remove individual button borders/bg from icon buttons */
+  .six-topbar .six-notif-bell,
+  .six-topbar #six-notif-btn {
+    background: var(--dark3) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text2) !important;
+  }
+}
+
+/* ── MOBILE TOGGLE: show track, hide label ─────────────── */
+@media (max-width: 768px) {
+  .six-theme-toggle .toggle-track { display: block !important; }
+  .six-theme-toggle #six-theme-label,
+  .six-theme-toggle [id*="theme-label"] { display: none !important; }
+  .six-theme-toggle { padding: 4px !important; gap: 0 !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CLIENT PROFILE HEADER — fully responsive, theme-aware
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Header card wrapper ─────────────────────────────────────────────────── */
+.six-client-header {
+  background: var(--dark2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px 22px 18px;
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+/* Top colour bar */
+.six-client-header-bar {
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--pink), var(--cyan), transparent);
+  border-radius: 16px 16px 0 0;
+}
+
+/* ── Identity row ────────────────────────────────────────────────────────── */
+.six-client-header-identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.six-client-header-avatar {
+  width: 48px; height: 48px;
+  border-radius: 13px;
+  background: linear-gradient(135deg, var(--pink), #a855f7);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; font-weight: 700; color: white;
+  flex-shrink: 0;
+  font-family: var(--font-head);
+}
+.six-client-header-info { flex: 1; min-width: 0; }
+.six-client-header-name {
+  font-family: var(--font-head);
+  font-size: 18px; font-weight: 800;
+  color: var(--text1); line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.six-client-header-meta {
+  font-size: 12px; color: var(--text3);
+  margin-top: 3px; line-height: 1.5;
+  word-break: break-word;
+}
+.six-client-header-sep { margin: 0 4px; opacity: 0.5; }
+
+/* ── Service badges ──────────────────────────────────────────────────────── */
+.six-client-header-services {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.six-svc-badge {
+  font-size: 11px; font-weight: 600;
+  padding: 4px 10px; border-radius: 20px;
+  background: color-mix(in srgb, var(--bc, var(--pink)) 12%, transparent);
+  color: var(--bc, var(--pink));
+  border: 1px solid color-mix(in srgb, var(--bc, var(--pink)) 30%, transparent);
+  white-space: nowrap;
+}
+/* Fallback for browsers without color-mix */
+@supports not (background: color-mix(in srgb, red 10%, transparent)) {
+  .six-svc-badge {
+    background: var(--dark3);
+    border-color: var(--border);
+  }
+}
+.six-svc-badge-pending {
+  background: rgba(193,123,26,0.1);
+  color: var(--warning);
+  border-color: rgba(193,123,26,0.2);
+}
+
+/* ── KPI stats grid ──────────────────────────────────────────────────────── */
+.six-client-header-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.six-client-kpi {
+  background: var(--dark3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 11px 12px;
+  text-align: center;
+  min-width: 0;
+}
+.six-client-kpi-val {
+  font-size: 18px; font-weight: 800;
+  font-family: var(--font-num);
+  line-height: 1.1;
+  letter-spacing: -0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.six-client-kpi-label {
+  font-size: 9px; color: var(--text3);
+  text-transform: uppercase; letter-spacing: 0.5px;
+  margin-top: 3px; line-height: 1.3;
+}
+
+/* ── Inner tab navigation ────────────────────────────────────────────────── */
+.six-client-tabs {
+  display: flex;
+  gap: 2px;
+  background: var(--dark3);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  padding: 3px;
+  margin-bottom: 20px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.six-client-tabs::-webkit-scrollbar { display: none; }
+
+.six-client-tab {
+  flex: 1;
+  min-width: max-content;
+  text-align: center;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px; font-weight: 600;
+  text-decoration: none;
+  color: var(--text3);
+  transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  white-space: nowrap;
+}
+.six-client-tab:hover { color: var(--text1); background: var(--dark4); }
+.six-client-tab.active {
+  background: var(--dark2);
+  color: var(--text1);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+.six-client-tab-icon { font-size: 13px; flex-shrink: 0; }
+/* Short label hidden on desktop */
+.six-client-tab-short { display: none; }
+
+/* ── MOBILE: client profile responsive ──────────────────────────────────── */
+@media (max-width: 768px) {
+  .six-client-header { padding: 16px 16px 14px; }
+
+  /* Avatar smaller */
+  .six-client-header-avatar {
+    width: 40px; height: 40px;
+    font-size: 14px; border-radius: 10px;
+  }
+  .six-client-header-name { font-size: 16px !important; }
+  .six-client-header-meta { font-size: 11px; }
+
+  /* KPI: 2×2 grid on mobile */
+  .six-client-header-kpis {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 6px !important;
+  }
+  .six-client-kpi-val  { font-size: 16px !important; }
+  .six-client-kpi-label { font-size: 8px !important; }
+
+  /* Service badges: wrap, smaller */
+  .six-svc-badge { font-size: 10px; padding: 3px 8px; }
+
+  /* Tabs: show short label, hide full label, no icons */
+  .six-client-tab { padding: 8px 8px; font-size: 11px; gap: 3px; }
+  .six-client-tab-full { display: none; }
+  .six-client-tab-short { display: inline; }
+  .six-client-tab-icon { font-size: 12px; }
+}
+
+@media (max-width: 400px) {
+  /* Very small: icon only in tabs */
+  .six-client-tab-short { display: none; }
+  .six-client-tab-icon  { font-size: 14px; }
+  .six-client-tab { padding: 8px 6px; min-width: 36px; }
+  /* KPI: still 2×2 but more compact */
+  .six-client-kpi { padding: 9px 8px; }
 }
