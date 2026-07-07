@@ -1,0 +1,89 @@
+name: Deploy to cPanel
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Commit SHA or tag to deploy (leave empty for latest main). Use this for rollbacks."
+        required: false
+        default: ""
+
+# Never run two deploys at once
+concurrency:
+  group: deploy-live
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: PHP syntax check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+
+      - name: Lint all PHP files
+        run: |
+          status=0
+          while IFS= read -r -d '' file; do
+            php -l "$file" > /dev/null || status=1
+          done < <(find . -path ./.git -prune -o -name '*.php' -print0)
+          if [ "$status" -ne 0 ]; then
+            echo "::error::PHP syntax errors found — deploy blocked."
+          fi
+          exit $status
+
+  deploy:
+    name: Upload theme via SFTP
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
+      - name: Build deploy directory (exclude repo-only files)
+        run: |
+          rsync -a \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude 'docs' \
+            --exclude '*.md' \
+            --exclude 'push-to-github.sh' \
+            ./ /tmp/deploy/
+          echo "Files to deploy:"
+          find /tmp/deploy -type f | sort
+
+      - name: Install lftp
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq lftp
+
+      - name: Upload to cPanel theme folder
+        env:
+          SFTP_HOST: ${{ secrets.SFTP_HOST }}
+          SFTP_PORT: ${{ secrets.SFTP_PORT }}
+          SFTP_USERNAME: ${{ secrets.SFTP_USERNAME }}
+          SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
+          SFTP_REMOTE_PATH: ${{ secrets.SFTP_REMOTE_PATH }}
+        run: |
+          lftp -p "${SFTP_PORT:-22}" -u "$SFTP_USERNAME,$SFTP_PASSWORD" "sftp://$SFTP_HOST" <<EOF
+          set sftp:auto-confirm yes
+          set net:max-retries 2
+          set net:timeout 30
+          mirror -R --verbose --no-perms /tmp/deploy "$SFTP_REMOTE_PATH"
+          quit
+          EOF
+
+      - name: Deploy summary
+        run: |
+          echo "### Deployed to live site" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Commit: \`${{ github.event.inputs.ref || github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- To roll back: Actions → Deploy to cPanel → Run workflow → enter an older commit SHA." >> "$GITHUB_STEP_SUMMARY"
