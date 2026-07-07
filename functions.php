@@ -5,17 +5,12 @@
  * Integrations: Odoo CRM | Stripe | Google Ads | Google Calendar
  */
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 function divichild_enqueue_scripts() {
     wp_enqueue_style( 'parent-style', get_template_directory_uri() . '/style.css' );
 }
 add_action( 'wp_enqueue_scripts', 'divichild_enqueue_scripts' );
-
-
-require_once get_stylesheet_directory() . '/portal/admin-settings.php';
-require_once get_stylesheet_directory() . '/portal/class-questionnaire.php';
-
-
-if ( ! defined( 'ABSPATH' ) ) exit;
 
 // ── CONSTANTS ───────────────────────────────────────────────────────────────
 define( 'SIX_PORTAL_VERSION', '1.0.0' );
@@ -25,6 +20,7 @@ define( 'SIX_PLUGIN_URL',     get_stylesheet_directory_uri() . '/portal/' );
 // ── LOAD PORTAL MODULES ─────────────────────────────────────────────────────
 require_once SIX_PLUGIN_DIR . 'class-missing.php';
 require_once SIX_PLUGIN_DIR . 'class-icons.php';      // SVG icon library
+require_once SIX_PLUGIN_DIR . 'class-questionnaire.php';
 require_once SIX_PLUGIN_DIR . 'ajax-onboarding.php';
 
 $optional_files = array(
@@ -442,30 +438,14 @@ if ( ! function_exists('six_ajax_get_advisor_for_user') ) {
 }
 
 // ── AUTO-RUN DB MIGRATIONS ────────────────────────────────────────────────────
-// Runs pending v6 DB migrations automatically on first page load after update
+// Delegates to six_onboarding_db_upgrade() (ajax-onboarding.php) — the single
+// source of truth for schema migrations. The previous inline v6 copy here was
+// a subset that marked v6 done without adding the schedule_call_* columns,
+// which broke six_schedule_onboarding_call on sites where it ran first.
 add_action('init', function() {
     if ( ! is_user_logged_in() ) return;
-    if ( get_option('six_onboarding_db_v6') ) return;
-    global $wpdb;
-    $tbl   = $wpdb->prefix . 'six_checkout_progress';
-    $exist = $wpdb->get_var("SHOW TABLES LIKE '{$tbl}'");
-    if ( $exist !== $tbl ) return;
-    $cols  = $wpdb->get_col("SHOW COLUMNS FROM {$tbl}", 0);
-    $v6    = array(
-        'ads_schedule'    => "VARCHAR(255) NOT NULL DEFAULT ''",
-        'seo_competitors' => "TEXT NOT NULL DEFAULT ''",
-        'seo_crm_tools'   => "VARCHAR(500) NOT NULL DEFAULT ''",
-        'seo_reviews'     => "VARCHAR(500) NOT NULL DEFAULT ''",
-        'seo_extra_info'  => "TEXT NOT NULL DEFAULT ''",
-        'gbp_hours'       => "VARCHAR(500) NOT NULL DEFAULT ''",
-        'web_platform'    => "VARCHAR(255) NOT NULL DEFAULT ''",
-        'web_timeline'    => "VARCHAR(100) NOT NULL DEFAULT ''",
-        'web_features'    => "TEXT NOT NULL DEFAULT ''",
-    );
-    foreach ( $v6 as $col => $def ) {
-        if ( ! in_array($col, $cols) ) {
-            $wpdb->query("ALTER TABLE {$tbl} ADD COLUMN {$col} {$def}");
-        }
+    if ( get_option('six_onboarding_db_v7') ) return;
+    if ( function_exists('six_onboarding_db_upgrade') ) {
+        six_onboarding_db_upgrade();
     }
-    update_option('six_onboarding_db_v6', 1);
 }, 20);

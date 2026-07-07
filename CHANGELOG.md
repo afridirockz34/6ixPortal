@@ -87,6 +87,27 @@ All notable changes to the 6ix Developers Portal are documented here.
 - `Six_Stripe::attach_payment_method()` → `save_payment_method()` (method didn't exist)
 - `redirect_uri_mismatch` in Google Calendar OAuth (advisor_id moved to state param)
 
+## [2.6.0] - 2026-07-07 — Codebase audit: security, broken features, cleanup
+
+### Security
+- Onboarding AJAX endpoints (`six_set_user_password`, `six_get_onboarding_state`, `six_save_checkout_step`, `six_complete_onboarding`, `six_generate_growth_plan`, `six_schedule_onboarding_call`) no longer accept arbitrary `user_id`s — new `six_onboarding_resolve_user()` restricts guests to fresh, incomplete customer accounts and logged-in users to themselves (advisors/admins exempt). `six_set_user_password` previously allowed password takeover of ANY account, including admins.
+- Fixed broken permission checks that never denied anyone: `six_adv_save_client_profile` (operator-precedence bug), `six_advisor_complete_onboarding` (always-false condition)
+- Added missing advisor/admin checks: `six_adv_set_budget`, `six_adv_edit_rec`, `six_save_client_datasource(s)`, `six_sync_odoo_client`
+
+### Fixed
+- AI Strategy step: Claude model `claude-sonnet-4-20250514` was retired 2026-06-15 — every call failed and users always got the numeric fallback. Upgraded to `claude-sonnet-5` with thinking disabled
+- DB migration v7: adds `schedule_call_*`/`call_scheduled_at` to checkout_progress (missed when the functions.php inline v6 marked v6 done early — broke call scheduling) and `advisor_id`/`updated_at` to client_services (handlers wrote to these non-existent columns — likely root cause of "Approve Service" failures)
+- `Six_Roles::get_portal_url()` added — was called in `six_google_login_complete` but never defined (fatal error for advisors/admins logging in via Google)
+- Internal hub template moved to `portal/templates/internal-product-hub.php` — portal-page.php looked for it there and showed "Portal view not found"
+- Removed duplicate `six_save_checkout_step` registration in ajax-handlers.php that conflicted with the onboarding handler on the same hook
+- Notification calls in advisor profile/budget handlers used a wrong (positional) signature — notifications were silently lost
+- Migrations now consolidated in `six_onboarding_db_upgrade()` with a table-exists guard; functions.php delegates instead of keeping a diverging copy
+
+### Removed / archived
+- `class-growth-engine-v2.php` → docs/archive (never loaded; would infinite-loop with the current abandon handler if wired)
+- `functions-additions.php` → docs/archive (setup-instructions snippet, not loaded code)
+- `test.html` (deploy pipeline verification file)
+
 ## [2.5.0] - 2026-05-26 — Final session fixes
 
 ### Fixed
