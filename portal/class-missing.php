@@ -39,6 +39,15 @@ class Six_Roles {
     public static function is_sales( $user_id = null ) {
         return in_array( self::get_portal_role( $user_id ), array( 'six_sales', 'administrator' ), true );
     }
+
+    public static function get_portal_url( $user_id = null ) {
+        $map = array(
+            'six_advisor'   => '/advisor-portal/',
+            'six_sales'     => '/sales-portal/',
+            'administrator' => '/advisor-portal/',
+        );
+        return home_url( $map[ self::get_portal_role( $user_id ) ] ?? '/portal/' );
+    }
 }
 endif;
 

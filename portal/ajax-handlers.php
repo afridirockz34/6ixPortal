@@ -120,19 +120,9 @@ add_action( 'wp_ajax_six_save_profile', function() {
     wp_send_json_success( array( 'message' => 'Profile saved.' ) );
 } );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CHECKOUT STEP
-// ─────────────────────────────────────────────────────────────────────────────
-
-add_action( 'wp_ajax_six_save_checkout_step', function() {
-    check_ajax_referer( 'six_nonce', 'nonce' );
-    $user_id = get_current_user_id();
-    $step    = intval( $_POST['step'] ?? 0 );
-    $data    = is_array( $_POST['data'] ?? null ) ? $_POST['data'] : array();
-    if ( ! $step ) wp_send_json_error( 'Invalid step' );
-    $score = Six_Checkout::save_step( $user_id, $step, $data );
-    wp_send_json_success( array( 'score' => $score, 'step' => $step ) );
-} );
+// NOTE: six_save_checkout_step is handled by six_ajax_save_checkout_step()
+// in ajax-onboarding.php. A second registration here used to run on the same
+// hook and write conflicting step values — removed.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SERVICES
@@ -1120,7 +1110,10 @@ add_action( 'wp_ajax_six_test_meta', function() {
 // ─────────────────────────────────────────────────────────────────────────────
 add_action( 'wp_ajax_six_adv_save_client_profile', function() {
     check_ajax_referer( 'six_nonce', 'nonce' );
-    if ( ! current_user_can('edit_users') && ! get_user_meta(get_current_user_id(),'six_role',true)==='advisor' ) {
+    // Previous check had a precedence bug ((!meta)==='advisor' is always
+    // false) and never denied anyone — any logged-in user could edit any
+    // client's profile.
+    if ( ! Six_Roles::is_advisor() && ! current_user_can('manage_options') ) {
         wp_send_json_error('Permission denied.');
     }
     global $wpdb;
@@ -1156,7 +1149,12 @@ add_action( 'wp_ajax_six_adv_save_client_profile', function() {
 
     // Notify client that advisor updated their profile
     if(class_exists('Six_Notifications')) {
-        Six_Notifications::create($client_id,'Profile Updated','Your advisor updated your business profile.','profile','info');
+        Six_Notifications::create(array(
+            'user_id' => $client_id,
+            'type'    => 'profile',
+            'title'   => 'Profile Updated',
+            'message' => 'Your advisor updated your business profile.',
+        ));
     }
     if(class_exists('Six_Odoo')) Six_Odoo::create_or_update_contact($client_id);
     wp_send_json_success();
@@ -1167,6 +1165,9 @@ add_action( 'wp_ajax_six_adv_save_client_profile', function() {
 // ─────────────────────────────────────────────────────────────────────────────
 add_action( 'wp_ajax_six_adv_set_budget', function() {
     check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! Six_Roles::is_advisor() && ! current_user_can('manage_options') ) {
+        wp_send_json_error('Permission denied.');
+    }
     global $wpdb;
     $svc_id    = intval($_POST['service_id']??0);
     $client_id = intval($_POST['client_id']??0);
@@ -1177,8 +1178,12 @@ add_action( 'wp_ajax_six_adv_set_budget', function() {
         array('id'=>$svc_id,'client_id'=>$client_id));
     // Notify client
     if(class_exists('Six_Notifications')) {
-        Six_Notifications::create($client_id,'Budget Updated',
-            'Your advisor updated your service budget to $'.number_format($budget,0).'/mo.','billing','info');
+        Six_Notifications::create(array(
+            'user_id' => $client_id,
+            'type'    => 'billing',
+            'title'   => 'Budget Updated',
+            'message' => 'Your advisor updated your service budget to $'.number_format($budget,0).'/mo.',
+        ));
     }
     wp_send_json_success();
 });
@@ -1188,6 +1193,9 @@ add_action( 'wp_ajax_six_adv_set_budget', function() {
 // ─────────────────────────────────────────────────────────────────────────────
 add_action( 'wp_ajax_six_save_client_datasource', function() {
     check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! Six_Roles::is_advisor() && ! current_user_can('manage_options') ) {
+        wp_send_json_error('Permission denied.');
+    }
     $client_id = intval($_POST['client_id']??0);
     $key       = sanitize_key($_POST['key']??'');
     $value     = sanitize_text_field($_POST['value']??'');
@@ -1202,6 +1210,9 @@ add_action( 'wp_ajax_six_save_client_datasource', function() {
 // ─────────────────────────────────────────────────────────────────────────────
 add_action( 'wp_ajax_six_save_client_datasources', function() {
     check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! Six_Roles::is_advisor() && ! current_user_can('manage_options') ) {
+        wp_send_json_error('Permission denied.');
+    }
     $client_id = intval($_POST['client_id']??0);
     if(!$client_id) wp_send_json_error('No client.');
     $allowed = array('six_meta_business_id','six_meta_ad_account_id','six_meta_pixel_id');
@@ -1216,6 +1227,9 @@ add_action( 'wp_ajax_six_save_client_datasources', function() {
 // ─────────────────────────────────────────────────────────────────────────────
 add_action( 'wp_ajax_six_sync_odoo_client', function() {
     check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! Six_Roles::is_advisor() && ! current_user_can('manage_options') ) {
+        wp_send_json_error('Permission denied.');
+    }
     $client_id = intval($_POST['client_id']??0);
     if(!$client_id) wp_send_json_error('No client.');
     if(class_exists('Six_Odoo')) {
@@ -1230,6 +1244,9 @@ add_action( 'wp_ajax_six_sync_odoo_client', function() {
 // ─────────────────────────────────────────────────────────────────────────────
 add_action( 'wp_ajax_six_adv_edit_rec', function() {
     check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! Six_Roles::is_advisor() && ! current_user_can('manage_options') ) {
+        wp_send_json_error('Permission denied.');
+    }
     global $wpdb;
     $rec_id = intval($_POST['rec_id']??0);
     if(!$rec_id) wp_send_json_error('No rec.');
@@ -1471,7 +1488,9 @@ add_action('wp_ajax_six_advisor_complete_onboarding', 'six_advisor_complete_onbo
 
 function six_advisor_complete_onboarding() {
     check_ajax_referer('six_nonce', 'nonce');
-    if ( ! current_user_can('manage_options') && ! class_exists('Six_Roles') ) {
+    // Previous check (!manage_options && !class_exists) was always false —
+    // it never denied anyone.
+    if ( ! Six_Roles::is_advisor() && ! current_user_can('manage_options') ) {
         wp_send_json_error('Permission denied'); return;
     }
 

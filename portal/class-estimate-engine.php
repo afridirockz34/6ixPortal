@@ -611,8 +611,11 @@ class Six_EstimateEngine {
                 'anthropic-version' => '2023-06-01',
             ),
             'body' => wp_json_encode(array(
-                'model'      => 'claude-sonnet-4-20250514',
-                'max_tokens' => 1200,
+                'model'      => 'claude-sonnet-5',
+                'max_tokens' => 2000,
+                // Sonnet 5 runs adaptive thinking by default; disable it so
+                // the token budget goes to the JSON plan and stays fast
+                'thinking'   => array( 'type' => 'disabled' ),
                 'messages'   => array( array('role'=>'user','content'=>$prompt) ),
             )),
         ));

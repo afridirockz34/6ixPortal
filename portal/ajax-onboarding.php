@@ -6,12 +6,43 @@
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+// ── TARGET-USER AUTHORIZATION ─────────────────────────────────────────────
+// Several onboarding endpoints accept a user_id in POST and stay nopriv
+// because the auth cookie may not be attached yet on the first requests after
+// account creation. Without this guard, anyone could act on any user_id.
+// Rules: logged-in users act on themselves (advisors/admins on anyone);
+// guests may only act on fresh six_customer accounts that haven't completed
+// checkout — the only case where the cookie-lag edge actually applies.
+function six_onboarding_resolve_user() {
+    $requested = intval( $_POST['user_id'] ?? 0 );
+    $current   = get_current_user_id();
+
+    if ( $current ) {
+        $is_staff = ( class_exists('Six_Roles') && Six_Roles::is_advisor() ) || current_user_can('manage_options');
+        if ( $requested && $requested !== $current && ! $is_staff ) {
+            return $current;
+        }
+        return $requested ?: $current;
+    }
+
+    if ( ! $requested ) return 0;
+    $target = get_userdata( $requested );
+    if ( ! $target ) return 0;
+    if ( ! in_array( 'six_customer', (array) $target->roles, true ) ) return 0;
+    if ( user_can( $requested, 'manage_options' ) ) return 0;
+    if ( get_user_meta( $requested, 'six_checkout_completed', true ) ) return 0;
+    if ( ( time() - strtotime( $target->user_registered ) ) > DAY_IN_SECONDS ) return 0;
+    return $requested;
+}
+
 // ── GET ONBOARDING STATE (resume on refresh) ─────────────────────────────
 // Returns all saved checkout_progress data so JS can restore S.q on refresh
 add_action( 'wp_ajax_six_get_onboarding_state',        'six_get_onboarding_state' );
 add_action( 'wp_ajax_nopriv_six_get_onboarding_state', 'six_get_onboarding_state' );
 function six_get_onboarding_state() {
-    $user_id = intval( $_POST['user_id'] ?? get_current_user_id() );
+    // Returns the full questionnaire (names, phone, business data) — never
+    // serve it for an arbitrary user_id.
+    $user_id = six_onboarding_resolve_user();
     if ( ! $user_id ) { wp_send_json_error('No user'); return; }
 
     global $wpdb;
@@ -227,14 +258,11 @@ add_action( 'wp_ajax_nopriv_six_save_checkout_step', 'six_ajax_save_checkout_ste
 add_action( 'wp_ajax_six_save_checkout_step',        'six_ajax_save_checkout_step' );
 function six_ajax_save_checkout_step() {
     // No nonce check — same session timing issue as six_complete_onboarding.
-    // Update last_event timestamp for stale lead detection
-    $uid = intval( $_POST['user_id'] ?? get_current_user_id() );
-    if ( $uid ) {
-        update_user_meta( $uid, 'six_last_event', current_time('mysql') );
-    }
-    // Validated by user_id in POST body.
-    $user_id = intval( $_POST['user_id'] ?? get_current_user_id() );
+    // Target authorization via six_onboarding_resolve_user().
+    $user_id = six_onboarding_resolve_user();
     if ( ! $user_id ) wp_send_json_error( 'No user' );
+    // Update last_event timestamp for stale lead detection
+    update_user_meta( $user_id, 'six_last_event', current_time('mysql') );
 
     $step     = sanitize_text_field( $_POST['step'] ?? '' );
     $raw_data = $_POST['data'] ?? '';
@@ -410,7 +438,7 @@ function six_complete_onboarding() {
 
     try {
     global $wpdb;
-    $user_id          = intval( $_POST['user_id'] ?? get_current_user_id() );
+    $user_id          = six_onboarding_resolve_user();
     $signature        = sanitize_text_field( $_POST['signature']         ?? '' );
     $payment_method   = sanitize_text_field( $_POST['payment_method_id'] ?? '' );
     $services_raw     = sanitize_text_field( $_POST['services']          ?? '{}' );
@@ -1145,6 +1173,10 @@ add_action( 'admin_init', 'six_onboarding_db_upgrade' );
 function six_onboarding_db_upgrade() {
     global $wpdb;
 
+    // Fresh install: tables don't exist yet — don't mark migrations done
+    $tbl = $wpdb->prefix . 'six_checkout_progress';
+    if ( $wpdb->get_var( $wpdb->prepare('SHOW TABLES LIKE %s', $tbl) ) !== $tbl ) return;
+
     // v2 migration
     if ( ! get_option('six_onboarding_db_v2') ) {
         $cols = $wpdb->get_col("SHOW COLUMNS FROM {$wpdb->prefix}six_recommendations", 0);
@@ -1292,6 +1324,37 @@ function six_onboarding_db_upgrade() {
         }
         update_option( 'six_onboarding_db_v6', 1 );
     }
+
+    // v7 migration — repair columns missed when the functions.php inline v6
+    // migration marked v6 done early, plus columns handlers already write to:
+    //  - six_checkout_progress.call_scheduled_at + schedule_call_* (six_schedule_onboarding_call)
+    //  - six_client_services.advisor_id (approve/add service handlers)
+    //  - six_client_services.updated_at (six_adv_set_budget)
+    if ( ! get_option('six_onboarding_db_v7') ) {
+        $cols7 = $wpdb->get_col( "SHOW COLUMNS FROM {$wpdb->prefix}six_checkout_progress", 0 );
+        $v7_checkout = array(
+            'schedule_call_date'  => "VARCHAR(50) DEFAULT ''",
+            'schedule_call_time'  => "VARCHAR(50) DEFAULT ''",
+            'schedule_call_notes' => "TEXT",
+            'call_scheduled_at'   => "DATETIME DEFAULT NULL",
+        );
+        foreach ( $v7_checkout as $col => $def ) {
+            if ( ! in_array( $col, $cols7 ) ) {
+                $wpdb->query( "ALTER TABLE {$wpdb->prefix}six_checkout_progress ADD COLUMN {$col} {$def}" );
+            }
+        }
+        $svc_cols = $wpdb->get_col( "SHOW COLUMNS FROM {$wpdb->prefix}six_client_services", 0 );
+        $v7_services = array(
+            'advisor_id' => "BIGINT(20) DEFAULT 0",
+            'updated_at' => "DATETIME DEFAULT NULL",
+        );
+        foreach ( $v7_services as $col => $def ) {
+            if ( ! in_array( $col, $svc_cols ) ) {
+                $wpdb->query( "ALTER TABLE {$wpdb->prefix}six_client_services ADD COLUMN {$col} {$def}" );
+            }
+        }
+        update_option( 'six_onboarding_db_v7', 1 );
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1302,12 +1365,19 @@ function six_onboarding_db_upgrade() {
 add_action( 'wp_ajax_nopriv_six_set_user_password', 'six_set_user_password' );
 add_action( 'wp_ajax_six_set_user_password',        'six_set_user_password' );
 function six_set_user_password() {
-    $user_id  = intval( $_POST['user_id'] ?? 0 );
+    // six_onboarding_resolve_user() restricts this to self (logged in) or a
+    // fresh, incomplete six_customer account — previously any user_id was
+    // accepted, which allowed password takeover of arbitrary accounts.
+    $user_id  = six_onboarding_resolve_user();
     $password = $_POST['password'] ?? '';
     if ( ! $user_id || strlen($password) < 8 ) {
         wp_send_json_error('Invalid data');
     }
-    // Verify user exists and hasn't completed checkout (prevent misuse)
+    // Never allow this endpoint to change staff/admin passwords
+    if ( user_can($user_id,'manage_options') || user_can($user_id,'six_manage_clients') ) {
+        wp_send_json_error('Not applicable');
+    }
+    // Verify user hasn't completed checkout (prevent misuse)
     $done = get_user_meta($user_id,'six_checkout_completed',true);
     if ($done) { wp_send_json_error('Not applicable'); }
     wp_set_password($password,$user_id);
@@ -1542,7 +1612,7 @@ function six_google_login_complete() {
 add_action( 'wp_ajax_six_generate_growth_plan',        'six_ajax_generate_growth_plan' );
 add_action( 'wp_ajax_nopriv_six_generate_growth_plan', 'six_ajax_generate_growth_plan' );
 function six_ajax_generate_growth_plan() {
-    $user_id = intval( $_POST['user_id'] ?? get_current_user_id() );
+    $user_id = six_onboarding_resolve_user();
     if ( ! $user_id ) { wp_send_json_error('No user'); return; }
     error_log("6ix GrowthPlan: generating for user={$user_id}");
 
@@ -1593,7 +1663,7 @@ add_action( 'wp_ajax_six_schedule_onboarding_call',        'six_schedule_onboard
 add_action( 'wp_ajax_nopriv_six_schedule_onboarding_call', 'six_schedule_onboarding_call' );
 
 function six_schedule_onboarding_call() {
-    $user_id    = intval( $_POST['user_id'] ?? get_current_user_id() );
+    $user_id    = six_onboarding_resolve_user();
     $call_date  = sanitize_text_field( $_POST['call_date']  ?? '' );
     $call_time  = sanitize_text_field( $_POST['call_time']  ?? '' );
     $call_notes = sanitize_textarea_field( $_POST['call_notes'] ?? '' );
