@@ -51,6 +51,22 @@ jobs:
         with:
           ref: ${{ github.event.inputs.ref || github.ref }}
 
+      - name: Verify required secrets are set
+        env:
+          SFTP_HOST: ${{ secrets.SFTP_HOST }}
+          SFTP_USERNAME: ${{ secrets.SFTP_USERNAME }}
+          SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
+          SFTP_REMOTE_PATH: ${{ secrets.SFTP_REMOTE_PATH }}
+        run: |
+          missing=0
+          for var in SFTP_HOST SFTP_USERNAME SFTP_PASSWORD SFTP_REMOTE_PATH; do
+            if [ -z "${!var}" ]; then
+              echo "::error::Repository secret '$var' is missing or empty. Add it under Settings → Secrets and variables → Actions."
+              missing=1
+            fi
+          done
+          exit $missing
+
       - name: Build deploy directory (exclude repo-only files)
         run: |
           rsync -a \
@@ -75,10 +91,12 @@ jobs:
           SFTP_REMOTE_PATH: ${{ secrets.SFTP_REMOTE_PATH }}
         run: |
           lftp -p "${SFTP_PORT:-22}" -u "$SFTP_USERNAME,$SFTP_PASSWORD" "sftp://$SFTP_HOST" <<EOF
+          set cmd:fail-exit yes
           set sftp:auto-confirm yes
           set net:max-retries 2
           set net:timeout 30
-          mirror -R --verbose --no-perms /tmp/deploy "$SFTP_REMOTE_PATH"
+          cd "$SFTP_REMOTE_PATH"
+          mirror -R --verbose --no-perms /tmp/deploy .
           quit
           EOF
 
