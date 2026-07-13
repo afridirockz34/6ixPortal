@@ -109,6 +109,45 @@ All notable changes to the 6ix Developers Portal are documented here.
 - Admins visiting /get-started/ are sent to wp-admin (branch was unreachable)
 - Google signups now get an advisor assigned (was only done for email signups)
 
+## [2.8.0] - 2026-07-13 — UI polish, dashboards, calendar, onboarding
+
+### Design / readability
+- Base font 14→15px; lifted dark-mode text contrast (body/muted greys were
+  near-invisible); professional muted greys in light mode; consistent button
+  and section-title type scale; explicit button contrast (light text on dark
+  fills, themed text on neutral fills); 12.5px legible floor for small UI text
+- Removed pictographic emojis across all dashboards, admin, Odoo notes and the
+  growth engine (kept typographic arrows/checkmarks that carry meaning); real
+  SVG icons on insight cards and empty states
+
+### Customer dashboard
+- Fixed the growth chart: a malformed `<div cla<div` broke the flex layout
+  (now full-height); the chart re-renders on theme toggle so it recolours
+- Calendar booking fixed: Six_Google_Calendar::get_access_token() was private
+  but called externally by the slots handler — that fatal broke booking
+- Removed "Generate All Insights"; insights load per-card via See Insight
+- Message-your-advisor box under the advisor's phone (replaces the old
+  separate Messages tab link)
+
+### Advisor / admin portal
+- Removed Messages from the sidebar; unread count folded into Alerts; message
+  notifications deep-link to the thread
+- Clients tab is search-only (no list by default); a no-match search keeps the
+  search bar and shows a no-match box instead of wiping the tab
+- Intelligence tab rebuilt as the Onboarding Drop-off Funnel: each stage
+  expands to the customers stalled there, each with View Profile (in-dashboard)
+  and Open in Odoo (crm.lead) links
+
+### Onboarding
+- Removed the Ad Schedule field
+- Professional, generic placeholders; product/service/keyword/category
+  examples now adapt to the client's industry instead of always showing dental
+- Step 4: fixed the duplicated What/Why/Action block (dedupe) and the empty
+  "Key Insight" card (folded the DataForSEO-backed insight into the hero
+  sub-line; Why/Action render only when present)
+- Step 5: added a "Back to my strategy" button; back navigation preserves all
+  entered data
+
 ## [2.6.0] - 2026-07-07 — Codebase audit: security, broken features, cleanup
 
 ### Security
