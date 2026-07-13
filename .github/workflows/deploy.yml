@@ -97,6 +97,10 @@ jobs:
           set net:timeout 30
           cd "$SFTP_REMOTE_PATH"
           mirror -R --verbose --no-perms /tmp/deploy .
+          # Normalize permissions: dirs 755, files 644. Apache serves static
+          # assets as a different user than PHP on cPanel — wrong perms make
+          # every CSS/JS request 403 while the PHP pages still render.
+          chmod -R u=rwX,go=rX .
           quit
           EOF
 
