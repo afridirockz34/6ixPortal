@@ -185,7 +185,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
     <nav class="six-sidebar">
         <div class="six-nav-section">
             <div class="six-nav-label">Mission Control</div>
-            <a href="?tab=overview"      class="six-nav-item <?php echo $active_tab==='overview'     ?'active':'';?>"><span class="six-nav-icon">⬡</span> Overview</a>
+            <a href="?tab=overview"      class="six-nav-item <?php echo $active_tab==='overview'     ?'active':'';?>"><span class="six-nav-icon"></span> Overview</a>
             <a href="?tab=clients"       class="six-nav-item <?php echo $active_tab==='clients'      ?'active':'';?>"><span class="six-nav-icon">◈</span> Clients</a>
             <a href="?tab=messages"      class="six-nav-item <?php echo $active_tab==='messages'     ?'active':'';?>">
                 <span class="six-nav-icon">◻</span> Messages
@@ -203,7 +203,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         <div class="six-nav-section">
             <div class="six-nav-label">Management</div>
             
-            <a href="?tab=revenue"  class="six-nav-item <?php echo $active_tab==='revenue' ?'active':'';?>"><span class="six-nav-icon">⬠</span> Revenue</a>
+            <a href="?tab=revenue"  class="six-nav-item <?php echo $active_tab==='revenue' ?'active':'';?>"><span class="six-nav-icon"></span> Revenue</a>
             <a href="?tab=gads"     class="six-nav-item <?php echo $active_tab==='gads'    ?'active':'';?>">
                 <span class="six-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span> Google Ads
                 <?php if(!$mcc_configured):?><span style="font-size:9px;color:var(--warning);margin-left:auto">Setup</span><?php endif;?>
@@ -655,11 +655,11 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         <!-- Service badges row -->
         <div class="six-client-header-services">
             <?php foreach($c_active_svcs_arr as $s):
-                $sd=$svc_def[$s->service_slug]??array('icon'=>'⚙','color'=>'var(--pink)'); ?>
+                $sd=$svc_def[$s->service_slug]??array('icon'=>'','color'=>'var(--pink)'); ?>
             <span class="six-svc-badge" style="--bc:<?php echo $sd['color']; ?>"><?php echo $sd['icon']; ?> <?php echo esc_html($s->service_name); ?></span>
             <?php endforeach; ?>
             <?php foreach($c_pending_svcs as $s): ?>
-            <span class="six-svc-badge six-svc-badge-pending">⏳ <?php echo esc_html($s->service_name); ?></span>
+            <span class="six-svc-badge six-svc-badge-pending"> <?php echo esc_html($s->service_name); ?></span>
             <?php endforeach; ?>
         </div>
 
@@ -807,10 +807,10 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
     }
     if(!empty($pending_budgets)): ?>
     <div style="background:rgba(227,179,65,0.06);border:1px solid rgba(227,179,65,0.2);border-radius:12px;padding:16px 18px;margin-bottom:20px">
-        <div style="font-size:12px;font-weight:700;color:var(--warning);margin-bottom:10px">⏳ Pending Budget Change Requests</div>
+        <div style="font-size:12px;font-weight:700;color:var(--warning);margin-bottom:10px"> Pending Budget Change Requests</div>
         <?php foreach($pending_budgets as $row):
             $rd=maybe_unserialize($row->req_data);
-            $sd2=$svc_def[$row->service_slug]??array('icon'=>'⚙','color'=>'var(--pink)');
+            $sd2=$svc_def[$row->service_slug]??array('icon'=>'','color'=>'var(--pink)');
         ?>
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
             <span style="font-size:12px"><?php echo $sd2['icon']; ?> <?php echo esc_html($row->service_name); ?></span>
@@ -1177,7 +1177,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             </div>
             <div style="padding:14px 18px">
                 <?php if(!$mcc_configured): ?>
-                <div style="font-size:12px;color:var(--text3);margin-bottom:10px">⚠ <a href="?tab=gads" style="color:var(--warning)">Configure MCC credentials first →</a></div>
+                <div style="font-size:12px;color:var(--text3);margin-bottom:10px"> <a href="?tab=gads" style="color:var(--warning)">Configure MCC credentials first →</a></div>
                 <?php endif; ?>
                 <div style="margin-bottom:10px">
                     <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Customer ID</div>
@@ -1291,7 +1291,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         foreach($c_budget_reqs as $row){
             $rd=maybe_unserialize($row->req_data);
             if(!is_array($rd))continue; $has_reqs=true;
-            $sd2=$svc_def[$row->service_slug]??array('icon'=>'⚙','color'=>'var(--pink)');
+            $sd2=$svc_def[$row->service_slug]??array('icon'=>'','color'=>'var(--pink)');
             $status=$rd['status']??'pending';
             $sc=$status==='approved'?'var(--success)':($status==='declined'?'var(--danger)':'var(--warning)');
         ?>
@@ -1343,7 +1343,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
     <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:16px">
         <div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px">Service Budgets</div>
         <?php foreach($c_active_svcs_arr as $s):
-            $sd2=$svc_def[$s->service_slug]??array('icon'=>'⚙','color'=>'var(--pink)'); ?>
+            $sd2=$svc_def[$s->service_slug]??array('icon'=>'','color'=>'var(--pink)'); ?>
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
             <span style="font-size:13px;flex-shrink:0"><?php echo $sd2['icon']; ?></span>
             <span style="font-size:12px;font-weight:600;min-width:160px"><?php echo esc_html($s->service_name); ?></span>
@@ -1795,7 +1795,7 @@ function advCompleteOnboarding(clientId){
                     <div style="font-size:11px;color:var(--text3)"><?php echo esc_html($cl->user_email); ?></div>
                 </td>
                 <td><span style="font-size:12px;font-weight:700;color:<?php echo $cl_color; ?>"><?php echo $cl_h; ?>%</span></td>
-                <td><?php foreach($cl_svcs as $s): $sd2=$svc_def[$s->service_slug]??array('icon'=>'⚙','color'=>'var(--pink)'); ?><span title="<?php echo esc_attr($s->service_name); ?>" style="margin-right:4px"><?php echo $sd2['icon']; ?></span><?php endforeach; ?></td>
+                <td><?php foreach($cl_svcs as $s): $sd2=$svc_def[$s->service_slug]??array('icon'=>'','color'=>'var(--pink)'); ?><span title="<?php echo esc_attr($s->service_name); ?>" style="margin-right:4px"><?php echo $sd2['icon']; ?></span><?php endforeach; ?></td>
                 <td style="font-weight:700;color:var(--cyan)">$<?php echo number_format($cl_mrr,0); ?>/mo</td>
                 <td style="font-size:11px;color:var(--text3)"><?php echo $cl_last?human_time_diff(strtotime($cl_last),time()).' ago':'Never'; ?></td>
                 <td><a href="?tab=clients&client=<?php echo $cl->ID; ?>" class="six-btn six-btn-primary six-btn-sm" style="font-size:11px">Open →</a></td>
@@ -1822,7 +1822,7 @@ function advCompleteOnboarding(clientId){
                     <div class="six-client-card-name"><?php echo $cl_name2; ?></div>
                     <div class="six-client-card-email"><?php echo esc_html($cl->user_email); ?></div>
                     <div class="six-client-card-meta">
-                        <?php foreach($cl_svcs2 as $s2): $sd3=$svc_def[$s2->service_slug]??array('icon'=>'⚙'); ?>
+                        <?php foreach($cl_svcs2 as $s2): $sd3=$svc_def[$s2->service_slug]??array('icon'=>''); ?>
                         <span style="font-size:12px"><?php echo $sd3['icon']; ?></span>
                         <?php endforeach; ?>
                         <?php if($cl_mrr2>0): ?>
@@ -2146,14 +2146,14 @@ function advCompleteOnboarding(clientId){
         <!-- Status -->
         <div class="six-card" style="margin-bottom:16px;border-color:<?php echo $mcc_configured?'rgba(86,211,100,0.35)':'rgba(227,179,65,0.35)';?>">
             <div class="six-card-body" style="display:flex;align-items:center;gap:14px">
-                <div style="font-size:28px"><?php echo $mcc_configured?'':'⚠';?></div>
+                <div style="font-size:28px"><?php echo $mcc_configured?'':'';?></div>
                 <div>
                     <div style="font-weight:700;font-size:14px;color:<?php echo $mcc_configured?'var(--success)':'var(--warning)';?>"><?php echo $mcc_configured?'MCC Account Connected':'Setup Required';?></div>
                     <div style="font-size:12px;color:var(--text2);margin-top:3px">
                         <?php if($mcc_configured):?>
                             Manager ID: <code style="background:var(--dark3);padding:1px 6px;border-radius:4px"><?php echo esc_html(get_option('six_gads_manager_id','—'));?></code>
                             &nbsp;·&nbsp;
-                            <?php $exp=intval(get_option('six_gads_token_expires',0));echo $exp>time()?'Token valid for '.human_time_diff(time(),$exp):'<span style="color:var(--danger)">⚠ Token expired — re-enter refresh token below</span>';?>
+                            <?php $exp=intval(get_option('six_gads_token_expires',0));echo $exp>time()?'Token valid for '.human_time_diff(time(),$exp):'<span style="color:var(--danger)"> Token expired — re-enter refresh token below</span>';?>
                         <?php else:?>
                             Fill in the credentials below to connect your Google Ads Manager Account.
                         <?php endif;?>
@@ -2264,7 +2264,7 @@ function advCompleteOnboarding(clientId){
             </a>
             <?php else:?>
             <div style="background:rgba(227,179,65,0.1);border:1px solid rgba(227,179,65,0.3);border-radius:10px;padding:16px;font-size:13px;color:var(--warning)">
-                ⚠ Google OAuth not configured. Go to <a href="<?php echo admin_url('admin.php?page=six-portal-settings');?>" style="color:var(--cyan)">WP Admin → 6ix Portal → Integrations</a> and add your Google OAuth Client ID and Secret.
+                 Google OAuth not configured. Go to <a href="<?php echo admin_url('admin.php?page=six-portal-settings');?>" style="color:var(--cyan)">WP Admin → 6ix Portal → Integrations</a> and add your Google OAuth Client ID and Secret.
             </div>
             <?php endif;?>
         </div>

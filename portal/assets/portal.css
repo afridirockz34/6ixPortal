@@ -26,10 +26,10 @@
   --dark4:   #E8EBF0;   /* hover state */
   --border:  #E2E6ED;
 
-  /* Text */
+  /* Text — tuned for readability (WCAG AA on light surfaces) */
   --text1:   #0F1923;   /* headings */
-  --text2:   #4A5568;   /* body */
-  --text3:   #8A96A3;   /* muted */
+  --text2:   #3D4759;   /* body */
+  --text3:   #5E6B7B;   /* muted — still clearly legible */
 
   /* Fonts */
   --font-head: 'Syne', sans-serif;
@@ -62,9 +62,9 @@
   --dark4:   #21262D;
   --border:  #30363D;
 
-  --text1:   #E6EDF3;
-  --text2:   #8B949E;
-  --text3:   #484F58;
+  --text1:   #F0F4F8;
+  --text2:   #B6C2CF;   /* body — lifted from #8B949E for legibility */
+  --text3:   #8B96A3;   /* muted — lifted from #484F58 (was near-invisible) */
 
   --shadow:  0 2px 12px rgba(0,0,0,0.4);
   --shadow-md: 0 4px 32px rgba(0,0,0,0.5);
@@ -79,8 +79,8 @@
   background: var(--dark1);
   color: var(--text1);
   font-family: var(--font-body);
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 15px;
+  line-height: 1.55;
   min-height: 100vh;
   transition: background 0.25s, color 0.25s;
 }
@@ -451,9 +451,9 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px;
+  padding: 9px 18px;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 600;
   font-family: var(--font-body);
   cursor: pointer;
@@ -461,6 +461,7 @@
   transition: all 0.15s;
   white-space: nowrap;
   text-decoration: none;
+  line-height: 1.4;
 }
 
 .six-btn-primary {
@@ -489,7 +490,7 @@
   border: 1px solid rgba(131, 197, 237, 0.3);
 }
 
-.six-btn-sm { padding: 5px 10px; font-size: 11px; }
+.six-btn-sm { padding: 6px 12px; font-size: 12.5px; }
 
 .six-btn:disabled {
   opacity: 0.5;
@@ -2525,3 +2526,64 @@ textarea.six-input {
   /* KPI: still 2×2 but more compact */
   .six-client-kpi { padding: 9px 8px; }
 }
+
+/* ============================================================
+   READABILITY & CONSISTENCY (v2.8)
+   One consolidated layer so type scale and button contrast are
+   predictable in both light and dark mode. Kept at the end so it
+   wins the cascade without editing rules scattered above.
+   ============================================================ */
+
+/* Legible floor for small UI text — nothing body-facing below 12.5px.
+   Labels, sublabels, meta rows, badges. */
+.six-label,
+.six-page-sub,
+.six-card-sub,
+.six-kc-sub,
+.six-kc-label,
+.six-legend-item,
+.six-form-hint,
+.six-meta,
+.six-adv-svc-row,
+.six-nav-item {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Muted text must still be readable — never fall below --text3,
+   which is now tuned for contrast in both themes. */
+.six-page-sub,
+.six-card-sub,
+.six-kc-sub { color: var(--text3); }
+
+/* Body copy inside cards reads at the base size, not shrunk */
+.six-card-body { color: var(--text2); }
+
+/* ── Button contrast: light text on dark fills, dark text on light fills ── */
+/* Solid brand fills are dark → force light label regardless of theme */
+.six-btn-primary,
+.six-btn-primary:hover,
+.six-btn-cyan.is-solid,
+.six-btn-danger,
+.six-btn-success {
+  color: #ffffff;
+}
+/* Neutral / outline buttons sit on the surface → use themed text tokens */
+.six-btn-secondary { color: var(--text1); }
+.six-btn-ghost     { color: var(--text2); }
+.six-btn-ghost:hover { color: var(--text1); }
+
+/* Consistent button typography everywhere (kills ad-hoc inline sizes) */
+.six-btn { font-size: 13.5px; font-weight: 600; letter-spacing: 0.01em; }
+.six-btn-sm { font-size: 12.5px; }
+
+/* Section / card titles: one consistent scale */
+.six-card-title,
+.six-pane-title,
+.six-section-title { font-size: 15px; font-weight: 700; color: var(--text1); }
+.six-page-title { font-size: 22px; font-weight: 800; }
+
+/* Inputs: match body size so forms are comfortable to read/fill */
+.six-input,
+.six-select,
+.six-textarea { font-size: 14px; }

@@ -69,7 +69,7 @@ $total_hot      = count($hot_leads);
 <div class="six-topbar">
     <div class="six-logo">6ix Developers</div>
     <div class="six-role-badge" style="background:rgba(227,179,65,0.15);color:var(--warning);border-color:rgba(227,179,65,0.3)">Sales</div>
-    <button class="six-mobile-menu-btn" id="six-menu-toggle" aria-label="Menu">☰</button>
+    <button class="six-mobile-menu-btn" id="six-menu-toggle" aria-label="Menu"></button>
     <div class="six-topbar-right">
         <span class="six-user-name"><?php echo esc_html($user->display_name);?></span>
         <div class="six-avatar"><?php echo esc_html($initials);?></div>
@@ -80,7 +80,7 @@ $total_hot      = count($hot_leads);
     <nav class="six-sidebar">
         <?php
         $sp = home_url('/sales-portal/');
-        $stabs = array('pipeline'=>'⬡ Lead Pipeline','abandoned'=>'◈ Abandoned Checkouts','call-queue'=>'◎ Call Queue','converted'=>'◻ Converted Clients');
+        $stabs = array('pipeline'=>' Lead Pipeline','abandoned'=>'◈ Abandoned Checkouts','call-queue'=>'◎ Call Queue','converted'=>'◻ Converted Clients');
         ?>
         <div class="six-nav-section">
             <div class="six-nav-label">Sales Pipeline</div>
@@ -106,28 +106,28 @@ $total_hot      = count($hot_leads);
         </div>
         <div class="six-stats-grid" style="margin-bottom:24px">
             <div class="six-stat-card" style="border-color:rgba(255,107,107,0.3)">
-                <div class="six-stat-label" style="color:var(--danger)">🔴 Hot Leads</div>
+                <div class="six-stat-label" style="color:var(--danger)"> Hot Leads</div>
                 <div class="six-stat-val" style="color:var(--danger)"><?php echo count($hot_leads);?></div>
                 <div style="font-size:10px;color:var(--text3);margin-top:4px">Score 70–100</div>
             </div>
             <div class="six-stat-card" style="border-color:rgba(227,179,65,0.3)">
-                <div class="six-stat-label" style="color:var(--warning)">🟡 Warm Leads</div>
+                <div class="six-stat-label" style="color:var(--warning)"> Warm Leads</div>
                 <div class="six-stat-val" style="color:var(--warning)"><?php echo count($warm_leads);?></div>
                 <div style="font-size:10px;color:var(--text3);margin-top:4px">Score 40–69</div>
             </div>
             <div class="six-stat-card" style="border-color:rgba(131,197,237,0.3)">
-                <div class="six-stat-label" style="color:var(--cyan)">🔵 Cold Leads</div>
+                <div class="six-stat-label" style="color:var(--cyan)"> Cold Leads</div>
                 <div class="six-stat-val" style="color:var(--cyan)"><?php echo count($cold_leads);?></div>
                 <div style="font-size:10px;color:var(--text3);margin-top:4px">Score under 40</div>
             </div>
             <div class="six-stat-card pink">
-                <div class="six-stat-label">✅ Converted</div>
+                <div class="six-stat-label"> Converted</div>
                 <div class="six-stat-val"><?php echo count($completed);?></div>
                 <div style="font-size:10px;color:var(--text3);margin-top:4px">Completed onboarding</div>
             </div>
         </div>
 
-        <?php foreach(array(array('label'=>'🔴 Hot Leads','color'=>'var(--danger)','leads'=>$hot_leads,'border'=>'rgba(255,107,107,0.3)'),array('label'=>'🟡 Warm Leads','color'=>'var(--warning)','leads'=>$warm_leads,'border'=>'rgba(227,179,65,0.3)'),array('label'=>'🔵 Cold Leads','color'=>'var(--cyan)','leads'=>$cold_leads,'border'=>'rgba(131,197,237,0.3)')) as $group):
+        <?php foreach(array(array('label'=>' Hot Leads','color'=>'var(--danger)','leads'=>$hot_leads,'border'=>'rgba(255,107,107,0.3)'),array('label'=>' Warm Leads','color'=>'var(--warning)','leads'=>$warm_leads,'border'=>'rgba(227,179,65,0.3)'),array('label'=>' Cold Leads','color'=>'var(--cyan)','leads'=>$cold_leads,'border'=>'rgba(131,197,237,0.3)')) as $group):
             if(empty($group['leads'])) continue;?>
         <div class="six-card" style="margin-bottom:16px;border-color:<?php echo $group['border'];?>">
             <div class="six-card-header"><span class="six-card-title" style="color:<?php echo $group['color'];?>"><?php echo $group['label'];?></span></div>
@@ -159,9 +159,9 @@ $total_hot      = count($hot_leads);
                     <td>
                         <div style="display:flex;gap:6px;flex-wrap:wrap">
                             <?php if($lead['phone']):?>
-                            <a href="tel:<?php echo esc_attr($lead['phone']);?>" class="six-btn six-btn-primary six-btn-sm">📞 Call</a>
+                            <a href="tel:<?php echo esc_attr($lead['phone']);?>" class="six-btn six-btn-primary six-btn-sm"> Call</a>
                             <?php endif;?>
-                            <a href="mailto:<?php echo esc_attr($lead['email']);?>" class="six-btn six-btn-secondary six-btn-sm">✉ Email</a>
+                            <a href="mailto:<?php echo esc_attr($lead['email']);?>" class="six-btn six-btn-secondary six-btn-sm"> Email</a>
                         </div>
                     </td>
                 </tr>
@@ -173,7 +173,7 @@ $total_hot      = count($hot_leads);
         <?php endforeach;?>
         <?php if($total_pipeline===0):?>
         <div class="six-card"><div class="six-card-body" style="text-align:center;padding:40px;color:var(--text3)">
-            <div style="font-size:30px;margin-bottom:12px">🎯</div>
+            <div style="font-size:30px;margin-bottom:12px"></div>
             No abandoned leads right now. The pipeline will populate as prospects begin onboarding.
         </div></div>
         <?php endif;?>
@@ -207,8 +207,8 @@ $total_hot      = count($hot_leads);
                 <td style="font-size:11px;color:var(--text3)"><?php echo $lead['abandoned_at']?human_time_diff(strtotime($lead['abandoned_at']),time()).' ago':'—';?></td>
                 <td>
                     <div style="display:flex;gap:6px;flex-wrap:wrap">
-                        <?php if($lead['phone']):?><a href="tel:<?php echo esc_attr($lead['phone']);?>" class="six-btn six-btn-primary six-btn-sm" title="Call <?php echo esc_attr($lead['name']);?>">📞 Call</a><?php endif;?>
-                        <a href="mailto:<?php echo esc_attr($lead['email']);?>" class="six-btn six-btn-secondary six-btn-sm">✉ Email</a>
+                        <?php if($lead['phone']):?><a href="tel:<?php echo esc_attr($lead['phone']);?>" class="six-btn six-btn-primary six-btn-sm" title="Call <?php echo esc_attr($lead['name']);?>"> Call</a><?php endif;?>
+                        <a href="mailto:<?php echo esc_attr($lead['email']);?>" class="six-btn six-btn-secondary six-btn-sm"> Email</a>
                     </div>
                 </td>
             </tr>
@@ -244,8 +244,8 @@ $total_hot      = count($hot_leads);
                     <div style="font-size:10px;color:var(--text3)">Readiness Score</div>
                 </div>
                 <div style="display:flex;gap:8px">
-                    <?php if($lead['phone']):?><a href="tel:<?php echo esc_attr($lead['phone']);?>" class="six-btn six-btn-primary" style="font-size:13px">📞 Call Now</a><?php endif;?>
-                    <a href="mailto:<?php echo esc_attr($lead['email']);?>" class="six-btn six-btn-secondary" style="font-size:13px">✉ Email</a>
+                    <?php if($lead['phone']):?><a href="tel:<?php echo esc_attr($lead['phone']);?>" class="six-btn six-btn-primary" style="font-size:13px"> Call Now</a><?php endif;?>
+                    <a href="mailto:<?php echo esc_attr($lead['email']);?>" class="six-btn six-btn-secondary" style="font-size:13px"> Email</a>
                 </div>
             </div>
         </div>

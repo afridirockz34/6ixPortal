@@ -186,7 +186,7 @@ class Six_Google_Ads {
                 self::$last_error = "403 Permission Denied.\n"
                     . "• Customer ID sent: {$customer_id}\n"
                     . "• Manager (MCC) ID sent: " . ( $manager_id ?: '(empty — not set)' ) . "\n"
-                    . "• login-customer-id header: " . ( $has_login_id ? "✓ included ({$manager_id})" : "✗ NOT sent — this is likely the problem" ) . "\n"
+                    . "• login-customer-id header: " . ( $has_login_id ? "✓ included ({$manager_id})" : " NOT sent — this is likely the problem" ) . "\n"
                     . "Fix checklist:\n"
                     . "1. Confirm client account {$customer_id} is linked to your MCC in Google Ads → click your MCC account → Accounts\n"
                     . "2. Confirm Manager ID in WP Admin → Integrations matches your MCC account ID exactly (digits only)\n"

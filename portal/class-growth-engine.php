@@ -675,17 +675,17 @@ class Six_Growth_Engine {
         ), ARRAY_A );
 
         $icons = array(
-            'step_view'      => '👁',
-            'step_complete'  => '✅',
-            'step_abandon'   => '⚠️',
+            'step_view'      => '',
+            'step_complete'  => '',
+            'step_abandon'   => '',
             'return_visit'   => '↩',
-            'google_login'   => '🔐',
-            'email_submit'   => '📧',
-            'service_select' => '⚡',
-            'budget_select'  => '💰',
-            'conversion'     => '🎉',
-            'step_timing'    => '⏱',
-            'page_load'      => '🌐',
+            'google_login'   => '',
+            'email_submit'   => '',
+            'service_select' => '',
+            'budget_select'  => '',
+            'conversion'     => '',
+            'step_timing'    => '',
+            'page_load'      => '',
         );
 
         $labels = array(
@@ -750,7 +750,7 @@ class Six_Growth_Engine {
             $lbl = $friction_step['label'];
             $rt  = $friction_step['rate'];
             $avg = $friction_step['avg_time'];
-            $insight = "⚠️ Highest friction: \"{$lbl}\" has a {$rt}% drop-off rate."
+            $insight = " Highest friction: \"{$lbl}\" has a {$rt}% drop-off rate."
                      . ( $avg ? " Average time on this step: {$avg}s." : '' )
                      . ( $rt > 50 ? " This step needs immediate UX attention." : " Consider simplifying this step." );
         }
@@ -943,7 +943,7 @@ Anastasia
 
         Six_Odoo::create_activity(
             $lead_id,
-            "📋 Follow Up Required — {$name}",
+            " Follow Up Required — {$name}",
             "Client abandoned at: {$step_label} (step {$step}/5).
 "
             . "Onboarding score: {$re_calc}/100.
@@ -1068,7 +1068,7 @@ Anastasia
         dbDelta( $sql );
 
         update_option( 'six_growth_events_table_v1', 1 );
-        return "✅ six_growth_events table ready";
+        return " six_growth_events table ready";
     }
 }
 endif; // class_exists

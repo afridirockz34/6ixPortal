@@ -688,7 +688,7 @@ async function getIssues() {
     var msg = (data && data.data && data.data.message) ? data.data.message : (data && data.data) ? data.data : 'Could not load issues';
     console.warn('Hub get_issues failed:', msg, data);
     if (msg && msg.toLowerCase().includes('log in')) {
-      document.getElementById('tracker-loading').textContent = '⚠ ' + msg;
+      document.getElementById('tracker-loading').textContent = ' ' + msg;
     }
     return [];
   } catch(e) {
@@ -716,11 +716,11 @@ async function saveIssues(issues) {
       : (data && data.data && typeof data.data === 'string')
         ? data.data
         : 'Save failed — please refresh and try again.';
-    toast('⚠ ' + msg);
+    toast(' ' + msg);
     console.warn('Hub save failed:', data);
     return false;
   } catch(e) {
-    toast('⚠ Network error — check your connection and try again.');
+    toast(' Network error — check your connection and try again.');
     console.error('Hub save error:', e);
     return false;
   }
