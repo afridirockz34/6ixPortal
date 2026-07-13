@@ -1430,7 +1430,7 @@ $chart_json = json_encode(array(
         </div>
     </div>
     <div style="display:flex;gap:8px">
-        <a href="?tab=messages" class="six-btn six-btn-primary six-btn-sm" style="font-size:12px"> Message Advisor</a>
+        <a href="?tab=advisor" class="six-btn six-btn-primary six-btn-sm" style="font-size:12px">Message Advisor</a>
     </div>
 </div>
 
@@ -1655,8 +1655,14 @@ $adv_phone=get_user_meta($advisor_id,'billing_phone',true);
             </div>
             <?php if($adv_bio): ?><div style="font-size:12px;color:var(--text3);line-height:1.6;margin-bottom:16px;text-align:left"><?php echo esc_html($adv_bio); ?></div><?php endif; ?>
             <div style="display:flex;flex-direction:column;gap:8px">
-                <a href="?tab=messages" class="six-btn six-btn-primary" style="justify-content:center"> Send Message</a>
-                <?php if($adv_phone): ?><a href="tel:<?php echo esc_attr($adv_phone); ?>" class="six-btn six-btn-ghost six-btn-sm" style="justify-content:center;font-size:12px"> <?php echo esc_html($adv_phone); ?></a><?php endif; ?>
+                <?php if($adv_phone): ?><a href="tel:<?php echo esc_attr($adv_phone); ?>" class="six-btn six-btn-ghost six-btn-sm" style="justify-content:center;gap:7px"><?php echo class_exists('Six_Icon')?Six_Icon::get('phone','','15px'):''; ?><?php echo esc_html($adv_phone); ?></a><?php endif; ?>
+            </div>
+            <!-- Inline message-your-advisor box (replaces the old Messages tab) -->
+            <div style="margin-top:14px;text-align:left">
+                <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);display:block;margin-bottom:8px">Message <?php echo esc_html(explode(' ',$advisor->display_name)[0]); ?></label>
+                <textarea id="adv-msg-text" class="six-input" rows="3" placeholder="Ask a question or share an update…" style="resize:vertical;width:100%;font-size:13px"></textarea>
+                <button class="six-btn six-btn-primary six-btn-sm" id="adv-msg-send" data-advisor="<?php echo intval($advisor_id); ?>" style="margin-top:8px;width:100%;justify-content:center;gap:7px"><?php echo class_exists('Six_Icon')?Six_Icon::get('send','','15px'):''; ?>Send Message</button>
+                <div id="adv-msg-result" style="font-size:12px;margin-top:8px"></div>
             </div>
             <?php if(!empty($active_svcs)): ?>
             <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border);text-align:left">
@@ -1690,7 +1696,7 @@ $adv_phone=get_user_meta($advisor_id,'billing_phone',true);
                 <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);display:block;margin-bottom:8px">What would you like to discuss?</label>
                 <textarea class="six-input" id="meeting-notes" rows="3" placeholder="e.g. Review my Google Ads performance, discuss budget changes…"></textarea>
             </div>
-            <button class="six-btn six-btn-primary" id="six-book-meeting-new" disabled style="width:100%;justify-content:center;opacity:0.5"> Book 30-Minute Meeting</button>
+            <button class="six-btn six-btn-primary" id="six-book-meeting-new" disabled style="width:100%;justify-content:center;opacity:0.5">Book 30-Minute Meeting</button>
             <div id="six-meeting-result" style="margin-top:12px;font-size:13px"></div>
             <div style="margin-top:14px;padding:12px;background:var(--dark4);border-radius:8px;font-size:11px;color:var(--text3);line-height:1.6"> Meetings are 30 minutes · Google Meet link is generated automatically · Both you and your advisor receive email confirmations</div>
         </div>
@@ -2097,7 +2103,7 @@ if(bookBtn){
         var notes=(document.getElementById('meeting-notes')||{}).value||'';
         this.textContent='Booking…';this.disabled=true;var self=this;
         post({action:'six_book_meeting',start:selectedSlot,duration:30,notes:notes}).then(function(d){
-            self.textContent=' Book 30-Minute Meeting';
+            self.textContent='Book 30-Minute Meeting';
             var result=document.getElementById('six-meeting-result');
             if(d&&d.success){
                 if(result)result.innerHTML='<div style="background:rgba(86,211,100,0.1);border:1px solid rgba(86,211,100,0.3);border-radius:8px;padding:12px;font-size:13px;color:var(--success)">✓ Meeting booked!'+(d.data&&d.data.meet_link?'<br><a href="'+d.data.meet_link+'" target="_blank" style="color:var(--cyan)">Join Google Meet →</a>':'')+'</div>';
@@ -2106,6 +2112,31 @@ if(bookBtn){
                 self.disabled=false;self.style.opacity='1';
                 if(result)result.innerHTML='<div style="color:var(--danger);font-size:12px">'+(d&&d.data?d.data:'Could not book — please try again.')+'</div>';
             }
+        });
+    });
+}
+
+// ── Inline "message your advisor" box ────────────────────────────────────
+var advMsgBtn=document.getElementById('adv-msg-send');
+if(advMsgBtn){
+    advMsgBtn.addEventListener('click',function(){
+        var ta=document.getElementById('adv-msg-text');
+        var out=document.getElementById('adv-msg-result');
+        var msg=(ta&&ta.value||'').trim();
+        var to=this.getAttribute('data-advisor');
+        if(!msg){if(out)out.innerHTML='<span style="color:var(--warning)">Please type a message first.</span>';return;}
+        var self=this;self.disabled=true;var label=self.innerHTML;self.textContent='Sending…';
+        post({action:'six_send_message',receiver_id:to,message:msg}).then(function(d){
+            self.disabled=false;self.innerHTML=label;
+            if(d&&d.success){
+                if(ta)ta.value='';
+                if(out)out.innerHTML='<span style="color:var(--success)">Message sent — your advisor will reply soon.</span>';
+            } else {
+                if(out)out.innerHTML='<span style="color:var(--danger)">'+((d&&d.data)||'Could not send. Please try again.')+'</span>';
+            }
+        }).catch(function(){
+            self.disabled=false;self.innerHTML=label;
+            if(out)out.innerHTML='<span style="color:var(--danger)">Network error. Please try again.</span>';
         });
     });
 }

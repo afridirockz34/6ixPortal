@@ -168,10 +168,6 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
     <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
     <span>Clients</span>
   </a>
-  <a class="six-bnav-item <?php echo $active_tab==='messages'?'active':''; ?>" href="?tab=messages">
-    <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-    <span>Messages</span>
-  </a>
   <a class="six-bnav-item <?php echo $active_tab==='intelligence'?'active':''; ?>" href="?tab=intelligence">
     <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
     <span>Insights</span>
@@ -187,13 +183,9 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             <div class="six-nav-label">Mission Control</div>
             <a href="?tab=overview"      class="six-nav-item <?php echo $active_tab==='overview'     ?'active':'';?>"><span class="six-nav-icon"></span> Overview</a>
             <a href="?tab=clients"       class="six-nav-item <?php echo $active_tab==='clients'      ?'active':'';?>"><span class="six-nav-icon">◈</span> Clients</a>
-            <a href="?tab=messages"      class="six-nav-item <?php echo $active_tab==='messages'     ?'active':'';?>">
-                <span class="six-nav-icon">◻</span> Messages
-                <?php if($unread_msg>0):?><span class="six-badge"><?php echo $unread_msg;?></span><?php endif;?>
-            </a>
             <a href="?tab=notifications" class="six-nav-item <?php echo $active_tab==='notifications'?'active':'';?>">
                 <span class="six-nav-icon">◎</span> Alerts
-                <?php if($unread_n>0):?><span class="six-badge"><?php echo $unread_n;?></span><?php endif;?>
+                <?php $alert_total=intval($unread_n)+intval($unread_msg); if($alert_total>0):?><span class="six-badge"><?php echo $alert_total;?></span><?php endif;?>
             </a>
             <a href="?tab=approvals"     class="six-nav-item <?php echo $active_tab==='approvals'   ?'active':'';?>">
                 <span class="six-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg></span> Approvals

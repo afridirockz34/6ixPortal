@@ -326,7 +326,9 @@ add_action( 'init', array( 'Six_Google_Ads', 'schedule_daily_sync' ) );
 // ─────────────────────────────────────────────────────────────────────────────
 class Six_Google_Calendar {
 
-    private static function get_access_token( $user_id ) {
+    // Public: called by the six_get_available_slots AJAX handler. Was private,
+    // which made that handler fatal — the reason calendar booking failed.
+    public static function get_access_token( $user_id ) {
         $cached  = get_user_meta( $user_id, 'six_gcal_access_token', true );
         $expires = (int) get_user_meta( $user_id, 'six_gcal_token_expires', true );
 
