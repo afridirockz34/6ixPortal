@@ -1544,8 +1544,12 @@ function six_google_login_complete() {
     $user_id = get_current_user_id();
     $user    = get_userdata( $user_id );
 
-    // Ensure they have the six_customer role (Google login creates default subscriber)
-    if ( ! in_array( 'six_customer', (array) $user->roles )
+    // Role fix + onboarding meta + advisor assignment + Odoo — shared with
+    // the server-side NSL hooks so popup and redirect mode behave the same
+    if ( function_exists('six_social_prepare_user') ) {
+        six_social_prepare_user( $user_id );
+        $user = get_userdata( $user_id ); // refresh roles
+    } elseif ( ! in_array( 'six_customer', (array) $user->roles )
       && ! in_array( 'six_advisor',  (array) $user->roles )
       && ! $user->has_cap( 'manage_options' ) ) {
         $user_obj = new WP_User( $user_id );
@@ -1579,11 +1583,11 @@ function six_google_login_complete() {
     $last  = $name_parts[1] ?? '';
     $phone = get_user_meta( $user_id, 'billing_phone', true ) ?: '';
 
-    // Create/update Odoo contact immediately with Google profile data
-    if ( class_exists( 'Six_Odoo' ) ) {
+    // Odoo contact/lead handled by six_social_prepare_user() above; keep a
+    // fallback for installs where social-login.php isn't deployed yet
+    if ( ! function_exists('six_social_prepare_user') && class_exists( 'Six_Odoo' ) ) {
         Six_Odoo::create_or_update_contact( $user_id );
-        $odoo_lead_id = get_user_meta( $user_id, 'six_odoo_lead_id', true );
-        if ( ! $odoo_lead_id ) {
+        if ( ! get_user_meta( $user_id, 'six_odoo_lead_id', true ) ) {
             Six_Odoo::sync_lead( array(
                 'user_id' => $user_id,
                 'status'  => 'started',

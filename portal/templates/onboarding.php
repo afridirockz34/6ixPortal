@@ -465,7 +465,9 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
     <?php if(is_user_logged_in()):$u=wp_get_current_user();?>
     <script>document.addEventListener('DOMContentLoaded',function(){
       OB.resumeLoggedIn(<?php echo get_current_user_id();?>,<?php echo wp_json_encode($u->user_email);?>,
-        <?php echo intval(get_user_meta(get_current_user_id(),'six_checkout_step',true)?:1);?>);
+        <?php echo intval(get_user_meta(get_current_user_id(),'six_checkout_step',true)?:1);?>,
+        <?php echo wp_json_encode($u->first_name);?>,<?php echo wp_json_encode($u->last_name);?>,
+        <?php echo wp_json_encode(get_user_meta($u->ID,'billing_phone',true)?:'');?>);
     });</script>
     <?php else:?>
     <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;background:linear-gradient(135deg,var(--t1),var(--cy));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:32px">6ix Developers</div>
@@ -1081,9 +1083,21 @@ window.OB={
     el.classList.add('on');
   },
 
-  resumeLoggedIn:function(uid,email,step){
+  resumeLoggedIn:function(uid,email,step,first,last,phone){
     S.userId=uid;S.email=email;S.isNew=false;
     var m=$i('ob-main-el');if(m)m.classList.add('ob-main-form');
+
+    // Already authenticated (email login or Google redirect-mode): prefill
+    // what we know and never ask for a password again
+    var prefill=function(){
+      S.q.first=S.q.first||first||'';S.q.last=S.q.last||last||'';S.q.phone=S.q.phone||phone||'';
+      var f=$i('s1-first'),l=$i('s1-last'),e=$i('s1-email'),p=$i('s1-phone'),pw=$i('s1-pw-wrap');
+      if(f&&!f.value)f.value=S.q.first;
+      if(l&&!l.value)l.value=S.q.last;
+      if(e)e.value=S.email;
+      if(p&&!p.value)p.value=S.q.phone;
+      if(pw)pw.style.display='none';
+    };
 
     // Fetch saved state from DB — restores all questionnaire fields on refresh
     Promise.all([
@@ -1116,11 +1130,14 @@ window.OB={
         var dbStep=Math.max(1,parseInt(d.step)||1);
         var finalStep=Math.max(step||1, dbStep);
         OB.goStep(finalStep);
+        prefill();
       } else {
         OB.goStep(Math.max(1,step||1));
+        prefill();
       }
     }).catch(function(){
       OB.goStep(Math.max(1,step||1));
+      prefill();
     });
   },
 
@@ -1897,10 +1914,12 @@ window.OB={
 window.addEventListener('NSLAfterFormLogin',function(){
   post({action:'six_google_login_complete'}).then(function(res){
     if(!res.success)return;
+    // Advisors / sales / admins: server tells us where they belong
+    if(res.data.redirect_url){window.location.replace(res.data.redirect_url);return;}
     S.userId=res.data.user_id;S.email=res.data.email;S.advisor=res.data.advisor;
     S.isGoogle=true;S.isNew=false;if(res.data.nonce)S.nonce=res.data.nonce;
     S.q.first=res.data.first||'';S.q.last=res.data.last||'';S.q.phone=res.data.phone||'';
-    // REDIRECT LOOP FIX: completed users go straight to portal
+    // Completed customers go straight to their dashboard
     if(res.data.completed){window.location.replace('<?php echo esc_js(home_url('/portal/'));?>');return;}
     var f=$i('s1-first'),l=$i('s1-last'),e=$i('s1-email'),p=$i('s1-phone'),pw=$i('s1-pw-wrap');
     if(f)f.value=S.q.first;if(l)l.value=S.q.last;if(e)e.value=S.email;if(p)p.value=S.q.phone;

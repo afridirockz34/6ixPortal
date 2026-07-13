@@ -31,6 +31,7 @@ $optional_files = array(
     'class-google-ads-calendar.php',
     'ajax-handlers.php',
     'admin-settings.php',
+    'social-login.php',        // Nextend Social Login (Google) integration
 );
 foreach ( $optional_files as $file ) {
     $path = SIX_PLUGIN_DIR . $file;
@@ -276,9 +277,18 @@ function six_serve_onboarding_page() {
     if ( is_user_logged_in() ) {
         $uid  = get_current_user_id();
         $role = class_exists('Six_Roles') ? Six_Roles::get_portal_role($uid) : '';
-        if ( $role === 'six_advisor' )  { wp_redirect( home_url('/advisor-portal/') ); exit; }
-        if ( $role === 'six_sales' )    { wp_redirect( home_url('/sales-portal/') ); exit; }
-        if ( current_user_can('manage_options') && $role === '' ) { wp_redirect( admin_url() ); exit; }
+
+        // Logged in but no portal role (e.g. social login created the account
+        // as 'subscriber' before the NSL hooks ran) — repair it to a customer
+        // so onboarding and the portal routers work.
+        if ( $role === 'guest' && ! current_user_can('manage_options') && function_exists('six_social_prepare_user') ) {
+            six_social_prepare_user( $uid );
+            $role = Six_Roles::get_portal_role( $uid );
+        }
+
+        if ( $role === 'six_advisor' )   { wp_redirect( home_url('/advisor-portal/') ); exit; }
+        if ( $role === 'six_sales' )     { wp_redirect( home_url('/sales-portal/') ); exit; }
+        if ( $role === 'administrator' ) { wp_redirect( admin_url() ); exit; }
         if ( $role === 'six_customer' ) {
             $done = get_user_meta($uid, 'six_checkout_completed', true);
             if ( $done ) { 
