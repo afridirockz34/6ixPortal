@@ -53,7 +53,10 @@ if (
         'six_advisor'  => home_url( '/advisor-portal/' ),
         'six_sales'    => home_url( '/sales-portal/' ),
     );
-    wp_redirect( $redirect_map[ $role ] ?? home_url( '/portal/' ) );
+    // Unknown role (e.g. subscriber from an old social login): send to
+    // onboarding — the old fallback of /portal/ caused an infinite redirect
+    // loop when the requested slug WAS /portal/.
+    wp_redirect( $redirect_map[ $role ] ?? home_url( '/get-started/' ) );
     exit;
 }
 

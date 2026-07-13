@@ -87,6 +87,28 @@ All notable changes to the 6ix Developers Portal are documented here.
 - `Six_Stripe::attach_payment_method()` → `save_payment_method()` (method didn't exist)
 - `redirect_uri_mismatch` in Google Calendar OAuth (advisor_id moved to state param)
 
+## [2.7.0] - 2026-07-13 — Google login overhaul
+
+### Fixed
+- Google sign-in now follows the same rules as email login in BOTH popup and
+  redirect mode: new account → six_customer role + onboarding meta + advisor
+  (round-robin) + Odoo contact/lead → onboarding; existing account → routed by
+  role (advisor/sales/admin portals, completed customers → /portal/,
+  incomplete → resume onboarding)
+- New `portal/social-login.php` hooks into Nextend Social Login server-side
+  (`nsl_register_roles`, `nsl_register_new_user`, `nsl_login`,
+  `google_login_redirect_url`/`google_register_redirect_url`) — previously
+  everything depended on a JS event that only fires in popup mode
+- Infinite redirect loop on /portal/ for accounts created as 'subscriber' via
+  Google (unknown-role fallback redirected /portal/ → /portal/); now routes to
+  /get-started/, and get-started repairs role-less accounts automatically
+- Onboarding resume for authenticated users (incl. Google redirect-mode):
+  prefills name/email/phone and no longer shows the password field
+- Popup-mode Google login now honors the server's redirect_url, so advisors /
+  sales / admins land in their own portals instead of the onboarding flow
+- Admins visiting /get-started/ are sent to wp-admin (branch was unreachable)
+- Google signups now get an advisor assigned (was only done for email signups)
+
 ## [2.6.0] - 2026-07-07 — Codebase audit: security, broken features, cleanup
 
 ### Security
