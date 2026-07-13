@@ -1744,14 +1744,14 @@ function advCompleteOnboarding(clientId){
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
             <h1 class="six-page-title">Clients</h1>
         </div>
-        <?php if(empty($clients)): ?>
+        <?php if(empty($all_client_ids)): ?>
         <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:48px;text-align:center">
-            <div style="font-size:36px;margin-bottom:16px"></div>
-            <div style="font-size:14px;font-weight:600;margin-bottom:8px">No clients assigned yet</div>
+            <div style="margin-bottom:14px;color:var(--text3)"><?php echo class_exists('Six_Icon')?Six_Icon::get('leads','','36px'):''; ?></div>
+            <div style="font-size:15px;font-weight:600;margin-bottom:8px">No clients assigned yet</div>
             <p style="font-size:13px;color:var(--text3)">Clients are assigned by an admin. Contact your manager to get clients assigned.</p>
         </div>
         <?php else: ?>
-        <!-- Search + filter bar (server-side) -->
+        <!-- Search bar — always visible; the client list only loads on search -->
         <form method="GET" action="" id="adv-client-search-form" style="display:flex;gap:10px;align-items:center;margin-bottom:14px">
             <input type="hidden" name="tab" value="clients">
             <div style="position:relative;flex:1">
@@ -1759,14 +1759,33 @@ function advCompleteOnboarding(clientId){
                 <input type="text" name="csearch" id="adv-client-search"
                     value="<?php echo esc_attr($client_search); ?>"
                     placeholder="Search by name, email or phone…"
-                    style="width:100%;padding:8px 12px 8px 34px;border:1px solid var(--border);border-radius:9px;background:var(--dark3);color:var(--text1);font-size:13px;box-sizing:border-box;outline:none"
+                    autocomplete="off"
+                    style="width:100%;padding:10px 12px 10px 34px;border:1px solid var(--border);border-radius:9px;background:var(--dark3);color:var(--text1);font-size:14px;box-sizing:border-box;outline:none"
                     oninput="clearTimeout(window._csrch);window._csrch=setTimeout(()=>this.form.submit(),350)">
             </div>
-            <span style="font-size:11px;color:var(--text3);white-space:nowrap"><?php echo $clients_total; ?> client<?php echo $clients_total!==1?'s':''; ?></span>
+            <span style="font-size:12px;color:var(--text3);white-space:nowrap"><?php echo count($all_client_ids); ?> total</span>
             <?php if($client_search): ?>
-            <a href="?tab=clients" style="font-size:11px;color:var(--pink);text-decoration:none;white-space:nowrap">Clear</a>
+            <a href="?tab=clients" style="font-size:12px;color:var(--pink);text-decoration:none;white-space:nowrap">Clear</a>
             <?php endif; ?>
         </form>
+
+        <?php if($client_search === ''): ?>
+        <!-- Idle state: prompt to search (no list loaded by default) -->
+        <div style="background:var(--dark2);border:1px dashed var(--border);border-radius:14px;padding:44px;text-align:center">
+            <div style="margin-bottom:12px;color:var(--text3)"><?php echo class_exists('Six_Icon')?Six_Icon::get('overview','','30px'):''; ?></div>
+            <div style="font-size:14px;font-weight:600;margin-bottom:6px">Search your clients</div>
+            <p style="font-size:13px;color:var(--text3);max-width:360px;margin:0 auto">Start typing a name, business, email or phone number above to pull up a client and open their profile.</p>
+        </div>
+
+        <?php elseif(empty($clients)): ?>
+        <!-- Searched, but nothing matched — search bar stays above -->
+        <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:44px;text-align:center">
+            <div style="margin-bottom:12px;color:var(--text3)"><?php echo class_exists('Six_Icon')?Six_Icon::get('gap','','30px'):''; ?></div>
+            <div style="font-size:14px;font-weight:600;margin-bottom:6px">No clients match “<?php echo esc_html($client_search); ?>”</div>
+            <p style="font-size:13px;color:var(--text3)">Check the spelling, or <a href="?tab=clients" style="color:var(--pink);text-decoration:none">clear the search</a> to try again.</p>
+        </div>
+
+        <?php else: ?>
         <!-- Desktop table (hidden on mobile) -->
         <div class="six-client-table-wrap" style="overflow-x:auto">
         <table class="six-table six-client-desktop" id="adv-client-table">
@@ -1843,9 +1862,10 @@ function advCompleteOnboarding(clientId){
             <a href="?tab=clients&csearch=<?php echo urlencode($client_search); ?>&cpage=<?php echo $client_page+1; ?>" class="six-btn six-btn-ghost six-btn-sm">&rarr;</a>
             <?php endif; ?>
         </div>
-        <?php endif; ?>
+        <?php endif; // end pagination ?>
 
-        <?php endif; // end empty(clients) if/else ?>
+        <?php endif; // end search-state (idle / no-match / results) ?>
+        <?php endif; // end empty(all_client_ids) if/else ?>
     <?php endif; // end view_client if($view_client) ?>
 
         <?php /* ════════════ MESSAGES ════════════ */ elseif($active_tab==='messages'):
@@ -2364,165 +2384,120 @@ function advCompleteOnboarding(clientId){
         <?php endif; // gcal_connected ?>
 
 
-    <?php /* ════════════ INTELLIGENCE ════════════ */ elseif($active_tab==='intelligence'):?>
-        <?php
-        $all_opps = $wpdb->get_results($wpdb->prepare(
-            "SELECT r.*, u.display_name AS client_name
-             FROM {$wpdb->prefix}six_recommendations r
-             INNER JOIN {$wpdb->prefix}six_assignments a ON r.client_id=a.client_id
-             INNER JOIN {$wpdb->prefix}users u ON r.client_id=u.ID
-             WHERE a.advisor_id=%d AND r.source LIKE 'ai_%'
-             ORDER BY r.created_at DESC LIMIT 100",
-            $advisor_id
-        ));
-        $pending_opps  = array_filter($all_opps, fn($o) => $o->status === 'active');
-        $approved_opps = array_filter($all_opps, fn($o) => $o->status === 'approved');
-        $intel_filter  = sanitize_key($_GET['itype'] ?? 'all');
-        $filtered_opps = $intel_filter === 'pending'  ? $pending_opps :
-                        ($intel_filter === 'approved' ? $approved_opps : $all_opps);
-        ?>
+    <?php /* ════════════ INTELLIGENCE ════════════ */ elseif($active_tab==='intelligence'):
+        // ── Onboarding drop-off funnel ────────────────────────────────────
+        // Group every assigned client by the onboarding stage they stalled at,
+        // so advisors can see exactly where and who is dropping out.
+        $funnel_stages = array(
+            1 => 'Account & Business',
+            2 => 'Services Selected',
+            3 => 'Questionnaire',
+            4 => 'AI Strategy',
+            5 => 'Agreement & Payment',
+        );
+        $stage_clients     = array(1=>array(),2=>array(),3=>array(),4=>array(),5=>array());
+        $completed_clients = array();
+        $odoo_base = rtrim( get_option('six_odoo_url',''), '/' );
 
-        <?php
-        // Onboarding drop-off tracking — count clients at each step
-        $dropoff = array(1=>0, 2=>0, 3=>0, 4=>0, 5=>0);
-        $dropoff_labels = array(1=>'User Info', 2=>'Services', 3=>'Questionnaire', 4=>'Strategy', 5=>'Complete');
-        $dropoff_total  = count($all_client_ids ?: array());
-        if ($dropoff_total > 0) {
-            $id_list = implode(',', array_map('intval', $all_client_ids ?: array()));
-            $step_rows = $wpdb->get_results(
-                "SELECT COALESCE(p.step, 0) AS step, COUNT(*) AS cnt
-                 FROM {$wpdb->prefix}six_checkout_progress p
-                 WHERE p.user_id IN ({$id_list})
-                 GROUP BY COALESCE(p.step, 0)"
+        foreach ( ($all_client_ids ?: array()) as $cid ) {
+            $cu = get_userdata($cid);
+            if ( ! $cu ) continue;
+            $row  = $wpdb->get_row($wpdb->prepare(
+                "SELECT step, business_name, completed, updated_at FROM {$wpdb->prefix}six_checkout_progress WHERE user_id=%d", $cid));
+            $done = get_user_meta($cid,'six_checkout_completed',true) || ($row && intval($row->completed)===1);
+            $lead = get_user_meta($cid,'six_odoo_lead_id',true);
+            $info = array(
+                'id'    => $cid,
+                'name'  => $cu->display_name ?: $cu->user_email,
+                'email' => $cu->user_email,
+                'biz'   => $row->business_name ?? '',
+                'lead'  => $lead,
+                'when'  => $row->updated_at ?? '',
             );
-            foreach ($step_rows as $sr) {
-                $s = max(1, min(5, intval($sr->step)));
-                $dropoff[$s] = ($dropoff[$s] ?? 0) + intval($sr->cnt);
-            }
+            if ( $done ) { $completed_clients[] = $info; continue; }
+            $s = $row ? intval(preg_replace('/[^0-9]/','',(string)$row->step)) : 1;
+            $s = max(1, min(5, $s ?: 1));
+            $stage_clients[$s][] = $info;
         }
-        $dropoff_max = max(array_sum($dropoff), 1);
+        $total_tracked = count($all_client_ids ?: array());
+        $completed_ct  = count($completed_clients);
+        $dropped_ct    = $total_tracked - $completed_ct;
+        $conv_rate     = $total_tracked > 0 ? round(($completed_ct / $total_tracked) * 100) : 0;
         ?>
 
         <div class="six-page-header">
             <div>
-                <h1 class="six-page-title">Client Intelligence</h1>
-                <p class="six-page-sub">AI-generated growth insights across your client base</p>
+                <h1 class="six-page-title">Onboarding Drop-off Funnel</h1>
+                <p class="six-page-sub">See exactly where and who stalls during onboarding, and re-engage them.</p>
             </div>
         </div>
 
-        <!-- Onboarding Drop-off Funnel -->
-        <?php if ($dropoff_total > 0): ?>
-        <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:20px">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-                <div>
-                    <div style="font-size:13px;font-weight:700;color:var(--text1)">Onboarding Drop-off Funnel</div>
-                    <div style="font-size:11px;color:var(--text3);margin-top:2px"><?php echo $dropoff_total; ?> clients tracked</div>
-                </div>
-                <svg viewBox="0 0 24 24" fill="none" stroke="var(--pink)" stroke-width="2" width="16" height="16"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        <?php if($total_tracked === 0): ?>
+        <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:48px;text-align:center;color:var(--text3)">
+            No clients are assigned to you yet, so there is no funnel data to show.
+        </div>
+        <?php else: ?>
+
+        <!-- Summary -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:22px">
+            <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:18px">
+                <div style="font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Completed</div>
+                <div style="font-size:28px;font-weight:800;color:var(--success)"><?php echo $completed_ct; ?></div>
+                <div style="font-size:12px;color:var(--text3);margin-top:2px"><?php echo $conv_rate; ?>% conversion</div>
             </div>
-            <div style="display:flex;flex-direction:column;gap:8px">
-            <?php
-            $running = $dropoff_total;
-            foreach ($dropoff as $step => $cnt):
-                if ($step < 5) $running_next = $running - $cnt;
-                $pct = $dropoff_total > 0 ? round(($running / $dropoff_total) * 100) : 0;
-                $bar_color = $step===5 ? 'var(--success)' : ($pct < 50 ? 'var(--warning)' : 'var(--cyan)');
+            <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:18px">
+                <div style="font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">In Progress / Dropped</div>
+                <div style="font-size:28px;font-weight:800;color:var(--warning)"><?php echo $dropped_ct; ?></div>
+                <div style="font-size:12px;color:var(--text3);margin-top:2px">Not yet completed</div>
+            </div>
+            <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:18px">
+                <div style="font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Total Tracked</div>
+                <div style="font-size:28px;font-weight:800;color:var(--text1)"><?php echo $total_tracked; ?></div>
+                <div style="font-size:12px;color:var(--text3);margin-top:2px">Assigned to you</div>
+            </div>
+        </div>
+
+        <!-- Funnel: each stage expands to the customers stalled there -->
+        <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:20px">
+            <div style="font-size:15px;font-weight:700;color:var(--text1);margin-bottom:16px">Where clients are stalling</div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+            <?php foreach($funnel_stages as $sn => $slabel):
+                $group = $stage_clients[$sn];
+                $cnt   = count($group);
+                $pct   = $dropped_ct > 0 ? round(($cnt / $dropped_ct) * 100) : 0;
             ?>
-            <div style="display:flex;align-items:center;gap:12px">
-                <div style="font-size:11px;color:var(--text3);min-width:100px;white-space:nowrap">
-                    Step <?php echo $step; ?>: <?php echo esc_html($dropoff_labels[$step]); ?>
-                </div>
-                <div style="flex:1;background:rgba(255,255,255,0.05);border-radius:4px;height:8px;overflow:hidden">
-                    <div style="width:<?php echo $pct; ?>%;height:100%;background:<?php echo $bar_color; ?>;border-radius:4px;transition:width .6s ease"></div>
-                </div>
-                <div style="font-size:12px;font-weight:600;color:var(--text1);min-width:36px;text-align:right"><?php echo $running; ?></div>
-                <div style="font-size:10px;color:var(--text3);min-width:34px"><?php echo $pct; ?>%</div>
-            </div>
-            <?php
-                if ($step < 5) { $running = max(0, $running - $cnt); }
-            endforeach;
-            ?>
-            </div>
-        </div>
-        <?php endif; ?>
-
-        <!-- Summary row -->
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px">
-            <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:18px">
-                <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Pending Review</div>
-                <div style="font-size:28px;font-weight:700;color:var(--text1)"><?php echo count($pending_opps);?></div>
-                <div style="font-size:12px;color:var(--text3);margin-top:2px">Awaiting your action</div>
-            </div>
-            <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:18px">
-                <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Approved</div>
-                <div style="font-size:28px;font-weight:700;color:var(--success)"><?php echo count($approved_opps);?></div>
-                <div style="font-size:12px;color:var(--text3);margin-top:2px">Strategies confirmed</div>
-            </div>
-            <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:18px">
-                <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Total Insights</div>
-                <div style="font-size:28px;font-weight:700;color:var(--text1)"><?php echo count($all_opps);?></div>
-                <div style="font-size:12px;color:var(--text3);margin-top:2px">Across all clients</div>
+                <details style="border:1px solid var(--border);border-radius:10px;overflow:hidden" <?php echo $cnt>0?'':'aria-disabled="true"'; ?>>
+                    <summary style="list-style:none;cursor:<?php echo $cnt>0?'pointer':'default'; ?>;padding:12px 14px;display:flex;align-items:center;gap:12px;background:var(--dark3)">
+                        <span style="font-size:12px;color:var(--text3);min-width:150px">Step <?php echo $sn; ?> · <?php echo esc_html($slabel); ?></span>
+                        <span style="flex:1;background:rgba(128,128,128,0.12);border-radius:5px;height:9px;overflow:hidden">
+                            <span style="display:block;width:<?php echo $pct; ?>%;height:100%;background:<?php echo $cnt>0?'var(--warning)':'var(--border)'; ?>;border-radius:5px"></span>
+                        </span>
+                        <span style="font-size:14px;font-weight:700;color:var(--text1);min-width:30px;text-align:right"><?php echo $cnt; ?></span>
+                    </summary>
+                    <?php if($cnt>0): ?>
+                    <div style="padding:6px 14px 12px">
+                        <?php foreach($group as $g):
+                            $odoo_link = ($odoo_base && $g['lead']) ? $odoo_base.'/web#id='.intval($g['lead']).'&model=crm.lead&view_type=form' : '';
+                        ?>
+                        <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+                            <div style="flex:1;min-width:0">
+                                <div style="font-size:13px;font-weight:600;color:var(--text1)"><?php echo esc_html($g['biz'] ?: $g['name']); ?></div>
+                                <div style="font-size:12px;color:var(--text3)"><?php echo esc_html($g['email']); ?><?php echo $g['when']?' · last active '.esc_html(human_time_diff(strtotime($g['when']),time())).' ago':''; ?></div>
+                            </div>
+                            <a href="?tab=clients&client=<?php echo intval($g['id']); ?>" class="six-btn six-btn-secondary six-btn-sm">View Profile</a>
+                            <?php if($odoo_link): ?>
+                            <a href="<?php echo esc_url($odoo_link); ?>" target="_blank" rel="noopener" class="six-btn six-btn-ghost six-btn-sm" style="gap:6px">Open in Odoo<?php echo class_exists('Six_Icon')?Six_Icon::get('external','','13px'):''; ?></a>
+                            <?php endif; ?>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endif; ?>
+                </details>
+            <?php endforeach; ?>
             </div>
         </div>
 
-        <!-- Filter -->
-        <div style="display:flex;gap:6px;margin-bottom:16px">
-            <?php foreach(array('all'=>'All Insights','pending'=>'Pending Review','approved'=>'Approved') as $k=>$lbl):
-                $ia = $intel_filter===$k; ?>
-            <a href="?tab=intelligence&itype=<?php echo $k;?>"
-               style="display:inline-flex;align-items:center;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:500;text-decoration:none;
-                      <?php echo $ia?'background:var(--pink);color:#fff;':'background:var(--dark3);color:var(--text2);border:1px solid var(--border);';?>">
-               <?php echo $lbl;?></a>
-            <?php endforeach;?>
-        </div>
-
-        <!-- Insights list -->
-        <?php if(empty($filtered_opps)):?>
-        <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:48px 24px;text-align:center;color:var(--text3)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32" style="display:block;margin:0 auto 12px;opacity:.4"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
-            No insights<?php echo $intel_filter!=='all'?' in this category':'';?> yet.
-        </div>
-        <?php else:?>
-        <div style="display:flex;flex-direction:column;gap:10px">
-        <?php foreach($filtered_opps as $opp):
-            $is_pending  = $opp->status === 'active';
-            $client_link = '?tab=clients&client=' . intval($opp->client_id);
-        ?>
-        <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:18px 20px;display:flex;align-items:flex-start;gap:16px">
-            <!-- Status indicator -->
-            <div style="width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:4px;
-                        background:<?php echo $is_pending?'var(--warning)':'var(--success)';?>"></div>
-            <div style="flex:1;min-width:0">
-                <!-- Client + type -->
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
-                    <a href="<?php echo $client_link;?>" style="font-size:12px;font-weight:700;color:var(--text1);text-decoration:none"><?php echo esc_html($opp->client_name);?></a>
-                    <span style="font-size:10px;color:var(--text3);background:var(--dark3);padding:2px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:.4px">
-                        <?php echo esc_html(str_replace('ai_','',str_replace('_',' ',$opp->source??'')));?>
-                    </span>
-                    <span style="font-size:10px;color:<?php echo $is_pending?'var(--warning)':'var(--success)';?>;margin-left:auto">
-                        <?php echo $is_pending?'Pending':'Approved';?>
-                    </span>
-                </div>
-                <!-- Title -->
-                <div style="font-size:13px;font-weight:600;color:var(--text1);margin-bottom:4px"><?php echo esc_html($opp->title??'');?></div>
-                <!-- Description -->
-                <div style="font-size:12px;color:var(--text2);line-height:1.6"><?php echo esc_html(substr($opp->description??'',0,180)).(strlen($opp->description??'')>180?'…':'');?></div>
-                <!-- Date -->
-                <div style="font-size:11px;color:var(--text3);margin-top:6px"><?php echo isset($opp->created_at)?human_time_diff(strtotime($opp->created_at)).' ago':'';?></div>
-            </div>
-            <!-- Actions -->
-            <?php if($is_pending):?>
-            <div style="display:flex;gap:6px;flex-shrink:0">
-                <button class="six-btn six-btn-primary six-btn-sm six-approve-intel"
-                        data-id="<?php echo $opp->id;?>" data-client="<?php echo $opp->client_id;?>">Approve</button>
-                <button class="six-btn six-btn-ghost six-btn-sm six-dismiss-intel"
-                        data-id="<?php echo $opp->id;?>">Dismiss</button>
-            </div>
-            <?php endif;?>
-        </div>
-        <?php endforeach;?>
-        </div>
-        <?php endif;?>
+        <?php endif; // end total_tracked ?>
 
     <?php endif;?>
     </main>
