@@ -110,8 +110,8 @@ function six_admin_settings() {
         $odoo_ok = Six_Odoo::test_connection();
     }
     $odoo_badge = $odoo_ok
-        ? '<span style="background:#d4edda;color:#155724;padding:3px 10px;border-radius:4px;font-size:12px;font-weight:600">✅ Connected</span>'
-        : '<span style="background:#f8d7da;color:#721c24;padding:3px 10px;border-radius:4px;font-size:12px;font-weight:600">❌ Not connected</span>';
+        ? '<span style="background:#d4edda;color:#155724;padding:3px 10px;border-radius:4px;font-size:12px;font-weight:600"> Connected</span>'
+        : '<span style="background:#f8d7da;color:#721c24;padding:3px 10px;border-radius:4px;font-size:12px;font-weight:600"> Not connected</span>';
 
     // Stage IDs status
     $stages_set = get_option('six_odoo_stage_new') && get_option('six_odoo_stage_submitted');
@@ -124,12 +124,12 @@ function six_admin_settings() {
 
             <!-- ═══ ODOO ═══════════════════════════════════════════════ -->
             <h2 style="border-bottom:3px solid #FF6699;padding-bottom:8px;margin-top:30px">
-                🔗 Odoo CRM <?php echo $odoo_badge; ?>
+                 Odoo CRM <?php echo $odoo_badge; ?>
             </h2>
 
             <?php if ( !$odoo_ok && get_option('six_odoo_url') ) : ?>
             <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:12px 16px;margin-bottom:16px;font-size:13px">
-                <strong>⚠ Connection failed.</strong> Common causes:
+                <strong> Connection failed.</strong> Common causes:
                 <ul style="margin:6px 0 0 18px;line-height:1.8">
                     <li>URL must have <strong>no trailing slash</strong> — e.g. <code>https://yourcompany.odoo.com</code></li>
                     <li>API Key must be generated in Odoo → Settings → Technical → <strong>API Keys</strong> (not your login password)</li>
@@ -166,7 +166,7 @@ function six_admin_settings() {
                         <input name="six_odoo_api_key" type="password" value="<?php echo $s('six_odoo_api_key',true); ?>" class="regular-text" placeholder="Paste your Odoo API key here">
                         <p class="description">
                             Generate in Odoo: <strong>Settings → Technical → API Keys → New</strong><br>
-                            ⚠ This is NOT your login password — it's a separate API key.
+                             This is NOT your login password — it's a separate API key.
                         </p>
                     </td>
                 </tr>
@@ -174,7 +174,7 @@ function six_admin_settings() {
 
             <?php if ( $odoo_ok ) : ?>
             <div style="background:#d4edda;border:1px solid #c3e6cb;border-radius:6px;padding:12px 16px;margin:10px 0 20px;font-size:13px">
-                ✅ <strong>Connected!</strong>
+                 <strong>Connected!</strong>
                 <?php if ( !$stages_set ) : ?>
                     Now run the one-time setup to create custom fields and pipeline stages:
                     <a href="<?php echo admin_url('?six_odoo_setup=1'); ?>" class="button button-primary" style="margin-left:10px">Run Odoo Setup →</a>
@@ -187,9 +187,9 @@ function six_admin_settings() {
             <!-- Stage IDs — set automatically by setup, but editable manually -->
             <h3 style="margin-top:20px">CRM Pipeline Stages
                 <?php if ($stages_set): ?>
-                    <span style="background:#d4edda;color:#155724;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">✅ Configured</span>
+                    <span style="background:#d4edda;color:#155724;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600"> Configured</span>
                 <?php else: ?>
-                    <span style="background:#f8d7da;color:#721c24;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">❌ Not set — run setup</span>
+                    <span style="background:#f8d7da;color:#721c24;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600"> Not set — run setup</span>
                 <?php endif; ?>
             </h3>
             <p style="color:#666;font-size:13px;margin-bottom:10px">
@@ -256,13 +256,13 @@ function six_admin_settings() {
                     <p class="description">Your Twilio phone number in E.164 format (SMS-capable)</p>
                 </td></tr>
                 <?php if(get_option('six_twilio_account_sid')&&get_option('six_twilio_auth_token')&&get_option('six_twilio_from_number')): ?>
-                <tr><th></th><td><span style="color:#155724;background:#d4edda;padding:4px 10px;border-radius:4px;font-weight:600">✅ Twilio credentials set</span></td></tr>
+                <tr><th></th><td><span style="color:#155724;background:#d4edda;padding:4px 10px;border-radius:4px;font-weight:600"> Twilio credentials set</span></td></tr>
                 <?php endif; ?>
             </table>
             <hr>
 
             <!-- ═══ STRIPE ═════════════════════════════════════════════ -->
-            <h2 style="border-bottom:3px solid #83C5ED;padding-bottom:8px;margin-top:30px">💳 Stripe</h2>
+            <h2 style="border-bottom:3px solid #83C5ED;padding-bottom:8px;margin-top:30px"> Stripe</h2>
             <table class="form-table">
                 <tr>
                     <th>Publishable Key</th>
@@ -285,7 +285,7 @@ function six_admin_settings() {
             </table>
 
             <!-- ═══ GOOGLE ADS (MCC) ════════════════════════════════════ -->
-            <h2 style="border-bottom:3px solid #4285F4;padding-bottom:8px;margin-top:30px">📊 Google Ads — Manager Account (MCC)</h2>
+            <h2 style="border-bottom:3px solid #4285F4;padding-bottom:8px;margin-top:30px"> Google Ads — Manager Account (MCC)</h2>
             <p style="color:#666;font-size:13px;margin-bottom:10px">
                 One-time setup. After this, advisors only need to enter a Customer ID per client.
                 You already have a refresh token — paste it here.
@@ -345,7 +345,7 @@ function six_admin_settings() {
             </table>
 
             <!-- ═══ GOOGLE CALENDAR ══════════════════════════════════════ -->
-            <h2 style="border-bottom:3px solid #3C6478;padding-bottom:8px;margin-top:30px">📅 Google Calendar (Agency OAuth)</h2>
+            <h2 style="border-bottom:3px solid #3C6478;padding-bottom:8px;margin-top:30px"> Google Calendar (Agency OAuth)</h2>
             <table class="form-table">
                 <tr>
                     <th>OAuth Client ID</th>
@@ -358,7 +358,7 @@ function six_admin_settings() {
             </table>
 
             <!-- ═══ AI / ANTHROPIC ════════════════════════════════════ -->
-            <h2 style="border-bottom:3px solid #a855f7;padding-bottom:8px;margin-top:30px">🤖 AI Intelligence (Anthropic)</h2>
+            <h2 style="border-bottom:3px solid #a855f7;padding-bottom:8px;margin-top:30px"> AI Intelligence (Anthropic)</h2>
             <p style="color:#666;font-size:13px;margin-bottom:10px">
                 Powers the AI Insights, Growth Opportunities, and Competitor Intelligence tabs in the customer portal.
                 Get your API key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>.
@@ -373,7 +373,7 @@ function six_admin_settings() {
                 </tr>
             </table>
 
-            <h2 class="title" style="margin-top:24px;color:#4285F4">📊 Google Analytics 4 (GA4)</h2>
+            <h2 class="title" style="margin-top:24px;color:#4285F4"> Google Analytics 4 (GA4)</h2>
             <table class="form-table">
                 <tr>
                     <th>GA4 Property ID</th>
@@ -398,7 +398,7 @@ function six_admin_settings() {
                 </tr>
             </table>
 
-            <h2 class="title" style="margin-top:24px;color:#1877F2">📱 Meta Ads (Facebook / Instagram)</h2>
+            <h2 class="title" style="margin-top:24px;color:#1877F2"> Meta Ads (Facebook / Instagram)</h2>
             <table class="form-table">
                 <tr>
                     <th>Meta App ID</th>
@@ -444,7 +444,7 @@ function six_admin_settings() {
                 fetch(ajaxurl,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
                     body:new URLSearchParams({action:'six_test_ga4',_ajax_nonce:'<?php echo wp_create_nonce("six_test_ga4"); ?>',property_id:document.querySelector('[name="six_ga4_property_id"]').value})})
                 .then(function(res){return res.json();})
-                .then(function(d){r.innerHTML=d.success?'<span style="color:#56D364">✓ '+d.data+'</span>':'<span style="color:#FF6B6B">✗ '+(d.data||'Failed')+'</span>';});
+                .then(function(d){r.innerHTML=d.success?'<span style="color:#56D364">✓ '+d.data+'</span>':'<span style="color:#FF6B6B"> '+(d.data||'Failed')+'</span>';});
             });
             document.getElementById('six-test-meta').addEventListener('click',function(){
                 var r=document.getElementById('six-meta-result');
@@ -452,7 +452,7 @@ function six_admin_settings() {
                 fetch(ajaxurl,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
                     body:new URLSearchParams({action:'six_test_meta',_ajax_nonce:'<?php echo wp_create_nonce("six_test_meta"); ?>'})})
                 .then(function(res){return res.json();})
-                .then(function(d){r.innerHTML=d.success?'<span style="color:#56D364">✓ '+d.data+'</span>':'<span style="color:#FF6B6B">✗ '+(d.data||'Failed')+'</span>';});
+                .then(function(d){r.innerHTML=d.success?'<span style="color:#56D364">✓ '+d.data+'</span>':'<span style="color:#FF6B6B"> '+(d.data||'Failed')+'</span>';});
             });
             </script>
 
@@ -789,9 +789,9 @@ function six_admin_leads() {
     <div class="wrap">
         <h1>Lead Pipeline — Checkout Progress Scores</h1>
         <p>
-            <span style="background:#fff5f5;border:1px solid #ffcccc;padding:3px 10px;border-radius:4px;font-size:12px;margin-right:8px">🔥 Hot: 70–100</span>
-            <span style="background:#fffbf0;border:1px solid #ffd680;padding:3px 10px;border-radius:4px;font-size:12px;margin-right:8px">⚡ Warm: 40–69</span>
-            <span style="background:#f0f8ff;border:1px solid #b0d4f1;padding:3px 10px;border-radius:4px;font-size:12px">❄ Cold: 0–39</span>
+            <span style="background:#fff5f5;border:1px solid #ffcccc;padding:3px 10px;border-radius:4px;font-size:12px;margin-right:8px"> Hot: 70–100</span>
+            <span style="background:#fffbf0;border:1px solid #ffd680;padding:3px 10px;border-radius:4px;font-size:12px;margin-right:8px"> Warm: 40–69</span>
+            <span style="background:#f0f8ff;border:1px solid #b0d4f1;padding:3px 10px;border-radius:4px;font-size:12px"> Cold: 0–39</span>
         </p>
         <?php if ( empty( $leads ) ) : ?>
             <p>No leads yet. Leads appear here as visitors start the checkout process.</p>
@@ -947,7 +947,7 @@ function six_maybe_test_ai() {
     $key = get_option('six_anthropic_api_key','');
 
     if ( ! $key ) {
-        echo '<p style="color:#FF6B6B">❌ No API key found in database (option: six_anthropic_api_key)</p>';
+        echo '<p style="color:#FF6B6B"> No API key found in database (option: six_anthropic_api_key)</p>';
         echo '<p>Go to <a href="'.admin_url('admin.php?page=six-portal-settings').'" style="color:#83C5ED">Integration Settings</a>, enter your key, and save.</p>';
         echo '</div>'; exit;
     }
@@ -970,7 +970,7 @@ function six_maybe_test_ai() {
     ));
 
     if ( is_wp_error($resp) ) {
-        echo '<p style="color:#FF6B6B">❌ Network error: '.esc_html($resp->get_error_message()).'</p>';
+        echo '<p style="color:#FF6B6B"> Network error: '.esc_html($resp->get_error_message()).'</p>';
         echo '</div>'; exit;
     }
 
@@ -981,13 +981,13 @@ function six_maybe_test_ai() {
     echo '<pre style="background:#1a1a2e;padding:14px;border-radius:8px;font-size:12px;overflow:auto;max-height:300px">'.esc_html(wp_json_encode($body, JSON_PRETTY_PRINT)).'</pre>';
 
     if ( $code === 200 ) {
-        echo '<p style="color:#56D364;font-size:16px">✅ API is working correctly!</p>';
+        echo '<p style="color:#56D364;font-size:16px"> API is working correctly!</p>';
     } elseif ( $code === 401 ) {
-        echo '<p style="color:#FF6B6B">❌ 401 — API key invalid. Re-copy it from console.anthropic.com → API Keys and paste it fresh into settings.</p>';
+        echo '<p style="color:#FF6B6B"> 401 — API key invalid. Re-copy it from console.anthropic.com → API Keys and paste it fresh into settings.</p>';
     } elseif ( $code === 429 ) {
-        echo '<p style="color:#E3B341">⚠ 429 — Key works but rate limited. Wait 60 seconds and try the portal again.</p>';
+        echo '<p style="color:#E3B341"> 429 — Key works but rate limited. Wait 60 seconds and try the portal again.</p>';
     } else {
-        echo '<p style="color:#FF6B6B">❌ Error '.$code.' — see raw response above.</p>';
+        echo '<p style="color:#FF6B6B"> Error '.$code.' — see raw response above.</p>';
     }
 
     echo '<p style="margin-top:20px"><a href="'.admin_url('admin.php?page=six-portal-settings').'" style="color:#83C5ED">← Back to Settings</a></p>';

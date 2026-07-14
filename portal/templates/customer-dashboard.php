@@ -568,8 +568,8 @@ $has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
 <div class="six-hero-row">
 
     <!-- LEFT: Overview chart placeholder (existing chart code preserved) -->
-    <div cla<div class="six-chart-pane" id="six-chart-wrap" style="overflow:hidden;padding:0;background:var(--dark1,#0B0F1A);border-radius:14px;min-height:260px">
-        <div id="six-analytics-chart"></div>
+    <div class="six-chart-pane" id="six-chart-wrap" style="overflow:hidden;padding:0">
+        <div id="six-analytics-chart" style="flex:1;display:flex;flex-direction:column;min-height:280px"></div>
     </div>
 
     <!-- RIGHT: Advisor card -->
@@ -1124,6 +1124,8 @@ function syncTheme(){
     root2.style.background=dark?'#0B0F1A':'#F4F6FB';
     var title=document.getElementById('anl-title');
     if(title)title.style.color=dark?'rgba(255,255,255,.85)':'rgba(15,20,40,.85)';
+    // Re-render so axis lines, labels and series recolor for the new theme
+    if(typeof render==='function' && DATA && DATA.length){ render(typeof animProg!=='undefined'?animProg:1); }
 }
 // Listen for dashboard theme changes
 document.addEventListener('six-theme-changed', syncTheme);
@@ -1172,7 +1174,7 @@ if(!empty($all_show)): ?>
     <div class="six-card-body" style="padding:0">
     <?php foreach($all_show as $rec): $from_adv=strpos($rec->source??'','advisor_')===0; ?>
     <div id="rec-<?php echo $rec->id; ?>" style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;gap:12px;<?php echo $from_adv?'background:rgba(255,102,153,0.03)':''; ?>">
-        <span style="font-size:20px;flex-shrink:0"><?php echo $from_adv?'⭐':'💡'; ?></span>
+        <span style="font-size:20px;flex-shrink:0"><?php echo $from_adv?'':''; ?></span>
         <div style="flex:1">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
                 <span style="font-size:13px;font-weight:600"><?php echo esc_html($rec->title); ?></span>
@@ -1199,17 +1201,17 @@ if(!empty($all_show)): ?>
 $pending_opps  = $wpdb->get_results($wpdb->prepare("SELECT * FROM {$wpdb->prefix}six_recommendations WHERE client_id=%d AND status='active' AND source LIKE 'ai_%' ORDER BY created_at DESC",$user_id));
 $approved_opps = $wpdb->get_results($wpdb->prepare("SELECT * FROM {$wpdb->prefix}six_recommendations WHERE client_id=%d AND status='approved' AND source LIKE 'ai_%' ORDER BY created_at DESC LIMIT 6",$user_id));
 $opp_types=array(
-    array('id'=>'perf',    'icon'=>'📊','title'=>'Missing Traffic Source',   'color'=>'#4285F4','key'=>'performance',
+    array('id'=>'perf',    'icon'=>'traffic',    'title'=>'Missing Traffic Source',   'color'=>'#4285F4','key'=>'performance',
         'prompt'=>"You are a senior marketing analyst at 6ix Developers. In exactly 2 concise sentences, identify the single most impactful missing traffic channel for this business and quantify the opportunity. Business: {$ai_business}, Industry: {$ai_industry}, Active: {$ai_svc_names}. Missing: {$missing_svcs}. End: 'Our [service] directly addresses this.' No filler."),
-    array('id'=>'action',  'icon'=>'🎯','title'=>'Highest ROI Opportunity',  'color'=>'var(--pink)','key'=>'action',
+    array('id'=>'action',  'icon'=>'target',     'title'=>'Highest ROI Opportunity',  'color'=>'var(--pink)','key'=>'action',
         'prompt'=>"You are a marketing ROI strategist at 6ix Developers. In 2 sentences, identify the highest-ROI service to add and give a realistic return range. Business: {$ai_business}, Industry: {$ai_industry}, Goal: {$ai_goal}, Current: {$ai_svc_names}. Missing: {$missing_svcs}. Be specific with numbers. End: 'This is available as part of our [service] package.'"),
-    array('id'=>'channel', 'icon'=>'📡','title'=>'Competitor Gap',           'color'=>'var(--cyan)','key'=>'channel',
+    array('id'=>'channel', 'icon'=>'gap',        'title'=>'Competitor Gap',           'color'=>'var(--cyan)','key'=>'channel',
         'prompt'=>"You are a competitive intelligence analyst at 6ix Developers. In 2 sentences, describe the most significant channel gap vs competitors and what business is being lost. Business: {$ai_business}, Industry: {$ai_industry}, Current: {$ai_svc_names}. Competitors: ".($comp_str?:'typical industry players').". End: '6ix Developers can close this with our [service].'"),
-    array('id'=>'roi',     'icon'=>'💰','title'=>'Revenue Gap Analysis',     'color'=>'#E3B341','key'=>'roi',
+    array('id'=>'roi',     'icon'=>'revenue',    'title'=>'Revenue Gap Analysis',     'color'=>'#E3B341','key'=>'roi',
         'prompt'=>"You are a revenue strategist at 6ix Developers. In 2 sentences, identify the biggest revenue opportunity being left on the table. Business: {$ai_business}, Industry: {$ai_industry}, Services: {$ai_svc_names}. Use realistic benchmark numbers. End: 'Our [service] typically delivers [result] within [timeframe].'"),
-    array('id'=>'content', 'icon'=>'📰','title'=>'Brand Authority Gap',      'color'=>'#a855f7','key'=>'content',
-        'prompt'=>"You are a brand strategist at 6ix Developers. In 2 sentences, assess this business's brand authority gap and the competitive risk. Business: {$ai_business}, Industry: {$ai_industry}, Services: {$ai_svc_names}. Make it specific to their industry. End: 'Our  and  services address this directly.'"),
-    array('id'=>'quickwin','icon'=>'⚡','title'=>'30-Day Revenue Projection','color'=>'var(--success)','key'=>'quickwin',
+    array('id'=>'content', 'icon'=>'brand',      'title'=>'Brand Authority Gap',      'color'=>'#a855f7','key'=>'content',
+        'prompt'=>"You are a brand strategist at 6ix Developers. In 2 sentences, assess this business's brand authority gap and the competitive risk. Business: {$ai_business}, Industry: {$ai_industry}, Services: {$ai_svc_names}. Make it specific to their industry. End: 'Our brand and content services address this directly.'"),
+    array('id'=>'quickwin','icon'=>'trending-up','title'=>'30-Day Revenue Projection','color'=>'var(--success)','key'=>'quickwin',
         'prompt'=>"You are a growth advisor at 6ix Developers. In 2 sentences, project what adding the most impactful missing service delivers in 30 days. Business: {$ai_business}, Industry: {$ai_industry}, Challenge: {$ai_challenge}, Services: {$ai_svc_names}. Missing: {$missing_svcs}. Use compelling realistic numbers. End: 'Book a strategy call — your advisor is ready.'"),
 );
 ?>
@@ -1217,7 +1219,6 @@ $opp_types=array(
     <div><h1 class="six-page-title">AI Marketing Insights</h1><p class="six-page-sub">Personalised intelligence for <strong><?php echo esc_html($ai_business); ?></strong></p></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <?php if(count($pending_opps)>0): ?><span style="font-size:12px;background:rgba(255,102,153,0.1);color:var(--pink);padding:6px 14px;border-radius:20px;border:1px solid rgba(255,102,153,0.3)"><?php echo count($pending_opps); ?> awaiting advisor</span><?php endif; ?>
-        <button class="six-btn six-btn-primary" id="six-generate-insights">✨ Generate All Insights</button>
     </div>
 </div>
 <?php if(!empty($approved_opps)): ?>
@@ -1239,19 +1240,19 @@ $opp_types=array(
 <div class="six-card" id="opp-card-<?php echo $opp['id']; ?>" style="border-top:3px solid <?php echo $opp['color']; ?>;transition:transform 0.2s,box-shadow 0.2s">
     <div class="six-card-body" style="padding:18px 20px">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-            <div style="width:36px;height:36px;border-radius:9px;background:<?php echo $opp['color']; ?>18;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0"><?php echo $opp['icon']; ?></div>
+            <div style="width:36px;height:36px;border-radius:9px;background:<?php echo $opp['color']; ?>18;color:<?php echo $opp['color']; ?>;display:flex;align-items:center;justify-content:center;flex-shrink:0"><?php echo class_exists('Six_Icon')?Six_Icon::get($opp['icon'],'','18px'):''; ?></div>
             <div style="flex:1">
                 <div style="font-size:13px;font-weight:700"><?php echo esc_html($opp['title']); ?></div>
                 <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px"><?php echo esc_html($ai_industry?:'Your Industry'); ?></div>
             </div>
             <?php if($is_approved): ?><span style="font-size:10px;background:rgba(86,211,100,0.12);color:var(--success);padding:3px 9px;border-radius:10px;font-weight:700">✓ Active</span>
-            <?php elseif($is_pending): ?><span class="six-opp-badge" style="font-size:10px;background:rgba(227,179,65,0.12);color:var(--warning);padding:3px 9px;border-radius:10px;font-weight:700">⏳ Sent</span><?php endif; ?>
+            <?php elseif($is_pending): ?><span class="six-opp-badge" style="font-size:10px;background:rgba(227,179,65,0.12);color:var(--warning);padding:3px 9px;border-radius:10px;font-weight:700"> Sent</span><?php endif; ?>
         </div>
         <div id="opp-content-<?php echo $opp['id']; ?>" data-prompt="<?php echo esc_attr($opp['prompt']); ?>" data-type="<?php echo esc_attr($opp['key']); ?>" style="margin-bottom:14px;min-height:60px">
             <?php if($has_content): ?>
             <div style="font-size:13px;color:var(--text1);line-height:1.75;padding:12px;background:var(--dark4);border-radius:8px;border-left:3px solid <?php echo $opp['color']; ?>"><?php echo esc_html($clean); ?></div>
             <?php else: ?>
-            <div class="six-opp-teaser" style="font-size:12px;color:var(--text3);line-height:1.7;font-style:italic;padding:4px 0">Click Generate All Insights above to see your personalised analysis.</div>
+            <div class="six-opp-teaser" style="font-size:12px;color:var(--text3);line-height:1.7;padding:4px 0">Select <strong>See Insight</strong> to generate your personalised analysis.</div>
             <div class="six-ai-loading" style="display:none;margin-top:8px"><span class="six-ai-spinner"></span> <span style="font-size:12px;color:var(--text3)">Analysing…</span></div>
             <?php endif; ?>
         </div>
@@ -1260,7 +1261,7 @@ $opp_types=array(
             <div style="font-size:12px;color:var(--success);font-weight:600">✓ Your advisor is working on this</div>
             <?php elseif($is_pending): ?>
             <div style="display:flex;align-items:center;justify-content:space-between">
-                <span style="font-size:12px;color:var(--warning)">⏳ Advisor reviewing</span>
+                <span style="font-size:12px;color:var(--warning)"> Advisor reviewing</span>
                 <button class="six-btn six-btn-ghost six-btn-sm six-dismiss-opp" data-rec-id="<?php echo $existing->id; ?>" data-card="<?php echo $opp['id']; ?>" style="font-size:11px;color:var(--text3)">Remove</button>
             </div>
             <?php else: ?>
@@ -1284,11 +1285,11 @@ $ctx     = "Business: {$ai_business}, Industry: {$ai_industry}, Website: ".($dom
 ?>
 <div class="six-page-header">
     <div><h1 class="six-page-title">Competitor Intelligence</h1><p class="six-page-sub">See where you stand and where to gain ground</p></div>
-    <button class="six-btn six-btn-primary" id="six-run-competitor-analysis">🎯 Run Analysis</button>
+    <button class="six-btn six-btn-primary" id="six-run-competitor-analysis"> Run Analysis</button>
 </div>
 <?php if(!$has_data): ?>
 <div class="six-card"><div class="six-card-body" style="text-align:center;padding:60px">
-    <div style="font-size:40px;margin-bottom:16px">🔍</div>
+    <div style="font-size:40px;margin-bottom:16px"></div>
     <div style="font-size:15px;font-weight:600;margin-bottom:8px">Set up your profile first</div>
     <p style="font-size:13px;color:var(--text2);max-width:360px;margin:0 auto 20px;line-height:1.7">Add your website URL and industry in your profile to run a competitor analysis. Your advisor can also add this for you.ebsite, industry, and competitors in your profile to unlock competitive intelligence.</p>
     <a href="?tab=profile" class="six-btn six-btn-primary">Complete Profile →</a>
@@ -1301,18 +1302,18 @@ $ctx     = "Business: {$ai_business}, Industry: {$ai_industry}, Website: ".($dom
             <div><div style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px"><?php echo $lbl; ?></div><div style="font-size:13px;font-weight:600"><?php echo esc_html(strlen($val)>40?substr($val,0,37).'…':$val); ?></div></div>
             <?php endforeach; ?>
         </div>
-        <a href="?tab=profile" class="six-btn six-btn-ghost six-btn-sm" style="font-size:11px">✏️ Update</a>
+        <a href="?tab=profile" class="six-btn six-btn-ghost six-btn-sm" style="font-size:11px"> Update</a>
     </div>
 </div>
 <span id="comp-ctx" data-value="<?php echo esc_attr($ctx); ?>" style="display:none"></span>
 <div id="competitor-results" style="display:none">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
-        <div class="six-card"><div class="six-card-header" style="border-bottom:1px solid var(--border);padding-bottom:12px"><div style="display:flex;align-items:center;gap:8px"><span>🗺️</span><span class="six-card-title">Competitive Landscape</span><span class="six-ai-badge">AI</span></div></div><div id="ai-comp-landscape-body" class="six-card-body" style="font-size:13px;color:var(--text2);line-height:1.75"><div class="six-ai-loading"><span class="six-ai-spinner"></span> Mapping…</div></div></div>
-        <div class="six-card"><div class="six-card-header" style="border-bottom:1px solid var(--border);padding-bottom:12px"><div style="display:flex;align-items:center;gap:8px"><span>🔓</span><span class="six-card-title">Market Gaps You Can Win</span><span class="six-ai-badge">AI</span></div></div><div id="ai-comp-gaps-body" class="six-card-body" style="font-size:13px;color:var(--text2);line-height:1.75"><div class="six-ai-loading"><span class="six-ai-spinner"></span> Finding gaps…</div></div></div>
-        <div class="six-card"><div class="six-card-header" style="border-bottom:1px solid var(--border);padding-bottom:12px"><div style="display:flex;align-items:center;gap:8px"><span>🔑</span><span class="six-card-title">Keywords to Target</span><span class="six-ai-badge">AI</span></div></div><div id="ai-comp-keywords-body" class="six-card-body" style="font-size:13px;color:var(--text2);line-height:1.75"><div class="six-ai-loading"><span class="six-ai-spinner"></span> Researching…</div></div></div>
-        <div class="six-card"><div class="six-card-header" style="border-bottom:1px solid var(--border);padding-bottom:12px"><div style="display:flex;align-items:center;gap:8px"><span>💎</span><span class="six-card-title">Your Positioning Advantage</span><span class="six-ai-badge">AI</span></div></div><div id="ai-comp-positioning-body" class="six-card-body" style="font-size:13px;color:var(--text2);line-height:1.75"><div class="six-ai-loading"><span class="six-ai-spinner"></span> Crafting…</div></div></div>
+        <div class="six-card"><div class="six-card-header" style="border-bottom:1px solid var(--border);padding-bottom:12px"><div style="display:flex;align-items:center;gap:8px"><span></span><span class="six-card-title">Competitive Landscape</span><span class="six-ai-badge">AI</span></div></div><div id="ai-comp-landscape-body" class="six-card-body" style="font-size:13px;color:var(--text2);line-height:1.75"><div class="six-ai-loading"><span class="six-ai-spinner"></span> Mapping…</div></div></div>
+        <div class="six-card"><div class="six-card-header" style="border-bottom:1px solid var(--border);padding-bottom:12px"><div style="display:flex;align-items:center;gap:8px"><span></span><span class="six-card-title">Market Gaps You Can Win</span><span class="six-ai-badge">AI</span></div></div><div id="ai-comp-gaps-body" class="six-card-body" style="font-size:13px;color:var(--text2);line-height:1.75"><div class="six-ai-loading"><span class="six-ai-spinner"></span> Finding gaps…</div></div></div>
+        <div class="six-card"><div class="six-card-header" style="border-bottom:1px solid var(--border);padding-bottom:12px"><div style="display:flex;align-items:center;gap:8px"><span></span><span class="six-card-title">Keywords to Target</span><span class="six-ai-badge">AI</span></div></div><div id="ai-comp-keywords-body" class="six-card-body" style="font-size:13px;color:var(--text2);line-height:1.75"><div class="six-ai-loading"><span class="six-ai-spinner"></span> Researching…</div></div></div>
+        <div class="six-card"><div class="six-card-header" style="border-bottom:1px solid var(--border);padding-bottom:12px"><div style="display:flex;align-items:center;gap:8px"><span></span><span class="six-card-title">Your Positioning Advantage</span><span class="six-ai-badge">AI</span></div></div><div id="ai-comp-positioning-body" class="six-card-body" style="font-size:13px;color:var(--text2);line-height:1.75"><div class="six-ai-loading"><span class="six-ai-spinner"></span> Crafting…</div></div></div>
     </div>
-    <div class="six-card"><div class="six-card-header" style="border-bottom:1px solid var(--border);padding-bottom:12px"><div style="display:flex;align-items:center;gap:8px"><span>🏆</span><span class="six-card-title">How to Overtake Competitors This Quarter</span><span class="six-ai-badge">AI</span></div></div><div id="ai-comp-winplan-body" class="six-card-body" style="font-size:13px;color:var(--text2);line-height:1.75"><div class="six-ai-loading"><span class="six-ai-spinner"></span> Building strategy…</div></div></div>
+    <div class="six-card"><div class="six-card-header" style="border-bottom:1px solid var(--border);padding-bottom:12px"><div style="display:flex;align-items:center;gap:8px"><span></span><span class="six-card-title">How to Overtake Competitors This Quarter</span><span class="six-ai-badge">AI</span></div></div><div id="ai-comp-winplan-body" class="six-card-body" style="font-size:13px;color:var(--text2);line-height:1.75"><div class="six-ai-loading"><span class="six-ai-spinner"></span> Building strategy…</div></div></div>
 </div>
 <?php endif; ?>
 
@@ -1328,7 +1329,7 @@ $all_svc_defs=array(
 );
 foreach($all_svc_defs as $def):
     $existing=null; foreach($services as $s){if($s->service_slug===$def['slug']){$existing=$s;break;}}
-    $sd=$svc_def[$def['slug']]??array('icon'=>'⚙','color'=>'var(--pink)');
+    $sd=$svc_def[$def['slug']]??array('icon'=>'','color'=>'var(--pink)');
     $pending_req=$existing?get_user_meta($user_id,'six_budget_req_'.$existing->id,true):null;
 ?>
 <div class="six-card">
@@ -1346,17 +1347,17 @@ foreach($all_svc_defs as $def):
             <strong style="color:var(--cyan);font-size:15px"><?php echo $existing->budget>0?'$'.number_format($existing->budget,0).'/mo':'<span style="color:var(--text3)">Not set</span>'; ?></strong>
         </div>
         <?php if($pending_req&&($pending_req['status']??'')==='pending'): ?>
-        <div class="six-pending-msg" style="font-size:11px;padding:8px;margin-bottom:8px">⏳ Change to $<?php echo number_format($pending_req['requested_budget'],0); ?>/mo pending</div>
+        <div class="six-pending-msg" style="font-size:11px;padding:8px;margin-bottom:8px"> Change to $<?php echo number_format($pending_req['requested_budget'],0); ?>/mo pending</div>
         <?php else: ?>
         <div id="svc-budget-form-<?php echo $existing->id; ?>" style="display:none;margin-bottom:8px">
             <div style="display:flex;gap:8px">
                 <input type="number" class="six-input six-budget-input" value="<?php echo esc_attr(intval($existing->budget)); ?>" placeholder="e.g. 1500" min="0" style="flex:1;padding:7px 10px;font-size:12px">
                 <button class="six-btn six-btn-primary six-btn-sm six-submit-budget" data-service-id="<?php echo $existing->id; ?>">Request</button>
-                <button class="six-btn six-btn-ghost six-btn-sm" onclick="document.getElementById('svc-budget-form-<?php echo $existing->id; ?>').style.display='none';document.getElementById('svc-budget-trigger-<?php echo $existing->id; ?>').style.display=''">✕</button>
+                <button class="six-btn six-btn-ghost six-btn-sm" onclick="document.getElementById('svc-budget-form-<?php echo $existing->id; ?>').style.display='none';document.getElementById('svc-budget-trigger-<?php echo $existing->id; ?>').style.display=''"></button>
             </div>
             <div class="six-budget-msg" style="font-size:11px;margin-top:5px"></div>
         </div>
-        <button id="svc-budget-trigger-<?php echo $existing->id; ?>" class="six-btn six-btn-ghost six-btn-sm" onclick="document.getElementById('svc-budget-form-<?php echo $existing->id; ?>').style.display='block';this.style.display='none'" style="font-size:11px;margin-bottom:8px"><?php echo $existing->budget>0?'✏️ Request Change':'+ Set Budget'; ?></button>
+        <button id="svc-budget-trigger-<?php echo $existing->id; ?>" class="six-btn six-btn-ghost six-btn-sm" onclick="document.getElementById('svc-budget-form-<?php echo $existing->id; ?>').style.display='block';this.style.display='none'" style="font-size:11px;margin-bottom:8px"><?php echo $existing->budget>0?' Request Change':'+ Set Budget'; ?></button>
         <?php endif; ?>
         <a href="?tab=svc_<?php echo esc_attr($existing->service_slug); ?>" class="six-btn six-btn-secondary six-btn-sm" style="font-size:11px;display:block;text-align:center">View Performance →</a>
     <?php elseif($existing&&$existing->status==='pending'): ?>
@@ -1380,7 +1381,7 @@ foreach($services as $s){ if($s->service_slug===$svc_slug && $s->status==='activ
 if(!$cur_svc): ?>
 <div class="six-card"><div class="six-card-body" style="text-align:center;padding:60px;color:var(--text3)">Service not active. <a href="?tab=services" class="six-btn six-btn-ghost six-btn-sm" style="margin-left:12px">← Back</a></div></div>
 <?php else:
-$sd        = $svc_def[$svc_slug] ?? array('name'=>ucfirst($svc_slug),'icon'=>'⚙','color'=>'var(--pink)');
+$sd        = $svc_def[$svc_slug] ?? array('name'=>ucfirst($svc_slug),'icon'=>'','color'=>'var(--pink)');
 $s_mets    = array_values(array_filter((array)$metrics, fn($m)=>$m->service_slug===$svc_slug));
 // Only pull recs that are explicitly for this service
 // advisor_ recs are included only if title/source mentions the service slug
@@ -1429,7 +1430,7 @@ $chart_json = json_encode(array(
         </div>
     </div>
     <div style="display:flex;gap:8px">
-        <a href="?tab=messages" class="six-btn six-btn-primary six-btn-sm" style="font-size:12px">💬 Message Advisor</a>
+        <a href="?tab=advisor" class="six-btn six-btn-primary six-btn-sm" style="font-size:12px">Message Advisor</a>
     </div>
 </div>
 
@@ -1554,7 +1555,7 @@ $chart_json = json_encode(array(
     <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#a855f7,var(--cyan))"></div>
     <div style="padding:18px 20px;border-bottom:1px solid rgba(168,85,247,0.1);display:flex;align-items:center;justify-content:space-between">
         <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:16px">🚀</span>
+            <span style="font-size:16px"></span>
             <div>
                 <div style="font-size:13px;font-weight:700">Growth Opportunity Analysis</div>
                 <div style="font-size:10px;color:var(--text3)">AI-powered · Based on your <?php echo esc_html($sd['name']); ?> performance</div>
@@ -1580,12 +1581,12 @@ $chart_json = json_encode(array(
 <?php if(!empty($s_recs)): ?>
 <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px;max-width:100%;box-sizing:border-box">
     <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;gap:8px">
-        <span>⭐</span><span style="font-size:13px;font-weight:700">Advisor Recommendations</span>
+        <span></span><span style="font-size:13px;font-weight:700">Advisor Recommendations</span>
         <span style="font-size:11px;color:var(--pink);background:rgba(255,102,153,0.1);padding:2px 8px;border-radius:10px"><?php echo count($s_recs); ?> active</span>
     </div>
     <?php foreach($s_recs as $rec): $from_adv=strpos($rec->source??'','advisor_')===0; ?>
     <div id="rec-<?php echo $rec->id; ?>" style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;gap:10px;min-width:0;overflow:hidden">
-        <span style="font-size:16px;flex-shrink:0;margin-top:2px"><?php echo $from_adv?'⭐':'💡'; ?></span>
+        <span style="font-size:16px;flex-shrink:0;margin-top:2px"><?php echo $from_adv?'':''; ?></span>
         <div style="flex:1;min-width:0;overflow:hidden">
             <div style="font-size:13px;font-weight:600;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis"><?php echo esc_html($rec->title); ?></div>
             <div style="font-size:12px;color:var(--text2);line-height:1.65;margin-bottom:8px;word-wrap:break-word;overflow-wrap:break-word"><?php echo esc_html($rec->description); ?></div>
@@ -1618,7 +1619,7 @@ $chart_json = json_encode(array(
     </div>
     <div class="six-card-body" style="padding:0">
         <div class="six-msg-thread" id="six-msg-thread" style="height:460px;overflow-y:auto;padding:16px">
-            <?php if(empty($conv)): ?><div style="text-align:center;padding:40px;color:var(--text3)">No messages yet. Say hello! 👋</div>
+            <?php if(empty($conv)): ?><div style="text-align:center;padding:40px;color:var(--text3)">No messages yet. Say hello! </div>
             <?php else: foreach($conv as $msg): $is_mine=intval($msg->sender_id)===$user_id; ?>
             <div class="six-msg <?php echo $is_mine?'mine':''; ?>">
                 <div class="six-msg-avatar" style="background:<?php echo $is_mine?'linear-gradient(135deg,var(--pink),#a855f7)':'linear-gradient(135deg,var(--blue),var(--cyan))'; ?>"><?php echo esc_html(six_get_initials($msg->sender_name)); ?></div>
@@ -1654,13 +1655,19 @@ $adv_phone=get_user_meta($advisor_id,'billing_phone',true);
             </div>
             <?php if($adv_bio): ?><div style="font-size:12px;color:var(--text3);line-height:1.6;margin-bottom:16px;text-align:left"><?php echo esc_html($adv_bio); ?></div><?php endif; ?>
             <div style="display:flex;flex-direction:column;gap:8px">
-                <a href="?tab=messages" class="six-btn six-btn-primary" style="justify-content:center">💬 Send Message</a>
-                <?php if($adv_phone): ?><a href="tel:<?php echo esc_attr($adv_phone); ?>" class="six-btn six-btn-ghost six-btn-sm" style="justify-content:center;font-size:12px">📞 <?php echo esc_html($adv_phone); ?></a><?php endif; ?>
+                <?php if($adv_phone): ?><a href="tel:<?php echo esc_attr($adv_phone); ?>" class="six-btn six-btn-ghost six-btn-sm" style="justify-content:center;gap:7px"><?php echo class_exists('Six_Icon')?Six_Icon::get('phone','','15px'):''; ?><?php echo esc_html($adv_phone); ?></a><?php endif; ?>
+            </div>
+            <!-- Inline message-your-advisor box (replaces the old Messages tab) -->
+            <div style="margin-top:14px;text-align:left">
+                <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);display:block;margin-bottom:8px">Message <?php echo esc_html(explode(' ',$advisor->display_name)[0]); ?></label>
+                <textarea id="adv-msg-text" class="six-input" rows="3" placeholder="Ask a question or share an update…" style="resize:vertical;width:100%;font-size:13px"></textarea>
+                <button class="six-btn six-btn-primary six-btn-sm" id="adv-msg-send" data-advisor="<?php echo intval($advisor_id); ?>" style="margin-top:8px;width:100%;justify-content:center;gap:7px"><?php echo class_exists('Six_Icon')?Six_Icon::get('send','','15px'):''; ?>Send Message</button>
+                <div id="adv-msg-result" style="font-size:12px;margin-top:8px"></div>
             </div>
             <?php if(!empty($active_svcs)): ?>
             <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border);text-align:left">
                 <div style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Managing for you</div>
-                <?php foreach($active_svcs as $s):$sd=$svc_def[$s->service_slug]??array('icon'=>'⚙','color'=>'var(--pink)'); ?>
+                <?php foreach($active_svcs as $s):$sd=$svc_def[$s->service_slug]??array('icon'=>'','color'=>'var(--pink)'); ?>
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
                     <span style="font-size:12px"><?php echo $sd['icon']; ?> <?php echo esc_html($s->service_name); ?></span>
                     <span style="font-size:11px;color:var(--cyan);font-weight:600">$<?php echo number_format($s->budget,0); ?>/mo</span>
@@ -1689,23 +1696,23 @@ $adv_phone=get_user_meta($advisor_id,'billing_phone',true);
                 <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);display:block;margin-bottom:8px">What would you like to discuss?</label>
                 <textarea class="six-input" id="meeting-notes" rows="3" placeholder="e.g. Review my Google Ads performance, discuss budget changes…"></textarea>
             </div>
-            <button class="six-btn six-btn-primary" id="six-book-meeting-new" disabled style="width:100%;justify-content:center;opacity:0.5">📅 Book 30-Minute Meeting</button>
+            <button class="six-btn six-btn-primary" id="six-book-meeting-new" disabled style="width:100%;justify-content:center;opacity:0.5">Book 30-Minute Meeting</button>
             <div id="six-meeting-result" style="margin-top:12px;font-size:13px"></div>
-            <div style="margin-top:14px;padding:12px;background:var(--dark4);border-radius:8px;font-size:11px;color:var(--text3);line-height:1.6">📋 Meetings are 30 minutes · Google Meet link is generated automatically · Both you and your advisor receive email confirmations</div>
+            <div style="margin-top:14px;padding:12px;background:var(--dark4);border-radius:8px;font-size:11px;color:var(--text3);line-height:1.6"> Meetings are 30 minutes · Google Meet link is generated automatically · Both you and your advisor receive email confirmations</div>
         </div>
     </div>
 </div>
-<?php else: ?><div class="six-card"><div class="six-card-body" style="text-align:center;padding:60px;color:var(--text3)"><div style="font-size:40px;margin-bottom:16px">👤</div><div style="font-size:14px;font-weight:600">No advisor assigned yet</div><div style="font-size:13px;margin-top:8px">Contact us at hello@6ixdevelopers.com to get started.</div></div></div><?php endif; ?>
+<?php else: ?><div class="six-card"><div class="six-card-body" style="text-align:center;padding:60px;color:var(--text3)"><div style="margin-bottom:12px;color:var(--text3)"><?php echo class_exists('Six_Icon')?Six_Icon::get('advisor','','40px'):''; ?></div><div style="font-size:14px;font-weight:600">No advisor assigned yet</div><div style="font-size:13px;margin-top:8px">Contact us at hello@6ixdevelopers.com to get started.</div></div></div><?php endif; ?>
 
 <?php elseif($active_tab==='reports'): ?>
 <div class="six-page-header"><div><h1 class="six-page-title">Reports</h1></div></div>
 <div class="six-card"><div class="six-card-body">
 <?php if(empty($reports)): ?>
-<div style="text-align:center;padding:40px;color:var(--text3)"><div style="font-size:36px;margin-bottom:12px">📄</div>Your advisor will upload monthly reports here once campaigns are running.</div>
+<div style="text-align:center;padding:40px;color:var(--text3)"><div style="margin-bottom:12px;color:var(--text3)"><?php echo class_exists('Six_Icon')?Six_Icon::get('reports','','36px'):''; ?></div>Your advisor will upload monthly reports here once campaigns are running.</div>
 <?php else: foreach($reports as $rep): ?>
 <div class="six-report-row" style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)">
     <div style="display:flex;align-items:center;gap:12px">
-        <div style="font-size:24px">📄</div>
+        <div style="font-size:24px"></div>
         <div><div style="font-weight:600;font-size:13px"><?php echo esc_html($rep->title); ?></div><div style="font-size:11px;color:var(--text3)"><?php echo date('M j, Y',strtotime($rep->created_at)); ?></div></div>
     </div>
     <?php if($rep->file_url): ?><a href="<?php echo esc_url($rep->file_url); ?>" class="six-btn six-btn-secondary six-btn-sm" target="_blank">↓ Download</a><?php endif; ?>
@@ -1740,10 +1747,10 @@ $invoices=($customer_id&&class_exists('Six_Stripe'))?Six_Stripe::get_invoices($u
                     <?php if($exp): ?><div><div class="six-card-meta-label">Expires</div><div class="six-card-meta-val"><?php echo esc_html($exp); ?></div></div><?php endif; ?>
                 </div>
             </div>
-            <button class="six-btn six-btn-ghost six-btn-sm" id="six-update-card" style="width:100%;justify-content:center">🔄 Update Card</button>
+            <button class="six-btn six-btn-ghost six-btn-sm" id="six-update-card" style="width:100%;justify-content:center"> Update Card</button>
             <div id="six-card-update-result" style="font-size:12px;margin-top:8px"></div>
             <?php else: ?>
-            <div style="text-align:center;padding:24px"><div style="font-size:36px;margin-bottom:12px">💳</div><div style="font-size:13px;color:var(--text2);margin-bottom:16px">No payment method saved yet.</div><button class="six-btn six-btn-primary" id="six-add-card">+ Add Payment Method</button></div>
+            <div style="text-align:center;padding:24px"><div style="margin-bottom:12px;color:var(--text3)"><?php echo class_exists('Six_Icon')?Six_Icon::get('card','','36px'):''; ?></div><div style="font-size:13px;color:var(--text2);margin-bottom:16px">No payment method saved yet.</div><button class="six-btn six-btn-primary" id="six-add-card">+ Add Payment Method</button></div>
             <?php endif; ?>
         </div>
     </div>
@@ -1963,7 +1970,7 @@ document.querySelectorAll('.six-submit-budget').forEach(function(btn){
         if(!budget||budget<=0){if(msgEl)msgEl.innerHTML='<span style="color:var(--danger)">Enter a valid amount.</span>';return;}
         this.textContent='Sending…';this.disabled=true;var self=this;
         post({action:'six_request_budget_change',service_id:svcId,new_budget:budget}).then(function(res){
-            if(res.success){form.style.display='none';var p=document.createElement('div');p.className='six-pending-msg';p.style.cssText='font-size:11px;padding:8px;margin-top:6px';p.textContent='⏳ Request sent.';form.parentNode.insertBefore(p,form);}
+            if(res.success){form.style.display='none';var p=document.createElement('div');p.className='six-pending-msg';p.style.cssText='font-size:11px;padding:8px;margin-top:6px';p.textContent=' Request sent.';form.parentNode.insertBefore(p,form);}
             else{if(msgEl)msgEl.innerHTML='<span style="color:var(--danger)">'+(res.data||'Error')+'</span>';self.textContent='Request';self.disabled=false;}
         });
     });
@@ -2096,7 +2103,7 @@ if(bookBtn){
         var notes=(document.getElementById('meeting-notes')||{}).value||'';
         this.textContent='Booking…';this.disabled=true;var self=this;
         post({action:'six_book_meeting',start:selectedSlot,duration:30,notes:notes}).then(function(d){
-            self.textContent='📅 Book 30-Minute Meeting';
+            self.textContent='Book 30-Minute Meeting';
             var result=document.getElementById('six-meeting-result');
             if(d&&d.success){
                 if(result)result.innerHTML='<div style="background:rgba(86,211,100,0.1);border:1px solid rgba(86,211,100,0.3);border-radius:8px;padding:12px;font-size:13px;color:var(--success)">✓ Meeting booked!'+(d.data&&d.data.meet_link?'<br><a href="'+d.data.meet_link+'" target="_blank" style="color:var(--cyan)">Join Google Meet →</a>':'')+'</div>';
@@ -2105,6 +2112,31 @@ if(bookBtn){
                 self.disabled=false;self.style.opacity='1';
                 if(result)result.innerHTML='<div style="color:var(--danger);font-size:12px">'+(d&&d.data?d.data:'Could not book — please try again.')+'</div>';
             }
+        });
+    });
+}
+
+// ── Inline "message your advisor" box ────────────────────────────────────
+var advMsgBtn=document.getElementById('adv-msg-send');
+if(advMsgBtn){
+    advMsgBtn.addEventListener('click',function(){
+        var ta=document.getElementById('adv-msg-text');
+        var out=document.getElementById('adv-msg-result');
+        var msg=(ta&&ta.value||'').trim();
+        var to=this.getAttribute('data-advisor');
+        if(!msg){if(out)out.innerHTML='<span style="color:var(--warning)">Please type a message first.</span>';return;}
+        var self=this;self.disabled=true;var label=self.innerHTML;self.textContent='Sending…';
+        post({action:'six_send_message',receiver_id:to,message:msg}).then(function(d){
+            self.disabled=false;self.innerHTML=label;
+            if(d&&d.success){
+                if(ta)ta.value='';
+                if(out)out.innerHTML='<span style="color:var(--success)">Message sent — your advisor will reply soon.</span>';
+            } else {
+                if(out)out.innerHTML='<span style="color:var(--danger)">'+((d&&d.data)||'Could not send. Please try again.')+'</span>';
+            }
+        }).catch(function(){
+            self.disabled=false;self.innerHTML=label;
+            if(out)out.innerHTML='<span style="color:var(--danger)">Network error. Please try again.</span>';
         });
     });
 }
@@ -2145,7 +2177,7 @@ function handleCardBtn(id){
         var result=document.getElementById('six-card-update-result');
         btn.textContent='Loading…';btn.disabled=true;
         post({action:'six_get_setup_intent'}).then(function(d){
-            btn.textContent=id==='six-update-card'?'🔄 Update Card':'+ Add Payment Method';btn.disabled=false;
+            btn.textContent=id==='six-update-card'?' Update Card':'+ Add Payment Method';btn.disabled=false;
             if(d&&d.success&&d.data&&d.data.url)window.location.href=d.data.url;
             else if(result)result.innerHTML='<span style="color:var(--danger)">Could not open payment page. Contact your advisor.</span>';
         });
@@ -2330,14 +2362,7 @@ function drain(){
 }
 
 // ── Generate All Insights button ─────────────────────────────────────────
-var genBtn=document.getElementById('six-generate-insights');
-if(genBtn){
-    genBtn.addEventListener('click',function(){
-        var btn=this;btn.textContent='\u23f3 Generating\u2026';btn.disabled=true;
-        document.querySelectorAll('[data-prompt]').forEach(function(el){el.setAttribute('data-loaded','0');enqueue(el);});
-        setTimeout(function(){btn.textContent='\u2728 Generate All Insights';btn.disabled=false;},Q.length*900+1200);
-    });
-}
+// (Generate All Insights removed — insights load per-card via See Insight)
 
 // ── Render cached AI content on page load ────────────────────────────────
 document.querySelectorAll('.six-ai-cached-content').forEach(function(el){

@@ -826,6 +826,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
           <div class="ob-path-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
           <div><div class="ob-path-title">Schedule a Call First</div><div class="ob-path-desc">Talk to your advisor before committing &mdash; no card needed.</div></div>
         </div>
+        <button class="ob-btn ob-ghost" style="width:100%;margin-top:12px" onclick="OB.goStep(4)">&larr; Back to my strategy</button>
       </div>
 
       <!-- ── Complete onboarding form ──────────────────────────────────── -->
@@ -1001,7 +1002,30 @@ function getHoursVal(pfx){
   return parts.join(', ');
 }
 function qLoc(id){
-  return '<input class="ob-inp" id="'+id+'" placeholder="e.g. Toronto, North York, Mississauga">';
+  return '<input class="ob-inp" id="'+id+'" placeholder="Cities or regions you serve">';
+}
+
+// Industry-aware examples so questionnaire hints match the client's business
+// instead of always showing dental examples. Falls back to generic prompts.
+function indEx(kind){
+  var ind=(S.q.industry||'').toLowerCase();
+  var M=[
+    {k:['dental','ortho'],                 services:'teeth cleaning, Invisalign, implants',        keywords:'dentist near me, teeth whitening',      pages:'dental implants, teeth whitening',        category:'Dentist'},
+    {k:['plumb'],                          services:'drain cleaning, water-heater install, leaks',  keywords:'emergency plumber, water heater repair', pages:'emergency plumbing, drain cleaning',       category:'Plumber'},
+    {k:['hvac','heating','cooling'],       services:'AC install, furnace repair, tune-ups',         keywords:'ac repair near me, furnace install',     pages:'ac repair, furnace installation',         category:'HVAC contractor'},
+    {k:['law','legal','attorney'],         services:'free consultations, case reviews',             keywords:'personal injury lawyer, family attorney',pages:'personal injury, family law',             category:'Law firm'},
+    {k:['restaurant','food','cafe','cater'],services:'catering, private dining, delivery',           keywords:'best restaurant near me, catering',      pages:'menu, catering, reservations',            category:'Restaurant'},
+    {k:['real estate','realtor','propert'],services:'home valuations, buyer consultations',         keywords:'homes for sale, real estate agent',      pages:'listings, buy a home, sell a home',       category:'Real estate agency'},
+    {k:['salon','spa','beauty','hair','aesthet'],services:'cuts, colour, facials, treatments',       keywords:'hair salon near me, facials',            pages:'services, book appointment',              category:'Beauty salon'},
+    {k:['fitness','gym','yoga','trainer'],  services:'memberships, personal training, classes',      keywords:'gym near me, personal trainer',          pages:'memberships, class schedule',             category:'Gym'},
+    {k:['auto','mechanic','car','automotive'],services:'oil changes, brakes, diagnostics',           keywords:'auto repair near me, oil change',        pages:'services, book service',                  category:'Auto repair shop'},
+    {k:['roof','contractor','construct','renovat'],services:'replacement, repairs, free estimates',   keywords:'roofing company, roof repair',           pages:'roofing, free estimate',                  category:'Contractor'},
+    {k:['clean'],                          services:'residential cleaning, deep cleans, move-outs', keywords:'cleaning service near me',               pages:'residential cleaning, book online',       category:'Cleaning service'},
+    {k:['law firm','account','bookkeep','tax'],services:'consultations, filings, advisory',          keywords:'accountant near me, tax filing',         pages:'services, book a consultation',           category:'Accountant'}
+  ];
+  for(var i=0;i<M.length;i++){for(var j=0;j<M[i].k.length;j++){if(ind.indexOf(M[i].k[j])>-1){return M[i][kind]||'';}}}
+  var G={services:'your core products and services',keywords:'your top search terms',pages:'your key service pages',category:'your business category'};
+  return G[kind]||'';
 }
 
 function buildPane(slug){
@@ -1009,19 +1033,18 @@ function buildPane(slug){
   if(slug==='google-ads'){
     h+=qSec('Targeting &amp; Offer',
       qFG('Target Locations',qLoc('q-ads-loc'))
-      +qFG('Products / Services to Promote','<textarea class="ob-inp" id="q-ads-prod" rows="2" placeholder="e.g. Dental cleanings, invisalign…"></textarea>')
+      +qFG('Products / Services to Promote','<textarea class="ob-inp" id="q-ads-prod" rows="2" placeholder="e.g. '+indEx('services')+'"></textarea>')
       +qSlider('q-ads-bud','Monthly Ad Budget',500,20000,2000)
-      +qFG('Ad Schedule',qHours('ads'))
     );
     h+=qSec('Market &amp; Messaging',
       qFG('Keywords <span style="font-weight:400;font-size:11px">(press Enter to add)</span>',qTags('q-ads-kw'))
-      +qFG('Unique Selling Points','<input class="ob-inp" id="q-ads-usp" placeholder="What makes you stand out?">')
-      +qFG('Current Promotions','<input class="ob-inp" id="q-ads-promo" placeholder="e.g. Free consultation, 10% off first service">')
+      +qFG('Unique Selling Points','<input class="ob-inp" id="q-ads-usp" placeholder="What makes you the better choice?">')
+      +qFG('Current Promotions','<input class="ob-inp" id="q-ads-promo" placeholder="Any current offer (optional)">')
     );
   } else if(slug==='seo'){
     h+=qSec('SEO Setup',
-      qFG('Primary Pages to Rank','<textarea class="ob-inp" id="q-seo-pages" rows="2" placeholder="e.g. Dental implants Toronto, teeth whitening near me…"></textarea>')
-      +qFG('Target Locations','<input class="ob-inp" id="q-seo-loc" placeholder="e.g. Toronto, North York, Scarborough">')
+      qFG('Primary Pages to Rank','<textarea class="ob-inp" id="q-seo-pages" rows="2" placeholder="e.g. '+indEx('pages')+'"></textarea>')
+      +qFG('Target Locations','<input class="ob-inp" id="q-seo-loc" placeholder="Cities or regions you serve">')
       +qSlider('q-seo-bud','Monthly SEO Budget',300,10000,1200)
       +qFG('Google Search Console Access?',qTog('q-seo-gsc'))
     );
@@ -1036,9 +1059,9 @@ function buildPane(slug){
     );
   } else if(slug==='google-business'){
     h+=qSec('Google Business Profile',
-      qFG('Business Name on Google','<input class="ob-inp" id="q-gbp-name" placeholder="Acme Dental Care">')
-      +qFG('Primary Category','<input class="ob-inp" id="q-gbp-cat" placeholder="e.g. Dentist, Plumber, Restaurant…">')
-      +qFG('Services to Highlight','<textarea class="ob-inp" id="q-gbp-svcs" rows="2" placeholder="List your main services…"></textarea>')
+      qFG('Business Name on Google','<input class="ob-inp" id="q-gbp-name" placeholder="Your business name as it appears on Google">')
+      +qFG('Primary Category','<input class="ob-inp" id="q-gbp-cat" placeholder="e.g. '+indEx('category')+'">')
+      +qFG('Services to Highlight','<textarea class="ob-inp" id="q-gbp-svcs" rows="2" placeholder="e.g. '+indEx('services')+'"></textarea>')
       +qFG('Business Hours',qHours('gbp'))
       +qFG('Current Rating','<input class="ob-inp" id="q-gbp-rating" placeholder="e.g. 4.7 stars, 120 reviews" style="max-width:240px">')
       +qSlider('q-gbp-bud','Monthly Budget',200,5000,400)
@@ -1294,7 +1317,7 @@ window.OB={
       S.q.ads_prod=v('q-ads-prod');
       S.q.ads_kw=getTags('q-ads-kw').join(',');
       S.q.ads_usp=v('q-ads-usp');S.q.ads_promo=v('q-ads-promo');
-      S.q.ads_sched=getHoursVal('ads')||'';
+      S.q.ads_sched='';
     } else if(slug==='seo'){
       var b=$i('q-seo-bud');S.budgets[slug]=b?parseInt(b.value):0;
       S.q.seo_pages=v('q-seo-pages');S.q.seo_loc=v('q-seo-loc');
@@ -1492,9 +1515,12 @@ window.OB={
       kpiHtml+='<div class="ob-kpi-stat"><span class="ob-kpi-val">'+k.value+'</span><div class="ob-kpi-lbl">'+k.label+'</div></div>';
     });
     // Trim sub to max 18 words
-    var sub=plan.sub||'';
+    // Prefer the sharpest single insight (DataForSEO-backed) as the hero
+    // sub-line; fall back to plan.sub. This replaces the old empty "Key
+    // Insight" card that showed a label with no text.
+    var sub=plan.insight||plan.sub||'';
     var subWords=sub.split(' ');
-    if(subWords.length>18) sub=subWords.slice(0,18).join(' ')+'…';
+    if(subWords.length>28) sub=subWords.slice(0,28).join(' ')+'…';
     $i('ob-plan-hero').innerHTML=
       '<div class="ob-plan-hero-label">Your Growth Estimate'+
         (backed?'<span class="ob-data-badge">Data-Backed ✓</span>':'<span class="ob-data-badge ob-data-est">Estimated</span>')+
@@ -1505,20 +1531,29 @@ window.OB={
 
     // ── Insight cards (structured: what/why/action per service) ───────────
     var insHtml='';
-    // Main single insight (backwards compat)
-    if(plan.insight){
-      var ins=plan.insight.split('.')[0];
-      var insW=ins.split(' ');
-      if(insW.length>20) ins=insW.slice(0,20).join(' ')+'…';
-      insHtml+='<div class="ob-insight-card">'+
-        '<div class="ob-insight-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>'+
-        '<div class="ob-insight-txt"><strong>Key Insight — </strong>'+ins+'</div>'+
-      '</div>';
-    }
-    // Structured insights array — what/why/action per service
+    // Structured insights array — what/why/action per service.
+    // Dedupe first: the model occasionally repeats an insight, which used to
+    // render the What/Why/Action block twice.
     if(plan.insights&&plan.insights.length){
-      plan.insights.forEach(function(ins){
-        if(!ins.what) return;
+      var _seen={};
+      var _uniq=plan.insights.filter(function(ins){
+        if(!ins||!ins.what) return false;
+        var sig=(ins.what+'|'+(ins.action||'')).toLowerCase().replace(/\s+/g,' ').trim();
+        if(_seen[sig]) return false; _seen[sig]=1; return true;
+      });
+      _uniq.forEach(function(ins){
+        var whyBlock = ins.why ?
+            '<div style="display:flex;align-items:flex-start;gap:10px">'+
+              '<div class="ob-insight-ico" style="flex-shrink:0"><svg viewBox="0 0 24 24" fill="none" stroke="var(--pk)" stroke-width="2" width="15" height="15"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg></div>'+
+              '<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--pk);margin-bottom:4px">Why it matters</div>'+
+              '<div style="font-size:13px;color:var(--t2);line-height:1.5">'+ins.why+'</div></div>'+
+            '</div>' : '';
+        var actionBlock = ins.action ?
+            '<div style="display:flex;align-items:flex-start;gap:10px;background:rgba(255,255,255,0.04);border-radius:8px;padding:10px 12px">'+
+              '<div class="ob-insight-ico" style="flex-shrink:0"><svg viewBox="0 0 24 24" fill="none" stroke="#56D364" stroke-width="2" width="15" height="15"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>'+
+              '<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#56D364;margin-bottom:4px">Action</div>'+
+              '<div style="font-size:13px;font-weight:600;color:var(--t1);line-height:1.5">'+ins.action+'</div></div>'+
+            '</div>' : '';
         insHtml+=
           '<div class="ob-insight-card" style="flex-direction:column;align-items:flex-start;gap:10px;padding:16px 18px">'+
             '<div style="display:flex;align-items:flex-start;gap:10px">'+
@@ -1526,16 +1561,7 @@ window.OB={
               '<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--cy);margin-bottom:4px">What&#39;s happening</div>'+
               '<div style="font-size:13px;color:var(--t1);line-height:1.5">'+ins.what+'</div></div>'+
             '</div>'+
-            '<div style="display:flex;align-items:flex-start;gap:10px">'+
-              '<div class="ob-insight-ico" style="flex-shrink:0"><svg viewBox="0 0 24 24" fill="none" stroke="var(--pk)" stroke-width="2" width="15" height="15"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg></div>'+
-              '<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--pk);margin-bottom:4px">Why it matters</div>'+
-              '<div style="font-size:13px;color:var(--t2);line-height:1.5">'+ins.why+'</div></div>'+
-            '</div>'+
-            '<div style="display:flex;align-items:flex-start;gap:10px;background:rgba(255,255,255,0.04);border-radius:8px;padding:10px 12px">'+
-              '<div class="ob-insight-ico" style="flex-shrink:0"><svg viewBox="0 0 24 24" fill="none" stroke="#56D364" stroke-width="2" width="15" height="15"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>'+
-              '<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#56D364;margin-bottom:4px">Action</div>'+
-              '<div style="font-size:13px;font-weight:600;color:var(--t1);line-height:1.5">'+ins.action+'</div></div>'+
-            '</div>'+
+            whyBlock+actionBlock+
           '</div>';
       });
     }

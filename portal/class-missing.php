@@ -150,11 +150,22 @@ class Six_Messaging {
 
         if ( $inserted ) {
             $sender = get_userdata( $sender_id );
+            // Link the alert to the right place: advisors/sales reply in the
+            // messages thread; customers read/reply from their advisor card.
+            $rcv_role = class_exists('Six_Roles') ? Six_Roles::get_portal_role( $receiver_id ) : '';
+            if ( $rcv_role === 'six_advisor' || $rcv_role === 'administrator' ) {
+                $action_url = home_url( '/advisor-portal/?tab=messages&with=' . intval( $sender_id ) );
+            } elseif ( $rcv_role === 'six_sales' ) {
+                $action_url = home_url( '/sales-portal/?tab=messages&with=' . intval( $sender_id ) );
+            } else {
+                $action_url = home_url( '/portal/?tab=advisor' );
+            }
             Six_Notifications::create( array(
-                'user_id' => $receiver_id,
-                'type'    => 'new_message',
-                'title'   => 'New Message from ' . $sender->display_name,
-                'message' => wp_trim_words( $message, 15 ),
+                'user_id'    => $receiver_id,
+                'type'       => 'new_message',
+                'title'      => 'New Message from ' . $sender->display_name,
+                'message'    => wp_trim_words( $message, 15 ),
+                'action_url' => $action_url,
             ) );
             return $wpdb->insert_id;
         }

@@ -942,11 +942,11 @@ Status: "
         // Log in Odoo chatter
         if ($lead_id) {
             if ($success) {
-                $log = "✅ SMS queued to {$to_phone}
+                $log = " SMS queued to {$to_phone}
 Message: {$message}
 Twilio SID: {$sid_msg}";
             } else {
-                $log = "❌ SMS failed to {$to_phone}
+                $log = " SMS failed to {$to_phone}
 Error: {$error_msg} (code:{$error_code})";
                 if ($error_code == 21608) $log .= "
 Fix: Verify this number at console.twilio.com → Verified Caller IDs";
@@ -1396,37 +1396,37 @@ Best,
 
         // High-intent scenarios
         if ($score >= 70 && $step >= 3 && $status === 'abandoned')
-            return "🔥 HIGH INTENT: {$name} scored {$score}/100 and abandoned at step {$step}/4. "
+            return " HIGH INTENT: {$name} scored {$score}/100 and abandoned at step {$step}/4. "
                  . "Recommend: Call within 1 hour. Use urgency email template. Offer a direct calendar link.";
 
         if ($score >= 70 && $status === 'in_progress')
-            return "⚡ HOT LEAD: {$name} is actively onboarding with score {$score}/100. "
+            return " HOT LEAD: {$name} is actively onboarding with score {$score}/100. "
                  . "Recommend: Monitor for completion. Prepare advisor briefing.";
 
         if ($score >= 70 && $status === 'abandoned')
-            return "🔥 HIGH SCORE ABANDONMENT: {$name} scored {$score}/100. "
+            return " HIGH SCORE ABANDONMENT: {$name} scored {$score}/100. "
                  . "Recommend: Immediate phone outreach. Personalised email with service recap.";
 
         // Mid-intent
         if ($score >= 40 && $step >= 2 && $status === 'abandoned')
-            return "🟡 WARM LEAD: {$name} reached step {$step}/4 (score {$score}/100). "
+            return " WARM LEAD: {$name} reached step {$step}/4 (score {$score}/100). "
                  . "Recommend: Send personalised email within 10 minutes. Follow up tomorrow.";
 
         if ($score >= 40 && $status === 'in_progress')
-            return "📋 IN PROGRESS: {$name} is completing onboarding (score {$score}/100). "
+            return " IN PROGRESS: {$name} is completing onboarding (score {$score}/100). "
                  . "Recommend: Standby — may need assistance at payment step.";
 
         // Low-intent
         if ($step <= 1 && $status === 'abandoned')
-            return "🔵 COLD LEAD: {$name} dropped very early (step {$step}/4, score {$score}/100). "
+            return " COLD LEAD: {$name} dropped very early (step {$step}/4, score {$score}/100). "
                  . "Recommend: Add to nurture email sequence. Revisit in 7 days.";
 
         // Active / customer
         if ($status === 'active' || $status === 'submitted')
-            return "✅ ACTIVE CLIENT: {$name} has completed onboarding. "
+            return " ACTIVE CLIENT: {$name} has completed onboarding. "
                  . "Recommend: Schedule initial strategy call. Review selected services.";
 
-        return "📌 NEW LEAD: {$name} just entered the pipeline (score {$score}/100). "
+        return " NEW LEAD: {$name} just entered the pipeline (score {$score}/100). "
              . "Recommend: Review profile and assign appropriate advisor.";
     }
 
@@ -1600,7 +1600,7 @@ Best,
         if ( $crm_test === false ) {
             // Access denied or CRM not installed.
             // Try to give a clear diagnostic by checking what we CAN access.
-            $results[] = "❌ Cannot access crm.lead — connection works but CRM is blocked.";
+            $results[] = " Cannot access crm.lead — connection works but CRM is blocked.";
             $results[] = "→ Root cause: The API user does not have CRM access rights in Odoo.";
             $results[] = "";
             $results[] = "HOW TO FIX (takes 2 minutes):";
@@ -1612,11 +1612,11 @@ Best,
             $results[] = "6. Run this setup page again.";
             $results[] = "";
             $results[] = "If CRM is already installed (check Odoo → Apps → Installed), the issue is ONLY permissions.";
-            $results[] = "⛔ Setup cannot continue until permissions are fixed.";
+            $results[] = " Setup cannot continue until permissions are fixed.";
             return $results;
         }
 
-        $results[] = "✅ crm.lead accessible — CRM is installed and API user has access.";
+        $results[] = " crm.lead accessible — CRM is installed and API user has access.";
 
         // ── Step 2: Get the ir.model ID (needed for mail.activity) ────────
         // Try with Technical access first, fall back gracefully.
@@ -1627,9 +1627,9 @@ Best,
         if (!empty($models[0]['id'])) {
             $model_id = $models[0]['id'];
             update_option('six_odoo_crm_model_id', $model_id);
-            $results[] = "✅ crm.lead model ID: {$model_id} (cached for activities)";
+            $results[] = " crm.lead model ID: {$model_id} (cached for activities)";
         } else {
-            $results[] = "⚠ Could not read ir.model — API user may lack Technical rights.";
+            $results[] = " Could not read ir.model — API user may lack Technical rights.";
             $results[] = "→ Activities (mail.activity) may not work without this.";
             $results[] = "→ Fix: Odoo → Settings → Users → your user → Technical → tick 'Technical Features'";
         }
@@ -1662,13 +1662,13 @@ Best,
                 array(array(array('model_id','=',$model_id),array('name','=',$fd['name']))),
                 array('fields'=>array('id','name'),'limit'=>1));
             if (!empty($ex[0]['id'])) {
-                $results[] = "⏭ Field {$fd['name']} exists";
+                $results[] = " Field {$fd['name']} exists";
                 continue;
             }
             $new_id = self::execute('ir.model.fields','create',array(array_merge($fd,array(
                 'model_id'=>$model_id,'state'=>'manual',
             ))));
-            $results[] = $new_id ? "✅ Created {$fd['name']}" : "❌ Failed {$fd['name']}";
+            $results[] = $new_id ? " Created {$fd['name']}" : " Failed {$fd['name']}";
         }
         update_option('six_odoo_custom_fields_ready',1);
 
@@ -1681,7 +1681,7 @@ Best,
         );
         foreach ($stages as $st) {
             $id = self::get_stage_id($st['name']);
-            $results[] = $id ? "✅ Stage '{$st['name']}' (ID:{$id})" : "❌ Could not get/create stage '{$st['name']}'";
+            $results[] = $id ? " Stage '{$st['name']}' (ID:{$id})" : " Could not get/create stage '{$st['name']}'";
         }
 
         // Cache activity type IDs — Odoo 19 renamed Todo to 'To-Do'
@@ -1693,26 +1693,26 @@ Best,
             // Cache whichever name worked under both keys
             update_option('six_odoo_acttype_to-do', $todo_id);
             update_option('six_odoo_acttype_todo',  $todo_id);
-            $results[] = "✅ Activity type 'To-Do/Todo' (ID:{$todo_id})";
+            $results[] = " Activity type 'To-Do/Todo' (ID:{$todo_id})";
         } else {
             // Use Email as fallback — it always exists
-            $results[] = "⚠ To-Do activity type not found — will use Email as fallback for activities";
+            $results[] = " To-Do activity type not found — will use Email as fallback for activities";
         }
         foreach (array('Email','Call') as $atype) {
             $id = self::get_activity_type_id($atype);
-            $results[] = $id ? "✅ Activity type '{$atype}' (ID:{$id})" : "⚠ Activity type '{$atype}' not found";
+            $results[] = $id ? " Activity type '{$atype}' (ID:{$id})" : " Activity type '{$atype}' not found";
         }
 
         // Cache crm.lead model ID for activities
         $cmid = self::get_crm_model_id();
-        $results[] = $cmid ? "✅ crm.lead model cached (ID:{$cmid})" : "⚠ Could not cache crm.lead model ID";
+        $results[] = $cmid ? " crm.lead model cached (ID:{$cmid})" : " Could not cache crm.lead model ID";
 
         // Set default advisor email if not already configured
         if (!get_option('six_default_advisor_email')) {
             update_option('six_default_advisor_email', 'musab@6ixdevelopers.com');
-            $results[] = "✅ Default advisor email set: musab@6ixdevelopers.com";
+            $results[] = " Default advisor email set: musab@6ixdevelopers.com";
         } else {
-            $results[] = "✅ Default advisor email: " . get_option('six_default_advisor_email');
+            $results[] = " Default advisor email: " . get_option('six_default_advisor_email');
         }
 
         // Clear advisor UID cache so it re-resolves with new default
@@ -1876,21 +1876,21 @@ function six_odoo_maybe_run_setup() {
     if (!class_exists('Six_Odoo')) { echo '<p style="color:red">Six_Odoo class not found.</p></div>'; return; }
 
     $url = get_option('six_odoo_url',''); $db=get_option('six_odoo_db','');
-    $usr = get_option('six_odoo_username',''); $key=get_option('six_odoo_api_key') ? '✓ set' : '❌ not set';
+    $usr = get_option('six_odoo_username',''); $key=get_option('six_odoo_api_key') ? '✓ set' : ' not set';
     echo "<table style='font-size:13px;margin-bottom:16px'>";
     foreach (array('URL'=>$url,'DB'=>$db,'Username'=>$usr,'API Key'=>$key) as $k=>$v)
         echo "<tr><td style='padding:3px 16px 3px 0;color:#83C5ED'>{$k}:</td><td>".esc_html($v)."</td></tr>";
     echo "</table>";
 
     if (!$url||!$db||!$usr||!get_option('six_odoo_api_key')) {
-        echo '<p style="color:#FF6B6B">❌ Missing credentials.</p></div>'; return;
+        echo '<p style="color:#FF6B6B"> Missing credentials.</p></div>'; return;
     }
 
     Six_Odoo::$uid_cache = null;
     $ok = Six_Odoo::test_connection();
-    if (!$ok) { echo '<p style="color:#FF6B6B">❌ Connection failed. Check credentials.</p></div>'; return; }
+    if (!$ok) { echo '<p style="color:#FF6B6B"> Connection failed. Check credentials.</p></div>'; return; }
 
-    echo '<p style="color:#56D364">✅ Connected! UID: '.intval(Six_Odoo::$uid_cache).'</p>';
+    echo '<p style="color:#56D364"> Connected! UID: '.intval(Six_Odoo::$uid_cache).'</p>';
 
     // ── RAW DIAGNOSTIC — shows exact Odoo responses before setup runs ──
     echo '<hr style="border-color:#333;margin:16px 0">';
@@ -1901,11 +1901,11 @@ function six_odoo_maybe_run_setup() {
     $d = function($label, $model, $method, $args, $kwargs) {
         $r = Six_Odoo::diagnostic_test($model, $method, $args, $kwargs);
         if (is_array($r))
-            echo '<li style="color:#56D364">✅ '.$label.': '.esc_html(wp_json_encode($r)).'</li>';
+            echo '<li style="color:#56D364"> '.$label.': '.esc_html(wp_json_encode($r)).'</li>';
         elseif (is_string($r) && strpos($r,'__FAULT__')===0)
-            echo '<li style="color:#FF6B6B">❌ '.$label.' FAULT: '.esc_html(str_replace('__FAULT__: ','',$r)).'</li>';
+            echo '<li style="color:#FF6B6B"> '.$label.' FAULT: '.esc_html(str_replace('__FAULT__: ','',$r)).'</li>';
         else
-            echo '<li style="color:#FF6B6B">❌ '.$label.': returned false (network error or XML parse fail — check debug.log)</li>';
+            echo '<li style="color:#FF6B6B"> '.$label.': returned false (network error or XML parse fail — check debug.log)</li>';
     };
 
     $d('crm.lead search',       'crm.lead',   'search',      array(array()),            array('limit'=>1));
@@ -1924,10 +1924,10 @@ function six_odoo_maybe_run_setup() {
     echo '<ul style="line-height:2.2">';
     foreach ($results as $r) {
         $color = '#f0f4f8';
-        if (strpos($r,'✅') !== false) $color = '#56D364';
-        elseif (strpos($r,'❌') !== false || strpos($r,'⛔') !== false) { $color = '#FF6B6B'; $has_error = true; }
-        elseif (strpos($r,'⚠') !== false || strpos($r,'→') !== false) { $color = '#E3B341'; }
-        elseif (strpos($r,'⏭') !== false) $color = '#83C5ED';
+        if (strpos($r,'') !== false) $color = '#56D364';
+        elseif (strpos($r,'') !== false || strpos($r,'') !== false) { $color = '#FF6B6B'; $has_error = true; }
+        elseif (strpos($r,'') !== false || strpos($r,'→') !== false) { $color = '#E3B341'; }
+        elseif (strpos($r,'') !== false) $color = '#83C5ED';
         echo '<li style="color:'.$color.'">' . $r . '</li>';
     }
     echo '</ul>';
@@ -1935,20 +1935,20 @@ function six_odoo_maybe_run_setup() {
     // Field creation failures are non-critical — existing fields still work
     $critical_error = false;
     foreach ($results as $r) {
-        if (strpos($r,'⛔') !== false) { $critical_error = true; break; }
+        if (strpos($r,'') !== false) { $critical_error = true; break; }
     }
-    $field_errors = array_filter($results, function($r){ return strpos($r,'❌ Failed') !== false; });
+    $field_errors = array_filter($results, function($r){ return strpos($r,' Failed') !== false; });
     if ($critical_error) {
         echo '<p style="color:#FF6B6B;font-size:15px;border:1px solid #FF6B6B;padding:12px 16px;margin-top:16px">
-            ⛔ Setup incomplete — fix the errors above and run this page again.
+             Setup incomplete — fix the errors above and run this page again.
         </p>';
     } elseif (!empty($field_errors)) {
         echo '<p style="color:#E3B341;font-size:15px;border:1px solid #E3B341;padding:12px 16px;margin-top:16px">
-            ⚠ Setup mostly complete. ' . count($field_errors) . ' field(s) could not be created — run setup again to retry.<br>
+             Setup mostly complete. ' . count($field_errors) . ' field(s) could not be created — run setup again to retry.<br>
             Core features (leads, pipeline, email, SMS, activities) are fully operational.
         </p>';
     } else {
-        echo '<p style="color:#56D364;font-size:15px">✅ Setup complete — all systems ready.</p>';
+        echo '<p style="color:#56D364;font-size:15px"> Setup complete — all systems ready.</p>';
     }
     echo '</div>'; exit;
 }

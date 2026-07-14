@@ -851,7 +851,7 @@ async function saveIssues(issues) {
     console.warn('Hub: save failed, queuing locally:', e);
     // Queue locally — will sync on next successful DB read
     localStorage.setItem('six_hub_issues_queue', JSON.stringify(issues));
-    toast('⚠ Saved locally — will sync when connection restored.');
+    toast(' Saved locally — will sync when connection restored.');
   }
   _updateBadgeUI(issues);
   renderTkts(issues);

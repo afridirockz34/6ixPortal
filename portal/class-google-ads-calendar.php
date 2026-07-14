@@ -186,7 +186,7 @@ class Six_Google_Ads {
                 self::$last_error = "403 Permission Denied.\n"
                     . "• Customer ID sent: {$customer_id}\n"
                     . "• Manager (MCC) ID sent: " . ( $manager_id ?: '(empty — not set)' ) . "\n"
-                    . "• login-customer-id header: " . ( $has_login_id ? "✓ included ({$manager_id})" : "✗ NOT sent — this is likely the problem" ) . "\n"
+                    . "• login-customer-id header: " . ( $has_login_id ? "✓ included ({$manager_id})" : " NOT sent — this is likely the problem" ) . "\n"
                     . "Fix checklist:\n"
                     . "1. Confirm client account {$customer_id} is linked to your MCC in Google Ads → click your MCC account → Accounts\n"
                     . "2. Confirm Manager ID in WP Admin → Integrations matches your MCC account ID exactly (digits only)\n"
@@ -326,7 +326,9 @@ add_action( 'init', array( 'Six_Google_Ads', 'schedule_daily_sync' ) );
 // ─────────────────────────────────────────────────────────────────────────────
 class Six_Google_Calendar {
 
-    private static function get_access_token( $user_id ) {
+    // Public: called by the six_get_available_slots AJAX handler. Was private,
+    // which made that handler fatal — the reason calendar booking failed.
+    public static function get_access_token( $user_id ) {
         $cached  = get_user_meta( $user_id, 'six_gcal_access_token', true );
         $expires = (int) get_user_meta( $user_id, 'six_gcal_token_expires', true );
 
