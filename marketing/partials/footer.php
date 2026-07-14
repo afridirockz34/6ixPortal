@@ -45,11 +45,6 @@ $mkurl = function ( $u ) { return ( strpos( $u, 'http' ) === 0 ) ? $u : home_url
         <a href="mailto:<?php echo esc_attr( $email ); ?>"><?php echo esc_html( $email ); ?></a>
         <a href="tel:<?php echo esc_attr( preg_replace( '/[^0-9+]/', '', '1' . $tollfree ) ); ?>">Toll free: <?php echo esc_html( $tollfree ); ?></a>
         <a href="tel:<?php echo esc_attr( preg_replace( '/[^0-9+]/', '', '1' . $toronto ) ); ?>">Toronto: <?php echo esc_html( $toronto ); ?></a>
-        <?php if ( $partner_img ) : ?>
-        <a href="<?php echo esc_url( $partner_url ); ?>" target="_blank" rel="noopener" style="margin-top:12px;display:inline-block">
-          <img src="<?php echo esc_url( $partner_img ); ?>" alt="Google Partner" style="max-height:56px;width:auto;border-radius:8px">
-        </a>
-        <?php endif; ?>
       </div>
       <div>
         <h4>Quick Links</h4>
@@ -68,7 +63,6 @@ $mkurl = function ( $u ) { return ( strpos( $u, 'http' ) === 0 ) ? $u : home_url
         <?php foreach ( (array) $social as $s ) : if ( empty( $s['label'] ) ) continue; ?>
         <a href="<?php echo esc_url( $s['url'] ?? '#' ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $s['label'] ); ?></a>
         <?php endforeach; ?>
-        <a class="mk-btn mk-btn-primary" style="margin-top:14px;padding:11px 20px" href="<?php echo esc_url( mk_portal_url() ); ?>">Open your dashboard</a>
       </div>
     </div>
     <div class="mk-footer-bottom">
