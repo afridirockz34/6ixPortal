@@ -69,6 +69,9 @@
 .six-mk .mk-section > .mk-wrap { position: relative; z-index: 1; }
 .six-mk .mk-sec-head { max-width: 760px; margin: 0 auto 42px; }
 .six-mk .mk-sec-head.mk-center { text-align: center; }
+/* Full-bleed heading: matches the width of the grid directly below it */
+.six-mk .mk-sec-head.mk-full { max-width: none; }
+.six-mk .mk-sec-head.mk-full .mk-lead { max-width: 920px; margin-left: auto; margin-right: auto; }
 
 /* ── Typography ─────────────────────────────────────────── */
 .six-mk h1, .six-mk h2, .six-mk h3, .six-mk h4 {
@@ -143,6 +146,7 @@
 .six-mk .mk-phone-btn:hover { background: rgba(255,255,255,.2); border-color: rgba(255,255,255,.4); }
 .six-mk .mk-nav-toggle { display: none; background: none; border: 0; color: #fff; cursor: pointer; margin-left: auto; }
 .six-mk .mk-nav-scrim { display: none; }
+.six-mk .mk-nav-close { display: none; } /* only shown inside the mobile drawer */
 
 /* Header dropdown (Services) */
 .six-mk .mk-drop { position: relative; }
@@ -154,10 +158,42 @@
 .six-mk .mk-drop-menu a { padding: 9px 12px; border-radius: 8px; font-size: .93rem; color: var(--mk-t2); }
 .six-mk .mk-drop-menu a:hover { background: var(--mk-surface2); color: var(--mk-t1); }
 
+/* ── Client Login modal ─────────────────────────────────── */
+.six-mk .mk-login-modal, .mk-login-modal { position: fixed; inset: 0; z-index: 200; display: none; }
+.mk-login-modal.mk-on { display: block; }
+.mk-login-scrim { position: absolute; inset: 0; background: rgba(3,10,20,.55); backdrop-filter: blur(3px); animation: mkFade .2s ease; }
+@keyframes mkFade { from { opacity: 0; } to { opacity: 1; } }
+.mk-login-box {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  width: min(92vw, 400px); background: #fff; color: #101826; border-radius: 20px;
+  padding: 34px 30px 28px; box-shadow: 0 30px 80px rgba(3,21,35,.4);
+  font-family: 'Mulish','Muli',system-ui,sans-serif; animation: mkPop .24s cubic-bezier(.2,.8,.2,1);
+}
+@keyframes mkPop { from { opacity: 0; transform: translate(-50%,-46%) scale(.96); } to { opacity: 1; transform: translate(-50%,-50%) scale(1); } }
+.mk-login-x { position: absolute; top: 14px; right: 14px; background: none; border: 0; color: #627080; cursor: pointer; padding: 4px; border-radius: 8px; transition: background .15s, color .15s; }
+.mk-login-x:hover { background: #F1F3F8; color: #101826; }
+.mk-login-box h3 { font-family: 'Montserrat',system-ui,sans-serif; font-size: 1.45rem; font-weight: 800; margin: 0 0 4px; color: #101826; letter-spacing: -.02em; }
+.mk-login-sub { color: #627080; font-size: .95rem; margin: 0 0 20px; }
+.mk-login-social { margin-bottom: 16px; min-height: 0; }
+.mk-login-social .nsl-container { margin: 0 !important; }
+.mk-login-or { display: flex; align-items: center; gap: 12px; color: #98a2b3; font-size: .82rem; margin: 4px 0 16px; }
+.mk-login-or::before, .mk-login-or::after { content: ''; flex: 1; height: 1px; background: rgba(15,25,40,.12); }
+.mk-login-lbl { display: block; font-size: .82rem; font-weight: 700; color: #3D4757; margin: 0 0 6px; }
+.mk-login-input { width: 100%; padding: 12px 14px; border: 1px solid rgba(15,25,40,.17); border-radius: 11px; font-size: 1rem; font-family: inherit; color: #101826; transition: border-color .15s, box-shadow .15s; margin-bottom: 14px; }
+.mk-login-input:focus { outline: 0; border-color: #A855F7; box-shadow: 0 0 0 3px rgba(168,85,247,.16); }
+.mk-login-input[readonly] { background: #F6F7FA; color: #627080; }
+.mk-login-pwwrap { position: relative; }
+.mk-login-forgot { display: inline-block; font-size: .8rem; font-weight: 600; color: #A855F7; margin: -6px 0 12px; }
+.mk-login-err { display: none; color: #d13a5e; font-size: .86rem; margin: 0 0 12px; }
+.mk-login-err.mk-on { display: block; }
+.mk-login-submit { width: 100%; }
+.mk-login-foot { text-align: center; font-size: .88rem; color: #627080; margin: 18px 0 0; }
+.mk-login-foot a { color: #A855F7; font-weight: 700; }
+
 /* ── Hero — AI/tech first impression ────────────────────── */
 .six-mk .mk-hero {
   position: relative; overflow: hidden;
-  padding: 168px 0 118px; margin-top: -74px; /* pull under the fixed header */
+  padding: 202px 0 130px; margin-top: -74px; /* +20% top / +10% bottom, pulled under the fixed header */
   background: radial-gradient(120% 120% at 80% -10%, #12314a 0%, #071726 45%, #030d18 100%);
   color: #fff;
 }
@@ -167,14 +203,37 @@
                     linear-gradient(90deg, rgba(131,197,237,.10) 1px, transparent 1px);
   background-size: 46px 46px; mask-image: radial-gradient(120% 90% at 70% 0%, #000 30%, transparent 75%);
 }
-.six-mk .mk-hero::after { /* gradient orbs */
+.six-mk .mk-hero::after { /* soft static base orbs (the aurora layer drifts on top) */
   content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
-  background: radial-gradient(40% 55% at 82% 18%, rgba(168,85,247,.42), transparent 60%),
-             radial-gradient(38% 50% at 12% 88%, rgba(232,84,122,.34), transparent 60%),
-             radial-gradient(34% 46% at 55% 40%, rgba(60,143,181,.30), transparent 62%);
-  filter: blur(6px); animation: mkFloat 14s ease-in-out infinite alternate;
+  background: radial-gradient(40% 55% at 82% 18%, rgba(168,85,247,.28), transparent 62%),
+             radial-gradient(38% 50% at 12% 88%, rgba(232,84,122,.24), transparent 62%),
+             radial-gradient(34% 46% at 55% 40%, rgba(60,143,181,.22), transparent 64%);
+  filter: blur(8px);
 }
-@keyframes mkFloat { from { transform: translate3d(0,0,0) scale(1); } to { transform: translate3d(0,-14px,0) scale(1.06); } }
+/* Aurora lights — very slow, seamless drift on the top-right + bottom-left glows */
+.six-mk .mk-aurora { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.six-mk .mk-aurora span { position: absolute; border-radius: 50%; filter: blur(64px); mix-blend-mode: screen; will-change: transform, opacity; }
+.six-mk .mk-aurora-a { /* top-right */
+  top: -14%; right: -8%; width: 48%; height: 64%;
+  background: radial-gradient(circle at 50% 50%, rgba(168,85,247,.55), rgba(60,143,181,.28) 46%, transparent 72%);
+  animation: mkAuroraA 34s ease-in-out infinite alternate;
+}
+.six-mk .mk-aurora-b { /* bottom-left */
+  bottom: -18%; left: -10%; width: 46%; height: 60%;
+  background: radial-gradient(circle at 50% 50%, rgba(232,84,122,.5), rgba(168,85,247,.24) 48%, transparent 72%);
+  animation: mkAuroraB 44s ease-in-out infinite alternate;
+}
+@keyframes mkAuroraA {
+  0%   { transform: translate3d(0,0,0) scale(1);      opacity: .48; }
+  50%  { transform: translate3d(-6%,8%,0) scale(1.16); opacity: .72; }
+  100% { transform: translate3d(4%,-5%,0) scale(1.06); opacity: .44; }
+}
+@keyframes mkAuroraB {
+  0%   { transform: translate3d(0,0,0) scale(1.06);    opacity: .4; }
+  50%  { transform: translate3d(8%,-6%,0) scale(1.18);  opacity: .64; }
+  100% { transform: translate3d(-5%,5%,0) scale(1);     opacity: .38; }
+}
+@media (prefers-reduced-motion: reduce) { .six-mk .mk-aurora span { animation: none; } }
 .six-mk .mk-hero .mk-wrap { position: relative; z-index: 1; }
 .six-mk .mk-hero-inner { max-width: 880px; }
 .six-mk .mk-hero h1 { color: #fff; margin-bottom: 16px; }
@@ -199,11 +258,24 @@
   transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
 }
 .six-mk .mk-card:hover { transform: translateY(-4px); border-color: var(--mk-border2); box-shadow: 0 16px 40px rgba(20,30,55,.12); }
-/* Gradient accent that respects the card's rounded corners (floats inside) */
-.six-mk .mk-card-accent::before {
-  content: ''; position: absolute; top: 0; left: 16px; right: 16px; height: 3px;
-  border-radius: 0 0 3px 3px; background: var(--mk-grad);
+/* Creative accent: a gradient outline that follows the card's radius and lights
+   up on hover, plus a soft aurora glow that drifts out of the top-right corner. */
+.six-mk .mk-card-accent { overflow: hidden; }
+.six-mk .mk-card-accent > * { position: relative; z-index: 2; }
+.six-mk .mk-card-accent::before { /* gradient border, radius-aware (mask trick) */
+  content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1.5px; z-index: 1;
+  background: var(--mk-grad); pointer-events: none;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  opacity: .3; transition: opacity .3s ease;
 }
+.six-mk .mk-card-accent:hover::before { opacity: 1; }
+.six-mk .mk-card-accent::after { /* soft corner aurora */
+  content: ''; position: absolute; top: -55px; right: -55px; width: 150px; height: 150px; z-index: 0;
+  background: radial-gradient(circle at center, rgba(168,85,247,.30), rgba(232,84,122,.15) 45%, transparent 72%);
+  opacity: .55; transition: opacity .35s ease, transform .55s ease; pointer-events: none;
+}
+.six-mk .mk-card-accent:hover::after { opacity: 1; transform: scale(1.25) translate(-6px, 6px); }
 .six-mk .mk-card h3 { margin-bottom: 8px; }
 .six-mk .mk-card p { color: var(--mk-t2); font-size: .98rem; margin-bottom: 14px; }
 .six-mk .mk-card-link { font-weight: 700; color: var(--mk-purple); display: inline-flex; align-items: center; gap: 6px; margin-top: auto; }
@@ -257,9 +329,9 @@
 .six-mk .mk-dot.mk-active { width: 26px; border-radius: 5px; background: var(--mk-grad); }
 
 /* Client success slide card */
-.six-mk .mk-cs-card { max-width: 720px; margin: 0 auto; background: var(--mk-surface); border: 1px solid var(--mk-border);
-  border-radius: var(--mk-r); padding: 30px; display: grid; grid-template-columns: 128px 1fr; gap: 26px; align-items: center; }
-.six-mk .mk-cs-img { width: 128px; height: 128px; border-radius: 16px; overflow: hidden; background: var(--mk-grad-soft); flex-shrink: 0; }
+.six-mk .mk-cs-card { max-width: 760px; margin: 0 auto; background: var(--mk-surface); border: 1px solid var(--mk-border);
+  border-radius: var(--mk-r); padding: 36px; min-height: 226px; display: grid; grid-template-columns: 154px 1fr; gap: 30px; align-items: center; }
+.six-mk .mk-cs-img { width: 154px; height: 154px; border-radius: 18px; overflow: hidden; background: var(--mk-grad-soft); flex-shrink: 0; }
 .six-mk .mk-cs-img img { width: 100%; height: 100%; object-fit: cover; }
 .six-mk .mk-cs-card h3 { font-size: 1.2rem; margin-bottom: 2px; }
 .six-mk .mk-cs-period { font-size: .82rem; color: var(--mk-t3); margin-bottom: 14px; font-family: var(--mk-num); }
@@ -295,6 +367,77 @@
 .six-mk .mk-post h3 { font-size: 1.12rem; margin: 0; }
 .six-mk .mk-post p { font-size: .93rem; color: var(--mk-t2); margin: 0; }
 
+/* ── Interior page hero (shorter than the homepage hero) ── */
+.six-mk .mk-hero-sm { padding: 168px 0 92px; }
+.six-mk .mk-hero-sm h1 { font-size: clamp(2.1rem, 4.4vw, 3.3rem); }
+.six-mk .mk-hero-eyebrow { color: var(--mk-cyan); }
+
+/* ── Gradient icon chip (feature cards) ─────────────────── */
+.six-mk .mk-ic {
+  width: 50px; height: 50px; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--mk-grad-soft); border: 1px solid var(--mk-border); margin-bottom: 16px; flex-shrink: 0;
+}
+.six-mk .mk-ic svg { width: 24px; height: 24px; color: var(--mk-purple); }
+
+/* ── Feature stack (alternating narrative blocks) ───────── */
+.six-mk .mk-features { display: flex; flex-direction: column; gap: 20px; }
+.six-mk .mk-feature { display: grid; grid-template-columns: 56px 1fr; gap: 20px; align-items: start; }
+.six-mk .mk-feature h3 { font-size: 1.25rem; margin-bottom: 6px; }
+.six-mk .mk-feature p { color: var(--mk-t2); margin: 0; }
+
+/* ── Benefit / results cards (3-up) ─────────────────────── */
+.six-mk .mk-benefit { text-align: left; }
+.six-mk .mk-benefit h3 { font-size: 1.12rem; margin-bottom: 6px; }
+
+/* ── Pricing / package cards ────────────────────────────── */
+.six-mk .mk-price-card { text-align: center; display: flex; flex-direction: column; align-items: center; }
+.six-mk .mk-price-badge { font-family: var(--mk-num); font-size: .78rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--mk-t3); }
+.six-mk .mk-price-size { font-family: var(--mk-head); font-size: 1.9rem; font-weight: 800; margin: 8px 0 12px; }
+.six-mk .mk-price-size .mk-grad-text { display: inline; }
+.six-mk .mk-price-card p { color: var(--mk-t2); font-size: .95rem; }
+
+/* ── Numbered process steps ─────────────────────────────── */
+.six-mk .mk-steps { display: flex; flex-direction: column; gap: 16px; counter-reset: mkstep; list-style: none; padding: 0; margin: 0; }
+.six-mk .mk-steps li { display: grid; grid-template-columns: 44px 1fr; gap: 16px; align-items: start; }
+.six-mk .mk-steps li::before {
+  counter-increment: mkstep; content: counter(mkstep);
+  width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+  font-family: var(--mk-num); font-weight: 800; color: #fff; background: var(--mk-grad); box-shadow: 0 6px 18px rgba(168,85,247,.24);
+}
+.six-mk .mk-steps li strong { display: block; color: var(--mk-t1); font-family: var(--mk-head); font-size: 1.02rem; margin-bottom: 2px; }
+.six-mk .mk-steps li p { margin: 0; color: var(--mk-t2); font-size: .95rem; }
+
+/* ── FAQ (native details, no JS) ────────────────────────── */
+.six-mk .mk-faq { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+.six-mk .mk-faq details { background: var(--mk-surface); border: 1px solid var(--mk-border); border-radius: 14px; padding: 4px 20px; transition: border-color .18s, box-shadow .18s; }
+.six-mk .mk-faq details[open] { border-color: var(--mk-border2); box-shadow: 0 10px 30px rgba(20,30,55,.08); }
+.six-mk .mk-faq summary { list-style: none; cursor: pointer; padding: 16px 0; font-family: var(--mk-head); font-weight: 700; color: var(--mk-t1); font-size: 1.04rem; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.six-mk .mk-faq summary::-webkit-details-marker { display: none; }
+.six-mk .mk-faq summary::after { content: ''; width: 12px; height: 12px; flex-shrink: 0; border-right: 2px solid var(--mk-purple); border-bottom: 2px solid var(--mk-purple); transform: rotate(45deg); transition: transform .2s; margin-right: 4px; }
+.six-mk .mk-faq details[open] summary::after { transform: rotate(-135deg); }
+.six-mk .mk-faq details p { color: var(--mk-t2); font-size: .97rem; margin: 0 0 16px; }
+
+/* ── Team / roles grid (About) ──────────────────────────── */
+.six-mk .mk-team-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
+.six-mk .mk-role { background: var(--mk-surface); border: 1px solid var(--mk-border); border-radius: 14px; padding: 20px 16px; text-align: center; }
+.six-mk .mk-role-ic { width: 42px; height: 42px; border-radius: 50%; background: var(--mk-grad); display: inline-flex; align-items: center; justify-content: center; color: #fff; margin-bottom: 10px; }
+.six-mk .mk-role-ic svg { width: 20px; height: 20px; }
+.six-mk .mk-role strong { display: block; font-family: var(--mk-head); color: var(--mk-t1); font-size: .95rem; }
+.six-mk .mk-role span { font-size: .8rem; color: var(--mk-t3); }
+
+/* ── Contact info cards ─────────────────────────────────── */
+.six-mk .mk-contact-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 18px; }
+.six-mk .mk-contact-card { display: flex; gap: 16px; align-items: flex-start; }
+.six-mk .mk-contact-card .mk-ic { margin-bottom: 0; }
+.six-mk .mk-contact-card h3 { font-size: 1.05rem; margin: 2px 0 4px; }
+.six-mk .mk-contact-card a, .six-mk .mk-contact-card p { color: var(--mk-t2); font-size: .98rem; margin: 0; }
+.six-mk .mk-contact-card a:hover { color: var(--mk-purple); }
+
+/* ── Highlight callout (pricing / offers) ───────────────── */
+.six-mk .mk-highlight { background: var(--mk-grad-soft); border: 1px solid var(--mk-border2); border-radius: 18px; padding: 30px 34px; }
+.six-mk .mk-highlight h3 { margin-bottom: 6px; }
+.six-mk .mk-highlight p { color: var(--mk-t2); margin: 0 0 6px; }
+
 /* ── Footer ─────────────────────────────────────────────── */
 .six-mk .mk-footer { background: var(--mk-navy); color: rgba(255,255,255,.72); border-top: 1px solid rgba(255,255,255,.06); padding: 62px 0 30px; }
 .six-mk .mk-footer .mk-footer-grid { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 32px; }
@@ -312,6 +455,7 @@
 }
 @media (max-width: 900px) {
   .six-mk .mk-grid-3, .six-mk .mk-grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .six-mk .mk-team-grid { grid-template-columns: repeat(2, 1fr); }
   .six-mk .mk-footer .mk-footer-grid { grid-template-columns: 1fr 1fr; }
 
   /* Mobile nav — right-side drawer */
@@ -330,16 +474,17 @@
   .six-mk .mk-nav-cta { flex-direction: column; align-items: stretch; width: 100%; margin-top: 14px; }
   .six-mk .mk-nav-cta .mk-btn { width: 100%; }
   .six-mk .mk-nav.mk-open .mk-nav-scrim { display: block; position: fixed; inset: 0; background: rgba(3,10,20,.5); z-index: 65; }
-  .six-mk .mk-nav-close { position: absolute; top: 22px; right: 22px; background: none; border: 0; color: #fff; cursor: pointer; }
+  .six-mk .mk-nav-close { display: inline-flex; position: absolute; top: 22px; right: 22px; background: none; border: 0; color: #fff; cursor: pointer; }
 }
 @media (max-width: 620px) {
   .six-mk .mk-grid-2, .six-mk .mk-grid-3, .six-mk .mk-grid-4 { grid-template-columns: 1fr; }
+  .six-mk .mk-team-grid, .six-mk .mk-contact-grid { grid-template-columns: 1fr; }
   .six-mk .mk-footer .mk-footer-grid { grid-template-columns: 1fr; }
   .six-mk .mk-portal-band { padding: 30px; }
-  .six-mk .mk-hero { padding: 132px 0 84px; }
+  .six-mk .mk-hero { padding: 158px 0 92px; }
   .six-mk .mk-hero-cta { flex-direction: column; align-items: stretch; }
-  .six-mk .mk-cs-card { grid-template-columns: 1fr; text-align: center; }
-  .six-mk .mk-cs-img { width: 96px; height: 96px; margin: 0 auto; }
+  .six-mk .mk-cs-card { grid-template-columns: 1fr; text-align: center; min-height: 0; }
+  .six-mk .mk-cs-img { width: 116px; height: 116px; margin: 0 auto; }
   .six-mk .mk-carousel-arrow.mk-prev { left: 2px; }
   .six-mk .mk-carousel-arrow.mk-next { right: 2px; }
 }

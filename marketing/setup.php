@@ -15,8 +15,10 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 add_action( 'wp_loaded', function () {
-    if ( get_option( 'six_mk_setup_v1' ) ) return;
-    update_option( 'six_mk_setup_v1', 1 ); // set first so a fatal can't loop
+    if ( get_option( 'six_mk_setup_v2' ) ) return;
+    update_option( 'six_mk_setup_v2', 1 ); // set first so a fatal can't loop
+    // v2 adds the service/about/contact pages. Home + seed steps below are
+    // idempotent (existing pages reused, seeds only run when empty).
 
     // ── 1. Home page + front page ────────────────────────────────────────
     $tpl  = 'marketing/templates/template-home.php';
@@ -38,6 +40,32 @@ add_action( 'wp_loaded', function () {
         update_post_meta( $home_id, '_wp_page_template', $tpl );
         update_option( 'show_on_front', 'page' );
         update_option( 'page_on_front', $home_id );
+    }
+
+    // ── 1b. Service + About + Contact pages ──────────────────────────────
+    // Create each page with the exact slug the nav/footer links point to and
+    // assign the right template. Existing pages are reused (template updated).
+    $pages = array(
+        array( 'Website Design',      'website-design-agency-toronto',          'marketing/templates/template-service.php' ),
+        array( 'Google Ads / PPC',    'ppc-google-ads-management-toronto',      'marketing/templates/template-service.php' ),
+        array( 'SEO Services',        'seo-agency-toronto',                     'marketing/templates/template-service.php' ),
+        array( 'Social Media',        'social-media-marketing-agency-toronto',  'marketing/templates/template-service.php' ),
+        array( 'About Us',            'about-us',                               'marketing/templates/template-about.php' ),
+        array( 'Contact Us',          'contact-us',                             'marketing/templates/template-contact.php' ),
+    );
+    foreach ( $pages as $pg ) {
+        list( $title, $name, $ptpl ) = $pg;
+        $existing = get_page_by_path( $name );
+        $pid = $existing ? $existing->ID : wp_insert_post( array(
+            'post_title'   => $title,
+            'post_name'    => $name,
+            'post_status'  => 'publish',
+            'post_type'    => 'page',
+            'post_content' => '',
+        ) );
+        if ( $pid && ! is_wp_error( $pid ) ) {
+            update_post_meta( $pid, '_wp_page_template', $ptpl );
+        }
     }
 
     // ── 2. Seed Client Success (only if none exist) ──────────────────────
