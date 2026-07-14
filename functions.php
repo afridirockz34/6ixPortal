@@ -7,10 +7,18 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-function divichild_enqueue_scripts() {
-    wp_enqueue_style( 'parent-style', get_template_directory_uri() . '/style.css' );
-}
-add_action( 'wp_enqueue_scripts', 'divichild_enqueue_scripts' );
+// ── STANDALONE THEME MIGRATION ───────────────────────────────────────────────
+// This theme used to be a Divi child. Once style.css stops declaring a parent,
+// WordPress still has the old template option cached — re-activate once so
+// get_template() points at this theme instead of Divi.
+add_action( 'init', function () {
+    if ( get_option( 'six_theme_standalone_v1' ) ) return;
+    $stylesheet = get_option( 'stylesheet' );
+    if ( $stylesheet && get_option( 'template' ) !== $stylesheet && ! wp_get_theme( $stylesheet )->parent() ) {
+        switch_theme( $stylesheet );
+    }
+    update_option( 'six_theme_standalone_v1', 1 );
+}, 1 );
 
 // ── CONSTANTS ───────────────────────────────────────────────────────────────
 define( 'SIX_PORTAL_VERSION', '1.0.0' );
@@ -33,6 +41,9 @@ $optional_files = array(
     'admin-settings.php',
     'social-login.php',        // Nextend Social Login (Google) integration
 );
+// ── MARKETING SITE (public website redesign) ────────────────────────────────
+$marketing_loader = get_stylesheet_directory() . '/marketing/marketing.php';
+if ( file_exists( $marketing_loader ) ) require_once $marketing_loader;
 foreach ( $optional_files as $file ) {
     $path = SIX_PLUGIN_DIR . $file;
     if ( file_exists( $path ) ) {
