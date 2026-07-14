@@ -17,6 +17,7 @@ define( 'SIX_MK_URL', get_stylesheet_directory_uri() . '/marketing/' );
 
 require_once SIX_MK_DIR . 'helpers.php';
 require_once SIX_MK_DIR . 'cpt.php';        // Client Success + Testimonials (no plugins)
+require_once SIX_MK_DIR . 'setup.php';      // one-time page + front-page + seed setup
 require_once SIX_MK_DIR . 'acf-fields.php'; // optional: only active if ACF is installed
 
 /**
