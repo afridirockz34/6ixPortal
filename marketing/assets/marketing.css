@@ -367,6 +367,77 @@
 .six-mk .mk-post h3 { font-size: 1.12rem; margin: 0; }
 .six-mk .mk-post p { font-size: .93rem; color: var(--mk-t2); margin: 0; }
 
+/* ── Interior page hero (shorter than the homepage hero) ── */
+.six-mk .mk-hero-sm { padding: 168px 0 92px; }
+.six-mk .mk-hero-sm h1 { font-size: clamp(2.1rem, 4.4vw, 3.3rem); }
+.six-mk .mk-hero-eyebrow { color: var(--mk-cyan); }
+
+/* ── Gradient icon chip (feature cards) ─────────────────── */
+.six-mk .mk-ic {
+  width: 50px; height: 50px; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--mk-grad-soft); border: 1px solid var(--mk-border); margin-bottom: 16px; flex-shrink: 0;
+}
+.six-mk .mk-ic svg { width: 24px; height: 24px; color: var(--mk-purple); }
+
+/* ── Feature stack (alternating narrative blocks) ───────── */
+.six-mk .mk-features { display: flex; flex-direction: column; gap: 20px; }
+.six-mk .mk-feature { display: grid; grid-template-columns: 56px 1fr; gap: 20px; align-items: start; }
+.six-mk .mk-feature h3 { font-size: 1.25rem; margin-bottom: 6px; }
+.six-mk .mk-feature p { color: var(--mk-t2); margin: 0; }
+
+/* ── Benefit / results cards (3-up) ─────────────────────── */
+.six-mk .mk-benefit { text-align: left; }
+.six-mk .mk-benefit h3 { font-size: 1.12rem; margin-bottom: 6px; }
+
+/* ── Pricing / package cards ────────────────────────────── */
+.six-mk .mk-price-card { text-align: center; display: flex; flex-direction: column; align-items: center; }
+.six-mk .mk-price-badge { font-family: var(--mk-num); font-size: .78rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--mk-t3); }
+.six-mk .mk-price-size { font-family: var(--mk-head); font-size: 1.9rem; font-weight: 800; margin: 8px 0 12px; }
+.six-mk .mk-price-size .mk-grad-text { display: inline; }
+.six-mk .mk-price-card p { color: var(--mk-t2); font-size: .95rem; }
+
+/* ── Numbered process steps ─────────────────────────────── */
+.six-mk .mk-steps { display: flex; flex-direction: column; gap: 16px; counter-reset: mkstep; list-style: none; padding: 0; margin: 0; }
+.six-mk .mk-steps li { display: grid; grid-template-columns: 44px 1fr; gap: 16px; align-items: start; }
+.six-mk .mk-steps li::before {
+  counter-increment: mkstep; content: counter(mkstep);
+  width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+  font-family: var(--mk-num); font-weight: 800; color: #fff; background: var(--mk-grad); box-shadow: 0 6px 18px rgba(168,85,247,.24);
+}
+.six-mk .mk-steps li strong { display: block; color: var(--mk-t1); font-family: var(--mk-head); font-size: 1.02rem; margin-bottom: 2px; }
+.six-mk .mk-steps li p { margin: 0; color: var(--mk-t2); font-size: .95rem; }
+
+/* ── FAQ (native details, no JS) ────────────────────────── */
+.six-mk .mk-faq { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+.six-mk .mk-faq details { background: var(--mk-surface); border: 1px solid var(--mk-border); border-radius: 14px; padding: 4px 20px; transition: border-color .18s, box-shadow .18s; }
+.six-mk .mk-faq details[open] { border-color: var(--mk-border2); box-shadow: 0 10px 30px rgba(20,30,55,.08); }
+.six-mk .mk-faq summary { list-style: none; cursor: pointer; padding: 16px 0; font-family: var(--mk-head); font-weight: 700; color: var(--mk-t1); font-size: 1.04rem; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.six-mk .mk-faq summary::-webkit-details-marker { display: none; }
+.six-mk .mk-faq summary::after { content: ''; width: 12px; height: 12px; flex-shrink: 0; border-right: 2px solid var(--mk-purple); border-bottom: 2px solid var(--mk-purple); transform: rotate(45deg); transition: transform .2s; margin-right: 4px; }
+.six-mk .mk-faq details[open] summary::after { transform: rotate(-135deg); }
+.six-mk .mk-faq details p { color: var(--mk-t2); font-size: .97rem; margin: 0 0 16px; }
+
+/* ── Team / roles grid (About) ──────────────────────────── */
+.six-mk .mk-team-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
+.six-mk .mk-role { background: var(--mk-surface); border: 1px solid var(--mk-border); border-radius: 14px; padding: 20px 16px; text-align: center; }
+.six-mk .mk-role-ic { width: 42px; height: 42px; border-radius: 50%; background: var(--mk-grad); display: inline-flex; align-items: center; justify-content: center; color: #fff; margin-bottom: 10px; }
+.six-mk .mk-role-ic svg { width: 20px; height: 20px; }
+.six-mk .mk-role strong { display: block; font-family: var(--mk-head); color: var(--mk-t1); font-size: .95rem; }
+.six-mk .mk-role span { font-size: .8rem; color: var(--mk-t3); }
+
+/* ── Contact info cards ─────────────────────────────────── */
+.six-mk .mk-contact-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 18px; }
+.six-mk .mk-contact-card { display: flex; gap: 16px; align-items: flex-start; }
+.six-mk .mk-contact-card .mk-ic { margin-bottom: 0; }
+.six-mk .mk-contact-card h3 { font-size: 1.05rem; margin: 2px 0 4px; }
+.six-mk .mk-contact-card a, .six-mk .mk-contact-card p { color: var(--mk-t2); font-size: .98rem; margin: 0; }
+.six-mk .mk-contact-card a:hover { color: var(--mk-purple); }
+
+/* ── Highlight callout (pricing / offers) ───────────────── */
+.six-mk .mk-highlight { background: var(--mk-grad-soft); border: 1px solid var(--mk-border2); border-radius: 18px; padding: 30px 34px; }
+.six-mk .mk-highlight h3 { margin-bottom: 6px; }
+.six-mk .mk-highlight p { color: var(--mk-t2); margin: 0 0 6px; }
+
 /* ── Footer ─────────────────────────────────────────────── */
 .six-mk .mk-footer { background: var(--mk-navy); color: rgba(255,255,255,.72); border-top: 1px solid rgba(255,255,255,.06); padding: 62px 0 30px; }
 .six-mk .mk-footer .mk-footer-grid { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 32px; }
@@ -384,6 +455,7 @@
 }
 @media (max-width: 900px) {
   .six-mk .mk-grid-3, .six-mk .mk-grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .six-mk .mk-team-grid { grid-template-columns: repeat(2, 1fr); }
   .six-mk .mk-footer .mk-footer-grid { grid-template-columns: 1fr 1fr; }
 
   /* Mobile nav — right-side drawer */
@@ -406,6 +478,7 @@
 }
 @media (max-width: 620px) {
   .six-mk .mk-grid-2, .six-mk .mk-grid-3, .six-mk .mk-grid-4 { grid-template-columns: 1fr; }
+  .six-mk .mk-team-grid, .six-mk .mk-contact-grid { grid-template-columns: 1fr; }
   .six-mk .mk-footer .mk-footer-grid { grid-template-columns: 1fr; }
   .six-mk .mk-portal-band { padding: 30px; }
   .six-mk .mk-hero { padding: 158px 0 92px; }
