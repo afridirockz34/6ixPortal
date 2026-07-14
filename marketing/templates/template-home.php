@@ -90,6 +90,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
 
   <!-- HERO (original copy, verbatim) -->
   <section class="mk-hero mk-glow">
+    <div class="mk-aurora" aria-hidden="true"><span class="mk-aurora-a"></span><span class="mk-aurora-b"></span></div>
     <div class="mk-wrap">
       <div class="mk-hero-inner">
         <h1><?php echo esc_html( mk_field( 'hero_heading', 'Discover The Difference' ) ); ?>
@@ -107,7 +108,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
   <!-- HOW 6IX DEVELOPERS CAN HELP YOUR BUSINESS (original copy + icons) -->
   <section class="mk-section" style="padding-top:64px">
     <div class="mk-wrap">
-      <div class="mk-sec-head mk-center">
+      <div class="mk-sec-head mk-center mk-full">
         <h2><?php echo esc_html( mk_field( 'svc_heading', 'How 6ix Developers Can Help Your Business' ) ); ?></h2>
         <p class="mk-lead"><?php echo esc_html( mk_field( 'svc_intro', "6ix Developers is a full stack digital marketing agency with experienced and Google-certified staff. Our team members are specialized in Website Designs that are optimized for lead generation and lead capturing. We have Google Ads (aka. PPC) experts who are Google certified and experienced enough to take your business to another level. Our SEO team can help your business with organic ranking on Google and other search engines. Our Social Media team can show your business the opportunities it deserves. Secret to your success is in our expert team's hands who is fully invested in learning and understanding your business to help it grow exponentially." ) ); ?></p>
       </div>
