@@ -1,0 +1,243 @@
+/* ============================================================
+   6ix Developers — Marketing Site design system (marketing.css)
+   AI-gradient aesthetic (pink → purple → blue), shares the
+   portal's type + brand DNA. Everything is namespaced under
+   .six-mk so it never collides with Divi or portal.css.
+   ============================================================ */
+
+.six-mk *,
+.six-mk *::before,
+.six-mk *::after { box-sizing: border-box; }
+
+.six-mk {
+  /* Brand + AI gradient tokens */
+  --mk-pink:   #E8547A;
+  --mk-purple: #A855F7;
+  --mk-blue:   #3C8FB5;
+  --mk-cyan:   #83C5ED;
+  --mk-grad:   linear-gradient(120deg, #E8547A 0%, #A855F7 50%, #3C8FB5 100%);
+  --mk-grad-soft: linear-gradient(120deg, rgba(232,84,122,.14) 0%, rgba(168,85,247,.14) 50%, rgba(60,143,181,.14) 100%);
+
+  /* Dark surface palette (default) */
+  --mk-bg:      #0B0F1A;
+  --mk-bg2:     #10141F;
+  --mk-surface: #141A28;
+  --mk-surface2:#1A2233;
+  --mk-border:  rgba(255,255,255,.09);
+  --mk-border2: rgba(255,255,255,.14);
+
+  --mk-t1: #F2F5FA;   /* headings */
+  --mk-t2: #C2CBD9;   /* body */
+  --mk-t3: #8A97A9;   /* muted */
+
+  --mk-head: 'Syne', system-ui, sans-serif;
+  --mk-body: 'DM Sans', system-ui, sans-serif;
+  --mk-num:  'Inter', system-ui, sans-serif;
+
+  --mk-r:   18px;
+  --mk-maxw: 1200px;
+
+  color: var(--mk-t2);
+  font-family: var(--mk-body);
+  font-size: 16px;
+  line-height: 1.6;
+  background: var(--mk-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Light mode (optional, via [data-mk-theme="light"] on the root) */
+.six-mk[data-mk-theme="light"] {
+  --mk-bg:      #F7F8FB;
+  --mk-bg2:     #FFFFFF;
+  --mk-surface: #FFFFFF;
+  --mk-surface2:#F2F4F8;
+  --mk-border:  rgba(15,25,40,.10);
+  --mk-border2: rgba(15,25,40,.16);
+  --mk-t1: #0F1826;
+  --mk-t2: #3B4657;
+  --mk-t3: #5E6B7C;
+}
+
+.six-mk img { max-width: 100%; height: auto; display: block; }
+.six-mk a { text-decoration: none; color: inherit; }
+
+/* ── Layout ─────────────────────────────────────────────── */
+.six-mk .mk-wrap { max-width: var(--mk-maxw); margin: 0 auto; padding: 0 24px; }
+.six-mk .mk-section { position: relative; padding: 96px 0; }
+.six-mk .mk-section-sm { padding: 64px 0; }
+
+/* Ambient gradient glow behind sections */
+.six-mk .mk-glow { position: relative; overflow: hidden; }
+.six-mk .mk-glow::before {
+  content: ''; position: absolute; inset: -20% -10% auto -10%; height: 520px;
+  background: radial-gradient(60% 60% at 20% 0%, rgba(232,84,122,.16), transparent 60%),
+              radial-gradient(50% 50% at 85% 10%, rgba(60,143,181,.16), transparent 60%),
+              radial-gradient(40% 60% at 55% 0%, rgba(168,85,247,.12), transparent 60%);
+  pointer-events: none; z-index: 0;
+}
+.six-mk .mk-section > .mk-wrap { position: relative; z-index: 1; }
+
+/* ── Typography ─────────────────────────────────────────── */
+.six-mk h1, .six-mk h2, .six-mk h3, .six-mk h4 {
+  font-family: var(--mk-head); color: var(--mk-t1); line-height: 1.12;
+  font-weight: 800; margin: 0 0 .5em; letter-spacing: -.02em;
+}
+.six-mk h1 { font-size: clamp(2.4rem, 5vw, 4rem); }
+.six-mk h2 { font-size: clamp(1.9rem, 3.4vw, 2.9rem); }
+.six-mk h3 { font-size: clamp(1.25rem, 2vw, 1.6rem); }
+.six-mk p  { margin: 0 0 1rem; }
+.six-mk .mk-lead { font-size: 1.18rem; color: var(--mk-t2); max-width: 620px; }
+.six-mk .mk-grad-text {
+  background: var(--mk-grad); -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+}
+.six-mk .mk-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--mk-num); font-size: .8rem; font-weight: 600;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--mk-t3);
+  margin-bottom: 16px;
+}
+.six-mk .mk-eyebrow::before {
+  content: ''; width: 22px; height: 2px; border-radius: 2px; background: var(--mk-grad);
+}
+.six-mk .mk-center { text-align: center; }
+.six-mk .mk-center .mk-lead { margin-left: auto; margin-right: auto; }
+
+/* ── Buttons ────────────────────────────────────────────── */
+.six-mk .mk-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  font-family: var(--mk-body); font-weight: 700; font-size: 1rem;
+  padding: 14px 26px; border-radius: 12px; cursor: pointer; border: 1px solid transparent;
+  transition: transform .15s ease, box-shadow .2s ease, opacity .15s ease; white-space: nowrap;
+}
+.six-mk .mk-btn-primary { background: var(--mk-grad); color: #fff; box-shadow: 0 8px 30px rgba(168,85,247,.28); }
+.six-mk .mk-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 38px rgba(168,85,247,.4); }
+.six-mk .mk-btn-ghost { background: transparent; color: var(--mk-t1); border-color: var(--mk-border2); }
+.six-mk .mk-btn-ghost:hover { border-color: var(--mk-purple); color: #fff; }
+.six-mk .mk-btn-lg { padding: 16px 32px; font-size: 1.05rem; }
+.six-mk .mk-btn svg { width: 18px; height: 18px; }
+
+/* ── Header / nav ───────────────────────────────────────── */
+.six-mk .mk-header {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(11,15,26,.72); backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--mk-border);
+}
+.six-mk[data-mk-theme="light"] .mk-header { background: rgba(247,248,251,.8); }
+.six-mk .mk-nav { display: flex; align-items: center; gap: 28px; height: 70px; }
+.six-mk .mk-logo { font-family: var(--mk-head); font-weight: 800; font-size: 1.35rem; color: var(--mk-t1); }
+.six-mk .mk-logo span { background: var(--mk-grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.six-mk .mk-nav-links { display: flex; align-items: center; gap: 22px; margin-left: auto; }
+.six-mk .mk-nav-links a { font-size: .95rem; font-weight: 500; color: var(--mk-t2); transition: color .15s; }
+.six-mk .mk-nav-links a:hover { color: var(--mk-t1); }
+.six-mk .mk-nav-cta { display: flex; gap: 10px; align-items: center; }
+.six-mk .mk-nav-toggle { display: none; background: none; border: 0; color: var(--mk-t1); cursor: pointer; }
+
+/* ── Hero ───────────────────────────────────────────────── */
+.six-mk .mk-hero { padding: 96px 0 80px; }
+.six-mk .mk-hero-inner { max-width: 820px; }
+.six-mk .mk-hero h1 { margin-bottom: 20px; }
+.six-mk .mk-hero .mk-lead { font-size: 1.28rem; margin-bottom: 32px; }
+.six-mk .mk-hero-cta { display: flex; flex-wrap: wrap; gap: 14px; }
+.six-mk .mk-hero-badges { display: flex; flex-wrap: wrap; gap: 22px; margin-top: 36px; color: var(--mk-t3); font-size: .9rem; }
+.six-mk .mk-hero-badges span { display: inline-flex; align-items: center; gap: 8px; }
+
+/* ── Cards / grids ──────────────────────────────────────── */
+.six-mk .mk-grid { display: grid; gap: 22px; }
+.six-mk .mk-grid-2 { grid-template-columns: repeat(2, 1fr); }
+.six-mk .mk-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.six-mk .mk-grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+.six-mk .mk-card {
+  background: var(--mk-surface); border: 1px solid var(--mk-border);
+  border-radius: var(--mk-r); padding: 28px; position: relative;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.six-mk .mk-card:hover { transform: translateY(-4px); border-color: var(--mk-border2); box-shadow: 0 16px 44px rgba(0,0,0,.35); }
+.six-mk .mk-card-ico {
+  width: 48px; height: 48px; border-radius: 13px; display: flex; align-items: center; justify-content: center;
+  background: var(--mk-grad-soft); color: var(--mk-purple); margin-bottom: 18px;
+}
+.six-mk .mk-card-ico svg { width: 24px; height: 24px; }
+.six-mk .mk-card h3 { margin-bottom: 8px; }
+.six-mk .mk-card p { color: var(--mk-t2); font-size: .98rem; margin-bottom: 14px; }
+.six-mk .mk-card-link { font-weight: 600; color: var(--mk-purple); display: inline-flex; align-items: center; gap: 6px; }
+
+/* Gradient top-border accent variant */
+.six-mk .mk-card-accent::before {
+  content: ''; position: absolute; inset: 0 0 auto 0; height: 3px; border-radius: var(--mk-r) var(--mk-r) 0 0;
+  background: var(--mk-grad);
+}
+
+/* ── Stat / metric tiles ────────────────────────────────── */
+.six-mk .mk-stat { text-align: center; }
+.six-mk .mk-stat-num { font-family: var(--mk-num); font-weight: 800; font-size: 2.6rem; line-height: 1; }
+.six-mk .mk-stat-lbl { font-size: .9rem; color: var(--mk-t3); margin-top: 6px; }
+
+/* ── Portal CTA band (the conversion driver, reused site-wide) ── */
+.six-mk .mk-portal-band {
+  position: relative; overflow: hidden; border-radius: 24px;
+  background: linear-gradient(120deg, rgba(232,84,122,.16), rgba(168,85,247,.16), rgba(60,143,181,.16));
+  border: 1px solid var(--mk-border2); padding: 48px; margin: 0 auto;
+}
+.six-mk .mk-portal-band::before {
+  content: ''; position: absolute; inset: 0; z-index: 0;
+  background: radial-gradient(50% 120% at 100% 0%, rgba(168,85,247,.25), transparent 60%),
+              radial-gradient(50% 120% at 0% 100%, rgba(232,84,122,.22), transparent 60%);
+}
+.six-mk .mk-portal-band > * { position: relative; z-index: 1; }
+.six-mk .mk-portal-band .mk-eyebrow { color: var(--mk-t2); }
+.six-mk .mk-portal-band h2 { font-size: clamp(1.7rem, 3vw, 2.5rem); max-width: 640px; }
+.six-mk .mk-portal-band p { color: var(--mk-t2); max-width: 560px; }
+.six-mk .mk-portal-grid { display: grid; grid-template-columns: 1.2fr .8fr; gap: 36px; align-items: center; }
+.six-mk .mk-portal-features { display: flex; flex-direction: column; gap: 12px; margin: 18px 0 26px; }
+.six-mk .mk-portal-features li { list-style: none; display: flex; align-items: flex-start; gap: 10px; color: var(--mk-t2); font-size: 1rem; }
+.six-mk .mk-portal-features svg { width: 20px; height: 20px; color: var(--mk-purple); flex-shrink: 0; margin-top: 2px; }
+/* Mini "readiness" visual on the right of the band */
+.six-mk .mk-portal-viz {
+  background: var(--mk-bg2); border: 1px solid var(--mk-border); border-radius: 16px; padding: 22px;
+}
+.six-mk .mk-portal-ring { display: flex; align-items: center; gap: 16px; }
+.six-mk .mk-portal-ring-num { font-family: var(--mk-num); font-weight: 800; font-size: 2.2rem; }
+.six-mk .mk-portal-bar { height: 8px; border-radius: 6px; background: var(--mk-surface2); overflow: hidden; margin-top: 10px; }
+.six-mk .mk-portal-bar > span { display: block; height: 100%; border-radius: 6px; background: var(--mk-grad); }
+
+/* ── Testimonials ───────────────────────────────────────── */
+.six-mk .mk-quote { background: var(--mk-surface); border: 1px solid var(--mk-border); border-radius: var(--mk-r); padding: 26px; }
+.six-mk .mk-quote p { color: var(--mk-t1); font-size: 1.02rem; line-height: 1.6; }
+.six-mk .mk-quote-by { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
+.six-mk .mk-quote-av { width: 40px; height: 40px; border-radius: 50%; background: var(--mk-grad); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-family: var(--mk-num); }
+.six-mk .mk-quote-name { font-weight: 700; color: var(--mk-t1); font-size: .95rem; }
+.six-mk .mk-quote-role { font-size: .82rem; color: var(--mk-t3); }
+
+/* ── Logo strip ─────────────────────────────────────────── */
+.six-mk .mk-logos { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 34px; opacity: .8; }
+.six-mk .mk-logos img { max-height: 34px; filter: grayscale(1) brightness(1.6); }
+
+/* ── Footer ─────────────────────────────────────────────── */
+.six-mk .mk-footer { background: var(--mk-bg2); border-top: 1px solid var(--mk-border); padding: 64px 0 32px; }
+.six-mk .mk-footer-grid { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 32px; }
+.six-mk .mk-footer h4 { font-family: var(--mk-body); font-size: .85rem; text-transform: uppercase; letter-spacing: .1em; color: var(--mk-t3); margin-bottom: 14px; }
+.six-mk .mk-footer a { display: block; color: var(--mk-t2); font-size: .95rem; padding: 5px 0; }
+.six-mk .mk-footer a:hover { color: var(--mk-t1); }
+.six-mk .mk-footer-bottom { display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: center; margin-top: 44px; padding-top: 22px; border-top: 1px solid var(--mk-border); color: var(--mk-t3); font-size: .85rem; }
+
+/* ── Responsive ─────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .six-mk .mk-grid-3, .six-mk .mk-grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .six-mk .mk-portal-grid { grid-template-columns: 1fr; }
+  .six-mk .mk-footer-grid { grid-template-columns: 1fr 1fr; }
+  .six-mk .mk-nav-links { display: none; }
+  .six-mk .mk-nav-toggle { display: inline-flex; margin-left: auto; }
+  .six-mk .mk-nav.mk-open .mk-nav-links {
+    display: flex; position: absolute; top: 70px; left: 0; right: 0; flex-direction: column;
+    align-items: flex-start; gap: 4px; padding: 16px 24px; background: var(--mk-bg2); border-bottom: 1px solid var(--mk-border);
+  }
+  .six-mk .mk-section { padding: 68px 0; }
+}
+@media (max-width: 560px) {
+  .six-mk .mk-grid-2, .six-mk .mk-grid-3, .six-mk .mk-grid-4 { grid-template-columns: 1fr; }
+  .six-mk .mk-footer-grid { grid-template-columns: 1fr; }
+  .six-mk .mk-portal-band { padding: 30px; }
+  .six-mk .mk-hero-cta { flex-direction: column; align-items: stretch; }
+}

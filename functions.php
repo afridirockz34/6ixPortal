@@ -33,6 +33,9 @@ $optional_files = array(
     'admin-settings.php',
     'social-login.php',        // Nextend Social Login (Google) integration
 );
+// ── MARKETING SITE (public website redesign) ────────────────────────────────
+$marketing_loader = get_stylesheet_directory() . '/marketing/marketing.php';
+if ( file_exists( $marketing_loader ) ) require_once $marketing_loader;
 foreach ( $optional_files as $file ) {
     $path = SIX_PLUGIN_DIR . $file;
     if ( file_exists( $path ) ) {
