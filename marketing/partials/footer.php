@@ -1,67 +1,86 @@
 <?php
 /**
- * Marketing footer — editable columns, contact and social in WP Admin → 6ix Site.
+ * Marketing footer — mirrors the original 6ixdevelopers.com footer content
+ * (contact block, link list, socials, legal row), restyled. Editable in
+ * WP Admin → 6ix Site.
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-$about = mk_opt( 'footer_about', 'A full-stack digital marketing agency helping local businesses grow with websites, Google Ads, SEO and social — now with a live marketing dashboard.' );
-$cols  = mk_opt( 'footer_cols', array(
-    array( 'title' => 'Services', 'links' => array(
-        array( 'label' => 'Website Design', 'url' => '/website-design-agency-toronto' ),
-        array( 'label' => 'Google Ads',     'url' => '/ppc-google-ads-management-toronto' ),
-        array( 'label' => 'SEO',            'url' => '/seo-agency-toronto' ),
-        array( 'label' => 'Social Media',   'url' => '/social-media-marketing-agency-toronto' ),
-    ) ),
-    array( 'title' => 'Company', 'links' => array(
-        array( 'label' => 'About Us',   'url' => '/about-us' ),
-        array( 'label' => 'Contact Us', 'url' => '/contact-us' ),
-        array( 'label' => 'Client Portal', 'url' => '/get-started/' ),
-    ) ),
+$brand   = mk_opt( 'brand_name', '6ix Developers' );
+$address = mk_opt( 'footer_address', '1550 South Gateway Rd. Mississauga, Ontario, Canada' );
+$map_url = mk_opt( 'footer_map_url', 'https://g.page/6ixdevelopers?share' );
+$email   = mk_opt( 'footer_email', 'help@6ixdevelopers.com' );
+$tollfree= mk_opt( 'footer_tollfree', '888-808-7265' );
+$toronto = mk_opt( 'footer_toronto', '(416) 306-3443' );
+$links   = mk_opt( 'footer_links', array(
+    array( 'label' => 'Home',                     'url' => '/' ),
+    array( 'label' => 'Website Design',           'url' => '/website-design-agency-toronto' ),
+    array( 'label' => 'Google Ads',               'url' => '/ppc-google-ads-management-toronto' ),
+    array( 'label' => 'SEO Services',             'url' => '/seo-agency-toronto' ),
+    array( 'label' => 'Digital Marketing',        'url' => '/digital-marketing-agency-toronto' ),
+    array( 'label' => 'PPC Agency Toronto',       'url' => '/ppc-agency-toronto' ),
+    array( 'label' => 'About Us',                 'url' => '/about-us' ),
+    array( 'label' => 'Contact Us',               'url' => '/contact-us' ),
 ) );
-$email  = mk_opt( 'footer_email', 'hello@6ixdevelopers.com' );
-$phone  = mk_opt( 'footer_phone', '' );
-$social = mk_opt( 'footer_social', array() );
-$brand  = mk_opt( 'brand_name', '6ix Developers' );
+$social  = mk_opt( 'footer_social', array(
+    array( 'label' => 'Facebook',  'url' => 'https://web.facebook.com/6ixDevelopers/' ),
+    array( 'label' => 'Instagram', 'url' => 'https://www.instagram.com/6ixdevelopers/' ),
+) );
+$legal   = mk_opt( 'footer_legal', array(
+    array( 'label' => 'Privacy Policy',     'url' => '/privacy-policy' ),
+    array( 'label' => 'Terms & Conditions', 'url' => '/terms-and-conditions' ),
+    array( 'label' => 'Terms of Service',   'url' => '/terms-of-service' ),
+) );
+$partner_img = mk_opt( 'footer_partner_badge', 'https://6ixdevelopers.com/media/icons/google-partner.jpg' );
+$partner_url = mk_opt( 'footer_partner_url', 'https://www.google.com/partners/agency?id=8013163615' );
+$established = mk_opt( 'footer_established', 'Est. 2012' );
+$mkurl = function ( $u ) { return ( strpos( $u, 'http' ) === 0 ) ? $u : home_url( $u ); };
 ?>
 <footer class="mk-footer">
   <div class="mk-wrap">
     <div class="mk-footer-grid">
       <div>
-        <div class="mk-logo" style="margin-bottom:14px"><?php echo preg_replace( '/^(\S+)/', '<span>$1</span>', esc_html( $brand ), 1 ); ?></div>
-        <p style="color:var(--mk-t3);font-size:.95rem;max-width:320px"><?php echo esc_html( $about ); ?></p>
-        <a class="mk-btn mk-btn-primary" style="margin-top:18px;padding:11px 20px" href="<?php echo esc_url( mk_portal_url() ); ?>">Open your dashboard</a>
+        <h4>Contact Us</h4>
+        <a href="<?php echo esc_url( $map_url ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $address ); ?></a>
+        <a href="mailto:<?php echo esc_attr( $email ); ?>"><?php echo esc_html( $email ); ?></a>
+        <a href="tel:<?php echo esc_attr( preg_replace( '/[^0-9+]/', '', '1' . $tollfree ) ); ?>">Toll free: <?php echo esc_html( $tollfree ); ?></a>
+        <a href="tel:<?php echo esc_attr( preg_replace( '/[^0-9+]/', '', '1' . $toronto ) ); ?>">Toronto: <?php echo esc_html( $toronto ); ?></a>
+        <?php if ( $partner_img ) : ?>
+        <a href="<?php echo esc_url( $partner_url ); ?>" target="_blank" rel="noopener" style="margin-top:12px;display:inline-block">
+          <img src="<?php echo esc_url( $partner_img ); ?>" alt="Google Partner" style="max-height:56px;width:auto;border-radius:8px">
+        </a>
+        <?php endif; ?>
       </div>
-      <?php foreach ( (array) $cols as $col ) :
-          $ct = is_array( $col ) ? ( $col['title'] ?? '' ) : '';
-          $ls = is_array( $col ) ? ( $col['links'] ?? array() ) : array(); ?>
       <div>
-        <h4><?php echo esc_html( $ct ); ?></h4>
-        <?php foreach ( (array) $ls as $l ) :
-            $ll = $l['label'] ?? ''; $lu = $l['url'] ?? '#';
-            if ( ! $ll ) continue;
-            $href = ( strpos( $lu, 'http' ) === 0 ) ? $lu : home_url( $lu ); ?>
-        <a href="<?php echo esc_url( $href ); ?>"><?php echo esc_html( $ll ); ?></a>
+        <h4>Quick Links</h4>
+        <?php foreach ( array_slice( (array) $links, 0, 4 ) as $l ) : if ( empty( $l['label'] ) ) continue; ?>
+        <a href="<?php echo esc_url( $mkurl( $l['url'] ?? '#' ) ); ?>"><?php echo esc_html( $l['label'] ); ?></a>
         <?php endforeach; ?>
       </div>
-      <?php endforeach; ?>
       <div>
-        <h4>Get in touch</h4>
-        <?php if ( $email ) : ?><a href="mailto:<?php echo esc_attr( $email ); ?>"><?php echo esc_html( $email ); ?></a><?php endif; ?>
-        <?php if ( $phone ) : ?><a href="tel:<?php echo esc_attr( preg_replace( '/[^0-9+]/', '', $phone ) ); ?>"><?php echo esc_html( $phone ); ?></a><?php endif; ?>
-        <?php if ( ! empty( $social ) ) : ?>
-        <div style="display:flex;gap:14px;margin-top:12px">
-          <?php foreach ( (array) $social as $s ) :
-              $sl = $s['label'] ?? ''; $su = $s['url'] ?? '#';
-              if ( ! $sl ) continue; ?>
-          <a href="<?php echo esc_url( $su ); ?>" target="_blank" rel="noopener" style="font-size:.9rem"><?php echo esc_html( $sl ); ?></a>
-          <?php endforeach; ?>
-        </div>
-        <?php endif; ?>
+        <h4>&nbsp;</h4>
+        <?php foreach ( array_slice( (array) $links, 4 ) as $l ) : if ( empty( $l['label'] ) ) continue; ?>
+        <a href="<?php echo esc_url( $mkurl( $l['url'] ?? '#' ) ); ?>"><?php echo esc_html( $l['label'] ); ?></a>
+        <?php endforeach; ?>
+      </div>
+      <div>
+        <h4>Follow Us</h4>
+        <?php foreach ( (array) $social as $s ) : if ( empty( $s['label'] ) ) continue; ?>
+        <a href="<?php echo esc_url( $s['url'] ?? '#' ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $s['label'] ); ?></a>
+        <?php endforeach; ?>
+        <a class="mk-btn mk-btn-primary" style="margin-top:14px;padding:11px 20px" href="<?php echo esc_url( mk_portal_url() ); ?>">Open your dashboard</a>
       </div>
     </div>
     <div class="mk-footer-bottom">
-      <span>&copy; <?php echo date( 'Y' ); ?> <?php echo esc_html( $brand ); ?>. All rights reserved.</span>
-      <span>Built with the 6ix Marketing OS.</span>
+      <span><?php echo esc_html( $established ); ?> &nbsp;&copy; <?php echo date( 'Y' ); ?> <?php echo esc_html( $brand ); ?>. All Rights Reserved.</span>
+      <span>
+        <?php $out = array();
+        foreach ( (array) $legal as $lg ) {
+            if ( empty( $lg['label'] ) ) continue;
+            $out[] = '<a href="' . esc_url( $mkurl( $lg['url'] ?? '#' ) ) . '" style="display:inline">' . esc_html( $lg['label'] ) . '</a>';
+        }
+        echo implode( ' &nbsp;|&nbsp; ', $out ); ?>
+      </span>
     </div>
   </div>
 </footer>
