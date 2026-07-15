@@ -27,6 +27,32 @@ $mkurl = function ( $u ) { return ( strpos( $u, 'http' ) === 0 ) ? $u : home_url
 $mk_ajax_url    = admin_url( 'admin-ajax.php' );
 $mk_login_nonce = wp_create_nonce( 'six_nonce' );
 $mk_portal_url  = home_url( '/get-started/' );
+
+// Logged-in state: show the customer's first name instead of "Client Login".
+// Clicking it goes to their dashboard, or resumes onboarding at the exact step
+// they left off (the /get-started/ page restores saved data from the DB).
+$mk_logged_in  = is_user_logged_in();
+$mk_user_label = '';
+$mk_user_url   = '';
+if ( $mk_logged_in ) {
+    $u     = wp_get_current_user();
+    $first = $u->first_name ?: ( get_user_meta( $u->ID, 'first_name', true ) ?: '' );
+    if ( ! $first ) { $first = $u->display_name ?: 'Account'; }
+    $parts = preg_split( '/\s+/', trim( $first ) );
+    $mk_user_label = $parts ? $parts[0] : 'Account';
+
+    $role = class_exists( 'Six_Roles' ) ? Six_Roles::get_portal_role( $u->ID ) : '';
+    if ( $role === 'six_advisor' ) {
+        $mk_user_url = home_url( '/advisor-portal/' );
+    } elseif ( $role === 'six_sales' ) {
+        $mk_user_url = home_url( '/sales-portal/' );
+    } elseif ( user_can( $u, 'manage_options' ) && ! $role ) {
+        $mk_user_url = admin_url();
+    } else {
+        $completed   = get_user_meta( $u->ID, 'six_checkout_completed', true );
+        $mk_user_url = $completed ? home_url( '/portal/' ) : home_url( '/get-started/' );
+    }
+}
 ?>
 <header class="mk-header" id="mk-header">
   <div class="mk-wrap">
@@ -64,7 +90,14 @@ $mk_portal_url  = home_url( '/get-started/' );
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
             <?php echo esc_html( $phone ); ?>
           </a>
-          <button type="button" class="mk-btn mk-btn-primary" style="padding:9px 20px" data-mk-login-open><?php echo esc_html( $login_label ); ?></button>
+          <?php if ( $mk_logged_in ) : ?>
+          <a class="mk-phone-btn mk-phone-btn--primary" href="<?php echo esc_url( $mk_user_url ); ?>">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <?php echo esc_html( $mk_user_label ); ?>
+          </a>
+          <?php else : ?>
+          <button type="button" class="mk-phone-btn mk-phone-btn--primary" data-mk-login-open><?php echo esc_html( $login_label ); ?></button>
+          <?php endif; ?>
         </div>
       </div>
     </nav>
