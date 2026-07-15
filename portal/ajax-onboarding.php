@@ -269,6 +269,17 @@ function six_ajax_save_checkout_step() {
     $score    = intval( $_POST['score'] ?? 0 );
     $data     = $raw_data ? json_decode( stripslashes( $raw_data ), true ) : array();
 
+    // Keep the resume pointer accurate everywhere (login redirect, admin views).
+    // Navigation pings from goStep() carry a step but no data payload; the
+    // data-dump saves always send step:1 WITH data. Only advance on the
+    // payload-free navigation pings, and never regress — the furthest step
+    // reached is where we resume, and all typed data is preserved regardless.
+    if ( $raw_data === '' && $step !== '' ) {
+        $numeric = intval( $step ); // '3a'/'3b'/'3c' -> 3, '1b' -> 1
+        $prev    = intval( get_user_meta( $user_id, 'six_checkout_step', true ) ?: 0 );
+        if ( $numeric > $prev ) update_user_meta( $user_id, 'six_checkout_step', $numeric );
+    }
+
     // Score thresholds
     $score_map = array(
         '1'  => 30,
