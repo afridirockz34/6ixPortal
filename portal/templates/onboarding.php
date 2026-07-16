@@ -82,6 +82,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 /* Form */
 .ob-fg{margin-bottom:16px;}
 .ob-lbl{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--t3);margin-bottom:6px;}
+.ob-sublbl{font-size:12.5px;font-weight:400;line-height:1.4;color:var(--t2);margin:-2px 0 8px;text-transform:none;letter-spacing:0;}
 .ob-inp{width:100%;background:var(--d3);border:1px solid var(--bdr);border-radius:10px;padding:12px 16px;
   color:var(--t1);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:var(--tr);-webkit-appearance:none;}
 .ob-inp:focus{border-color:rgba(232,84,122,.5);background:#fff;box-shadow:0 0 0 3px rgba(232,84,122,.08);}
@@ -962,7 +963,7 @@ var SM={'google-ads':{name:'Google Ads',color:'#4285F4'},'seo':{name:'SEO',color
 
 /* ── Questionnaire builders ── */
 function qSec(title,html){return'<div style="margin-bottom:22px"><div style="font-size:12px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--bdr)">'+title+'</div>'+html+'</div>';}
-function qFG(lbl,inp){return'<div class="ob-fg"><label class="ob-lbl">'+lbl+'</label>'+inp+'</div>';}
+function qFG(lbl,inp,sub){return'<div class="ob-fg"><label class="ob-lbl">'+lbl+'</label>'+(sub?'<div class="ob-sublbl">'+sub+'</div>':'')+inp+'</div>';}
 function qSlider(id,lbl,mn,mx,def){
   return qFG(lbl,'<div><input type="range" class="ob-slider" id="'+id+'" min="'+mn+'" max="'+mx+'" value="'+def+'" step="100" oninput="OB.sl(this)">'
     +'<div class="ob-sllbls"><span>$'+mn.toLocaleString()+'</span><span>$'+mx.toLocaleString()+'</span></div>'
@@ -1032,48 +1033,48 @@ function buildPane(slug){
   var h='';
   if(slug==='google-ads'){
     h+=qSec('Targeting &amp; Offer',
-      qFG('Target Locations',qLoc('q-ads-loc'))
-      +qFG('Products / Services to Promote','<textarea class="ob-inp" id="q-ads-prod" rows="2" placeholder="e.g. '+indEx('services')+'"></textarea>')
-      +qSlider('q-ads-bud','Monthly Ad Budget',500,20000,2000)
+      qFG('Where your ads show',qLoc('q-ads-loc'),'The cities, regions or postal codes you want to reach')
+      +qFG('What to advertise','<textarea class="ob-inp" id="q-ads-prod" rows="2" placeholder="e.g. '+indEx('services')+'"></textarea>','The products or services you want more leads for')
+      +qSlider('q-ads-bud','Monthly ad budget',500,20000,2000)
     );
     h+=qSec('Market &amp; Messaging',
-      qFG('Keywords <span style="font-weight:400;font-size:11px">(press Enter to add)</span>',qTags('q-ads-kw'))
-      +qFG('Unique Selling Points','<input class="ob-inp" id="q-ads-usp" placeholder="What makes you the better choice?">')
-      +qFG('Current Promotions','<input class="ob-inp" id="q-ads-promo" placeholder="Any current offer (optional)">')
+      qFG('What customers search for',qTags('q-ads-kw'),'Words people type into Google to find a business like yours — press Enter to add each')
+      +qFG('Why customers choose you','<input class="ob-inp" id="q-ads-usp" placeholder="What makes you the better choice?">','What makes you better than your competitors')
+      +qFG('Any current offers?','<input class="ob-inp" id="q-ads-promo" placeholder="Any current offer (optional)">','A deal or discount we can feature in your ads (optional)')
     );
   } else if(slug==='seo'){
     h+=qSec('SEO Setup',
-      qFG('Primary Pages to Rank','<textarea class="ob-inp" id="q-seo-pages" rows="2" placeholder="e.g. '+indEx('pages')+'"></textarea>')
-      +qFG('Target Locations','<input class="ob-inp" id="q-seo-loc" placeholder="Cities or regions you serve">')
-      +qSlider('q-seo-bud','Monthly SEO Budget',300,10000,1200)
-      +qFG('Google Search Console Access?',qTog('q-seo-gsc'))
+      qFG('Pages you want found','<textarea class="ob-inp" id="q-seo-pages" rows="2" placeholder="e.g. '+indEx('pages')+'"></textarea>','The key pages you want ranking on Google (services, locations…)')
+      +qFG('Where you operate','<input class="ob-inp" id="q-seo-loc" placeholder="Cities or regions you serve">','The cities or regions you serve')
+      +qSlider('q-seo-bud','Monthly SEO budget',300,10000,1200)
+      +qFG('Google Search Console access?',qTog('q-seo-gsc'),'Lets us see your real search data — fine to skip if you are not sure')
     );
     h+=qSec('Content &amp; Keywords',
-      qFG('Target Keywords <span style="font-weight:400;font-size:11px">(press Enter)</span>',qTags('q-seo-kw'))
-      +qFG('Unique Selling Points','<input class="ob-inp" id="q-seo-usp" placeholder="Why should customers choose you?">')
-      +qFG('Existing Blog / Content?',qTog('q-seo-blog'))
-      +qFG('Top Competitors (URLs)','<input class="ob-inp" id="q-seo-comp" placeholder="e.g. competitor1.com, competitor2.com">')
-      +qFG('CRM / Review Tools <span style="font-weight:400;font-size:11px">e.g. Google, TrustIndex</span>','<input class="ob-inp" id="q-seo-crm" placeholder="HubSpot, TrustIndex, Google Reviews…">')
-      +qFG('Reviews / Awards','<input class="ob-inp" id="q-seo-reviews" placeholder="e.g. 4.9 stars, 200+ reviews, award name">')
-      +qFG('Anything Else?','<textarea class="ob-inp" id="q-seo-extra" rows="2" placeholder="Any other info that will help rank your site…"></textarea>')
+      qFG('Search terms to rank for',qTags('q-seo-kw'),'Words customers type into Google to find you — press Enter to add each')
+      +qFG('Why customers choose you','<input class="ob-inp" id="q-seo-usp" placeholder="Why should customers choose you?">','What sets you apart from competitors')
+      +qFG('Existing blog or content?',qTog('q-seo-blog'),'Any articles or resources already on your site')
+      +qFG('Top competitors','<input class="ob-inp" id="q-seo-comp" placeholder="e.g. competitor1.com, competitor2.com">','A few rival websites, if you know them')
+      +qFG('Review / CRM tools','<input class="ob-inp" id="q-seo-crm" placeholder="HubSpot, TrustIndex, Google Reviews…">','Anything you use to collect reviews or manage leads')
+      +qFG('Reviews &amp; awards','<input class="ob-inp" id="q-seo-reviews" placeholder="e.g. 4.9 stars, 200+ reviews, award name">','Ratings or recognitions worth highlighting')
+      +qFG('Anything else?','<textarea class="ob-inp" id="q-seo-extra" rows="2" placeholder="Any other info that will help rank your site…"></textarea>','Other details that could help you rank')
     );
   } else if(slug==='google-business'){
     h+=qSec('Google Business Profile',
-      qFG('Business Name on Google','<input class="ob-inp" id="q-gbp-name" placeholder="Your business name as it appears on Google">')
-      +qFG('Primary Category','<input class="ob-inp" id="q-gbp-cat" placeholder="e.g. '+indEx('category')+'">')
-      +qFG('Services to Highlight','<textarea class="ob-inp" id="q-gbp-svcs" rows="2" placeholder="e.g. '+indEx('services')+'"></textarea>')
-      +qFG('Business Hours',qHours('gbp'))
-      +qFG('Current Rating','<input class="ob-inp" id="q-gbp-rating" placeholder="e.g. 4.7 stars, 120 reviews" style="max-width:240px">')
-      +qSlider('q-gbp-bud','Monthly Budget',200,5000,400)
+      qFG('Business name on Google','<input class="ob-inp" id="q-gbp-name" placeholder="Your business name as it appears on Google">','Exactly as it appears on your Google listing')
+      +qFG('Main category','<input class="ob-inp" id="q-gbp-cat" placeholder="e.g. '+indEx('category')+'">','The main category customers would search for')
+      +qFG('Services to highlight','<textarea class="ob-inp" id="q-gbp-svcs" rows="2" placeholder="e.g. '+indEx('services')+'"></textarea>','The services you want featured on your profile')
+      +qFG('Business hours',qHours('gbp'),'When you are open to customers')
+      +qFG('Current rating','<input class="ob-inp" id="q-gbp-rating" placeholder="e.g. 4.7 stars, 120 reviews" style="max-width:240px">','Your star rating and review count, if you have one')
+      +qSlider('q-gbp-bud','Monthly budget',200,5000,400)
     );
   } else if(slug==='website'){
     h+=qSec('Website Project',
-      qFG('Website Goal','<div class="ob-chips" id="q-web-goal"><div class="ob-chip" data-v="lead-gen">Lead Generation</div><div class="ob-chip" data-v="ecom">E-commerce</div><div class="ob-chip" data-v="booking">Bookings</div><div class="ob-chip" data-v="portfolio">Portfolio</div></div>')
-      +qFG('Pages Needed','<input class="ob-inp" id="q-web-pages" placeholder="e.g. Home, About, Services, Contact, Blog">')
-      +qFG('Design Style','<div class="ob-chips" id="q-web-style"><div class="ob-chip" data-v="modern">Modern &amp; Clean</div><div class="ob-chip" data-v="bold">Bold &amp; Vibrant</div><div class="ob-chip" data-v="minimal">Minimal</div><div class="ob-chip" data-v="corp">Corporate</div></div>')
-      +qFG('Reference Sites You Like','<input class="ob-inp" id="q-web-refs" placeholder="e.g. apple.com, airbnb.com">')
-      +qFG('Existing Website to Redesign?',qTog('q-web-exist'))
-      +qSlider('q-web-bud','Monthly Budget / Retainer',500,15000,2000)
+      qFG('What your site should do','<div class="ob-chips" id="q-web-goal"><div class="ob-chip" data-v="lead-gen">Lead Generation</div><div class="ob-chip" data-v="ecom">E-commerce</div><div class="ob-chip" data-v="booking">Bookings</div><div class="ob-chip" data-v="portfolio">Portfolio</div></div>','The main goal you want your website to achieve')
+      +qFG('Pages needed','<input class="ob-inp" id="q-web-pages" placeholder="e.g. Home, About, Services, Contact, Blog">','The sections your site should include')
+      +qFG('Design style','<div class="ob-chips" id="q-web-style"><div class="ob-chip" data-v="modern">Modern &amp; Clean</div><div class="ob-chip" data-v="bold">Bold &amp; Vibrant</div><div class="ob-chip" data-v="minimal">Minimal</div><div class="ob-chip" data-v="corp">Corporate</div></div>','The look and feel you are going for')
+      +qFG('Sites you like','<input class="ob-inp" id="q-web-refs" placeholder="e.g. apple.com, airbnb.com">','A few websites whose style you admire')
+      +qFG('Redesigning an existing site?',qTog('q-web-exist'),'Are we starting fresh or updating a current site')
+      +qSlider('q-web-bud','Monthly budget / retainer',500,15000,2000)
     );
   }
   return h;
