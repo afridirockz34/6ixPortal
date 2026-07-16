@@ -582,7 +582,7 @@ $has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
                 <div class="six-adv-avatar"><?php echo esc_html(six_get_initials($advisor->display_name)); ?></div>
             </div>
             <div>
-                <div style="font-family:'Syne',sans-serif;font-size:17px;font-weight:800;color:var(--text1)"><?php echo esc_html($advisor->display_name); ?></div>
+                <div style="font-family:'Montserrat',sans-serif;font-size:17px;font-weight:800;color:var(--text1)"><?php echo esc_html($advisor->display_name); ?></div>
                 <div style="display:flex;align-items:center;gap:5px;margin-top:3px">
                     <span style="width:6px;height:6px;border-radius:50%;background:#56D364;display:inline-block"></span>
                     <span style="font-size:11px;color:#56D364;font-weight:600">Active</span>
@@ -669,7 +669,7 @@ $has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
 .six-hero-row{display:grid;grid-template-columns:1fr 320px;gap:16px;margin-bottom:20px;align-items:stretch}
 .six-chart-pane{background:var(--dark2);border:1px solid var(--border);border-radius:16px;padding:24px;display:flex;flex-direction:column}
 .six-advisor-pane{background:var(--dark2);border:1px solid rgba(255,102,153,.2);border-radius:16px;padding:22px;display:flex;flex-direction:column}
-.six-pane-title{font-family:'Syne',sans-serif;font-size:15px;font-weight:800;color:var(--text1);margin-bottom:18px}
+.six-pane-title{font-family:'Montserrat',sans-serif;font-size:15px;font-weight:800;color:var(--text1);margin-bottom:18px}
 
 /* Light mode hero row */
 /* Chart + advisor pane use --dark2 var (already correct for both modes) */
@@ -677,7 +677,7 @@ $has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
 
 /* Advisor */
 .six-adv-avatar-ring{width:54px;height:54px;border-radius:50%;padding:2px;background:linear-gradient(135deg,#FF6699,#a855f7,#83C5ED);flex-shrink:0}
-.six-adv-avatar{border-radius:50%;background:linear-gradient(135deg,var(--dark3,#1a1f2e),var(--dark1,#0E1117));display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:15px;font-weight:800;color:var(--text1);width:100%;height:100%}
+.six-adv-avatar{border-radius:50%;background:linear-gradient(135deg,var(--dark3,#1a1f2e),var(--dark1,#0E1117));display:flex;align-items:center;justify-content:center;font-family:'Montserrat',sans-serif;font-size:15px;font-weight:800;color:var(--text1);width:100%;height:100%}
 :not([data-theme="dark"]) .six-adv-avatar{background:#E8EDF2;color:#111827}
 .six-adv-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;font-weight:600;padding:9px 12px;border-radius:10px;text-decoration:none;cursor:pointer;transition:all .2s}
 .six-adv-msg{background:rgba(255,102,153,.08);border:1px solid rgba(255,102,153,.25);color:#FF6699}
@@ -749,12 +749,23 @@ $has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
 </style>
 
 <style>
-/* Analytics chart pane sizing */
+/* Analytics chart pane sizing — fill the pane so no empty gap shows under it */
 #six-analytics-chart {
     width: 100%;
+    height: 100%;
 }
 #analytics-root {
     border-radius: 14px !important;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+/* The plot area grows to fill the card instead of a fixed 200px (which left
+   whitespace when the pane stretched to match the advisor card). */
+#anl-wrap {
+    flex: 1 1 auto !important;
+    height: auto !important;
+    min-height: 200px;
 }
 </style>
 
@@ -820,7 +831,7 @@ mount.innerHTML = [
 '<div id="analytics-root" style="',
 '  background:' + (isDark ? '#0B0F1A' : '#F4F6FB') + ';',
 '  border-radius:14px;padding:22px 22px 14px;position:relative;overflow:hidden;',
-'  font-family:\'DM Sans\',\'Helvetica Neue\',sans-serif;transition:background .4s">',
+'  font-family:\'Mulish\',\'Helvetica Neue\',sans-serif;transition:background .4s">',
 
 '  <canvas id="anl-particles" style="position:absolute;inset:0;pointer-events:none;border-radius:14px;opacity:0.45"></canvas>',
 
@@ -1452,7 +1463,7 @@ $chart_json = json_encode(array(
     ?>
     <div style="padding:18px 20px;border-right:1px solid rgba(255,255,255,0.05)">
         <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text3);margin-bottom:6px"><?php echo esc_html($met->label); ?></div>
-        <div style="font-size:22px;font-weight:800;font-family:'Syne',sans-serif;color:var(--text1);line-height:1;margin-bottom:6px"><?php echo esc_html($met->current_value); ?></div>
+        <div style="font-size:22px;font-weight:800;font-family:'Montserrat',sans-serif;color:var(--text1);line-height:1;margin-bottom:6px"><?php echo esc_html($met->current_value); ?></div>
         <?php if($tr!==null): ?>
         <div style="display:flex;align-items:center;gap:4px">
             <span style="font-size:10px;font-weight:700;color:<?php echo $tr>=0?'var(--success)':'var(--danger)'; ?>"><?php echo $tr>=0?'↑':'↓'; ?><?php echo abs($tr); ?>%</span>
@@ -1645,7 +1656,7 @@ $adv_phone=get_user_meta($advisor_id,'billing_phone',true);
     <div class="six-card">
         <div class="six-card-body" style="text-align:center;padding:32px 24px">
             <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--pink),#a855f7);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;margin:0 auto 16px;color:white"><?php echo esc_html(six_get_initials($advisor->display_name)); ?></div>
-            <div style="font-size:20px;font-weight:800;font-family:'Syne',sans-serif;margin-bottom:4px"><?php echo esc_html($advisor->display_name); ?></div>
+            <div style="font-size:20px;font-weight:800;font-family:'Montserrat',sans-serif;margin-bottom:4px"><?php echo esc_html($advisor->display_name); ?></div>
             <div style="font-size:13px;color:var(--pink);font-weight:600;margin-bottom:16px">Senior Marketing Advisor · 6ix Developers</div>
             <div style="background:var(--dark4);border-radius:10px;padding:14px;margin-bottom:18px;text-align:left;border-left:3px solid var(--pink)">
                 <div style="font-size:12px;color:var(--text2);line-height:1.75"><?php
@@ -1774,13 +1785,13 @@ $invoices=($customer_id&&class_exists('Six_Stripe'))?Six_Stripe::get_invoices($u
                 <?php endforeach; ?>
                 </tbody>
             </table>
-            <div style="display:flex;justify-content:space-between;padding:12px 0 0;font-size:15px;font-weight:800;font-family:'Syne',sans-serif;border-top:2px solid var(--border)"><span>Total / Month</span><span style="color:var(--pink)">$<?php echo number_format($billing_total,0); ?></span></div>
+            <div style="display:flex;justify-content:space-between;padding:12px 0 0;font-size:15px;font-weight:800;font-family:'Montserrat',sans-serif;border-top:2px solid var(--border)"><span>Total / Month</span><span style="color:var(--pink)">$<?php echo number_format($billing_total,0); ?></span></div>
             <?php endif; ?>
             <?php if($billing_total>0): ?>
             <div style="margin-top:14px;padding:12px;background:rgba(131,197,237,0.08);border:1px solid rgba(131,197,237,0.2);border-radius:8px;text-align:center">
                 <div style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Next Billing</div>
                 <div style="font-size:15px;font-weight:700;color:var(--cyan)"><?php echo esc_html($next_billing); ?></div>
-                <div style="font-size:20px;font-weight:800;font-family:'Syne',sans-serif;color:var(--pink);margin-top:4px">$<?php echo number_format($billing_total,0); ?></div>
+                <div style="font-size:20px;font-weight:800;font-family:'Montserrat',sans-serif;color:var(--pink);margin-top:4px">$<?php echo number_format($billing_total,0); ?></div>
             </div>
             <?php endif; ?>
         </div>
