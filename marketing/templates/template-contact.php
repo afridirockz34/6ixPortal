@@ -36,7 +36,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
 
   <!-- HERO -->
   <section class="mk-hero mk-hero-sm mk-glow">
-    <div class="mk-aurora" aria-hidden="true"><span class="mk-aurora-a"></span><span class="mk-aurora-b"></span></div>
+    <div class="mk-aurora" aria-hidden="true"><span class="mk-aurora-a"></span><span class="mk-aurora-b"></span><span class="mk-aurora-c"></span></div>
     <div class="mk-wrap">
       <div class="mk-hero-inner">
         <span class="mk-eyebrow mk-hero-eyebrow">Contact Us</span>
