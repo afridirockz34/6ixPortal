@@ -228,7 +228,7 @@ $total_hot      = count($hot_leads);
         <?php foreach($hot_leads as $i=>$lead):?>
         <div class="six-card" style="margin-bottom:12px">
             <div class="six-card-body" style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
-                <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:var(--danger);min-width:28px;text-align:center"><?php echo $i+1;?></div>
+                <div style="font-family:'Montserrat',sans-serif;font-size:20px;font-weight:800;color:var(--danger);min-width:28px;text-align:center"><?php echo $i+1;?></div>
                 <div class="six-client-initials" style="width:44px;height:44px;font-size:14px"><?php echo esc_html(six_get_initials($lead['name']));?></div>
                 <div style="flex:1;min-width:200px">
                     <div style="font-weight:700;font-size:14px"><?php echo esc_html($lead['name']);?></div>
@@ -240,7 +240,7 @@ $total_hot      = count($hot_leads);
                     </div>
                 </div>
                 <div style="text-align:right">
-                    <div style="font-size:28px;font-weight:800;color:var(--danger);font-family:'Syne',sans-serif"><?php echo $lead['score'];?></div>
+                    <div style="font-size:28px;font-weight:800;color:var(--danger);font-family:'Montserrat',sans-serif"><?php echo $lead['score'];?></div>
                     <div style="font-size:10px;color:var(--text3)">Readiness Score</div>
                 </div>
                 <div style="display:flex;gap:8px">

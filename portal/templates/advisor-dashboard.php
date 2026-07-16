@@ -717,7 +717,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 array('label'=>'Est. Monthly ROI','val'=>$c_ai_data['monthly_roi']??'—',   'color'=>'var(--pink)'));
             foreach($ai_stats as $stat): ?>
             <div style="background:var(--dark3);border-radius:10px;padding:12px;text-align:center">
-                <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:<?php echo $stat['color']; ?>"><?php echo esc_html($stat['val']); ?></div>
+                <div style="font-family:'Montserrat',sans-serif;font-size:16px;font-weight:700;color:<?php echo $stat['color']; ?>"><?php echo esc_html($stat['val']); ?></div>
                 <div style="font-size:10px;color:var(--text3);margin-top:3px"><?php echo esc_html($stat['label']); ?></div>
             </div>
             <?php endforeach; ?>
@@ -750,7 +750,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         <div style="background:var(--dark2);border:1px solid <?php echo $sd2['color']; ?>20;border-radius:12px;padding:14px;position:relative;overflow:hidden">
             <div style="position:absolute;top:0;left:0;right:0;height:2px;background:<?php echo $sd2['color']; ?>"></div>
             <div style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px"><?php echo esc_html($met->label); ?></div>
-            <div style="font-size:22px;font-weight:800;font-family:'Syne',sans-serif;color:var(--text1);line-height:1;margin-bottom:6px"><?php echo esc_html($met->current_value); ?></div>
+            <div style="font-size:22px;font-weight:800;font-family:'Montserrat',sans-serif;color:var(--text1);line-height:1;margin-bottom:6px"><?php echo esc_html($met->current_value); ?></div>
             <?php if($tr!==null): ?>
             <div style="font-size:10px;font-weight:700;color:<?php echo $tr>=0?'var(--success)':'var(--danger)'; ?>"><?php echo $tr>=0?'↑':'↓'; ?><?php echo abs($tr); ?>% vs prev</div>
             <?php else: ?>
@@ -943,7 +943,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 ?>
                 <div style="background:var(--dark3);border-radius:10px;padding:12px;position:relative">
                     <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin-bottom:6px"><?php echo esc_html($met->label); ?></div>
-                    <div style="font-size:20px;font-weight:800;font-family:'Syne',sans-serif;margin-bottom:6px;line-height:1"><?php echo esc_html($met->current_value); ?></div>
+                    <div style="font-size:20px;font-weight:800;font-family:'Montserrat',sans-serif;margin-bottom:6px;line-height:1"><?php echo esc_html($met->current_value); ?></div>
                     <?php if($t_n>0): ?>
                     <div style="height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;margin-bottom:4px">
                         <div style="height:100%;width:<?php echo $pct; ?>%;background:<?php echo $mc; ?>;border-radius:2px"></div>
@@ -2265,7 +2265,7 @@ function advCompleteOnboarding(clientId){
         <!-- Connect screen -->
         <div style="max-width:480px;margin:60px auto;text-align:center">
             <div style="width:80px;height:80px;border-radius:50%;background:var(--dark3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 24px"></div>
-            <h2 style="font-family:'Syne',sans-serif;font-size:22px;font-weight:700;margin-bottom:12px">Connect Google Calendar</h2>
+            <h2 style="font-family:'Montserrat',sans-serif;font-size:22px;font-weight:700;margin-bottom:12px">Connect Google Calendar</h2>
             <p style="font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:32px">
                 Sign in with Google to see your upcoming meetings, client calls, and availability directly in your advisor dashboard.
             </p>
@@ -2359,11 +2359,11 @@ function advCompleteOnboarding(clientId){
                         ?>
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
                             <div style="text-align:center;padding:12px;background:var(--dark4);border-radius:8px">
-                                <div style="font-size:24px;font-weight:800;font-family:'Syne',sans-serif;color:var(--pink)"><?php echo count($today_ev);?></div>
+                                <div style="font-size:24px;font-weight:800;font-family:'Montserrat',sans-serif;color:var(--pink)"><?php echo count($today_ev);?></div>
                                 <div style="font-size:10px;color:var(--text3);margin-top:2px">Today</div>
                             </div>
                             <div style="text-align:center;padding:12px;background:var(--dark4);border-radius:8px">
-                                <div style="font-size:24px;font-weight:800;font-family:'Syne',sans-serif;color:var(--cyan)"><?php echo count($this_week);?></div>
+                                <div style="font-size:24px;font-weight:800;font-family:'Montserrat',sans-serif;color:var(--cyan)"><?php echo count($this_week);?></div>
                                 <div style="font-size:10px;color:var(--text3);margin-top:2px">This Week</div>
                             </div>
                         </div>

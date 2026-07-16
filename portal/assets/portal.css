@@ -4,7 +4,7 @@
    ============================================================ */
 
 /* ── FONTS ───────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Mulish:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 /* ── VARIABLES ───────────────────────────────────────────── */
 /* ── LIGHT MODE (default) ──────────────────────────────────────── */
@@ -32,8 +32,8 @@
   --text3:   #5E6B7B;   /* muted — still clearly legible */
 
   /* Fonts */
-  --font-head: 'Syne', sans-serif;
-  --font-body: 'DM Sans', sans-serif;
+  --font-head: 'Montserrat', sans-serif;
+  --font-body: 'Mulish', sans-serif;
   --font-num:  'Inter', sans-serif;   /* numbers — tabular, crisp */
 
   --radius:  12px;
@@ -469,6 +469,14 @@
   color: #fff;
 }
 .six-btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+/* Guarantee white text on every solid-pink button/CTA in all states + themes */
+.six-btn-primary,
+.six-btn-primary:hover,
+.six-btn-primary:focus,
+.six-btn-primary:active,
+.six-btn-primary:visited,
+a.six-btn[style*="var(--pink)"],
+button[style*="var(--pink)"] { color: #fff; }
 
 .six-btn-secondary {
   background: var(--dark4);
@@ -1103,8 +1111,8 @@ textarea.six-input {
 /* ── NUMBER DISPLAY FONT — apply to all big number displays ── */
 .six-stat-val,
 .six-readiness-score,
-[style*="font-family:'Syne'"][style*="font-weight:800"],
-[style*="font-family:'Syne'"][style*="font-weight:900"],
+[style*="font-family:'Montserrat'"][style*="font-weight:800"],
+[style*="font-family:'Montserrat'"][style*="font-weight:900"],
 [style*="font-size:28px"],
 [style*="font-size:26px"],
 [style*="font-size:22px"],
