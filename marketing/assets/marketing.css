@@ -216,36 +216,38 @@
    colour is guaranteed to read strongly over the dark hero, with the blob cores
    pulled partly on-screen for a vivid first impression. */
 .six-mk .mk-aurora { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-.six-mk .mk-aurora span { position: absolute; border-radius: 50%; filter: blur(70px); opacity: .95; will-change: transform; }
+.six-mk .mk-aurora span { position: absolute; border-radius: 50%; filter: blur(70px); will-change: transform, opacity; }
 .six-mk .mk-aurora-a { /* top-right — purple */
   top: -12%; right: -4%; width: 48%; height: 66%;
   background: radial-gradient(circle at 50% 50%, rgba(180,96,255,.95), rgba(140,80,230,.55) 42%, transparent 70%);
-  animation: mkAuroraA 26s ease-in-out infinite alternate;
+  animation: mkAuroraA 18s ease-in-out infinite alternate;
 }
 .six-mk .mk-aurora-b { /* bottom-left — pink */
   bottom: -14%; left: -6%; width: 46%; height: 62%;
   background: radial-gradient(circle at 50% 50%, rgba(244,92,138,.9), rgba(200,72,150,.5) 44%, transparent 70%);
-  animation: mkAuroraB 32s ease-in-out infinite alternate;
+  animation: mkAuroraB 23s ease-in-out infinite alternate;
 }
 .six-mk .mk-aurora-c { /* mid — cyan depth accent */
   top: 24%; left: 34%; width: 42%; height: 52%;
-  background: radial-gradient(circle at 50% 50%, rgba(74,158,205,.55), transparent 66%);
-  animation: mkAuroraC 38s ease-in-out infinite alternate;
+  background: radial-gradient(circle at 50% 50%, rgba(74,158,205,.6), transparent 66%);
+  animation: mkAuroraC 28s ease-in-out infinite alternate;
 }
+/* Larger drift + an opacity "breathing" pulse so the motion is clearly visible
+   on a big soft-blurred glow, while staying slow and seamless. */
 @keyframes mkAuroraA {
-  0%   { transform: translate3d(0,0,0) scale(1); }
-  50%  { transform: translate3d(-9%,11%,0) scale(1.22); }
-  100% { transform: translate3d(7%,-7%,0) scale(1.08); }
+  0%   { transform: translate3d(0,0,0) scale(1);          opacity: .7; }
+  50%  { transform: translate3d(-17%,20%,0) scale(1.38);  opacity: 1;  }
+  100% { transform: translate3d(13%,-11%,0) scale(1.12);  opacity: .72; }
 }
 @keyframes mkAuroraB {
-  0%   { transform: translate3d(0,0,0) scale(1.08); }
-  50%  { transform: translate3d(11%,-9%,0) scale(1.24); }
-  100% { transform: translate3d(-7%,7%,0) scale(1); }
+  0%   { transform: translate3d(0,0,0) scale(1.1);        opacity: .6; }
+  50%  { transform: translate3d(20%,-16%,0) scale(1.42);  opacity: .96; }
+  100% { transform: translate3d(-13%,13%,0) scale(1);     opacity: .58; }
 }
 @keyframes mkAuroraC {
-  0%   { transform: translate3d(0,0,0) scale(1); opacity: .5; }
-  50%  { transform: translate3d(6%,8%,0) scale(1.25); opacity: .75; }
-  100% { transform: translate3d(-6%,-6%,0) scale(1.1); opacity: .45; }
+  0%   { transform: translate3d(0,0,0) scale(1);          opacity: .3; }
+  50%  { transform: translate3d(12%,14%,0) scale(1.4);    opacity: .72; }
+  100% { transform: translate3d(-12%,-11%,0) scale(1.14); opacity: .28; }
 }
 @media (prefers-reduced-motion: reduce) { .six-mk .mk-aurora span { animation: none; } }
 .six-mk .mk-hero .mk-wrap { position: relative; z-index: 1; }
