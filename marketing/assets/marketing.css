@@ -211,29 +211,41 @@
                     linear-gradient(90deg, rgba(131,197,237,.10) 1px, transparent 1px);
   background-size: 46px 46px; mask-image: radial-gradient(120% 90% at 70% 0%, #000 30%, transparent 75%);
 }
-/* Aurora lights — very slow, seamless drift on the top-right + bottom-left glows.
-   This is the hero's colour layer (no static orb overlay competing with it). */
+/* Aurora lights — bold, slow, seamless drift on the top-right + bottom-left
+   glows. This is the hero's colour layer. Normal blending (not screen) so the
+   colour is guaranteed to read strongly over the dark hero, with the blob cores
+   pulled partly on-screen for a vivid first impression. */
 .six-mk .mk-aurora { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-.six-mk .mk-aurora span { position: absolute; border-radius: 50%; filter: blur(56px); mix-blend-mode: screen; will-change: transform, opacity; }
-.six-mk .mk-aurora-a { /* top-right */
-  top: -16%; right: -10%; width: 52%; height: 70%;
-  background: radial-gradient(circle at 50% 50%, rgba(168,85,247,.7), rgba(60,143,181,.36) 46%, transparent 72%);
-  animation: mkAuroraA 34s ease-in-out infinite alternate;
+.six-mk .mk-aurora span { position: absolute; border-radius: 50%; filter: blur(70px); opacity: .95; will-change: transform; }
+.six-mk .mk-aurora-a { /* top-right — purple */
+  top: -12%; right: -4%; width: 48%; height: 66%;
+  background: radial-gradient(circle at 50% 50%, rgba(180,96,255,.95), rgba(140,80,230,.55) 42%, transparent 70%);
+  animation: mkAuroraA 26s ease-in-out infinite alternate;
 }
-.six-mk .mk-aurora-b { /* bottom-left */
-  bottom: -20%; left: -12%; width: 50%; height: 66%;
-  background: radial-gradient(circle at 50% 50%, rgba(232,84,122,.64), rgba(168,85,247,.3) 48%, transparent 72%);
-  animation: mkAuroraB 44s ease-in-out infinite alternate;
+.six-mk .mk-aurora-b { /* bottom-left — pink */
+  bottom: -14%; left: -6%; width: 46%; height: 62%;
+  background: radial-gradient(circle at 50% 50%, rgba(244,92,138,.9), rgba(200,72,150,.5) 44%, transparent 70%);
+  animation: mkAuroraB 32s ease-in-out infinite alternate;
+}
+.six-mk .mk-aurora-c { /* mid — cyan depth accent */
+  top: 24%; left: 34%; width: 42%; height: 52%;
+  background: radial-gradient(circle at 50% 50%, rgba(74,158,205,.55), transparent 66%);
+  animation: mkAuroraC 38s ease-in-out infinite alternate;
 }
 @keyframes mkAuroraA {
-  0%   { transform: translate3d(0,0,0) scale(1);      opacity: .6; }
-  50%  { transform: translate3d(-6%,8%,0) scale(1.18); opacity: .85; }
-  100% { transform: translate3d(4%,-5%,0) scale(1.07); opacity: .55; }
+  0%   { transform: translate3d(0,0,0) scale(1); }
+  50%  { transform: translate3d(-9%,11%,0) scale(1.22); }
+  100% { transform: translate3d(7%,-7%,0) scale(1.08); }
 }
 @keyframes mkAuroraB {
-  0%   { transform: translate3d(0,0,0) scale(1.07);    opacity: .5; }
-  50%  { transform: translate3d(8%,-6%,0) scale(1.2);   opacity: .78; }
-  100% { transform: translate3d(-5%,5%,0) scale(1);     opacity: .48; }
+  0%   { transform: translate3d(0,0,0) scale(1.08); }
+  50%  { transform: translate3d(11%,-9%,0) scale(1.24); }
+  100% { transform: translate3d(-7%,7%,0) scale(1); }
+}
+@keyframes mkAuroraC {
+  0%   { transform: translate3d(0,0,0) scale(1); opacity: .5; }
+  50%  { transform: translate3d(6%,8%,0) scale(1.25); opacity: .75; }
+  100% { transform: translate3d(-6%,-6%,0) scale(1.1); opacity: .45; }
 }
 @media (prefers-reduced-motion: reduce) { .six-mk .mk-aurora span { animation: none; } }
 .six-mk .mk-hero .mk-wrap { position: relative; z-index: 1; }
@@ -307,8 +319,10 @@
 
 /* ── Carousel (Client Success + Testimonials) ───────────── */
 .six-mk .mk-carousel { position: relative; }
-.six-mk .mk-carousel-viewport { overflow: hidden; }
-.six-mk .mk-carousel-track { display: flex; transition: transform .55s cubic-bezier(.4,0,.2,1); will-change: transform; }
+.six-mk .mk-carousel-viewport { overflow: hidden; transition: height .45s cubic-bezier(.4,0,.2,1); }
+/* flex-start so each slide keeps its natural height; JS sizes the viewport to
+   the active slide, so short testimonials don't leave a tall empty gap. */
+.six-mk .mk-carousel-track { display: flex; align-items: flex-start; transition: transform .55s cubic-bezier(.4,0,.2,1); will-change: transform; }
 .six-mk .mk-slide { flex: 0 0 100%; min-width: 100%; padding: 4px; }
 .six-mk .mk-carousel-arrow {
   position: absolute; top: 50%; transform: translateY(-50%); z-index: 3;
@@ -481,8 +495,23 @@
   .six-mk .mk-portal-band { padding: 30px; }
   .six-mk .mk-hero, .six-mk .mk-hero-sm { padding: 228px 0 78px; }
   .six-mk .mk-hero-cta { flex-direction: column; align-items: stretch; }
-  .six-mk .mk-cs-card { grid-template-columns: 1fr; text-align: center; min-height: 0; }
+  .six-mk .mk-cs-card { grid-template-columns: 1fr; text-align: center; min-height: 0; padding: 26px 22px; gap: 18px; }
   .six-mk .mk-cs-img { width: 140px; height: 140px; margin: 0 auto; }
   .six-mk .mk-carousel-arrow.mk-prev { left: 2px; }
   .six-mk .mk-carousel-arrow.mk-next { right: 2px; }
+
+  /* Tighten vertical rhythm on phones — less dead space between sections */
+  .six-mk .mk-section { padding: 52px 0; }
+  .six-mk .mk-section-sm { padding: 36px 0; }
+  .six-mk .mk-sec-head { margin-bottom: 26px; }
+  .six-mk .mk-tst-card { padding: 26px 22px; }
+  .six-mk .mk-tst-card p { font-size: 1.02rem; line-height: 1.6; margin-bottom: 16px; }
+  .six-mk .mk-dots { margin-top: 16px; }
+  .six-mk .mk-slide { padding: 2px; }
+  .six-mk .mk-hero .mk-lead { font-size: 1.12rem; margin-bottom: 24px; }
+}
+/* Tablet: trim section padding a little too */
+@media (max-width: 900px) {
+  .six-mk .mk-section { padding: 68px 0; }
+  .six-mk .mk-section-sm { padding: 46px 0; }
 }

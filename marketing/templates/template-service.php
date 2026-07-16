@@ -54,7 +54,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
 
   <!-- HERO -->
   <section class="mk-hero mk-hero-sm mk-glow">
-    <div class="mk-aurora" aria-hidden="true"><span class="mk-aurora-a"></span><span class="mk-aurora-b"></span></div>
+    <div class="mk-aurora" aria-hidden="true"><span class="mk-aurora-a"></span><span class="mk-aurora-b"></span><span class="mk-aurora-c"></span></div>
     <div class="mk-wrap">
       <div class="mk-hero-inner">
         <?php if ( ! empty( $d['eyebrow'] ) ) : ?><span class="mk-eyebrow mk-hero-eyebrow"><?php echo esc_html( $d['eyebrow'] ); ?></span><?php endif; ?>
@@ -317,13 +317,14 @@ header( 'Content-Type: text/html; charset=utf-8' );
   document.querySelectorAll('[data-carousel]').forEach(function(root){
     var track=root.querySelector('[data-track]'); var slides=track?track.children:[];
     if(!track||slides.length===0) return;
-    var dotsWrap=root.querySelector('[data-dots]'); var idx=0,n=slides.length,timer=null;
+    var dotsWrap=root.querySelector('[data-dots]'); var viewport=root.querySelector('.mk-carousel-viewport'); var idx=0,n=slides.length,timer=null;
+    function setH(){ if(viewport&&slides[idx]) viewport.style.height=slides[idx].offsetHeight+'px'; }
     var delay=parseInt(root.getAttribute('data-autoplay')||'0',10); var dots=[];
     if(dotsWrap){for(var i=0;i<n;i++){(function(i){var d=document.createElement('button');
       d.className='mk-dot'+(i===0?' mk-active':'');d.setAttribute('aria-label','Go to slide '+(i+1));
       d.addEventListener('click',function(){go(i);reset();});dotsWrap.appendChild(d);dots.push(d);})(i);}}
     function go(i){idx=(i+n)%n;track.style.transform='translateX('+(-idx*100)+'%)';
-      dots.forEach(function(d,di){d.classList.toggle('mk-active',di===idx);});}
+      dots.forEach(function(d,di){d.classList.toggle('mk-active',di===idx);});setH();}
     function next(){go(idx+1);} function prev(){go(idx-1);}
     function reset(){if(!delay)return;clearInterval(timer);timer=setInterval(next,delay);}
     var nb=root.querySelector('[data-next]'),pb=root.querySelector('[data-prev]');
@@ -331,7 +332,9 @@ header( 'Content-Type: text/html; charset=utf-8' );
     if(pb)pb.addEventListener('click',function(){prev();reset();});
     if(n<2){if(nb)nb.style.display='none';if(pb)pb.style.display='none';if(dotsWrap)dotsWrap.style.display='none';}
     root.addEventListener('mouseenter',function(){clearInterval(timer);});
-    root.addEventListener('mouseleave',reset); reset();
+    root.addEventListener('mouseleave',reset);
+    setH(); window.addEventListener('resize',setH); window.addEventListener('load',setH);
+    reset();
   });
 })();
 </script>

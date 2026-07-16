@@ -90,7 +90,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
 
   <!-- HERO (original copy, verbatim) -->
   <section class="mk-hero mk-glow">
-    <div class="mk-aurora" aria-hidden="true"><span class="mk-aurora-a"></span><span class="mk-aurora-b"></span></div>
+    <div class="mk-aurora" aria-hidden="true"><span class="mk-aurora-a"></span><span class="mk-aurora-b"></span><span class="mk-aurora-c"></span></div>
     <div class="mk-wrap">
       <div class="mk-hero-inner">
         <h1><?php echo esc_html( mk_field( 'hero_heading', 'Discover The Difference' ) ); ?>
@@ -289,7 +289,9 @@ header( 'Content-Type: text/html; charset=utf-8' );
     var slides=track?track.children:[];
     if(!track||slides.length===0) return;
     var dotsWrap=root.querySelector('[data-dots]');
+    var viewport=root.querySelector('.mk-carousel-viewport');
     var idx=0, n=slides.length, timer=null;
+    function setH(){ if(viewport&&slides[idx]) viewport.style.height=slides[idx].offsetHeight+'px'; }
     var delay=parseInt(root.getAttribute('data-autoplay')||'0',10);
 
     var dots=[];
@@ -306,6 +308,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
       idx=(i+n)%n;
       track.style.transform='translateX('+(-idx*100)+'%)';
       dots.forEach(function(d,di){d.classList.toggle('mk-active',di===idx);});
+      setH();
     }
     function next(){go(idx+1);} function prev(){go(idx-1);}
     function reset(){ if(!delay)return; clearInterval(timer); timer=setInterval(next,delay); }
@@ -315,6 +318,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
     if(n<2){ if(nb)nb.style.display='none'; if(pb)pb.style.display='none'; if(dotsWrap)dotsWrap.style.display='none'; }
     root.addEventListener('mouseenter',function(){clearInterval(timer);});
     root.addEventListener('mouseleave',reset);
+    setH(); window.addEventListener('resize',setH); window.addEventListener('load',setH);
     reset();
   });
 })();
