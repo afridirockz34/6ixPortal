@@ -130,7 +130,24 @@
   background-clip: text;
   margin-right: 4px;
   white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
 }
+
+/* ── Desktop collapsible sidebar ─────────────────────────── */
+.six-sidebar { transition: transform .25s ease; }
+.six-main    { transition: margin-left .25s ease; }
+.six-sidebar-collapse-btn {
+  background: none; border: 0; cursor: pointer; color: var(--text1);
+  padding: 6px; display: inline-flex; align-items: center; border-radius: 8px;
+}
+.six-sidebar-collapse-btn:hover { background: var(--dark3); }
+body.six-nav-collapsed .six-sidebar { transform: translateX(-100%); }
+@media (min-width: 901px) {
+  body.six-nav-collapsed .six-main { margin-left: 0; }
+}
+/* On mobile the hamburger + off-canvas drawer already handle this */
+@media (max-width: 900px) { .six-sidebar-collapse-btn { display: none; } }
 
 .six-role-badge {
   font-size: 10px;
@@ -469,14 +486,22 @@
   color: #fff;
 }
 .six-btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
-/* Guarantee white text on every solid-pink button/CTA in all states + themes */
+/* Guarantee white text on every solid-pink button/CTA in all states + themes.
+   The [style*] selectors match a pink BACKGROUND only (never border-color), so
+   they can't wash out pink-outlined elements on light surfaces. */
 .six-btn-primary,
 .six-btn-primary:hover,
 .six-btn-primary:focus,
 .six-btn-primary:active,
 .six-btn-primary:visited,
-a.six-btn[style*="var(--pink)"],
-button[style*="var(--pink)"] { color: #fff; }
+[style*="background:var(--pink)"],
+[style*="background: var(--pink)"],
+[style*="background:linear-gradient(135deg,var(--pink)"],
+[style*="background: linear-gradient(135deg, var(--pink)"],
+[style*="background:linear-gradient(135deg,#E8547A"],
+[style*="background:#E8547A"],
+[style*="background:#FF6699"],
+[style*="background:#e6407a"] { color: #fff; }
 
 .six-btn-secondary {
   background: var(--dark4);
