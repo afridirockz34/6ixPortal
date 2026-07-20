@@ -749,7 +749,10 @@ $has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
 </style>
 
 <style>
-/* Analytics chart pane sizing — fill the pane so no empty gap shows under it */
+/* The dark chart card fills the pane (so no light gap shows when the pane
+   stretches to match the advisor card), but the plot itself keeps a fixed,
+   bounded height so it can NEVER run away — the SVG uses overflow:visible, and
+   an unbounded/flex plot height made it draw far beyond the card. */
 #six-analytics-chart {
     width: 100%;
     height: 100%;
@@ -757,15 +760,10 @@ $has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
 #analytics-root {
     border-radius: 14px !important;
     height: 100%;
-    display: flex;
-    flex-direction: column;
+    overflow: hidden;
 }
-/* The plot area grows to fill the card instead of a fixed 200px (which left
-   whitespace when the pane stretched to match the advisor card). */
 #anl-wrap {
-    flex: 1 1 auto !important;
-    height: auto !important;
-    min-height: 200px;
+    height: 360px !important;
 }
 </style>
 
