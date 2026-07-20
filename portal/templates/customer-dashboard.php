@@ -1652,6 +1652,9 @@ $chart_json = json_encode(array(
 <?php if($advisor):
 $adv_bio=$advisor->description??get_user_meta($advisor_id,'description',true);
 $adv_phone=get_user_meta($advisor_id,'billing_phone',true);
+// Full conversation history with the advisor. get_conversation() also marks the
+// advisor's messages as read, so the unread badge clears when this tab opens.
+$conv = class_exists('Six_Messaging') ? Six_Messaging::get_conversation($user_id,$advisor_id) : array();
 ?>
 <div style="display:grid;grid-template-columns:70% 30%;gap:20px;align-items:start">
     <div class="six-card">
@@ -1668,13 +1671,6 @@ $adv_phone=get_user_meta($advisor_id,'billing_phone',true);
             <?php if($adv_bio): ?><div style="font-size:12px;color:var(--text3);line-height:1.6;margin-bottom:16px;text-align:left"><?php echo esc_html($adv_bio); ?></div><?php endif; ?>
             <div style="display:flex;flex-direction:column;gap:8px">
                 <?php if($adv_phone): ?><a href="tel:<?php echo esc_attr($adv_phone); ?>" class="six-btn six-btn-ghost six-btn-sm" style="justify-content:center;gap:7px"><?php echo class_exists('Six_Icon')?Six_Icon::get('phone','','15px'):''; ?><?php echo esc_html($adv_phone); ?></a><?php endif; ?>
-            </div>
-            <!-- Inline message-your-advisor box (replaces the old Messages tab) -->
-            <div style="margin-top:14px;text-align:left">
-                <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);display:block;margin-bottom:8px">Message <?php echo esc_html(explode(' ',$advisor->display_name)[0]); ?></label>
-                <textarea id="adv-msg-text" class="six-input" rows="3" placeholder="Ask a question or share an update…" style="resize:vertical;width:100%;font-size:13px"></textarea>
-                <button class="six-btn six-btn-primary six-btn-sm" id="adv-msg-send" data-advisor="<?php echo intval($advisor_id); ?>" style="margin-top:8px;width:100%;justify-content:center;gap:7px"><?php echo class_exists('Six_Icon')?Six_Icon::get('send','','15px'):''; ?>Send Message</button>
-                <div id="adv-msg-result" style="font-size:12px;margin-top:8px"></div>
             </div>
             <?php if(!empty($active_svcs)): ?>
             <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border);text-align:left">
@@ -1711,6 +1707,35 @@ $adv_phone=get_user_meta($advisor_id,'billing_phone',true);
             <button class="six-btn six-btn-primary" id="six-book-meeting-new" disabled style="width:100%;justify-content:center;opacity:0.5">Book 30-Minute Meeting</button>
             <div id="six-meeting-result" style="margin-top:12px;font-size:13px"></div>
             <div style="margin-top:14px;padding:12px;background:var(--dark4);border-radius:8px;font-size:11px;color:var(--text3);line-height:1.6"> Meetings are 30 minutes · Google Meet link is generated automatically · Both you and your advisor receive email confirmations</div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Interactive chat with your advisor (history + send) ─────────────── -->
+<div class="six-card" style="margin-top:20px">
+    <div class="six-card-header" style="border-bottom:1px solid var(--border);padding-bottom:12px">
+        <div style="display:flex;align-items:center;gap:10px">
+            <div class="six-advisor-avatar" style="width:34px;height:34px"><?php echo esc_html(six_get_initials($advisor->display_name)); ?></div>
+            <div>
+                <div style="font-weight:700;font-size:14px">Chat with <?php echo esc_html(explode(' ',$advisor->display_name)[0]); ?></div>
+                <div style="font-size:11px;color:var(--success)">● Your Advisor · usually replies within a few hours</div>
+            </div>
+        </div>
+    </div>
+    <div class="six-card-body" style="padding:0">
+        <div class="six-msg-thread" id="six-msg-thread" style="height:420px;overflow-y:auto;padding:16px">
+            <?php if(empty($conv)): ?>
+            <div style="text-align:center;padding:48px 20px;color:var(--text3);font-size:13px">No messages yet — send your advisor a note and their replies will show up here.</div>
+            <?php else: foreach($conv as $msg): $is_mine=intval($msg->sender_id)===$user_id; ?>
+            <div class="six-msg <?php echo $is_mine?'mine':''; ?>">
+                <div class="six-msg-avatar" style="background:<?php echo $is_mine?'linear-gradient(135deg,var(--pink),#a855f7)':'linear-gradient(135deg,var(--blue),var(--cyan))'; ?>"><?php echo esc_html(six_get_initials($msg->sender_name)); ?></div>
+                <div><div class="six-msg-bubble"><?php echo esc_html($msg->message); ?></div><div class="six-msg-time"><?php echo human_time_diff(strtotime($msg->created_at),time()); ?> ago</div></div>
+            </div>
+            <?php endforeach; endif; ?>
+        </div>
+        <div class="six-msg-input-row" style="display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--border)">
+            <input class="six-msg-input" id="six-msg-input" placeholder="Type a message…" data-receiver="<?php echo intval($advisor_id); ?>" style="flex:1">
+            <button class="six-btn six-btn-primary" id="six-msg-send" style="flex-shrink:0">Send →</button>
         </div>
     </div>
 </div>
