@@ -526,17 +526,36 @@ function six_complete_onboarding() {
         if ( $ai_plan_json ) {
             $q_save['ai_plan_json'] = sanitize_textarea_field($ai_plan_json);
         }
-        // Use INSERT ... ON DUPLICATE KEY UPDATE to guarantee the row exists
+        // Guarantee the row exists, and NEVER wipe already-saved answers with
+        // blanks. On update we write only the fields that actually have a value
+        // (a partial S.q at completion must not clear business name / competitors
+        // that the intermediate saves already stored).
         $exists = $wpdb->get_var( $wpdb->prepare(
             "SELECT id FROM {$tbl} WHERE user_id=%d", $user_id
         ));
+        $write = $q_save;
         if ( $exists ) {
-            $wpdb->update( $tbl, $q_save, array('user_id' => $user_id) );
+            $write = array_filter( $q_save, function ( $v ) { return $v !== '' && $v !== null && $v !== 0; } );
+            $write['updated_at'] = current_time('mysql');
+            $res = $wpdb->update( $tbl, $write, array( 'user_id' => $user_id ) );
         } else {
             $q_save['user_id']    = $user_id;
             $q_save['created_at'] = current_time('mysql');
             $q_save['step']       = '4';
-            $wpdb->insert( $tbl, $q_save );
+            $write = $q_save;
+            $res = $wpdb->insert( $tbl, $q_save );
+        }
+        // A missing column makes the write fail silently and the profile stays
+        // blank — run the schema migration and retry with only the live columns.
+        if ( $res === false && $wpdb->last_error ) {
+            if ( function_exists( 'six_onboarding_db_upgrade' ) ) {
+                delete_option( 'six_onboarding_db_v4' );
+                six_onboarding_db_upgrade();
+            }
+            $live = $wpdb->get_col( "SHOW COLUMNS FROM {$tbl}", 0 );
+            $safe = array_intersect_key( $write, array_flip( $live ) );
+            if ( $exists ) $wpdb->update( $tbl, $safe, array( 'user_id' => $user_id ) );
+            else           $wpdb->insert( $tbl, $safe );
         }
         // Also update WP user name fields
         if ( !empty($q_save['first_name']) ) {

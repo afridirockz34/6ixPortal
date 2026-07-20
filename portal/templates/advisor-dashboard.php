@@ -135,10 +135,14 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
         </svg>
     </button>
-    <!-- Logo — compact -->
-    <div class="six-logo">6ix Developers</div>
-    <!-- Role badge hidden on mobile via CSS -->
-    <div class="six-role-badge advisor">Advisor</div>
+    <!-- Desktop sidebar collapse toggle -->
+    <button class="six-sidebar-collapse-btn" id="six-sidebar-collapse" aria-label="Toggle sidebar" title="Toggle sidebar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+    </button>
+    <!-- Logo — links to the public website -->
+    <a class="six-logo" href="<?php echo esc_url( home_url( '/' ) ); ?>">6ix Developers</a>
     <!-- Right controls -->
     <div class="six-topbar-right">
         <!-- Theme toggle — track hidden on mobile via CSS, shows icon only -->
@@ -181,7 +185,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
     <nav class="six-sidebar">
         <div class="six-nav-section">
             <div class="six-nav-label">Mission Control</div>
-            <a href="?tab=overview"      class="six-nav-item <?php echo $active_tab==='overview'     ?'active':'';?>"><span class="six-nav-icon"></span> Overview</a>
+            <a href="?tab=overview"      class="six-nav-item <?php echo $active_tab==='overview'     ?'active':'';?>"><span class="six-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></span> Overview</a>
             <a href="?tab=clients"       class="six-nav-item <?php echo $active_tab==='clients'      ?'active':'';?>"><span class="six-nav-icon">◈</span> Clients</a>
             <a href="?tab=notifications" class="six-nav-item <?php echo $active_tab==='notifications'?'active':'';?>">
                 <span class="six-nav-icon">◎</span> Alerts
@@ -195,13 +199,13 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         <div class="six-nav-section">
             <div class="six-nav-label">Management</div>
             
-            <a href="?tab=revenue"  class="six-nav-item <?php echo $active_tab==='revenue' ?'active':'';?>"><span class="six-nav-icon"></span> Revenue</a>
+            <a href="?tab=revenue"  class="six-nav-item <?php echo $active_tab==='revenue' ?'active':'';?>"><span class="six-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span> Revenue</a>
             <a href="?tab=gads"     class="six-nav-item <?php echo $active_tab==='gads'    ?'active':'';?>">
                 <span class="six-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span> Google Ads
                 <?php if(!$mcc_configured):?><span style="font-size:9px;color:var(--warning);margin-left:auto">Setup</span><?php endif;?>
             </a>
             <a href="?tab=intelligence" class="six-nav-item <?php echo $active_tab==='intelligence'?'active':'';?>">
-                <span class="six-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></span> Intelligence
+                <span class="six-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></span> Onboarding Drop-off Funnel
                 <?php
                 $intel_pending = $wpdb->get_var($wpdb->prepare(
                     "SELECT COUNT(*) FROM {$wpdb->prefix}six_recommendations r
@@ -290,6 +294,40 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 </p>
             </div>
             <a href="<?php echo admin_url('admin.php?page=six-portal-assign');?>" class="six-btn six-btn-primary" style="font-size:13px">+ Add Client</a>
+        </div>
+
+        <!-- ── Today's Priorities (action queue) ───────────────────── -->
+        <?php
+        $priorities = array();
+        $p_ap = intval( $total_pending ?? 0 );
+        if ( $p_ap > 0 ) $priorities[] = array('t'=>$p_ap.' approval'.($p_ap>1?'s':'').' waiting','d'=>'Budget & service requests need your sign-off','u'=>'?tab=approvals','c'=>'var(--warning)','cta'=>'Review');
+        $p_um = intval( $unread_msg ?? 0 );
+        if ( $p_um > 0 ) $priorities[] = array('t'=>$p_um.' unread message'.($p_um>1?'s':''),'d'=>'Clients are waiting to hear back from you','u'=>'?tab=clients','c'=>'var(--pink)','cta'=>'Open');
+        $p_ai = intval( $total_intel_pending ?? 0 );
+        if ( $p_ai > 0 ) $priorities[] = array('t'=>$p_ai.' AI recommendation'.($p_ai>1?'s':'').' to review','d'=>'Approve or decline growth opportunities for your clients','u'=>'?tab=intelligence','c'=>'#a855f7','cta'=>'Review');
+        $p_crit = array_filter( (array)$clients_attention, function($c){ return ($c['health'] ?? 100) < 50; } );
+        if ( count($p_crit) > 0 ) { $p_first = reset($p_crit); $priorities[] = array('t'=>count($p_crit).' client'.(count($p_crit)>1?'s':'').' at risk','d'=>'Low health scores — reach out before they churn','u'=>'?tab=clients&client='.intval($p_first['id']),'c'=>'var(--danger)','cta'=>'View'); }
+        if ( ! empty($today_meetings) ) { $p_next=null; foreach($today_meetings as $m){ if(strtotime($m['start'])>time()){ $p_next=$m; break; } } if($p_next) $priorities[] = array('t'=>'Next call at '.date('g:i A',strtotime($p_next['start'])),'d'=>($p_next['title']??'Client meeting'),'u'=>'?tab=calendar','c'=>'var(--cyan)','cta'=>'Prep'); }
+        ?>
+        <div class="six-card" style="margin-bottom:24px">
+            <div class="six-card-header">
+                <span class="six-card-title">Today's Priorities</span>
+                <?php if(count($priorities)>0):?><span class="six-badge" style="background:var(--pink)"><?php echo count($priorities);?></span><?php endif;?>
+            </div>
+            <div class="six-card-body" style="padding:0">
+                <?php if(empty($priorities)):?>
+                <div style="padding:26px;text-align:center;color:var(--text3);font-size:13px">You're all caught up — nothing needs your attention right now.</div>
+                <?php else: foreach($priorities as $pr):?>
+                <a href="<?php echo esc_url($pr['u']);?>" style="display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid var(--border);text-decoration:none;transition:background .15s" onmouseover="this.style.background='var(--dark3)'" onmouseout="this.style.background='transparent'">
+                    <span style="width:9px;height:9px;border-radius:50%;background:<?php echo $pr['c'];?>;flex-shrink:0"></span>
+                    <div style="flex:1;min-width:0">
+                        <div style="font-weight:700;font-size:14px;color:var(--text1)"><?php echo esc_html($pr['t']);?></div>
+                        <div style="font-size:12px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><?php echo esc_html($pr['d']);?></div>
+                    </div>
+                    <span class="six-btn six-btn-secondary six-btn-sm" style="flex-shrink:0;font-size:12px;pointer-events:none"><?php echo esc_html($pr['cta']);?> →</span>
+                </a>
+                <?php endforeach; endif;?>
+            </div>
         </div>
 
         <!-- ── Stat cards ──────────────────────────────────────────── -->
@@ -2201,22 +2239,6 @@ function advCompleteOnboarding(clientId){
                     <div id="mcc-result" style="margin-top:12px;font-size:12px"></div>
                 </div>
             </div>
-
-                    <div class="six-card-body" style="padding:0">
-            <table class="six-table"><thead><tr><th>Client</th><th>Customer ID</th><th>Last Sync</th><th></th></tr></thead><tbody>
-            <?php foreach($clients as $c):
-                $cid=get_user_meta($c->ID,'six_gads_customer_id_display',true)?:get_user_meta($c->ID,'six_gads_customer_id',true);
-                $syn=get_user_meta($c->ID,'six_gads_last_sync',true);
-            ?>
-            <tr>
-                <td><strong><?php echo esc_html($c->display_name);?></strong></td>
-                <td><?php echo $cid?'<code style="background:var(--dark3);padding:2px 8px;border-radius:4px">'.esc_html($cid).'</code>':'<span style="color:var(--text3)">Not set</span>';?></td>
-                <td style="font-size:12px;color:var(--text3)"><?php echo $syn?human_time_diff(strtotime($syn),time()).' ago':'Never';?></td>
-                <td><a href="?tab=clients&client=<?php echo $c->ID;?>" class="six-btn six-btn-secondary six-btn-sm">Set ID →</a></td>
-            </tr>
-            <?php endforeach;?>
-            </tbody></table>
-            </div>
         </div>
 
     <?php /* ════════════ CALENDAR ════════════ */ elseif($active_tab==='calendar'):
@@ -2938,6 +2960,16 @@ if (sendBtn) {
 </script>
 
 <script>
+// Desktop sidebar collapse — default open, remembered per browser.
+(function(){
+  var cb=document.getElementById('six-sidebar-collapse');
+  if(!cb)return;
+  if(localStorage.getItem('six_nav_collapsed')==='1') document.body.classList.add('six-nav-collapsed');
+  cb.addEventListener('click',function(){
+    var c=document.body.classList.toggle('six-nav-collapsed');
+    localStorage.setItem('six_nav_collapsed', c?'1':'0');
+  });
+})();
 (function(){
   var btn = document.getElementById('six-menu-toggle');
   var sidebar = document.querySelector('.six-sidebar');

@@ -8,6 +8,8 @@ $user_id    = get_current_user_id();
 $user       = wp_get_current_user();
 $initials   = six_get_initials( $user->display_name );
 $active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'overview';
+// Messaging now lives inside the Advisor section — route any old links there.
+if ( $active_tab === 'messages' ) $active_tab = 'advisor';
 $nonce      = wp_create_nonce( 'six_nonce' );
 $ajax_url   = admin_url( 'admin-ajax.php' );
 
@@ -147,10 +149,14 @@ $svc_def = array(
             <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
         </svg>
     </button>
-    <!-- Logo — compact -->
-    <div class="six-logo">6ix Developers</div>
-    <!-- Role badge hidden on mobile via CSS -->
-    <div class="six-role-badge">Client</div>
+    <!-- Desktop sidebar collapse toggle -->
+    <button class="six-sidebar-collapse-btn" id="six-sidebar-collapse" aria-label="Toggle sidebar" title="Toggle sidebar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+    </button>
+    <!-- Logo — links to the public website -->
+    <a class="six-logo" href="<?php echo esc_url( home_url( '/' ) ); ?>">6ix Developers</a>
     <!-- Right controls -->
     <div class="six-topbar-right">
         <!-- Theme toggle — icon only on mobile -->
@@ -184,10 +190,10 @@ $svc_def = array(
     <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>
     <span>Services</span>
   </a>
-  <a class="six-bnav-item <?php echo $active_tab==='messages'?'active':''; ?>" href="?tab=messages">
+  <a class="six-bnav-item <?php echo $active_tab==='advisor'?'active':''; ?>" href="?tab=advisor">
     <?php if($unread_msgs > 0): ?><span class="six-bnav-badge"><?php echo min($unread_msgs,9); ?></span><?php endif; ?>
-    <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-    <span>Messages</span>
+    <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    <span>Advisor</span>
   </a>
   <a class="six-bnav-item <?php echo $active_tab==='reports'?'active':''; ?>" href="?tab=reports">
     <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -226,10 +232,7 @@ $svc_svg_icons = array(
             <span style="font-size:12px"><?php echo esc_html($s->service_name); ?></span>
         </a>
         <?php endforeach; ?>
-        <a href="?tab=messages" class="six-nav-item <?php echo $active_tab==='messages'?'active':''; ?>">
-            <span class="six-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span> Messages<?php if($unread_msgs>0): ?><span class="six-badge"><?php echo $unread_msgs; ?></span><?php endif; ?>
-        </a>
-        <a href="?tab=advisor"  class="six-nav-item <?php echo $active_tab==='advisor' ?'active':''; ?>"><span class="six-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span> Advisor</a>
+        <a href="?tab=advisor"  class="six-nav-item <?php echo $active_tab==='advisor' ?'active':''; ?>"><span class="six-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span> Advisor<?php if($unread_msgs>0): ?><span class="six-badge"><?php echo $unread_msgs; ?></span><?php endif; ?></a>
         <a href="?tab=reports"  class="six-nav-item <?php echo $active_tab==='reports' ?'active':''; ?>"><span class="six-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span> Reports</a>
     </div>
     <div class="six-nav-section">
@@ -591,7 +594,7 @@ $has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
         </div>
         <!-- CTA buttons -->
         <div style="display:flex;gap:10px;margin-bottom:20px">
-            <a href="?tab=messages" class="six-adv-btn six-adv-msg">
+            <a href="?tab=advisor" class="six-adv-btn six-adv-msg">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                 </svg>
@@ -749,7 +752,10 @@ $has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
 </style>
 
 <style>
-/* Analytics chart pane sizing — fill the pane so no empty gap shows under it */
+/* The dark chart card fills the pane (so no light gap shows when the pane
+   stretches to match the advisor card), but the plot itself keeps a fixed,
+   bounded height so it can NEVER run away — the SVG uses overflow:visible, and
+   an unbounded/flex plot height made it draw far beyond the card. */
 #six-analytics-chart {
     width: 100%;
     height: 100%;
@@ -757,15 +763,10 @@ $has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
 #analytics-root {
     border-radius: 14px !important;
     height: 100%;
-    display: flex;
-    flex-direction: column;
+    overflow: hidden;
 }
-/* The plot area grows to fill the card instead of a fixed 200px (which left
-   whitespace when the pane stretched to match the advisor card). */
 #anl-wrap {
-    flex: 1 1 auto !important;
-    height: auto !important;
-    min-height: 200px;
+    height: 360px !important;
 }
 </style>
 
@@ -1734,15 +1735,22 @@ $adv_phone=get_user_meta($advisor_id,'billing_phone',true);
 <?php elseif($active_tab==='billing'):
 $has_card=get_user_meta($user_id,'six_stripe_payment_method',true);
 $customer_id=get_user_meta($user_id,'six_stripe_customer_id',true);
-$last4='••••';$brand='Card';$exp='';
-if($has_card&&$customer_id&&class_exists('Six_Stripe')){
-    $pm=Six_Stripe::get_payment_method_details($has_card);
-    if($pm&&!empty($pm['card'])){$last4=$pm['card']['last4']??'••••';$brand=ucfirst($pm['card']['brand']??'Card');$exp=sprintf('%02d/%s',$pm['card']['exp_month']??0,substr($pm['card']['exp_year']??'',2));}
-}
-$active_svcs_b=array_filter((array)$services,fn($s)=>$s->status==='active'&&$s->budget>0);
-$billing_total=array_sum(array_column((array)$active_svcs_b,'budget'));
+$last4='••••';$brand='Card';$exp='';$invoices=array();
+// Stripe calls hit an external API — never let a failure there take the whole
+// billing page down with a WordPress "critical error".
+try {
+    if($has_card&&$customer_id&&class_exists('Six_Stripe')){
+        $pm=Six_Stripe::get_payment_method_details($has_card);
+        if(is_array($pm)&&!empty($pm['card'])){$last4=$pm['card']['last4']??'••••';$brand=ucfirst($pm['card']['brand']??'Card');$exp=sprintf('%02d/%s',intval($pm['card']['exp_month']??0),substr((string)($pm['card']['exp_year']??''),2));}
+    }
+    if($customer_id&&class_exists('Six_Stripe')){
+        $inv=Six_Stripe::get_invoices($user_id);
+        if(is_array($inv)) $invoices=$inv;
+    }
+} catch (\Throwable $e) { $invoices=array(); }
+$active_svcs_b=array_filter((array)$services,fn($s)=>$s->status==='active'&&floatval($s->budget)>0);
+$billing_total=array_sum(array_map(fn($s)=>floatval($s->budget),(array)$active_svcs_b));
 $next_billing=date('M 1, Y',strtotime('first day of next month'));
-$invoices=($customer_id&&class_exists('Six_Stripe'))?Six_Stripe::get_invoices($user_id):array();
 ?>
 <div class="six-page-header"><div><h1 class="six-page-title">Billing</h1><p class="six-page-sub">Payment method and billing history</p></div></div>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
@@ -2546,6 +2554,16 @@ if(compBtn){
 </script>
 
 <script>
+// Desktop sidebar collapse — default open, remembered per browser.
+(function(){
+  var cb=document.getElementById('six-sidebar-collapse');
+  if(!cb)return;
+  if(localStorage.getItem('six_nav_collapsed')==='1') document.body.classList.add('six-nav-collapsed');
+  cb.addEventListener('click',function(){
+    var c=document.body.classList.toggle('six-nav-collapsed');
+    localStorage.setItem('six_nav_collapsed', c?'1':'0');
+  });
+})();
 (function(){
   var btn=document.getElementById('six-menu-toggle');
   var sidebar=document.querySelector('.six-sidebar');
