@@ -578,6 +578,15 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         $c_ads_promo   = $c_checkout->ads_promo ?? '';
         $c_ads_fin     = $c_checkout->ads_financing ?? '';
         $c_ads_bud     = intval($c_checkout->ads_budget ?? 0);
+        // Existing-Google-Ads audit branch
+        $c_gads_running= $c_checkout->gads_running ?? '';
+        $c_gads_audit  = array();
+        if ( ! empty($c_checkout->gads_audit_json) ) {
+            $decoded = json_decode($c_checkout->gads_audit_json, true);
+            if ( is_array($decoded) ) $c_gads_audit = $decoded;
+        }
+        $c_gads_link   = $c_checkout->gads_link_status ?? get_user_meta($view_client_id,'six_gads_link_status',true);
+        $c_gads_cid    = $c_checkout->gads_customer_id ?? get_user_meta($view_client_id,'six_gads_customer_id',true);
         // SEO questionnaire
         $c_seo_pages   = $c_checkout->seo_pages ?? '';
         $c_seo_loc     = $c_checkout->seo_locations ?? '';
@@ -1635,16 +1644,54 @@ function advCompleteOnboarding(clientId){
         </div>
     </div>
 
-    <?php if($c_ads_kw || $c_ads_loc || $c_ads_prod): ?>
+    <?php if($c_ads_kw || $c_ads_loc || $c_ads_prod || $c_gads_running): ?>
     <!-- Google Ads -->
     <div style="background:var(--dark2);border:1px solid rgba(66,133,244,0.3);border-radius:14px;padding:18px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)">
-            <div style="display:flex;align-items:center;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                 <div style="width:10px;height:10px;border-radius:50%;background:#4285F4"></div>
                 <span style="font-size:12px;font-weight:700;color:var(--text1);text-transform:uppercase;letter-spacing:.5px">Google Ads</span>
+                <?php if($c_gads_running==='yes'): ?><span style="font-size:11px;font-weight:700;color:#C17B1A;background:rgba(251,188,4,0.12);border:1px solid rgba(251,188,4,0.25);border-radius:20px;padding:2px 9px">Already running — audit</span><?php elseif($c_gads_running==='no'): ?><span style="font-size:11px;font-weight:700;color:#1B9E52;background:rgba(27,158,82,0.1);border:1px solid rgba(27,158,82,0.2);border-radius:20px;padding:2px 9px">New setup</span><?php endif; ?>
                 <?php if($c_ads_bud>0): ?><span style="font-size:11px;font-weight:700;color:#4285F4;background:rgba(66,133,244,0.1);border:1px solid rgba(66,133,244,0.2);border-radius:20px;padding:2px 9px">$<?php echo number_format($c_ads_bud); ?>/mo</span><?php endif; ?>
             </div>
         </div>
+
+        <?php if($c_gads_running==='yes' && $c_gads_audit): ?>
+        <!-- Existing Google Ads audit answers -->
+        <?php
+            $gads_dur_map = array('<3m'=>'Under 3 months','3-12m'=>'3–12 months','1-2y'=>'1–2 years','2y+'=>'2+ years');
+            $gads_mgr_map = array('self'=>'Self-managed','agency'=>'Agency','freelancer'=>'Freelancer');
+            $ga = $c_gads_audit;
+            $ga_dur = $gads_dur_map[$ga['duration']??''] ?? ($ga['duration']??'');
+            $ga_mgr = $gads_mgr_map[$ga['manager']??'']  ?? ($ga['manager']??'');
+            $ga_sat = isset($ga['satisfied']) ? ($ga['satisfied']==='yes'?'Satisfied':'Not satisfied') : '';
+        ?>
+        <div style="background:rgba(251,188,4,0.05);border:1px solid rgba(251,188,4,0.18);border-radius:10px;padding:14px;margin-bottom:14px">
+            <div style="font-size:11px;font-weight:700;color:#C17B1A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Current Google Ads Audit</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <?php
+                adv_qrow('Running For', $ga_dur);
+                adv_qrow('Primary Goal', !empty($ga['goal'])?str_replace(',',', ',$ga['goal']):'');
+                adv_qrow('Campaign Types', !empty($ga['campaign_types'])?str_replace(',',', ',$ga['campaign_types']):'');
+                adv_qrow('Managed By', $ga_mgr);
+                adv_qrow('Satisfaction', $ga_sat);
+                adv_qrow('What\'s Working', $ga['working']??'', true);
+                adv_qrow('What\'s Not Working', $ga['not_working']??'', true);
+                adv_qrow('Biggest Challenge', $ga['challenge']??'', true);
+                ?>
+            </div>
+            <?php if($c_gads_link || $c_gads_cid): ?>
+            <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(251,188,4,0.18);display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <?php
+                $link_label = $c_gads_link==='requested' ? 'Customer ID provided — send MCC access request' : ($c_gads_link==='later' ? 'Client will link on first call' : '');
+                adv_qrow('Account Link', $link_label);
+                adv_qrow('Google Ads Customer ID', $c_gads_cid);
+                ?>
+            </div>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <?php
             adv_qrow('Target Locations', $c_ads_loc);
@@ -1729,7 +1776,7 @@ function advCompleteOnboarding(clientId){
     </div>
     <?php endif; // end web budget ?>
 
-    <?php if(!$c_ads_kw && !$c_seo_kw && !$c_gbp_name && !$c_web_goal): ?>
+    <?php if(!$c_ads_kw && !$c_seo_kw && !$c_gbp_name && !$c_web_goal && !$c_gads_running): ?>
     <div style="background:var(--dark2);border:1px solid var(--border);border-radius:12px;padding:28px;text-align:center;color:var(--text3)">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto 12px;display:block;opacity:.4"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
         <div style="font-size:13px;font-weight:600;margin-bottom:4px">No service questionnaire data yet</div>

@@ -113,6 +113,29 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .ob-chip:hover{border-color:rgba(232,84,122,.4);}
 .ob-chip.sel{background:rgba(232,84,122,.1);border-color:var(--pk);color:var(--pk);font-weight:600;}
 
+/* Google Ads: currently running? — branch selector */
+.ob-gads-choice{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;}
+.ob-gads-opt{padding:14px 16px;border:1px solid var(--bdr);border-radius:12px;background:var(--d3);
+  cursor:pointer;transition:var(--tr);display:flex;flex-direction:column;gap:4px;}
+.ob-gads-opt:hover{border-color:rgba(232,84,122,.45);}
+.ob-gads-opt strong{font-size:13.5px;font-weight:600;color:var(--t1);line-height:1.3;}
+.ob-gads-opt span{font-size:12px;color:var(--t2);line-height:1.35;}
+.ob-gads-opt.sel{border-color:var(--pk);background:rgba(232,84,122,.08);box-shadow:0 0 0 1px var(--pk) inset;}
+.ob-gads-opt.sel strong{color:var(--pk);}
+#q-gads-existing{margin-top:6px;}
+@media(max-width:560px){.ob-gads-choice{grid-template-columns:1fr;}}
+
+/* Google Ads: secure account-link card (completion step) */
+.ob-gads-link-card{border:1px solid var(--bdr);border-radius:12px;background:var(--d3);padding:16px 18px;}
+.ob-gads-link-hdr{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:700;color:var(--t1);margin-bottom:8px;}
+.ob-gads-link-hdr svg{color:var(--pk);}
+.ob-gads-link-p{font-size:12.5px;line-height:1.55;color:var(--t2);margin:0 0 10px;}
+.ob-gads-link-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;}
+.ob-gads-link-list li{display:flex;align-items:flex-start;gap:7px;font-size:12px;line-height:1.4;color:var(--t2);}
+.ob-gads-link-list li svg{flex-shrink:0;margin-top:2px;}
+.ob-gads-link-later{display:flex;align-items:flex-start;gap:8px;margin-top:12px;font-size:12px;line-height:1.4;color:var(--t2);cursor:pointer;}
+.ob-gads-link-later input{margin-top:2px;flex-shrink:0;}
+
 /* Toggle yes/no */
 .ob-tog-row{display:flex;gap:8px;margin-top:6px;}
 .ob-tog-btn{flex:1;padding:9px;border:1px solid var(--bdr);border-radius:10px;background:var(--d3);
@@ -854,6 +877,32 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
           </div>
           <div id="ob-stripe-err" style="color:#e53e3e;font-size:12px;margin-top:6px"></div>
         </div>
+        <!-- ── Existing-Google-Ads: secure account link (no passwords) ─────── -->
+        <div id="ob-gads-link" style="display:none;margin-top:16px">
+          <div class="ob-gads-link-card">
+            <div class="ob-gads-link-hdr">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              <span>Link your Google Ads account</span>
+            </div>
+            <p class="ob-gads-link-p">
+              So your advisor can audit your live campaigns, we request <strong>manager (MCC) access</strong> to your Google Ads account.
+              Enter your Google Ads <strong>Customer ID</strong> below and we'll send an access request that <strong>you approve from inside your own account</strong>.
+            </p>
+            <ul class="ob-gads-link-list">
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="#1B9E52" stroke-width="2.5" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg> We never ask for your Google password.</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="#1B9E52" stroke-width="2.5" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg> You approve — and can revoke — access anytime in Google Ads.</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="#1B9E52" stroke-width="2.5" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg> We can only view and manage ads — never your billing or personal data.</li>
+            </ul>
+            <div class="ob-fg" style="margin-top:12px;margin-bottom:0">
+              <label class="ob-lbl">Google Ads Customer ID <span style="font-weight:400;font-size:11px;color:var(--t3)">(the 10-digit ID at the top of your Google Ads account, e.g. 123-456-7890)</span></label>
+              <input class="ob-inp" id="ob-gads-cid" inputmode="numeric" placeholder="123-456-7890" autocomplete="off">
+            </div>
+            <label class="ob-gads-link-later">
+              <input type="checkbox" id="ob-gads-later"> I'll link my account later — my advisor can walk me through it on our first call.
+            </label>
+          </div>
+        </div>
+
         <div class="ob-fg" style="margin-top:16px">
           <label class="ob-lbl">Digital Signature <span style="font-size:11px;font-weight:400">— type your full name to agree</span></label>
           <input class="ob-inp ob-sign-inp" id="ob-sig" placeholder="Your Full Name" autocomplete="off">
@@ -1033,6 +1082,28 @@ function indEx(kind){
 function buildPane(slug){
   var h='';
   if(slug==='google-ads'){
+    // ── Are you currently running Google Ads? (branches the experience) ──
+    h+='<div class="ob-fg"><label class="ob-lbl">Are you currently running Google Ads?</label>'
+      +'<div class="ob-sublbl">This helps us tailor your plan — an audit of what you already run, or a fresh setup.</div>'
+      +'<div class="ob-gads-choice">'
+      +  '<div class="ob-gads-opt'+(S.q.gads_running==='yes'?' sel':'')+'" data-v="yes" onclick="OB.gadsRun(this,\'yes\')"><strong>Yes, I’m currently running Google Ads</strong><span>We’ll run an initial audit to spot opportunities</span></div>'
+      +  '<div class="ob-gads-opt'+(S.q.gads_running==='no'?' sel':'')+'" data-v="no" onclick="OB.gadsRun(this,\'no\')"><strong>No, I’m not currently running Google Ads</strong><span>We’ll build a new campaign from scratch</span></div>'
+      +'</div></div>';
+    // ── Existing-Google-Ads audit questions (shown only when "Yes") ──
+    h+='<div id="q-gads-existing" style="display:'+(S.q.gads_running==='yes'?'block':'none')+'">'
+      +qSec('Your Current Google Ads',
+         qFG('How long have you been running Google Ads?','<div class="ob-chips" id="q-gads-dur"><div class="ob-chip" data-v="<3m">Under 3 months</div><div class="ob-chip" data-v="3-12m">3–12 months</div><div class="ob-chip" data-v="1-2y">1–2 years</div><div class="ob-chip" data-v="2y+">2+ years</div></div>')
+        +qFG('Your primary goal','<div class="ob-chips" id="q-gads-goal"><div class="ob-chip" data-v="leads">Leads</div><div class="ob-chip" data-v="calls">Calls</div><div class="ob-chip" data-v="bookings">Bookings</div><div class="ob-chip" data-v="sales">Sales</div><div class="ob-chip" data-v="traffic">Website traffic</div></div>','What matters most from your campaigns')
+        +qFG('Which campaign types do you run?','<div class="ob-chips" id="q-gads-camp"><div class="ob-chip" data-v="search">Search</div><div class="ob-chip" data-v="pmax">Performance Max</div><div class="ob-chip" data-v="shopping">Shopping</div><div class="ob-chip" data-v="display">Display</div><div class="ob-chip" data-v="video">Video</div><div class="ob-chip" data-v="demandgen">Demand Gen</div><div class="ob-chip" data-v="notsure">Not sure</div></div>','Select all that apply')
+        +qFG('Who manages your campaigns?','<div class="ob-chips" id="q-gads-mgr"><div class="ob-chip" data-v="self">Myself</div><div class="ob-chip" data-v="agency">An agency</div><div class="ob-chip" data-v="freelancer">A freelancer</div></div>')
+        +qFG('Happy with your current results?',qTog('q-gads-sat'),'Be honest — it helps us focus the audit')
+      )
+      +qSec('What’s Working &amp; What’s Not',
+         qFG('What’s working well?','<textarea class="ob-inp" id="q-gads-working" rows="2" placeholder="e.g. Steady calls from branded search"></textarea>')
+        +qFG('What’s not working?','<textarea class="ob-inp" id="q-gads-notworking" rows="2" placeholder="e.g. Clicks are expensive and few convert"></textarea>')
+        +qFG('Biggest challenge right now','<input class="ob-inp" id="q-gads-challenge" placeholder="e.g. Wasted spend, low conversion rate, tracking…">')
+      )
+      +'</div>';
     h+=qSec('Targeting &amp; Offer',
       qFG('Where your ads show',qLoc('q-ads-loc'),'The cities, regions or postal codes you want to reach')
       +qFG('What to advertise','<textarea class="ob-inp" id="q-ads-prod" rows="2" placeholder="e.g. '+indEx('services')+'"></textarea>','The products or services you want more leads for')
@@ -1103,6 +1174,38 @@ window.OB={
     el.classList.add(val==='yes'?'y':'n');
   },
 
+  // "Are you currently running Google Ads?" — Yes reveals the audit questions.
+  gadsRun:function(el,val){
+    S.q.gads_running=val;
+    var wrap=el.closest('.ob-gads-choice');
+    if(wrap)wrap.querySelectorAll('.ob-gads-opt').forEach(function(b){b.classList.remove('sel');});
+    el.classList.add('sel');
+    var ex=$i('q-gads-existing');if(ex)ex.style.display=(val==='yes'?'block':'none');
+  },
+
+  // Re-populate the existing-Google-Ads audit fields from S.q so answers
+  // survive back/forward navigation and page resume.
+  _restoreGadsAudit:function(){
+    var mark=function(id,csv){
+      var set=(csv||'').split(',').filter(Boolean);
+      document.querySelectorAll('#'+id+' .ob-chip').forEach(function(c){
+        if(set.indexOf(c.dataset.v)>-1)c.classList.add('sel');
+      });
+    };
+    mark('q-gads-dur',S.q.gads_dur);
+    mark('q-gads-goal',S.q.gads_goal);
+    mark('q-gads-camp',S.q.gads_camp);
+    mark('q-gads-mgr',S.q.gads_mgr);
+    if(S.q.gads_sat==='yes'||S.q.gads_sat==='no'){
+      var b=document.querySelector('[data-tog="q-gads-sat"][data-val="'+S.q.gads_sat+'"]');
+      if(b)OB.tog(b,S.q.gads_sat);
+    }
+    var setv=function(id,val){var e=$i(id);if(e&&val)e.value=val;};
+    setv('q-gads-working',S.q.gads_working);
+    setv('q-gads-notworking',S.q.gads_notworking);
+    setv('q-gads-challenge',S.q.gads_challenge);
+  },
+
   locType:function(el){
     el.closest('.ob-loc-type').querySelectorAll('.ob-loc-btn').forEach(function(b){b.classList.remove('on');});
     el.classList.add('on');
@@ -1149,6 +1252,16 @@ window.OB={
           if(d.q._competitors){
             var comps=d.q._competitors.split(',').map(function(s){return s.trim();});
             S.q.comp1=comps[0]||'';S.q.comp2=comps[1]||'';S.q.comp3=comps[2]||'';
+          }
+          // Unpack the Google Ads audit JSON back into individual S.q fields
+          if(d.q.gads_audit){
+            try{
+              var ga=JSON.parse(d.q.gads_audit);
+              S.q.gads_dur=ga.duration||'';S.q.gads_goal=ga.goal||'';
+              S.q.gads_camp=ga.campaign_types||'';S.q.gads_mgr=ga.manager||'';
+              S.q.gads_sat=ga.satisfied||'';S.q.gads_working=ga.working||'';
+              S.q.gads_notworking=ga.not_working||'';S.q.gads_challenge=ga.challenge||'';
+            }catch(e){}
           }
         }
         // Use DB step if higher than PHP-provided step
@@ -1309,6 +1422,7 @@ window.OB={
     document.querySelectorAll('#ob-s3b-content .ob-chips .ob-chip').forEach(function(ch){
       ch.addEventListener('click',function(){this.classList.toggle('sel');});
     });
+    if(slug==='google-ads'&&S.q.gads_running==='yes')OB._restoreGadsAudit();
     $i('s3b-back-btn').textContent=idx===0?'← Back':('← '+(meta[S.svcs[idx-1]]||{name:S.svcs[idx-1]}).name);
     var isLast=idx===S.svcs.length-1;
     $i('s3b-next-btn').textContent=isLast?'Final Details →':('Next: '+(meta[S.svcs[idx+1]]||{name:S.svcs[idx+1]}).name+' →');
@@ -1325,6 +1439,17 @@ window.OB={
       S.q.ads_kw=getTags('q-ads-kw').join(',');
       S.q.ads_usp=v('q-ads-usp');S.q.ads_promo=v('q-ads-promo');
       S.q.ads_sched='';
+      // Existing-Google-Ads audit answers (only meaningful when gads_running==='yes')
+      if(S.q.gads_running==='yes'){
+        S.q.gads_dur=chips('q-gads-dur').join(',');
+        S.q.gads_goal=chips('q-gads-goal').join(',');
+        S.q.gads_camp=chips('q-gads-camp').join(',');
+        S.q.gads_mgr=chips('q-gads-mgr').join(',');
+        S.q.gads_sat=togVal('q-gads-sat');
+        S.q.gads_working=v('q-gads-working');
+        S.q.gads_notworking=v('q-gads-notworking');
+        S.q.gads_challenge=v('q-gads-challenge');
+      }
     } else if(slug==='seo'){
       var b=$i('q-seo-bud');S.budgets[slug]=b?parseInt(b.value):0;
       S.q.seo_pages=v('q-seo-pages');S.q.seo_loc=v('q-seo-loc');
@@ -1375,6 +1500,8 @@ window.OB={
       ads_loc:q.ads_loc||'',ads_loc_type:q.ads_loc_type||'Include',ads_prod:q.ads_prod||'',ads_kw:q.ads_kw||'',
       ads_usp:q.ads_usp||'',ads_promo:q.ads_promo||'',ads_sched:q.ads_sched||'',
       ads_bud:S.budgets['google-ads']||0,
+      gads_running:S.q.gads_running||'',
+      gads_audit:JSON.stringify({running:S.q.gads_running||'',duration:S.q.gads_dur||'',goal:S.q.gads_goal||'',campaign_types:S.q.gads_camp||'',manager:S.q.gads_mgr||'',satisfied:S.q.gads_sat||'',working:S.q.gads_working||'',not_working:S.q.gads_notworking||'',challenge:S.q.gads_challenge||''}),
       // SEO
       seo_pages:q.seo_pages||'',seo_loc:q.seo_loc||'',seo_kw:q.seo_kw||'',
       seo_usp:q.seo_usp||'',seo_gsc:q.seo_gsc||'',seo_blog:q.seo_blog||'',
@@ -1415,6 +1542,8 @@ window.OB={
       ads_prod:q.ads_prod||'',ads_kw:q.ads_kw||'',
       ads_usp:q.ads_usp||'',ads_promo:q.ads_promo||'',ads_sched:q.ads_sched||'',
       ads_bud:S.budgets['google-ads']||0,
+      gads_running:S.q.gads_running||'',
+      gads_audit:JSON.stringify({running:S.q.gads_running||'',duration:S.q.gads_dur||'',goal:S.q.gads_goal||'',campaign_types:S.q.gads_camp||'',manager:S.q.gads_mgr||'',satisfied:S.q.gads_sat||'',working:S.q.gads_working||'',not_working:S.q.gads_notworking||'',challenge:S.q.gads_challenge||''}),
       // SEO
       seo_pages:q.seo_pages||'',seo_loc:q.seo_loc||'',seo_kw:q.seo_kw||'',
       seo_usp:q.seo_usp||'',seo_gsc:q.seo_gsc||'',seo_blog:q.seo_blog||'',
@@ -1467,6 +1596,8 @@ window.OB={
         gbp_bud:   String(S.budgets['google-business']||0),
         web_bud:   String(S.budgets['website']||0),
         competitors:(S.q.comp1||'')+','+(S.q.comp2||'')+','+(S.q.comp3||''),
+        gads_running:S.q.gads_running||'',
+        gads_audit:JSON.stringify({running:S.q.gads_running||'',duration:S.q.gads_dur||'',goal:S.q.gads_goal||'',campaign_types:S.q.gads_camp||'',manager:S.q.gads_mgr||'',satisfied:S.q.gads_sat||'',working:S.q.gads_working||'',not_working:S.q.gads_notworking||'',challenge:S.q.gads_challenge||''}),
       };
       var res=await post(planPayload);
       if(res&&res.success&&res.data&&res.data.headline) plan=res.data;
@@ -1599,9 +1730,10 @@ window.OB={
         '</div>';
     });
     rmHtml+='</div>';
+    var isAudit=(plan.ga_audit===true)||(S.q.gads_running==='yes');
     $i('ob-timeline-card').innerHTML=
       '<div class="ob-card-wrap">'+
-        '<div class="ob-card-head">Your 60-Day Roadmap</div>'+
+        '<div class="ob-card-head">'+(isAudit?'Your 60-Day Improvement Plan':'Your 60-Day Roadmap')+'</div>'+
         rmHtml+
       '</div>';
 
@@ -1613,8 +1745,20 @@ window.OB={
         ? ' ROI is estimated as (projected leads × avg deal value × 20% close rate) minus your monthly investment.'
         : '';
       var src=backed?' based on real Google Ads keyword data for your market':' based on industry benchmarks for your market';
-      disc.innerHTML='These projections are'+src+'.'+roiNote
-        +' Once you complete onboarding, your advisor will reach out within one business day with a full benchmark report and custom strategy.';
+      if(isAudit){
+        // Existing-GA: clearly frame this as an initial AI assessment, not a
+        // replacement for a full human advisor audit.
+        disc.innerHTML=
+          '<strong>How we built this.</strong> This is an <strong>initial AI-assisted assessment</strong> of your current Google Ads, '+
+          'generated from the answers you gave us, live keyword and CPC data for your market'+(backed?'':' (industry benchmarks where live data was unavailable)')+', '+
+          'your competitors, and Claude AI. The opportunities are ranked by likely impact.'+roiNote+
+          '<br><br>It is <strong>not a substitute for a full audit inside your account.</strong> '+
+          'Once you complete onboarding, your 6ix Developers advisor will log into your Google Ads (with your permission), '+
+          'review your real campaign, keyword and conversion data, and refine this plan into a hands-on strategy — usually within one business day.';
+      } else {
+        disc.innerHTML='These projections are'+src+'.'+roiNote
+          +' Once you complete onboarding, your advisor will reach out within one business day with a full benchmark report and custom strategy.';
+      }
       disc.style.display='block';
     }
 
@@ -1622,8 +1766,10 @@ window.OB={
     $i('ob-s4-loading').style.display='none';
     $i('ob-s4-results').style.display='block';
     $i('s4-btnrow').style.display='flex';
-    $i('s4-ttl').textContent='Your 60-Day Growth Plan';
-    $i('s4-dsc').textContent='Built on real data for your market. Review before proceeding.';
+    $i('s4-ttl').textContent=isAudit?'Your Google Ads Opportunity Plan':'Your 60-Day Growth Plan';
+    $i('s4-dsc').textContent=isAudit
+      ?'An initial audit of your current Google Ads — your biggest opportunities, ranked. Review before proceeding.'
+      :'Built on real data for your market. Review before proceeding.';
   },
 
 
@@ -1744,6 +1890,9 @@ window.OB={
       if(complete)complete.style.display='block';
       if(schedule)schedule.style.display='none';
       var btn=$i('ob-path-complete-btn');if(btn)btn.classList.add('selected');
+      // Existing-Google-Ads customers get the secure account-linking block
+      var gl=$i('ob-gads-link');if(gl)gl.style.display=(S.q.gads_running==='yes'?'block':'none');
+      var gc=$i('ob-gads-cid');if(gc&&S.q.gads_cid)gc.value=S.q.gads_cid;
       OB.initStripe();
     } else if(path==='call'){
       if(pathSel)pathSel.style.display='none';
@@ -1897,6 +2046,16 @@ window.OB={
   finish:async function(){
     var sig = v('ob-sig');
     if(!sig){ alert2('s5-err','Please type your full name to sign the agreement.'); return; }
+    // Existing-Google-Ads: capture the account-link intent (never a password)
+    var gadsCid='', gadsLink='';
+    if(S.q.gads_running==='yes'){
+      var later=$i('ob-gads-later')&&$i('ob-gads-later').checked;
+      gadsCid=(v('ob-gads-cid')||'').replace(/[^0-9]/g,'');
+      if(later){ gadsLink='later'; gadsCid=''; }
+      else if(gadsCid.length>=8){ gadsLink='requested'; }
+      else { gadsLink='later'; }  // no valid ID entered → treat as "link later"
+      S.q.gads_cid=gadsCid; S.q.gads_link=gadsLink;
+    }
     var btn = $i('ob-done-btn');
     btn.innerHTML = '<span class="ob-spin"></span> Processing…';
     btn.disabled = true;
@@ -1923,7 +2082,8 @@ window.OB={
       action:'six_complete_onboarding',
       user_id:S.userId, signature:sig, payment_method_id:pmId||'',
       services:JSON.stringify(S.budgets), step1_data:JSON.stringify(S.q),
-      score:S.score, ai_plan_json:S._aiPlanJson||''
+      score:S.score, ai_plan_json:S._aiPlanJson||'',
+      gads_customer_id:gadsCid, gads_link_status:gadsLink
     }).then(function(r){
       btn.innerHTML = 'Start My Free Consultation →';
       btn.disabled = false;
