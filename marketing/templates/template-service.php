@@ -70,10 +70,45 @@ header( 'Content-Type: text/html; charset=utf-8' );
     </div>
   </section>
 
+  <!-- SIGN-UP OFFER TIERS (Google Ads) -->
+  <?php if ( ! empty( $d['offer_tiers'] ) ) : ?>
+  <section class="mk-section mk-section-sm">
+    <div class="mk-wrap">
+      <div class="mk-sec-head mk-center mk-full">
+        <h2><?php echo esc_html( $d['offer_tiers']['heading'] ?? 'Choose a sign-up offer' ); ?></h2>
+        <?php if ( ! empty( $d['offer_tiers']['intro'] ) ) : ?><p class="mk-lead"><?php echo esc_html( $d['offer_tiers']['intro'] ); ?></p><?php endif; ?>
+      </div>
+      <div class="mk-grid mk-grid-3">
+        <?php foreach ( (array) $d['offer_tiers']['tiers'] as $i => $tier ) : ?>
+        <div class="mk-card mk-card-accent mk-offer-card<?php echo ! empty( $tier['featured'] ) ? ' mk-offer-featured' : ''; ?>">
+          <?php if ( ! empty( $tier['featured'] ) ) : ?><span class="mk-offer-tag">Most Popular</span><?php endif; ?>
+          <span class="mk-offer-credit mk-grad-text"><?php echo esc_html( $tier['credit'] ); ?></span>
+          <span class="mk-offer-label">in Google Ads credit</span>
+          <p><?php echo esc_html( $tier['text'] ); ?></p>
+        </div>
+        <?php endforeach; ?>
+      </div>
+      <div class="mk-center" style="margin-top:24px">
+        <a class="mk-btn mk-btn-primary mk-btn-lg" href="<?php echo esc_url( mk_portal_url() ); ?>"><?php echo esc_html( $d['offer_tiers']['cta'] ?? 'Check your eligibility' ); ?> <?php echo $arrow; ?></a>
+      </div>
+    </div>
+  </section>
+  <?php endif; ?>
+
+  <!-- ELIGIBILITY FORM (Google Ads $1800 credit) -->
+  <?php if ( ! empty( $d['form_eligibility'] ) ) : ?>
+  <section class="mk-section mk-section-sm mk-glow" id="eligibility">
+    <div class="mk-wrap" style="max-width:820px"><?php mk_form( 'eligibility' ); ?></div>
+  </section>
+  <?php endif; ?>
+
   <!-- INTRO -->
   <?php if ( ! empty( $d['intro'] ) ) : ?>
   <section class="mk-section">
     <div class="mk-wrap">
+      <?php if ( ! empty( $d['intro_heading'] ) ) : ?>
+      <div class="mk-sec-head mk-center mk-full"><h2><?php echo esc_html( $d['intro_heading'] ); ?></h2></div>
+      <?php endif; ?>
       <div class="mk-center" style="max-width:840px;margin:0 auto">
         <?php foreach ( (array) $d['intro'] as $p ) : ?>
         <p class="mk-lead" style="margin-bottom:18px"><?php echo esc_html( $p ); ?></p>
@@ -197,6 +232,61 @@ header( 'Content-Type: text/html; charset=utf-8' );
   </section>
   <?php endif; ?>
 
+  <!-- AUDIT intro blocks (Google Ads) -->
+  <?php if ( ! empty( $d['audit_blocks'] ) ) : ?>
+  <section class="mk-section mk-section-sm mk-glow">
+    <div class="mk-wrap">
+      <?php if ( ! empty( $d['audit_heading'] ) ) : ?>
+      <div class="mk-sec-head mk-center mk-full"><span class="mk-eyebrow" style="justify-content:center">Comprehensive Google Ads Audit</span><h2><?php echo esc_html( $d['audit_heading'] ); ?></h2></div>
+      <?php endif; ?>
+      <div class="mk-dd-list">
+        <?php foreach ( (array) $d['audit_blocks'] as $i => $ab ) : ?>
+        <div class="mk-card mk-dd-card">
+          <div class="mk-dd-text" style="<?php echo $i % 2 ? 'order:2' : ''; ?>">
+            <?php if ( ! empty( $ab['title'] ) ) : ?><h3 style="font-size:clamp(1.35rem,2.1vw,1.7rem)"><?php echo esc_html( $ab['title'] ); ?></h3><?php endif; ?>
+            <?php foreach ( (array) $ab['paras'] as $p ) : ?><p><?php echo esc_html( $p ); ?></p><?php endforeach; ?>
+            <a class="mk-btn mk-btn-primary" href="<?php echo esc_url( home_url( '/contact-us' ) ); ?>" style="align-self:flex-start;margin-top:6px"><?php echo esc_html( $ab['cta'] ?? 'Request Google Ads Account Audit' ); ?></a>
+          </div>
+          <div class="mk-dd-media" style="<?php echo $i % 2 ? 'order:1' : ''; ?>">
+            <?php if ( ! empty( $ab['image'] ) ) : ?><img src="<?php echo esc_url( $ab['image'] ); ?>" alt=""><?php endif; ?>
+          </div>
+        </div>
+        <?php endforeach; ?>
+      </div>
+    </div>
+  </section>
+  <?php endif; ?>
+
+  <!-- AUDIT CHECKLIST (What's included) -->
+  <?php if ( ! empty( $d['audit_checklist'] ) ) : ?>
+  <section class="mk-section">
+    <div class="mk-wrap">
+      <div class="mk-sec-head mk-center mk-full"><h2><?php echo esc_html( $d['audit_checklist_heading'] ?? "What's included in our comprehensive Google Ads Account Audit" ); ?></h2></div>
+      <div class="mk-grid mk-grid-2" style="align-items:start">
+        <?php foreach ( (array) $d['audit_checklist'] as $ci ) : ?>
+        <div class="mk-card mk-audit-item">
+          <span class="mk-ic"><?php echo mk_icon( $ci['icon'] ?? 'seo' ); ?></span>
+          <h3><?php echo esc_html( $ci['title'] ); ?></h3>
+          <?php foreach ( (array) $ci['paras'] as $p ) : ?><p><?php echo esc_html( $p ); ?></p><?php endforeach; ?>
+        </div>
+        <?php endforeach; ?>
+      </div>
+      <?php if ( empty( $d['form_audit'] ) ) : ?>
+      <div class="mk-center" style="margin-top:24px">
+        <a class="mk-btn mk-btn-primary mk-btn-lg" href="<?php echo esc_url( home_url( '/contact-us' ) ); ?>">Request Google Ads Account Audit <?php echo $arrow; ?></a>
+      </div>
+      <?php endif; ?>
+    </div>
+  </section>
+  <?php endif; ?>
+
+  <!-- AUDIT REQUEST FORM -->
+  <?php if ( ! empty( $d['form_audit'] ) ) : ?>
+  <section class="mk-section mk-section-sm" id="audit">
+    <div class="mk-wrap" style="max-width:900px"><?php mk_form( 'audit' ); ?></div>
+  </section>
+  <?php endif; ?>
+
   <!-- HIGHLIGHT (pricing / offer) -->
   <?php if ( ! empty( $d['highlight'] ) ) : ?>
   <section class="mk-section mk-section-sm">
@@ -207,7 +297,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
         <?php foreach ( (array) $d['highlight']['lines'] as $ln ) : ?>
         <p><?php echo esc_html( $ln ); ?></p>
         <?php endforeach; ?>
-        <a class="mk-btn mk-btn-primary" style="margin-top:12px" href="<?php echo esc_url( mk_portal_url() ); ?>">Check your eligibility <?php echo $arrow; ?></a>
+        <a class="mk-btn mk-btn-primary" style="margin-top:12px" href="<?php echo esc_url( ! empty( $d['highlight']['cta_url'] ) ? home_url( $d['highlight']['cta_url'] ) : mk_portal_url() ); ?>"><?php echo esc_html( $d['highlight']['cta'] ?? 'Check your eligibility' ); ?> <?php echo $arrow; ?></a>
       </div>
     </div>
   </section>
@@ -245,6 +335,52 @@ header( 'Content-Type: text/html; charset=utf-8' );
   </section>
   <?php endif; ?>
 
+  <!-- PRICING (Grow Your Business) -->
+  <?php if ( ! empty( $d['pricing'] ) ) : ?>
+  <section class="mk-section mk-section-sm">
+    <div class="mk-wrap">
+      <div class="mk-sec-head mk-center mk-full">
+        <h2><?php echo esc_html( $d['pricing']['heading'] ?? 'Grow Your Business' ); ?></h2>
+        <?php foreach ( (array) ( $d['pricing']['intro'] ?? array() ) as $p ) : ?><p class="mk-lead"><?php echo esc_html( $p ); ?></p><?php endforeach; ?>
+      </div>
+      <div class="mk-pricing-panel mk-card mk-card-accent">
+        <div class="mk-pricing-fees">
+          <?php foreach ( (array) $d['pricing']['fees'] as $fee ) : ?>
+          <div class="mk-pricing-fee">
+            <div class="mk-pricing-fee-label"><?php echo esc_html( $fee['label'] ); ?></div>
+            <div class="mk-pricing-fee-val mk-grad-text"><?php echo esc_html( $fee['value'] ); ?></div>
+            <?php if ( ! empty( $fee['note'] ) ) : ?><p class="mk-pricing-fee-note"><?php echo esc_html( $fee['note'] ); ?></p><?php endif; ?>
+          </div>
+          <?php endforeach; ?>
+        </div>
+        <?php if ( ! empty( $d['pricing']['included'] ) ) : ?>
+        <div class="mk-pricing-included">
+          <h4><?php echo esc_html( $d['pricing']['included_heading'] ?? "What's Included" ); ?></h4>
+          <ul class="mk-portal-features">
+            <?php foreach ( (array) $d['pricing']['included'] as $it ) : ?>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span><?php echo esc_html( $it ); ?></span></li>
+            <?php endforeach; ?>
+          </ul>
+        </div>
+        <?php endif; ?>
+        <div class="mk-center" style="margin-top:6px">
+          <a class="mk-btn mk-btn-primary mk-btn-lg" href="<?php echo esc_url( home_url( '/contact-us' ) ); ?>"><?php echo esc_html( $d['pricing']['cta'] ?? 'Talk to a PPC Expert' ); ?> <?php echo $arrow; ?></a>
+        </div>
+      </div>
+      <?php if ( ! empty( $d['pricing']['calculator'] ) ) : ?>
+      <div style="max-width:560px;margin:22px auto 0"><?php mk_form( 'calc' ); ?></div>
+      <?php endif; ?>
+    </div>
+  </section>
+  <?php endif; ?>
+
+  <!-- QUOTE / CONSULTATION FORM -->
+  <?php if ( ! empty( $d['form_quote'] ) ) : ?>
+  <section class="mk-section mk-section-sm mk-glow" id="quote">
+    <div class="mk-wrap" style="max-width:820px"><?php mk_form( 'quote', (array) $d['form_quote'] ); ?></div>
+  </section>
+  <?php endif; ?>
+
   <!-- PORTAL CTA BAND -->
   <?php mk_portal_band( array(
       'heading' => 'See how your ' . strtolower( $d['menu'] ?? 'marketing' ) . ' stacks up.',
@@ -253,7 +389,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
   <!-- TESTIMONIALS -->
   <section class="mk-section mk-section-sm mk-glow">
     <div class="mk-wrap">
-      <div class="mk-sec-head mk-center"><h2>Businesses Who Trust Us</h2></div>
+      <div class="mk-sec-head mk-center"><h2>What Our Clients Say</h2></div>
       <div class="mk-carousel" data-carousel data-autoplay="6000">
         <button class="mk-carousel-arrow mk-prev" data-prev aria-label="Previous"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
         <button class="mk-carousel-arrow mk-next" data-next aria-label="Next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
@@ -284,7 +420,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
   <?php if ( ! empty( $d['faq'] ) ) : ?>
   <section class="mk-section mk-section-sm">
     <div class="mk-wrap">
-      <div class="mk-sec-head mk-center"><h2>Frequently Asked Questions</h2></div>
+      <div class="mk-sec-head mk-center"><h2><?php echo esc_html( $d['faq_heading'] ?? 'Frequently Asked Questions' ); ?></h2></div>
       <div class="mk-faq">
         <?php foreach ( (array) $d['faq'] as $q ) : ?>
         <details>

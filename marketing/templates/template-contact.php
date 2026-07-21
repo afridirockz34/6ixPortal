@@ -78,6 +78,14 @@ header( 'Content-Type: text/html; charset=utf-8' );
     </div>
   </section>
 
+  <!-- CONTACT FORM -->
+  <section class="mk-section mk-section-sm mk-glow" id="contact-form-section">
+    <div class="mk-wrap" style="max-width:760px">
+      <div class="mk-sec-head mk-center"><h2>Send Us a Message</h2></div>
+      <?php mk_form( 'contact' ); ?>
+    </div>
+  </section>
+
   <?php mk_portal_band( array( 'heading' => 'Prefer to see your numbers first?' ) ); ?>
 
   <!-- FINAL CTA -->

@@ -16,6 +16,7 @@ define( 'SIX_MK_DIR', get_stylesheet_directory() . '/marketing/' );
 define( 'SIX_MK_URL', get_stylesheet_directory_uri() . '/marketing/' );
 
 require_once SIX_MK_DIR . 'helpers.php';
+require_once SIX_MK_DIR . 'forms.php';      // lead-capture forms (Ninja-Forms swappable)
 require_once SIX_MK_DIR . 'pages.php';      // service page content (keyed by slug)
 require_once SIX_MK_DIR . 'cpt.php';        // Client Success + Testimonials (no plugins)
 require_once SIX_MK_DIR . 'setup.php';      // one-time page + front-page + seed setup
