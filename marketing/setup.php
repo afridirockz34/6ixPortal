@@ -15,10 +15,11 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 add_action( 'wp_loaded', function () {
-    if ( get_option( 'six_mk_setup_v2' ) ) return;
-    update_option( 'six_mk_setup_v2', 1 ); // set first so a fatal can't loop
-    // v2 adds the service/about/contact pages. Home + seed steps below are
-    // idempotent (existing pages reused, seeds only run when empty).
+    if ( get_option( 'six_mk_setup_v3' ) ) return;
+    update_option( 'six_mk_setup_v3', 1 ); // set first so a fatal can't loop
+    // v3 adds the PPC Agency + Digital Marketing landing pages. v2 added the
+    // service/about/contact pages. Home + seed steps below are idempotent
+    // (existing pages reused, seeds only run when empty).
 
     // ── 1. Home page + front page ────────────────────────────────────────
     $tpl  = 'marketing/templates/template-home.php';
@@ -52,6 +53,8 @@ add_action( 'wp_loaded', function () {
         array( 'Social Media',        'social-media-marketing-agency-toronto',  'marketing/templates/template-service.php' ),
         array( 'About Us',            'about-us',                               'marketing/templates/template-about.php' ),
         array( 'Contact Us',          'contact-us',                             'marketing/templates/template-contact.php' ),
+        array( 'PPC Agency Toronto',  'ppc-agency-toronto',                     'marketing/templates/template-service.php' ),
+        array( 'Digital Marketing',   'digital-marketing-agency-toronto',       'marketing/templates/template-service.php' ),
     );
     foreach ( $pages as $pg ) {
         list( $title, $name, $ptpl ) = $pg;

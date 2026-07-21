@@ -95,6 +95,13 @@ header( 'Content-Type: text/html; charset=utf-8' );
   </section>
   <?php endif; ?>
 
+  <!-- ELIGIBILITY FORM (Google Ads $1800 credit) -->
+  <?php if ( ! empty( $d['form_eligibility'] ) ) : ?>
+  <section class="mk-section mk-section-sm mk-glow" id="eligibility">
+    <div class="mk-wrap" style="max-width:820px"><?php mk_form( 'eligibility' ); ?></div>
+  </section>
+  <?php endif; ?>
+
   <!-- INTRO -->
   <?php if ( ! empty( $d['intro'] ) ) : ?>
   <section class="mk-section">
@@ -264,10 +271,19 @@ header( 'Content-Type: text/html; charset=utf-8' );
         </div>
         <?php endforeach; ?>
       </div>
+      <?php if ( empty( $d['form_audit'] ) ) : ?>
       <div class="mk-center" style="margin-top:24px">
         <a class="mk-btn mk-btn-primary mk-btn-lg" href="<?php echo esc_url( home_url( '/contact-us' ) ); ?>">Request Google Ads Account Audit <?php echo $arrow; ?></a>
       </div>
+      <?php endif; ?>
     </div>
+  </section>
+  <?php endif; ?>
+
+  <!-- AUDIT REQUEST FORM -->
+  <?php if ( ! empty( $d['form_audit'] ) ) : ?>
+  <section class="mk-section mk-section-sm" id="audit">
+    <div class="mk-wrap" style="max-width:900px"><?php mk_form( 'audit' ); ?></div>
   </section>
   <?php endif; ?>
 
@@ -351,7 +367,17 @@ header( 'Content-Type: text/html; charset=utf-8' );
           <a class="mk-btn mk-btn-primary mk-btn-lg" href="<?php echo esc_url( home_url( '/contact-us' ) ); ?>"><?php echo esc_html( $d['pricing']['cta'] ?? 'Talk to a PPC Expert' ); ?> <?php echo $arrow; ?></a>
         </div>
       </div>
+      <?php if ( ! empty( $d['pricing']['calculator'] ) ) : ?>
+      <div style="max-width:560px;margin:22px auto 0"><?php mk_form( 'calc' ); ?></div>
+      <?php endif; ?>
     </div>
+  </section>
+  <?php endif; ?>
+
+  <!-- QUOTE / CONSULTATION FORM -->
+  <?php if ( ! empty( $d['form_quote'] ) ) : ?>
+  <section class="mk-section mk-section-sm mk-glow" id="quote">
+    <div class="mk-wrap" style="max-width:820px"><?php mk_form( 'quote', (array) $d['form_quote'] ); ?></div>
   </section>
   <?php endif; ?>
 

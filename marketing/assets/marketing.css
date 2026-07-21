@@ -398,6 +398,36 @@
 .six-mk .mk-pricing-included h4 { font-size: 1rem; margin: 0 0 12px; }
 @media (max-width: 640px) { .six-mk .mk-pricing-fees { grid-template-columns: 1fr; } .six-mk .mk-pricing-panel { padding: 22px; } }
 
+/* ── Lead-capture forms ──────────────────────────────────── */
+.six-mk .mk-formwrap { padding: 30px; }
+.six-mk .mk-form-title { font-size: clamp(1.3rem, 2.4vw, 1.75rem); margin: 0 0 6px; }
+.six-mk .mk-form-sub { color: var(--mk-t2); font-size: .95rem; margin: 0 0 20px; }
+.six-mk .mk-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.six-mk .mk-field { display: flex; flex-direction: column; gap: 6px; }
+.six-mk .mk-field-full, .six-mk .mk-field-captcha { grid-column: 1 / -1; }
+.six-mk .mk-field label { font-size: .82rem; font-weight: 600; color: var(--mk-t2); }
+.six-mk .mk-req { color: var(--mk-pink); }
+.six-mk .mk-field input,
+.six-mk .mk-field select,
+.six-mk .mk-field textarea {
+	width: 100%; box-sizing: border-box; padding: 11px 13px; font: inherit; font-size: .95rem;
+	color: var(--mk-t1); background: var(--mk-surface, #fff); border: 1px solid var(--mk-border, #d9dee7);
+	border-radius: 10px; transition: border-color .18s ease, box-shadow .18s ease;
+}
+.six-mk .mk-field textarea { resize: vertical; min-height: 96px; }
+.six-mk .mk-field input:focus,
+.six-mk .mk-field select:focus,
+.six-mk .mk-field textarea:focus { outline: none; border-color: var(--mk-pink); box-shadow: 0 0 0 3px rgba(232,84,122,.15); }
+.six-mk .mk-form-captcha { margin-top: 4px; }
+.six-mk .mk-form-captcha input { max-width: 160px; }
+.six-mk .mk-form-submit { width: 100%; margin-top: 18px; }
+.six-mk .mk-form-note { font-size: .78rem; color: var(--mk-t3, var(--mk-t2)); text-align: center; margin: 12px 0 0; }
+.six-mk .mk-calc-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.six-mk .mk-calc-row input { flex: 1; min-width: 200px; box-sizing: border-box; padding: 12px 14px; font: inherit;
+	color: var(--mk-t1); background: var(--mk-surface, #fff); border: 1px solid var(--mk-border, #d9dee7); border-radius: 10px; }
+.six-mk .mk-calc-out { margin-top: 14px; font-size: 1rem; color: var(--mk-t1); }
+@media (max-width: 640px) { .six-mk .mk-form-grid { grid-template-columns: 1fr; } .six-mk .mk-formwrap { padding: 22px; } }
+
 /* ── Blog cards ─────────────────────────────────────────── */
 .six-mk .mk-post { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
 .six-mk .mk-post-thumb { aspect-ratio: 16/9; background: var(--mk-grad-soft); }

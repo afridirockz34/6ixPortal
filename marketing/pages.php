@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  * @return array<string,array> slug => content
  */
 function six_service_pages() {
-    return array(
+    $pages = array(
 
         // ── Website Design ──────────────────────────────────────────────
         'website-design-agency-toronto' => array(
@@ -25,6 +25,13 @@ function six_service_pages() {
             'title'    => 'Toronto Website Design Agency',
             'subtitle' => 'Make Your Dream Website a Reality',
             'lead'     => 'Get the website that pays for itself — a 24/7 online salesperson working for you.',
+            'form_quote' => array(
+                'heading'      => 'Get Quote Now',
+                'sub'          => 'Tell us about your website project and we\'ll send you a quote within one business day.',
+                'goal_label'   => 'What kind of website do you need?',
+                'goal_options' => array( 'New website', 'Website redesign', 'E-commerce store', 'Landing page', 'Not sure yet' ),
+                'submit'       => 'Get My Quote',
+            ),
             'intro'    => array(
                 'Having a website for your business is necessary now. Having a website is just the beginning; ensuring proper website layout and design encourages customers to stay and take desired actions, such as submitting forms, calling your business, or making online purchases.',
                 'With 6ix Developers, you receive website designs tailored to your industry and competitors, aimed at securing the top position in Google search results. Choosing 6ix Developers for your website design means having a 24/7 online salesperson working for you. Our website designs are carefully analyzed and tested before deployment. This ensures we measure and improve returns on your investment, as well as increase user engagement and conversion rates on your website.',
@@ -111,6 +118,8 @@ function six_service_pages() {
                 ),
             ),
 
+            'form_eligibility' => true,
+
             'intro_heading' => 'Top Rated Google Ads Agency Toronto',
             'intro'    => array(
                 'Unlock the power of Google Ads with our expert management services tailored specifically for your industry. With a proven track record of maximizing ROI for over 2000 businesses across Canada and the USA, our dedicated team of Google Ads Certified experts oversees more than $15 Million in monthly Google Ads spending.',
@@ -179,6 +188,7 @@ function six_service_pages() {
                     "By conducting a thorough assessment, we identify opportunities to enhance your landing pages' performance. From design and functionality to content and user experience, we ensure your landing pages align with industry standards and surpass competitor benchmarks.",
                 ) ),
             ),
+            'form_audit' => true,
 
             'features_heading' => 'Strategic Google Ads Management',
             'features' => array(
@@ -234,7 +244,17 @@ function six_service_pages() {
                     'Flat-rate monthly fee — you pay the agreed-upon fee, no surprises.',
                     'Full transparency — we work on your account and you pay Google directly for the ad spend.',
                 ),
+                'calculator' => true,
                 'cta' => 'Talk to a PPC Expert',
+            ),
+
+            'form_quote' => array(
+                'id'           => 'consultation-form',
+                'heading'      => 'Book Your Google Ads Consultation',
+                'sub'          => 'Tell us about your business and a Google Ads specialist will reach out to you.',
+                'goal_label'   => 'Google Ads Marketing Objective',
+                'goal_options' => array( 'More qualified leads', 'More phone calls', 'More sales / bookings', 'More website traffic', 'Not sure yet' ),
+                'submit'       => 'Book My Consultation',
             ),
 
             'faq_heading' => 'Google Ads FAQ',
@@ -257,6 +277,13 @@ function six_service_pages() {
             'title'    => 'Toronto SEO Agency That You Can Trust',
             'subtitle' => 'Hire Us & Start Seeing Results in 30 Days',
             'lead'     => 'Increase your organic ranking with proven search engine optimization services.',
+            'form_quote' => array(
+                'heading'      => 'Schedule SEO Call Today',
+                'sub'          => 'Book a call with our SEO team and start seeing results in 30 days.',
+                'goal_label'   => 'What are your SEO goals?',
+                'goal_options' => array( 'Rank higher on Google', 'More organic traffic', 'Local SEO / Google Maps', 'Recover lost rankings', 'Not sure yet' ),
+                'submit'       => 'Schedule My Call',
+            ),
             'intro'    => array(
                 'SEO (Search Engine Optimization) places your website under the organic results section of search engines like Google, Bing or Yahoo. Being found organically by ranking on the first page of Google is one of the best ways to grow your business consistently. Leads coming from organically ranked websites are always more likely to convert and they do not cost anything.',
                 'Our certified team of SEO experts are here to provide affordable SEO packages to small and large businesses. Whether you need local small business SEO or large enterprise SEO services, our team applies proven strategies and best practices across all businesses. You can certainly trust us to help you rank on the 1st page of Google, because we have done it all.',
@@ -287,6 +314,13 @@ function six_service_pages() {
             'title'    => 'Social Media Marketing Agency Toronto',
             'subtitle' => 'Explore the Power of Social Media',
             'lead'     => 'Building brands with passion — get your brand into everybody\'s palms.',
+            'form_quote' => array(
+                'heading'      => 'Get Quote Now',
+                'sub'          => 'Tell us about your brand and our social media team will put a plan together for you.',
+                'goal_label'   => 'What do you need help with?',
+                'goal_options' => array( 'Grow my following', 'Social media management', 'Paid social advertising', 'Branding & content', 'Not sure yet' ),
+                'submit'       => 'Get My Quote',
+            ),
             'intro'    => array(
                 'Social Media is the fastest moving industry in the world. Your audience spends hours on social media — big examples like Facebook & Instagram — each day. Being on social media is not just an additional way of reaching out to your potential audience anymore; it is the smartest way of getting your brand name out there and building a community that shares the same interests as your brand.',
                 'Social media is changing the face of marketing. How your audience interacts with your brand is how you present yourself on social media these days. Most of your potential audience has Facebook and Instagram in their hands but they don\'t have your brand name — you can use these channels to get your brand in everybody\'s palms.',
@@ -303,6 +337,38 @@ function six_service_pages() {
         ),
 
     );
+
+    // ── Derived landing pages ────────────────────────────────────────────
+    // The original site has two SEO landing pages that are near-identical to
+    // the Google Ads page. Build them from that entry so the rich sections
+    // (audit checklist, pricing, forms, FAQ) stay in one place.
+    $ga = $pages['ppc-google-ads-management-toronto'];
+
+    // PPC Agency Toronto — same as Google Ads with a location-focused title.
+    $ppc = $ga;
+    $ppc['menu']          = 'PPC Agency Toronto';
+    $ppc['eyebrow']       = 'PPC Agency';
+    $ppc['title']         = 'Google Ads PPC Management Toronto';
+    $ppc['intro_heading'] = 'Google Ads PPC Management Toronto';
+    $ppc['results'] = array(
+        array( 'icon' => 'website', 'title' => 'Get Website Visits',   'text' => 'Drive high-intent visitors to your website with search ads that reach people actively looking for you.' ),
+        array( 'icon' => 'ads',     'title' => 'Get More Phone Calls', 'text' => 'Increase qualified call volume using Google Ads high-intent targeting and call extensions.' ),
+        array( 'icon' => 'target',  'title' => 'Increase Store Visits','text' => 'Bring more foot traffic to your location with local, GEO-targeted Google Ads campaigns.' ),
+    );
+    $pages['ppc-agency-toronto'] = $ppc;
+
+    // Digital Marketing Agency Toronto — same engine, digital-marketing framing.
+    $dm = $ga;
+    $dm['menu']          = 'Digital Marketing';
+    $dm['eyebrow']       = 'Digital Marketing';
+    $dm['title']         = "North America's Highly Regarded Digital Marketing & PPC Management Agency";
+    $dm['intro_heading'] = 'Digital Marketing Agency Toronto';
+    $dm['audit_checklist_heading'] = "What's included in our comprehensive Digital Marketing Audit";
+    $dm['features_heading'] = 'Strategic Digital Marketing Management';
+    $dm['results'] = $ppc['results'];
+    $pages['digital-marketing-agency-toronto'] = $dm;
+
+    return $pages;
 }
 
 /** Content for one service page by slug, or null. */
