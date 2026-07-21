@@ -100,15 +100,16 @@
 .six-mk .mk-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 9px;
   font-family: var(--mk-body); font-weight: 700; font-size: 1rem;
-  padding: 13px 26px; border-radius: 12px; cursor: pointer; border: 1px solid transparent;
+  padding: 13px 28px; border-radius: 100px; cursor: pointer; border: 1px solid transparent;
   transition: transform .15s ease, box-shadow .2s ease, background .15s ease, color .15s ease; white-space: nowrap;
 }
-/* Every gradient button keeps white text in all states */
+/* Solid pink pill buttons — matches the original 6ixdevelopers.com site.
+   White text in all states. */
 .six-mk .mk-btn-primary,
 .six-mk .mk-btn-primary:hover,
-.six-mk .mk-btn-primary:focus { background: var(--mk-grad); color: #fff; border: 0; }
-.six-mk .mk-btn-primary { box-shadow: 0 8px 26px rgba(168,85,247,.22); }
-.six-mk .mk-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 34px rgba(168,85,247,.36); }
+.six-mk .mk-btn-primary:focus { background: var(--mk-pink); color: #fff; border: 0; }
+.six-mk .mk-btn-primary { box-shadow: 0 8px 22px rgba(232,84,122,.30); }
+.six-mk .mk-btn-primary:hover { transform: translateY(-2px); background: #f0658a; box-shadow: 0 12px 30px rgba(232,84,122,.42); }
 /* Ghost/light buttons: readable text stays; tint fill on hover (never white-on-transparent) */
 .six-mk .mk-btn-ghost { background: transparent; color: var(--mk-t1); border-color: var(--mk-border2); }
 .six-mk .mk-btn-ghost:hover { background: var(--mk-grad-soft); border-color: var(--mk-purple); color: var(--mk-t1); }
@@ -150,8 +151,8 @@
 /* Client Login / account button: identical box (height, min-width, padding) to
    the phone button — only the fill differs. Fixed height + line-height keeps the
    <button> and the <a> pixel-identical despite their different UA defaults. */
-.six-mk .mk-phone-btn--primary { background: var(--mk-grad); border-color: transparent; color: #fff; }
-.six-mk .mk-phone-btn--primary:hover { background: var(--mk-grad); border-color: transparent; filter: brightness(1.06); }
+.six-mk .mk-phone-btn--primary { background: var(--mk-pink); border-color: transparent; color: #fff; }
+.six-mk .mk-phone-btn--primary:hover { background: #f0658a; border-color: transparent; }
 .six-mk .mk-nav-toggle { display: none; background: none; border: 0; color: #fff; cursor: pointer; margin-left: auto; }
 .six-mk .mk-nav-scrim { display: none; }
 .six-mk .mk-nav-close { display: none; } /* only shown inside the mobile drawer */
@@ -384,6 +385,10 @@
 .six-mk .mk-offer-credit { font-family: 'Syne', sans-serif; font-weight: 800; font-size: clamp(1.9rem, 3.4vw, 2.6rem); line-height: 1.1; display: block; }
 .six-mk .mk-offer-label { display: block; font-size: .85rem; color: var(--mk-t2); margin: 2px 0 10px; text-transform: uppercase; letter-spacing: .6px; }
 
+/* ── Google Ads: audit illustration panels ───────────────── */
+.six-mk .mk-dd-media-contain { background: transparent; min-height: 0; padding: 6px; }
+.six-mk .mk-dd-media-contain img { width: 100%; height: auto; object-fit: contain; }
+
 /* ── Google Ads: audit checklist items ───────────────────── */
 .six-mk .mk-audit-item p { color: var(--mk-t2); font-size: .95rem; line-height: 1.6; }
 .six-mk .mk-audit-item p + p { margin-top: 10px; }
@@ -398,35 +403,57 @@
 .six-mk .mk-pricing-included h4 { font-size: 1rem; margin: 0 0 12px; }
 @media (max-width: 640px) { .six-mk .mk-pricing-fees { grid-template-columns: 1fr; } .six-mk .mk-pricing-panel { padding: 22px; } }
 
-/* ── Lead-capture forms ──────────────────────────────────── */
-.six-mk .mk-formwrap { padding: 30px; }
-.six-mk .mk-form-title { font-size: clamp(1.3rem, 2.4vw, 1.75rem); margin: 0 0 6px; }
-.six-mk .mk-form-sub { color: var(--mk-t2); font-size: .95rem; margin: 0 0 20px; }
-.six-mk .mk-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.six-mk .mk-field { display: flex; flex-direction: column; gap: 6px; }
-.six-mk .mk-field-full, .six-mk .mk-field-captcha { grid-column: 1 / -1; }
-.six-mk .mk-field label { font-size: .82rem; font-weight: 600; color: var(--mk-t2); }
+/* ── Lead-capture forms (open, un-boxy) ──────────────────── */
+.six-mk .mk-formwrap {
+	position: relative; background: var(--mk-surface, #fff);
+	border: 1px solid var(--mk-border, #e6e9f0); border-radius: 20px;
+	padding: 30px 32px; box-shadow: 0 18px 44px rgba(24,32,54,.06);
+}
+/* thin gradient accent along the top edge — a hint of the new design */
+.six-mk .mk-formwrap::before {
+	content: ''; position: absolute; left: 24px; right: 24px; top: 0; height: 3px;
+	border-radius: 3px; background: var(--mk-grad);
+}
+.six-mk .mk-form-title { font-size: clamp(1.3rem, 2.4vw, 1.7rem); margin: 6px 0 6px; }
+.six-mk .mk-form-sub { color: var(--mk-t2); font-size: .95rem; margin: 0 0 22px; max-width: 60ch; }
+.six-mk .mk-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; }
+.six-mk .mk-field { display: flex; flex-direction: column; gap: 5px; }
+.six-mk .mk-field-full { grid-column: 1 / -1; }
+.six-mk .mk-field label { font-size: .8rem; font-weight: 600; color: var(--mk-t2); }
 .six-mk .mk-req { color: var(--mk-pink); }
 .six-mk .mk-field input,
 .six-mk .mk-field select,
 .six-mk .mk-field textarea {
-	width: 100%; box-sizing: border-box; padding: 11px 13px; font: inherit; font-size: .95rem;
-	color: var(--mk-t1); background: var(--mk-surface, #fff); border: 1px solid var(--mk-border, #d9dee7);
-	border-radius: 10px; transition: border-color .18s ease, box-shadow .18s ease;
+	width: 100%; box-sizing: border-box; padding: 11px 2px; font: inherit; font-size: .95rem;
+	color: var(--mk-t1); background: transparent; border: 0; border-bottom: 1.5px solid var(--mk-border, #d9dee7);
+	border-radius: 0; transition: border-color .18s ease;
 }
-.six-mk .mk-field textarea { resize: vertical; min-height: 96px; }
+.six-mk .mk-field textarea { resize: vertical; min-height: 72px; border: 1.5px solid var(--mk-border,#d9dee7); border-radius: 12px; padding: 11px 13px; }
 .six-mk .mk-field input:focus,
 .six-mk .mk-field select:focus,
-.six-mk .mk-field textarea:focus { outline: none; border-color: var(--mk-pink); box-shadow: 0 0 0 3px rgba(232,84,122,.15); }
-.six-mk .mk-form-captcha { margin-top: 4px; }
-.six-mk .mk-form-captcha input { max-width: 160px; }
-.six-mk .mk-form-submit { width: 100%; margin-top: 18px; }
-.six-mk .mk-form-note { font-size: .78rem; color: var(--mk-t3, var(--mk-t2)); text-align: center; margin: 12px 0 0; }
+.six-mk .mk-field textarea:focus { outline: none; border-color: var(--mk-pink); }
+.six-mk .mk-field select { appearance: none; -webkit-appearance: none;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23E8547A' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+	background-repeat: no-repeat; background-position: right 2px center; padding-right: 22px; }
+/* footer row: captcha left, submit right — kills the big empty gap */
+.six-mk .mk-form-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; margin-top: 22px; }
+.six-mk .mk-form-captcha { flex: 0 1 auto; }
+.six-mk .mk-form-captcha label { display: block; font-size: .8rem; font-weight: 600; color: var(--mk-t2); margin-bottom: 5px; }
+.six-mk .mk-form-captcha input { width: 130px; padding: 10px 2px; font: inherit; color: var(--mk-t1);
+	background: transparent; border: 0; border-bottom: 1.5px solid var(--mk-border,#d9dee7); }
+.six-mk .mk-form-captcha input:focus { outline: none; border-color: var(--mk-pink); }
+.six-mk .mk-form-submit { flex: 1; min-width: 220px; }
+.six-mk .mk-form-note { font-size: .78rem; color: var(--mk-t3, var(--mk-t2)); margin: 14px 0 0; }
 .six-mk .mk-calc-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .six-mk .mk-calc-row input { flex: 1; min-width: 200px; box-sizing: border-box; padding: 12px 14px; font: inherit;
-	color: var(--mk-t1); background: var(--mk-surface, #fff); border: 1px solid var(--mk-border, #d9dee7); border-radius: 10px; }
+	color: var(--mk-t1); background: var(--mk-surface, #fff); border: 1px solid var(--mk-border, #d9dee7); border-radius: 100px; }
 .six-mk .mk-calc-out { margin-top: 14px; font-size: 1rem; color: var(--mk-t1); }
-@media (max-width: 640px) { .six-mk .mk-form-grid { grid-template-columns: 1fr; } .six-mk .mk-formwrap { padding: 22px; } }
+@media (max-width: 640px) {
+	.six-mk .mk-form-grid { grid-template-columns: 1fr; }
+	.six-mk .mk-formwrap { padding: 24px 20px; }
+	.six-mk .mk-form-foot { flex-direction: column; align-items: stretch; }
+	.six-mk .mk-form-submit { width: 100%; }
+}
 
 /* ── Blog cards ─────────────────────────────────────────── */
 .six-mk .mk-post { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
