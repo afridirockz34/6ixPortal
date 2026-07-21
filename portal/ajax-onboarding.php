@@ -6,6 +6,25 @@
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+// ── JSON SANITIZER ────────────────────────────────────────────────────────
+// Store a JSON blob safely: decode → recursively sanitize scalar values →
+// re-encode. Non-JSON or empty input yields ''. This keeps the Google Ads
+// audit payload intact (quotes/structure preserved) while stripping any HTML
+// injected into free-text answers.
+function six_sanitize_json( $raw ) {
+    if ( ! is_string( $raw ) || $raw === '' ) return '';
+    $decoded = json_decode( stripslashes( $raw ), true );
+    if ( ! is_array( $decoded ) ) return '';
+    $clean = function ( $v ) use ( &$clean ) {
+        if ( is_array( $v ) ) return array_map( $clean, $v );
+        if ( is_string( $v ) ) return sanitize_textarea_field( $v );
+        return $v;
+    };
+    $decoded = array_map( $clean, $decoded );
+    $out = wp_json_encode( $decoded );
+    return $out ?: '';
+}
+
 // ── TARGET-USER AUTHORIZATION ─────────────────────────────────────────────
 // Several onboarding endpoints accept a user_id in POST and stay nopriv
 // because the auth cookie may not be attached yet on the first requests after
@@ -81,6 +100,11 @@ function six_get_onboarding_state() {
             'ads_promo'   => $row->ads_promo           ?? '',
             'ads_sched'   => $row->ads_schedule        ?? '',
             'ads_bud'     => intval( $row->ads_budget  ?? 0 ),
+            // Google Ads — "currently running" audit branch
+            'gads_running'=> $row->gads_running        ?? '',
+            'gads_audit'  => $row->gads_audit_json     ?? '',
+            'gads_link'   => $row->gads_link_status    ?? '',
+            'gads_cid'    => $row->gads_customer_id    ?? '',
             // SEO
             'seo_pages'   => $row->seo_pages           ?? '',
             'seo_loc'     => $row->seo_locations       ?? '',
@@ -331,6 +355,9 @@ function six_ajax_save_checkout_step() {
             'ads_promo'          => sanitize_text_field( $data['ads_promo']    ?? '' ),
             'ads_schedule'       => sanitize_text_field( $data['ads_sched']    ?? '' ),
             'ads_budget'         => intval(               $data['ads_bud']     ?? 0 ),
+            // Google Ads "currently running" audit branch
+            'gads_running'       => sanitize_text_field( $data['gads_running'] ?? '' ),
+            'gads_audit_json'    => six_sanitize_json(   $data['gads_audit']   ?? '' ),
             'seo_pages'          => sanitize_textarea_field( $data['seo_pages']?? '' ),
             'seo_locations'      => sanitize_text_field( $data['seo_loc']      ?? '' ),
             'seo_keywords'       => sanitize_textarea_field( $data['seo_kw']   ?? '' ),
@@ -495,6 +522,9 @@ function six_complete_onboarding() {
             'ads_promo'       => sanitize_text_field( $d['ads_promo']    ?? '' ),
             'ads_schedule'    => sanitize_text_field( $d['ads_sched']    ?? '' ),
             'ads_budget'      => intval(               $d['ads_bud']     ?? 0 ),
+            // Google Ads "currently running" audit branch
+            'gads_running'    => sanitize_text_field( $d['gads_running'] ?? '' ),
+            'gads_audit_json' => six_sanitize_json(   $d['gads_audit']   ?? '' ),
             // SEO
             'seo_pages'       => sanitize_textarea_field( $d['seo_pages']?? '' ),
             'seo_locations'   => sanitize_text_field( $d['seo_loc']      ?? '' ),
@@ -579,6 +609,22 @@ function six_complete_onboarding() {
     update_user_meta( $user_id, 'six_checkout_score',     100 );
     update_user_meta( $user_id, 'six_checkout_completed', 1 );
     update_user_meta( $user_id, 'six_checkout_signature', $signature );
+
+    // Existing-Google-Ads: record the account-link intent for the advisor.
+    // We store only the (non-secret) Customer ID and a link status — never a
+    // password. 'requested' means the client gave their Customer ID so the
+    // advisor can send an MCC access request; 'later' means link on the call.
+    $gads_cid    = preg_replace( '/[^0-9]/', '', sanitize_text_field( $_POST['gads_customer_id'] ?? '' ) );
+    $gads_link   = sanitize_text_field( $_POST['gads_link_status'] ?? '' );
+    if ( $gads_link === 'requested' || $gads_link === 'later' ) {
+        update_user_meta( $user_id, 'six_gads_link_status', $gads_link );
+        if ( $gads_cid !== '' ) {
+            update_user_meta( $user_id, 'six_gads_customer_id', $gads_cid );
+        }
+        $gads_update = array( 'gads_link_status' => $gads_link );
+        if ( $gads_cid !== '' ) $gads_update['gads_customer_id'] = $gads_cid;
+        $wpdb->update( $wpdb->prefix . 'six_checkout_progress', $gads_update, array( 'user_id' => $user_id ) );
+    }
 
     // Mark checkout complete
     $wpdb->update( $wpdb->prefix . 'six_checkout_progress', array(
@@ -1385,6 +1431,23 @@ function six_onboarding_db_upgrade() {
         }
         update_option( 'six_onboarding_db_v7', 1 );
     }
+
+    // v8 migration — Google Ads "currently running" branch (audit flow)
+    if ( ! get_option('six_onboarding_db_v8') ) {
+        $cols8 = $wpdb->get_col( "SHOW COLUMNS FROM {$wpdb->prefix}six_checkout_progress", 0 );
+        $v8_cols = array(
+            'gads_running'      => "VARCHAR(10) DEFAULT ''",
+            'gads_audit_json'   => "TEXT",
+            'gads_link_status'  => "VARCHAR(20) DEFAULT ''",
+            'gads_customer_id'  => "VARCHAR(30) DEFAULT ''",
+        );
+        foreach ( $v8_cols as $col => $def ) {
+            if ( ! in_array( $col, $cols8 ) ) {
+                $wpdb->query( "ALTER TABLE {$wpdb->prefix}six_checkout_progress ADD COLUMN {$col} {$def}" );
+            }
+        }
+        update_option( 'six_onboarding_db_v8', 1 );
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1670,6 +1733,9 @@ function six_ajax_generate_growth_plan() {
         'gbp_budget'    => intval( $_POST['gbp_bud'] ?? 0 ),
         'web_budget'    => intval( $_POST['web_bud'] ?? 0 ),
         'competitors'   => sanitize_text_field( $_POST['competitors'] ?? '' ),
+        // Existing-Google-Ads audit branch
+        'gads_running'    => sanitize_text_field( $_POST['gads_running'] ?? '' ),
+        'gads_audit_json' => six_sanitize_json(   $_POST['gads_audit']   ?? '' ),
     );
     error_log("6ix GrowthPlan: bizname=" . $post_override['business_name'] . " industry=" . $post_override['industry'] . " platforms=" . $post_override['platforms']);
 

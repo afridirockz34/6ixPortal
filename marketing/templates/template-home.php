@@ -209,11 +209,27 @@ header( 'Content-Type: text/html; charset=utf-8' );
     </div>
   </section>
 
-  <!-- BUSINESSES WHO TRUST US — testimonial slider (editable via CPT) -->
+  <!-- BUSINESSES WHO TRUST US — client logo strip (original section) -->
+  <?php if ( ! empty( $logos ) ) : ?>
+  <section class="mk-section mk-section-sm">
+    <div class="mk-wrap">
+      <div class="mk-sec-head mk-center">
+        <h2><?php echo esc_html( mk_field( 'logos_heading', 'Businesses Who Trust Us' ) ); ?></h2>
+      </div>
+      <div class="mk-logos">
+        <?php foreach ( (array) $logos as $lg ) : if ( empty( $lg['image'] ) ) continue; ?>
+        <div class="mk-logo-item"><img src="<?php echo esc_url( $lg['image'] ); ?>" alt="Client logo" loading="lazy"></div>
+        <?php endforeach; ?>
+      </div>
+    </div>
+  </section>
+  <?php endif; ?>
+
+  <!-- WHAT OUR CLIENTS SAY — testimonial slider (editable via CPT) -->
   <section class="mk-section mk-section-sm mk-glow">
     <div class="mk-wrap">
       <div class="mk-sec-head mk-center">
-        <h2><?php echo esc_html( mk_field( 'tst_heading', 'Businesses Who Trust Us' ) ); ?></h2>
+        <h2><?php echo esc_html( mk_field( 'tst_heading', 'What Our Clients Say' ) ); ?></h2>
       </div>
       <div class="mk-carousel" data-carousel data-autoplay="6000">
         <button class="mk-carousel-arrow mk-prev" data-prev aria-label="Previous"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>

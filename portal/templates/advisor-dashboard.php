@@ -205,7 +205,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 <?php if(!$mcc_configured):?><span style="font-size:9px;color:var(--warning);margin-left:auto">Setup</span><?php endif;?>
             </a>
             <a href="?tab=intelligence" class="six-nav-item <?php echo $active_tab==='intelligence'?'active':'';?>">
-                <span class="six-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></span> Onboarding Drop-off Funnel
+                <span class="six-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></span> Drop-off Funnel
                 <?php
                 $intel_pending = $wpdb->get_var($wpdb->prepare(
                     "SELECT COUNT(*) FROM {$wpdb->prefix}six_recommendations r
@@ -578,6 +578,15 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         $c_ads_promo   = $c_checkout->ads_promo ?? '';
         $c_ads_fin     = $c_checkout->ads_financing ?? '';
         $c_ads_bud     = intval($c_checkout->ads_budget ?? 0);
+        // Existing-Google-Ads audit branch
+        $c_gads_running= $c_checkout->gads_running ?? '';
+        $c_gads_audit  = array();
+        if ( ! empty($c_checkout->gads_audit_json) ) {
+            $decoded = json_decode($c_checkout->gads_audit_json, true);
+            if ( is_array($decoded) ) $c_gads_audit = $decoded;
+        }
+        $c_gads_link   = $c_checkout->gads_link_status ?? get_user_meta($view_client_id,'six_gads_link_status',true);
+        $c_gads_cid    = $c_checkout->gads_customer_id ?? get_user_meta($view_client_id,'six_gads_customer_id',true);
         // SEO questionnaire
         $c_seo_pages   = $c_checkout->seo_pages ?? '';
         $c_seo_loc     = $c_checkout->seo_locations ?? '';
@@ -723,7 +732,6 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             'datasources'  => array('icon'=>'', 'label'=>'Data Sources',      'short'=>'Data'),
             'activity'     => array('icon'=>'', 'label'=>'Activity',          'short'=>'Activity'),
             'profile'      => array('icon'=>'', 'label'=>'Client Profile',    'short'=>'Profile'),
-            'questionnaire'=> array('icon'=>'', 'label'=>'Questionnaire',     'short'=>'Q&amp;A'),
             'reports'      => array('icon'=>'', 'label'=>'Reports',           'short'=>'Reports')) as $ctab_key => $ctab_def): ?>
         <a href="<?php echo $base_url; ?>&ctab=<?php echo $ctab_key; ?>"
            class="six-client-tab <?php echo $ctab===$ctab_key?'active':''; ?>">
@@ -1369,6 +1377,201 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             </div>
         </div>
     </div>
+    <!-- ── Onboarding Questionnaire (moved from its own tab) ──────────── -->
+    <div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin:4px 0 12px">Onboarding Questionnaire</div>
+
+    <?php
+    // Helper to render a field row — only show if value is non-empty
+    function adv_qrow($label, $value, $full=false){
+        if(!$value||$value==='—') return;
+        $style = $full ? 'grid-column:1/-1' : '';
+        echo '<div style="'.$style.'">';
+        echo '<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:4px">'.esc_html($label).'</div>';
+        echo '<div style="font-size:13px;color:var(--text1);line-height:1.5;word-break:break-word">'.nl2br(esc_html($value)).'</div>';
+        echo '</div>';
+    }
+    function adv_qsec($title, $icon_path=''){
+        echo '<div style="display:flex;align-items:center;gap:8px;margin:0 0 14px;padding-bottom:10px;border-bottom:1px solid var(--border)">';
+        if($icon_path) echo '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'.$icon_path.'</svg>';
+        echo '<span style="font-size:12px;font-weight:700;color:var(--text1);text-transform:uppercase;letter-spacing:.5px">'.$title.'</span>';
+        echo '</div>';
+    }
+    ?>
+
+    <div style="display:flex;flex-direction:column;gap:16px">
+
+    <!-- Business Basics -->
+    <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:18px">
+        <?php adv_qsec('Business Basics','<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>'); ?>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <?php
+            adv_qrow('Business Name',    $c_biz);
+            adv_qrow('Website',          $c_website);
+            adv_qrow('Industry',         $c_industry);
+            adv_qrow('Location',         ($c_address ?: $c_location));
+            adv_qrow('Years in Business',$c_years);
+            adv_qrow('Phone',            $c_checkout->phone ?? get_user_meta($view_client_id,'billing_phone',true));
+            adv_qrow('Employees', $c_employees);
+            adv_qrow('Monthly Revenue', $c_revenue);
+            adv_qrow('Marketing Goals', $c_goal ? str_replace(',', ', ', $c_goal) : '');
+            adv_qrow('Competitors', $c_comp_str, true);
+            adv_qrow('CRM / Tools', $c_crm);
+            adv_qrow('Reviews / Awards', $c_awards);
+            adv_qrow('Additional Notes', $c_notes, true);
+            // Only show empty state if there is literally nothing at all
+            $basics_empty = !$c_biz && !$c_website && !$c_industry && !$c_address && !$c_location && !$c_comp_str;
+            if ($basics_empty):
+            ?>
+            <div style="grid-column:1/-1;padding:16px;background:rgba(112,201,242,0.06);border:1px solid rgba(112,201,242,0.15);border-radius:10px;font-size:12px;color:var(--text3);line-height:1.6">
+                No questionnaire answers saved yet.
+                <br><span style="font-size:11px;opacity:.7">Use the fields above to fill in this client&rsquo;s details, or they&rsquo;ll appear here once the client completes onboarding.</span>
+            </div>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <?php if($c_ads_kw || $c_ads_loc || $c_ads_prod || $c_gads_running): ?>
+    <!-- Google Ads -->
+    <div style="background:var(--dark2);border:1px solid rgba(66,133,244,0.3);border-radius:14px;padding:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <div style="width:10px;height:10px;border-radius:50%;background:#4285F4"></div>
+                <span style="font-size:12px;font-weight:700;color:var(--text1);text-transform:uppercase;letter-spacing:.5px">Google Ads</span>
+                <?php if($c_gads_running==='yes'): ?><span style="font-size:11px;font-weight:700;color:#C17B1A;background:rgba(251,188,4,0.12);border:1px solid rgba(251,188,4,0.25);border-radius:20px;padding:2px 9px">Already running — audit</span><?php elseif($c_gads_running==='no'): ?><span style="font-size:11px;font-weight:700;color:#1B9E52;background:rgba(27,158,82,0.1);border:1px solid rgba(27,158,82,0.2);border-radius:20px;padding:2px 9px">New setup</span><?php endif; ?>
+                <?php if($c_ads_bud>0): ?><span style="font-size:11px;font-weight:700;color:#4285F4;background:rgba(66,133,244,0.1);border:1px solid rgba(66,133,244,0.2);border-radius:20px;padding:2px 9px">$<?php echo number_format($c_ads_bud); ?>/mo</span><?php endif; ?>
+            </div>
+        </div>
+
+        <?php if($c_gads_running==='yes' && $c_gads_audit): ?>
+        <!-- Existing Google Ads audit answers -->
+        <?php
+            $gads_dur_map = array('<3m'=>'Under 3 months','3-12m'=>'3–12 months','1-2y'=>'1–2 years','2y+'=>'2+ years');
+            $gads_mgr_map = array('self'=>'Self-managed','agency'=>'Agency','freelancer'=>'Freelancer');
+            $ga = $c_gads_audit;
+            $ga_dur = $gads_dur_map[$ga['duration']??''] ?? ($ga['duration']??'');
+            $ga_mgr = $gads_mgr_map[$ga['manager']??'']  ?? ($ga['manager']??'');
+            $ga_sat = isset($ga['satisfied']) ? ($ga['satisfied']==='yes'?'Satisfied':'Not satisfied') : '';
+        ?>
+        <div style="background:rgba(251,188,4,0.05);border:1px solid rgba(251,188,4,0.18);border-radius:10px;padding:14px;margin-bottom:14px">
+            <div style="font-size:11px;font-weight:700;color:#C17B1A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Current Google Ads Audit</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <?php
+                adv_qrow('Running For', $ga_dur);
+                adv_qrow('Primary Goal', !empty($ga['goal'])?str_replace(',',', ',$ga['goal']):'');
+                adv_qrow('Campaign Types', !empty($ga['campaign_types'])?str_replace(',',', ',$ga['campaign_types']):'');
+                adv_qrow('Managed By', $ga_mgr);
+                adv_qrow('Satisfaction', $ga_sat);
+                adv_qrow('What\'s Working', $ga['working']??'', true);
+                adv_qrow('What\'s Not Working', $ga['not_working']??'', true);
+                adv_qrow('Biggest Challenge', $ga['challenge']??'', true);
+                ?>
+            </div>
+            <?php if($c_gads_link || $c_gads_cid): ?>
+            <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(251,188,4,0.18);display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <?php
+                $link_label = $c_gads_link==='requested' ? 'Customer ID provided — send MCC access request' : ($c_gads_link==='later' ? 'Client will link on first call' : '');
+                adv_qrow('Account Link', $link_label);
+                adv_qrow('Google Ads Customer ID', $c_gads_cid);
+                ?>
+            </div>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <?php
+            adv_qrow('Target Locations', $c_ads_loc);
+            adv_qrow('Ad Schedule', $c_ads_sched ?? '');
+            adv_qrow('Products / Services to Promote', $c_ads_prod, true);
+            adv_qrow('Keywords', $c_ads_kw ? str_replace(',', ', ', $c_ads_kw) : '', true);
+            adv_qrow('Unique Selling Points', $c_ads_usp, true);
+            adv_qrow('Current Promotions', $c_ads_promo, true);
+            ?>
+        </div>
+    </div>
+    <?php endif; // end ads budget ?>
+
+    <?php if($c_seo_kw || $c_seo_pages || $c_seo_loc): ?>
+    <!-- SEO -->
+    <div style="background:var(--dark2);border:1px solid rgba(27,158,82,0.3);border-radius:14px;padding:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)">
+            <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:10px;height:10px;border-radius:50%;background:#1B9E52"></div>
+                <span style="font-size:12px;font-weight:700;color:var(--text1);text-transform:uppercase;letter-spacing:.5px">SEO</span>
+                <?php if($c_seo_bud>0): ?><span style="font-size:11px;font-weight:700;color:#1B9E52;background:rgba(27,158,82,0.1);border:1px solid rgba(27,158,82,0.2);border-radius:20px;padding:2px 9px">$<?php echo number_format($c_seo_bud); ?>/mo</span><?php endif; ?>
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <?php
+            adv_qrow('Target Locations', $c_seo_loc);
+            adv_qrow('Google Search Console', $c_seo_gsc ? ucfirst($c_seo_gsc) : '');
+            adv_qrow('Existing Blog / Content', $c_seo_blog ? ucfirst($c_seo_blog) : '');
+            adv_qrow('Pages to Rank', $c_seo_pages, true);
+            adv_qrow('Target Keywords', $c_seo_kw ? str_replace(',', ', ', $c_seo_kw) : '', true);
+            adv_qrow('Unique Selling Points', $c_seo_usp, true);
+            adv_qrow('Competitors', $c_seo_comp, true);
+            adv_qrow('CRM / Tools', $c_seo_crm, true);
+            adv_qrow('Reviews / Awards', $c_seo_reviews, true);
+            adv_qrow('Additional Notes', $c_seo_extra, true);
+            ?>
+        </div>
+    </div>
+    <?php endif; // end seo budget ?>
+
+    <?php if($c_gbp_name || $c_gbp_cat): ?>
+    <!-- Google Business Profile -->
+    <div style="background:var(--dark2);border:1px solid rgba(251,188,4,0.3);border-radius:14px;padding:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)">
+            <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:10px;height:10px;border-radius:50%;background:#FBBC04"></div>
+                <span style="font-size:12px;font-weight:700;color:var(--text1);text-transform:uppercase;letter-spacing:.5px">Google Business Profile</span>
+                <?php if($c_gbp_bud>0): ?><span style="font-size:11px;font-weight:700;color:#C17B1A;background:rgba(251,188,4,0.1);border:1px solid rgba(251,188,4,0.2);border-radius:20px;padding:2px 9px">$<?php echo number_format($c_gbp_bud); ?>/mo</span><?php endif; ?>
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <?php
+            adv_qrow('Business Name on Google', $c_gbp_name);
+            adv_qrow('Primary Category', $c_gbp_cat);
+            adv_qrow('Business Hours', $c_gbp_hrs ?? '');
+            adv_qrow('Current Rating', $c_gbp_rating);
+            adv_qrow('Services to Highlight', $c_gbp_svcs, true);
+            ?>
+        </div>
+    </div>
+    <?php endif; // end gbp budget ?>
+
+    <?php if($c_web_goal || $c_web_pages): ?>
+    <!-- Website -->
+    <div style="background:var(--dark2);border:1px solid rgba(124,92,191,0.3);border-radius:14px;padding:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)">
+            <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:10px;height:10px;border-radius:50%;background:#7C5CBF"></div>
+                <span style="font-size:12px;font-weight:700;color:var(--text1);text-transform:uppercase;letter-spacing:.5px">Website Development</span>
+                <?php if($c_web_bud>0): ?><span style="font-size:11px;font-weight:700;color:#7C5CBF;background:rgba(124,92,191,0.1);border:1px solid rgba(124,92,191,0.2);border-radius:20px;padding:2px 9px">$<?php echo number_format($c_web_bud); ?>/mo</span><?php endif; ?>
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <?php
+            adv_qrow('Website Goal', $c_web_goal ? str_replace(',', ', ', $c_web_goal) : '');
+            adv_qrow('Design Style', $c_web_style ? str_replace(',', ', ', $c_web_style) : '');
+            adv_qrow('Existing Website to Redesign', $c_web_exist ? ucfirst($c_web_exist) : '');
+            adv_qrow('Reference Sites', $c_web_refs);
+            adv_qrow('Pages Needed', $c_web_pages, true);
+            ?>
+        </div>
+    </div>
+    <?php endif; // end web budget ?>
+
+    <?php if(!$c_ads_kw && !$c_seo_kw && !$c_gbp_name && !$c_web_goal && !$c_gads_running): ?>
+    <div style="background:var(--dark2);border:1px solid var(--border);border-radius:12px;padding:28px;text-align:center;color:var(--text3)">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto 12px;display:block;opacity:.4"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px">No service questionnaire data yet</div>
+        <div style="font-size:12px">This client hasn't completed the service-specific questions. Basic business info shows above.</div>
+    </div>
+    <?php endif; ?>
+
+    </div><!-- /questionnaire cards -->
+
     <!-- Service budgets -->
     <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:16px">
         <div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px">Service Budgets</div>
@@ -1580,165 +1783,6 @@ function advCompleteOnboarding(clientId){
         });
     }
     </script>
-
-    <!-- ═══════════════════════ CTAB: QUESTIONNAIRE ═══════════════════════ -->
-    <?php elseif($ctab==='questionnaire'): ?>
-
-    <?php
-    // Helper to render a field row — only show if value is non-empty
-    function adv_qrow($label, $value, $full=false){
-        if(!$value||$value==='—') return;
-        $style = $full ? 'grid-column:1/-1' : '';
-        echo '<div style="'.$style.'">';
-        echo '<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:4px">'.esc_html($label).'</div>';
-        echo '<div style="font-size:13px;color:var(--text1);line-height:1.5;word-break:break-word">'.nl2br(esc_html($value)).'</div>';
-        echo '</div>';
-    }
-    function adv_qsec($title, $icon_path=''){
-        echo '<div style="display:flex;align-items:center;gap:8px;margin:0 0 14px;padding-bottom:10px;border-bottom:1px solid var(--border)">';
-        if($icon_path) echo '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'.$icon_path.'</svg>';
-        echo '<span style="font-size:12px;font-weight:700;color:var(--text1);text-transform:uppercase;letter-spacing:.5px">'.$title.'</span>';
-        echo '</div>';
-    }
-    ?>
-
-    <div style="display:flex;flex-direction:column;gap:16px">
-
-    <!-- Business Basics -->
-    <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:18px">
-        <?php adv_qsec('Business Basics','<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>'); ?>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <?php
-            adv_qrow('Business Name',    $c_biz);
-            adv_qrow('Website',          $c_website);
-            adv_qrow('Industry',         $c_industry);
-            adv_qrow('Location',         ($c_address ?: $c_location));
-            adv_qrow('Years in Business',$c_years);
-            adv_qrow('Phone',            $c_checkout->phone ?? get_user_meta($view_client_id,'billing_phone',true));
-            adv_qrow('Employees', $c_employees);
-            adv_qrow('Monthly Revenue', $c_revenue);
-            adv_qrow('Marketing Goals', $c_goal ? str_replace(',', ', ', $c_goal) : '');
-            adv_qrow('Competitors', $c_comp_str, true);
-            adv_qrow('CRM / Tools', $c_crm);
-            adv_qrow('Reviews / Awards', $c_awards);
-            adv_qrow('Additional Notes', $c_notes, true);
-            // Only show empty state if there is literally nothing at all
-            $basics_empty = !$c_biz && !$c_website && !$c_industry && !$c_address && !$c_location && !$c_comp_str;
-            if ($basics_empty):
-            ?>
-            <div style="grid-column:1/-1;padding:16px;background:rgba(112,201,242,0.06);border:1px solid rgba(112,201,242,0.15);border-radius:10px;font-size:12px;color:var(--text3);line-height:1.6">
-                No business info saved yet.
-                <a href="?tab=clients&client=<?php echo $view_client_id; ?>&ctab=profile" style="color:var(--cyan);text-decoration:none;font-weight:600"> → Go to Client Profile to add it</a>
-                <br><span style="font-size:11px;opacity:.7">Once saved from the Profile tab, it will appear here automatically.</span>
-            </div>
-            <?php endif; ?>
-        </div>
-    </div>
-
-    <?php if($c_ads_kw || $c_ads_loc || $c_ads_prod): ?>
-    <!-- Google Ads -->
-    <div style="background:var(--dark2);border:1px solid rgba(66,133,244,0.3);border-radius:14px;padding:18px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)">
-            <div style="display:flex;align-items:center;gap:8px">
-                <div style="width:10px;height:10px;border-radius:50%;background:#4285F4"></div>
-                <span style="font-size:12px;font-weight:700;color:var(--text1);text-transform:uppercase;letter-spacing:.5px">Google Ads</span>
-                <?php if($c_ads_bud>0): ?><span style="font-size:11px;font-weight:700;color:#4285F4;background:rgba(66,133,244,0.1);border:1px solid rgba(66,133,244,0.2);border-radius:20px;padding:2px 9px">$<?php echo number_format($c_ads_bud); ?>/mo</span><?php endif; ?>
-            </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <?php
-            adv_qrow('Target Locations', $c_ads_loc);
-            adv_qrow('Ad Schedule', $c_ads_sched ?? '');
-            adv_qrow('Products / Services to Promote', $c_ads_prod, true);
-            adv_qrow('Keywords', $c_ads_kw ? str_replace(',', ', ', $c_ads_kw) : '', true);
-            adv_qrow('Unique Selling Points', $c_ads_usp, true);
-            adv_qrow('Current Promotions', $c_ads_promo, true);
-            ?>
-        </div>
-    </div>
-    <?php endif; // end ads budget ?>
-
-    <?php if($c_seo_kw || $c_seo_pages || $c_seo_loc): ?>
-    <!-- SEO -->
-    <div style="background:var(--dark2);border:1px solid rgba(27,158,82,0.3);border-radius:14px;padding:18px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)">
-            <div style="display:flex;align-items:center;gap:8px">
-                <div style="width:10px;height:10px;border-radius:50%;background:#1B9E52"></div>
-                <span style="font-size:12px;font-weight:700;color:var(--text1);text-transform:uppercase;letter-spacing:.5px">SEO</span>
-                <?php if($c_seo_bud>0): ?><span style="font-size:11px;font-weight:700;color:#1B9E52;background:rgba(27,158,82,0.1);border:1px solid rgba(27,158,82,0.2);border-radius:20px;padding:2px 9px">$<?php echo number_format($c_seo_bud); ?>/mo</span><?php endif; ?>
-            </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <?php
-            adv_qrow('Target Locations', $c_seo_loc);
-            adv_qrow('Google Search Console', $c_seo_gsc ? ucfirst($c_seo_gsc) : '');
-            adv_qrow('Existing Blog / Content', $c_seo_blog ? ucfirst($c_seo_blog) : '');
-            adv_qrow('Pages to Rank', $c_seo_pages, true);
-            adv_qrow('Target Keywords', $c_seo_kw ? str_replace(',', ', ', $c_seo_kw) : '', true);
-            adv_qrow('Unique Selling Points', $c_seo_usp, true);
-            adv_qrow('Competitors', $c_seo_comp, true);
-            adv_qrow('CRM / Tools', $c_seo_crm, true);
-            adv_qrow('Reviews / Awards', $c_seo_reviews, true);
-            adv_qrow('Additional Notes', $c_seo_extra, true);
-            ?>
-        </div>
-    </div>
-    <?php endif; // end seo budget ?>
-
-    <?php if($c_gbp_name || $c_gbp_cat): ?>
-    <!-- Google Business Profile -->
-    <div style="background:var(--dark2);border:1px solid rgba(251,188,4,0.3);border-radius:14px;padding:18px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)">
-            <div style="display:flex;align-items:center;gap:8px">
-                <div style="width:10px;height:10px;border-radius:50%;background:#FBBC04"></div>
-                <span style="font-size:12px;font-weight:700;color:var(--text1);text-transform:uppercase;letter-spacing:.5px">Google Business Profile</span>
-                <?php if($c_gbp_bud>0): ?><span style="font-size:11px;font-weight:700;color:#C17B1A;background:rgba(251,188,4,0.1);border:1px solid rgba(251,188,4,0.2);border-radius:20px;padding:2px 9px">$<?php echo number_format($c_gbp_bud); ?>/mo</span><?php endif; ?>
-            </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <?php
-            adv_qrow('Business Name on Google', $c_gbp_name);
-            adv_qrow('Primary Category', $c_gbp_cat);
-            adv_qrow('Business Hours', $c_gbp_hrs ?? '');
-            adv_qrow('Current Rating', $c_gbp_rating);
-            adv_qrow('Services to Highlight', $c_gbp_svcs, true);
-            ?>
-        </div>
-    </div>
-    <?php endif; // end gbp budget ?>
-
-    <?php if($c_web_goal || $c_web_pages): ?>
-    <!-- Website -->
-    <div style="background:var(--dark2);border:1px solid rgba(124,92,191,0.3);border-radius:14px;padding:18px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)">
-            <div style="display:flex;align-items:center;gap:8px">
-                <div style="width:10px;height:10px;border-radius:50%;background:#7C5CBF"></div>
-                <span style="font-size:12px;font-weight:700;color:var(--text1);text-transform:uppercase;letter-spacing:.5px">Website Development</span>
-                <?php if($c_web_bud>0): ?><span style="font-size:11px;font-weight:700;color:#7C5CBF;background:rgba(124,92,191,0.1);border:1px solid rgba(124,92,191,0.2);border-radius:20px;padding:2px 9px">$<?php echo number_format($c_web_bud); ?>/mo</span><?php endif; ?>
-            </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <?php
-            adv_qrow('Website Goal', $c_web_goal ? str_replace(',', ', ', $c_web_goal) : '');
-            adv_qrow('Design Style', $c_web_style ? str_replace(',', ', ', $c_web_style) : '');
-            adv_qrow('Existing Website to Redesign', $c_web_exist ? ucfirst($c_web_exist) : '');
-            adv_qrow('Reference Sites', $c_web_refs);
-            adv_qrow('Pages Needed', $c_web_pages, true);
-            ?>
-        </div>
-    </div>
-    <?php endif; // end web budget ?>
-
-    <?php if(!$c_ads_kw && !$c_seo_kw && !$c_gbp_name && !$c_web_goal): ?>
-    <div style="background:var(--dark2);border:1px solid var(--border);border-radius:12px;padding:28px;text-align:center;color:var(--text3)">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto 12px;display:block;opacity:.4"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
-        <div style="font-size:13px;font-weight:600;margin-bottom:4px">No service questionnaire data yet</div>
-        <div style="font-size:12px">This client hasn't completed the service-specific questions. Basic business info shows above.</div>
-    </div>
-    <?php endif; ?>
-
-    </div><!-- /questionnaire cards -->
-
     <!-- ═══════════════════════ CTAB: REPORTS ═══════════════════════ -->
     <?php elseif($ctab==='reports'): ?>
 
@@ -1789,47 +1833,42 @@ function advCompleteOnboarding(clientId){
             <p style="font-size:13px;color:var(--text3)">Clients are assigned by an admin. Contact your manager to get clients assigned.</p>
         </div>
         <?php else: ?>
-        <!-- Search bar — always visible; the client list only loads on search -->
-        <form method="GET" action="" id="adv-client-search-form" style="display:flex;gap:10px;align-items:center;margin-bottom:14px">
-            <input type="hidden" name="tab" value="clients">
+        <?php
+        // Full assigned-client list for instant client-side filtering (no reload).
+        $list_clients = $wpdb->get_results($wpdb->prepare(
+            "SELECT u.ID, u.display_name, u.user_email FROM {$wpdb->prefix}six_assignments a
+             INNER JOIN {$wpdb->prefix}users u ON a.client_id=u.ID
+             WHERE a.advisor_id=%d ORDER BY u.display_name ASC",
+            $advisor_id
+        ));
+        ?>
+        <!-- Search bar — filters the list live, client-side (keeps focus while typing) -->
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px">
             <div style="position:relative;flex:1">
                 <svg style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text3);pointer-events:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input type="text" name="csearch" id="adv-client-search"
+                <input type="text" id="adv-client-search"
                     value="<?php echo esc_attr($client_search); ?>"
-                    placeholder="Search by name, email or phone…"
+                    placeholder="Search by name, email or phone&hellip;"
                     autocomplete="off"
                     style="width:100%;padding:10px 12px 10px 34px;border:1px solid var(--border);border-radius:9px;background:var(--dark3);color:var(--text1);font-size:14px;box-sizing:border-box;outline:none"
-                    oninput="clearTimeout(window._csrch);window._csrch=setTimeout(()=>this.form.submit(),350)">
+                    oninput="advFilterClients(this.value)">
             </div>
-            <span style="font-size:12px;color:var(--text3);white-space:nowrap"><?php echo count($all_client_ids); ?> total</span>
-            <?php if($client_search): ?>
-            <a href="?tab=clients" style="font-size:12px;color:var(--pink);text-decoration:none;white-space:nowrap">Clear</a>
-            <?php endif; ?>
-        </form>
-
-        <?php if($client_search === ''): ?>
-        <!-- Idle state: prompt to search (no list loaded by default) -->
-        <div style="background:var(--dark2);border:1px dashed var(--border);border-radius:14px;padding:44px;text-align:center">
-            <div style="margin-bottom:12px;color:var(--text3)"><?php echo class_exists('Six_Icon')?Six_Icon::get('overview','','30px'):''; ?></div>
-            <div style="font-size:14px;font-weight:600;margin-bottom:6px">Search your clients</div>
-            <p style="font-size:13px;color:var(--text3);max-width:360px;margin:0 auto">Start typing a name, business, email or phone number above to pull up a client and open their profile.</p>
+            <span id="adv-search-count" style="font-size:12px;color:var(--text3);white-space:nowrap"></span>
+            <span style="font-size:12px;color:var(--text3);white-space:nowrap"><?php echo count($list_clients); ?> total</span>
         </div>
 
-        <?php elseif(empty($clients)): ?>
-        <!-- Searched, but nothing matched — search bar stays above -->
-        <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:44px;text-align:center">
-            <div style="margin-bottom:12px;color:var(--text3)"><?php echo class_exists('Six_Icon')?Six_Icon::get('gap','','30px'):''; ?></div>
-            <div style="font-size:14px;font-weight:600;margin-bottom:6px">No clients match “<?php echo esc_html($client_search); ?>”</div>
-            <p style="font-size:13px;color:var(--text3)">Check the spelling, or <a href="?tab=clients" style="color:var(--pink);text-decoration:none">clear the search</a> to try again.</p>
+        <!-- No-results (toggled by JS) -->
+        <div id="adv-client-noresults" style="display:none;background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:44px;text-align:center">
+            <div style="font-size:14px;font-weight:600;margin-bottom:6px">No clients match your search</div>
+            <p style="font-size:13px;color:var(--text3)">Try a different name, business, email or phone number.</p>
         </div>
 
-        <?php else: ?>
         <!-- Desktop table (hidden on mobile) -->
-        <div class="six-client-table-wrap" style="overflow-x:auto">
+        <div class="six-client-table-wrap" id="adv-client-table-wrap" style="overflow-x:auto">
         <table class="six-table six-client-desktop" id="adv-client-table">
             <thead><tr><th>Client</th><th>Health</th><th>Services</th><th>MRR</th><th>Last Active</th><th></th></tr></thead>
             <tbody>
-            <?php foreach($clients as $cl):
+            <?php foreach($list_clients as $cl):
                 $cl_svcs=$wpdb->get_results($wpdb->prepare("SELECT * FROM {$wpdb->prefix}six_client_services WHERE client_id=%d AND status='active'",$cl->ID));
                 $cl_mrr =array_sum(array_column($cl_svcs,'budget'));
                 $cl_h   =class_exists('Six_Health_Score')?Six_Health_Score::calculate($cl->ID):0;
@@ -1847,7 +1886,7 @@ function advCompleteOnboarding(clientId){
                 <td><?php foreach($cl_svcs as $s): $sd2=$svc_def[$s->service_slug]??array('icon'=>'','color'=>'var(--pink)'); ?><span title="<?php echo esc_attr($s->service_name); ?>" style="margin-right:4px"><?php echo $sd2['icon']; ?></span><?php endforeach; ?></td>
                 <td style="font-weight:700;color:var(--cyan)">$<?php echo number_format($cl_mrr,0); ?>/mo</td>
                 <td style="font-size:11px;color:var(--text3)"><?php echo $cl_last?human_time_diff(strtotime($cl_last),time()).' ago':'Never'; ?></td>
-                <td><a href="?tab=clients&client=<?php echo $cl->ID; ?>" class="six-btn six-btn-primary six-btn-sm" style="font-size:11px">Open →</a></td>
+                <td><a href="?tab=clients&client=<?php echo $cl->ID; ?>" class="six-btn six-btn-primary six-btn-sm" style="font-size:11px">Open &rarr;</a></td>
             </tr>
             <?php endforeach; ?>
             </tbody>
@@ -1855,8 +1894,8 @@ function advCompleteOnboarding(clientId){
         </div>
 
         <!-- Mobile card list (hidden on desktop) -->
-        <div class="six-client-cards">
-            <?php foreach($clients as $cl):
+        <div class="six-client-cards" id="adv-client-cards">
+            <?php foreach($list_clients as $cl):
                 $cl_svcs2=$wpdb->get_results($wpdb->prepare("SELECT * FROM {$wpdb->prefix}six_client_services WHERE client_id=%d AND status='active'",$cl->ID));
                 $cl_mrr2 =array_sum(array_column($cl_svcs2,'budget'));
                 $cl_h2   =class_exists('Six_Health_Score')?Six_Health_Score::calculate($cl->ID):0;
@@ -1865,7 +1904,11 @@ function advCompleteOnboarding(clientId){
                 $cl_color2 = $cl_h2>=70?'var(--success)':($cl_h2>=40?'var(--warning)':'var(--danger)');
                 $initials2 = strtoupper(substr($cl->display_name,0,1).substr(strrchr($cl->display_name,' '),1,1));
             ?>
-            <a href="?tab=clients&client=<?php echo $cl->ID; ?>" class="six-client-card" style="text-decoration:none;color:inherit">
+            <a href="?tab=clients&client=<?php echo $cl->ID; ?>" class="six-client-card"
+               data-name="<?php echo esc_attr(strtolower($cl->display_name.' '.($cl_co2->business_name??''))); ?>"
+               data-email="<?php echo esc_attr(strtolower($cl->user_email??'')); ?>"
+               data-phone="<?php echo esc_attr(get_user_meta($cl->ID,'billing_phone',true)); ?>"
+               style="text-decoration:none;color:inherit">
                 <div class="six-client-card-avatar"><?php echo esc_html($initials2); ?></div>
                 <div class="six-client-card-info">
                     <div class="six-client-card-name"><?php echo $cl_name2; ?></div>
@@ -1880,29 +1923,29 @@ function advCompleteOnboarding(clientId){
                     </div>
                 </div>
                 <div class="six-client-card-health" style="color:<?php echo $cl_color2; ?>"><?php echo $cl_h2; ?>%</div>
-                <div class="six-client-card-arrow">→</div>
+                <div class="six-client-card-arrow">&rarr;</div>
             </a>
             <?php endforeach; ?>
         </div>
 
-        <!-- Pagination (mobile) -->
-        <?php if($clients_total_pages > 1): ?>
-        <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:16px;flex-wrap:wrap">
-            <?php if($client_page > 1): ?>
-            <a href="?tab=clients&csearch=<?php echo urlencode($client_search); ?>&cpage=<?php echo $client_page-1; ?>" class="six-btn six-btn-ghost six-btn-sm">&larr;</a>
-            <?php endif; ?>
-            <?php for($pg=max(1,$client_page-2); $pg<=min($clients_total_pages,$client_page+2); $pg++): ?>
-            <a href="?tab=clients&csearch=<?php echo urlencode($client_search); ?>&cpage=<?php echo $pg; ?>"
-               style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;font-size:13px;text-decoration:none;<?php echo $pg===$client_page?'background:var(--pink);color:#fff;border:none;':'background:var(--dark3);color:var(--text2);border:1px solid var(--border);'; ?>">
-               <?php echo $pg; ?></a>
-            <?php endfor; ?>
-            <?php if($client_page < $clients_total_pages): ?>
-            <a href="?tab=clients&csearch=<?php echo urlencode($client_search); ?>&cpage=<?php echo $client_page+1; ?>" class="six-btn six-btn-ghost six-btn-sm">&rarr;</a>
-            <?php endif; ?>
-        </div>
-        <?php endif; // end pagination ?>
+        <script>
+        function advFilterClients(q){
+            q=(q||'').toLowerCase().trim();
+            var visible=0;
+            document.querySelectorAll('#adv-client-table tbody tr[data-name]').forEach(function(el){
+                var hay=(el.dataset.name||'')+' '+(el.dataset.email||'')+' '+(el.dataset.phone||'');
+                var show=!q||hay.indexOf(q)>-1; el.style.display=show?'':'none'; if(show)visible++;
+            });
+            document.querySelectorAll('#adv-client-cards [data-name]').forEach(function(el){
+                var hay=(el.dataset.name||'')+' '+(el.dataset.email||'')+' '+(el.dataset.phone||'');
+                el.style.display=(!q||hay.indexOf(q)>-1)?'':'none';
+            });
+            var nr=document.getElementById('adv-client-noresults'); if(nr)nr.style.display=(visible===0)?'block':'none';
+            var cnt=document.getElementById('adv-search-count'); if(cnt)cnt.textContent=q?(visible+' result'+(visible!==1?'s':'')):'';
+        }
+        (function(){var s=document.getElementById('adv-client-search'); if(s&&s.value) advFilterClients(s.value);})();
+        </script>
 
-        <?php endif; // end search-state (idle / no-match / results) ?>
         <?php endif; // end empty(all_client_ids) if/else ?>
     <?php endif; // end view_client if($view_client) ?>
 

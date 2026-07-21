@@ -511,12 +511,30 @@ class Six_EstimateEngine {
         $comp_list   = array_filter(array_slice(array_map('trim', explode(',', $comp_raw)), 0, 3));
         $comps_clean = implode(', ', $comp_list) ?: 'local competitors';
 
+        // ── Existing-Google-Ads audit branch ──────────────────────────────
+        // When the client already runs Google Ads, the plan is reframed as an
+        // improvement audit ("opportunities to improve what you already run")
+        // rather than a from-scratch launch. Decode the audit answers they gave.
+        $ga_audit    = array();
+        if ( in_array('google-ads',$svcs) && ($co->gads_running ?? '') === 'yes' && ! empty($co->gads_audit_json) ) {
+            $decoded = json_decode( $co->gads_audit_json, true );
+            if ( is_array($decoded) ) $ga_audit = $decoded;
+        }
+        $is_ga_audit = ! empty($ga_audit);
+
         // ── Build Claude prompt ───────────────────────────────────────────
         $L = array();
         $L[] = 'You are a senior performance marketing strategist at 6ix Developers, a Toronto-based digital marketing agency.';
-        $L[] = 'Write a hyper-specific 60-day growth plan for a prospective client. This plan is the LAST thing they see before entering their credit card.';
-        $L[] = 'Your job: make them feel that 6ix Developers has already done the homework, knows their market cold, and that NOT signing would be a mistake.';
-        $L[] = 'Every line must reference their actual business, keywords, location, competitors, or budget. Zero generic filler.';
+        if ( $is_ga_audit ) {
+            $L[] = 'This client ALREADY RUNS Google Ads. Write a hyper-specific 60-day IMPROVEMENT plan — an initial audit of what they already run, surfacing the highest-impact opportunities to get more leads from the same or better spend. This plan is the LAST thing they see before entering their credit card.';
+            $L[] = 'Your job: make them feel that 6ix Developers has already reviewed their setup, spotted exactly where money is leaking, and that continuing alone would keep costing them.';
+            $L[] = 'Do NOT talk about "setting up" or "launching" campaigns from scratch — they are live. Talk about auditing, fixing, optimising, and scaling what exists.';
+            $L[] = 'Frame the opportunities by IMPACT: the first is their Biggest Opportunity, then Opportunity #2, #3. Every line must reference their actual campaigns, keywords, location, competitors, budget, or the specific problems they described. Zero generic filler.';
+        } else {
+            $L[] = 'Write a hyper-specific 60-day growth plan for a prospective client. This plan is the LAST thing they see before entering their credit card.';
+            $L[] = 'Your job: make them feel that 6ix Developers has already done the homework, knows their market cold, and that NOT signing would be a mistake.';
+            $L[] = 'Every line must reference their actual business, keywords, location, competitors, or budget. Zero generic filler.';
+        }
         $L[] = '';
         $L[] = '=== CLIENT PROFILE ===';
         $L[] = "Business: {$biz}";
@@ -532,6 +550,24 @@ class Six_EstimateEngine {
         if ($co->seo_keywords) $L[] = "SEO keywords: {$co->seo_keywords}";
         if ($co->gbp_category) $L[] = "GBP category: {$co->gbp_category}";
         if ($co->gbp_rating)   $L[] = "Current Google rating: {$co->gbp_rating}";
+
+        if ( $is_ga_audit ) {
+            $ga_dur   = array( '<3m'=>'under 3 months', '3-12m'=>'3–12 months', '1-2y'=>'1–2 years', '2y+'=>'2+ years' );
+            $ga_mgr   = array( 'self'=>'themselves', 'agency'=>'an agency', 'freelancer'=>'a freelancer' );
+            $dur_txt  = $ga_dur[ $ga_audit['duration'] ?? '' ] ?? ($ga_audit['duration'] ?? 'unknown');
+            $mgr_txt  = $ga_mgr[ $ga_audit['manager'] ?? '' ] ?? ($ga_audit['manager'] ?? 'unknown');
+            $L[] = '';
+            $L[] = '=== THEIR CURRENT GOOGLE ADS (audit source — react to these directly) ===';
+            $L[] = "Running Google Ads for: {$dur_txt}";
+            if ( ! empty($ga_audit['goal']) )           $L[] = "Their primary goal: {$ga_audit['goal']}";
+            if ( ! empty($ga_audit['campaign_types']) ) $L[] = "Campaign types they run: {$ga_audit['campaign_types']}";
+            $L[] = "Currently managed by: {$mgr_txt}";
+            if ( isset($ga_audit['satisfied']) )        $L[] = "Happy with current results: " . ( $ga_audit['satisfied'] === 'yes' ? 'yes' : 'NO — they are not satisfied' );
+            if ( ! empty($ga_audit['working']) )        $L[] = "What they say is working: {$ga_audit['working']}";
+            if ( ! empty($ga_audit['not_working']) )    $L[] = "What they say is NOT working: {$ga_audit['not_working']}";
+            if ( ! empty($ga_audit['challenge']) )      $L[] = "Their biggest stated challenge: {$ga_audit['challenge']}";
+            $L[] = 'Use these answers as the backbone of the plan. Directly address what they said is not working and their biggest challenge in the top opportunities.';
+        }
 
         $L[] = '';
         $L[] = '=== CALCULATED NUMBERS (use these exactly in your output) ===';
@@ -565,6 +601,34 @@ class Six_EstimateEngine {
         if ( strpos($svc_str,'Website') !== false )
             $svc_insight_instructions[] = 'Website insight: identify 1 conversion friction point common in ' . $ind . ', explain why load speed or headline copy affects cost per lead, and name the highest-ROI page to build first.';
 
+        if ( $is_ga_audit ) {
+            $L[] = 'For the "insights" array, produce 3 IMPROVEMENT OPPORTUNITIES, ordered by revenue impact (biggest first). Each MUST follow this structure:';
+            $L[] = '  what: The specific gap or leak in their CURRENT Google Ads (cite a number, their stated problem, or a competitor)';
+            $L[] = '  why: Why fixing it grows ' . $biz . '\'s leads/revenue (be specific to ' . $ind . ' and what they told us)';
+            $L[] = '  action: The single highest-impact fix (name the keyword, campaign type, setting, or tactic)';
+            $L[] = 'In the FIRST insight\'s "what", begin with "Biggest opportunity: ". In the second, begin with "Opportunity #2: ". In the third, "Opportunity #3: ".';
+            $L[] = 'Directly reference what they said is not working and their biggest challenge. Do not invent problems they did not describe unless the data clearly shows one.';
+            $L[] = '';
+            $L[] = '{';
+            $L[] = '  "headline": "Max 15 words. Frame as improving ' . $biz . '\'s existing Google Ads in ' . $loc . '.",';
+            $L[] = '  "sub": "Max 18 words. Reference their avg CPC $' . $avg_cpc . ', their stated challenge, or wasted-spend opportunity.",';
+            $L[] = '  "kpis": [';
+            $L[] = '    {"label": "Added Leads / Month", "value": "'.$leads_lo.'–'.$leads_hi.'"},';
+            $L[] = '    {"label": "By Month 2",          "value": "'.$leads_m2_lo.'–'.$leads_m2_hi.'"},';
+            $L[] = '    {"label": "Est. ROI Upside",     "value": "'.$roi_str.'"}';
+            $L[] = '  ],';
+            $L[] = '  "insight": "Max 20 words. The single biggest lever to improve their current account — cite a number or their own words.",';
+            $L[] = '  "insights": [';
+            $L[] = '    { "what": "Biggest opportunity: <gap in their current ads, cite a number>", "why": "Why it matters for ' . $biz . '", "action": "One specific fix" }';
+            $L[] = '  ],';
+            $L[] = '  "roadmap": [';
+            $L[] = '    {"week":"Days 1–15","phase":"Audit & Fix","title":"5-word title","points":["what we audit first in their account","the top leak we fix (cite their stated problem)","expected early win with a number"]},';
+            $L[] = '    {"week":"Days 16–30","phase":"Optimise","title":"5-word title","points":["bidding or targeting change citing their keyword/CPC $' . $avg_cpc . '","what we cut vs double down on","updated cost-per-lead or lead number"]},';
+            $L[] = '    {"week":"Days 31–45","phase":"Expand","title":"5-word title","points":["new campaign type or keyword group to add","competitor gap we exploit (name one)","incremental lead projection"]},';
+            $L[] = '    {"week":"Days 46–60","phase":"Scale","title":"5-word title","points":["scale step tied to their goal","budget reallocation to top performers","Month 2 lead or ROI projection"]}';
+            $L[] = '  ]';
+            $L[] = '}';
+        } else {
         $L[] = 'For the "insights" array, produce one insight per service. Each insight MUST follow this structure:';
         $L[] = '  what: What is happening in their market RIGHT NOW (cite a number or competitor name)';
         $L[] = '  why: Why this directly affects ' . $biz . '\'s revenue (be specific to ' . $ind . ')';
@@ -593,6 +657,13 @@ class Six_EstimateEngine {
         $L[] = '    {"week":"Day 46–60","phase":"Scale","title":"5-word title","points":["expansion step specific to their goal","new keyword group or content piece to add","Month 2 lead or traffic projection"]}';
         $L[] = '  ]';
         $L[] = '}';
+        }
+
+        // Tag the plan output so the UI can render the audit framing + disclaimer
+        if ( $is_ga_audit ) {
+            $L[] = '';
+            $L[] = 'Also include a top-level boolean field "ga_audit": true in the JSON.';
+        }
 
                 return implode("\n", $L);
     }
