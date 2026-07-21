@@ -358,8 +358,11 @@ class Six_Growth_Engine {
             error_log("6ix on_abandon: lead_id={$lead_id} synced=" . ($synced ? 'YES' : 'NO'));
         }
 
-        // ── SMS — fire immediately ────────────────────────────────────────────
-        self::cron_abandon_sms( $user_id, $step, $score );
+        // ── SMS — NOT immediate. A single event is scheduled below to fire ~10
+        //    minutes after abandonment. Sending here as well caused a second
+        //    text (concurrent beforeunload + pagehide requests race past the
+        //    fired-flag guard before either sets it), and it went out instantly.
+        //    The scheduled path is deduped, so exactly one text goes out. ──────
 
         // ── Email — fire immediately ──────────────────────────────────────────
         self::cron_abandon_email( $user_id, $step, $score );
@@ -440,9 +443,9 @@ class Six_Growth_Engine {
             }
         }
 
-        // Schedule cron retries (guards prevent double-send)
+        // Schedule the single abandon SMS for +10 minutes (guards prevent double-send)
         if ( ! wp_next_scheduled('six_abandon_sms', array($user_id,$step,$score)) )
-            wp_schedule_single_event(time()+120, 'six_abandon_sms', array($user_id,$step,$score));
+            wp_schedule_single_event(time()+600, 'six_abandon_sms', array($user_id,$step,$score)); // 10 minutes
         if ( ! wp_next_scheduled('six_abandon_email', array($user_id,$step,$score)) )
             wp_schedule_single_event(time()+720, 'six_abandon_email', array($user_id,$step,$score));
 
@@ -780,7 +783,7 @@ class Six_Growth_Engine {
      */
     public static function schedule_abandon_retries( $user_id, $step, $score ) {
         if ( ! wp_next_scheduled( 'six_abandon_sms', array( $user_id, $step, $score ) ) ) {
-            wp_schedule_single_event( time() + 120, 'six_abandon_sms', array( $user_id, $step, $score ) );
+            wp_schedule_single_event( time() + 600, 'six_abandon_sms', array( $user_id, $step, $score ) ); // 10 minutes
         }
         if ( ! wp_next_scheduled( 'six_abandon_email', array( $user_id, $step, $score ) ) ) {
             wp_schedule_single_event( time() + 720, 'six_abandon_email', array( $user_id, $step, $score ) );

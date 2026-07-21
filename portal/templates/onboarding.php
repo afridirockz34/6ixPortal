@@ -910,6 +910,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 <script>
 (function(){
 'use strict';
+var PREFILL_EMAIL=<?php echo wp_json_encode($js_data['prefill_email']??'');?>;
 var S={
   step:0,
   userId:<?php echo intval($js_data['user_id']??0);?>,
@@ -1189,8 +1190,13 @@ window.OB={
         $i('ob-pw').focus();S.isNew=false;
         var pw=$i('s1-pw-wrap');if(pw)pw.style.display='none';
       } else {
-        S.isNew=true;
+        // New email → registration. Reset any leftover state from a previous
+        // (existing-email) check so step 1 shows the create-password field.
+        S.isNew=true;S.isGoogle=false;
+        if(pws)pws.style.display='none';
         var e=$i('s1-email');if(e)e.value=email;
+        var pw=$i('s1-pw-wrap');if(pw)pw.style.display='';
+        var pwi=$i('s1-pw');if(pwi)pwi.value='';
         OB.goStep(1);
       }
     });
@@ -2047,6 +2053,13 @@ var GE = {
 
 document.addEventListener('DOMContentLoaded',function(){
   GE._pageStart = Date.now();
+
+  // Email handed over from the marketing "Client Login" for an unknown address:
+  // prefill it and run the same check the login box does, so the visitor lands
+  // straight on step 1 (name + phone + create password) with the email filled.
+  if(PREFILL_EMAIL && !S.userId){
+    var _pe=$i('ob-email'); if(_pe){ _pe.value=PREFILL_EMAIL; if(OB.handleEmail) OB.handleEmail(); }
+  }
 
   // Device tracking
   if(S.userId){

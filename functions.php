@@ -320,12 +320,15 @@ function six_serve_onboarding_page() {
         $resume_step = $row ? intval($row->step) : 1;
     }
     $js_data = array(
-        'ajax_url'    => admin_url('admin-ajax.php'),
-        'nonce'       => wp_create_nonce('six_nonce'),
-        'stripe_key'  => get_option('six_stripe_publishable_key', ''),
-        'user_id'     => $user_id,
-        'email'       => $user_id ? wp_get_current_user()->user_email : '',
-        'resume_step' => $resume_step,
+        'ajax_url'      => admin_url('admin-ajax.php'),
+        'nonce'         => wp_create_nonce('six_nonce'),
+        'stripe_key'    => get_option('six_stripe_publishable_key', ''),
+        'user_id'       => $user_id,
+        'email'         => $user_id ? wp_get_current_user()->user_email : '',
+        'resume_step'   => $resume_step,
+        // Email passed from the marketing "Client Login" for an unknown address —
+        // prefill it and jump straight into the flow.
+        'prefill_email' => ( ! $user_id && ! empty($_GET['email']) ) ? sanitize_email( wp_unslash($_GET['email']) ) : '',
     );
 
     $css_url = get_stylesheet_directory_uri() . '/portal/assets/portal.css';
