@@ -44,6 +44,13 @@ function six_service_pages() {
                 array( 'icon' => 'chart',   'title' => 'Fast Google PageSpeed', 'text' => 'Over half of all visitors will leave your website if it fails to load within 3 seconds. Our website designs are optimized for the fastest Google PageSpeed — and since May 4th, 2020, the top 3 factors for ranking #1 on Google are related to your website\'s PageSpeed.' ),
                 array( 'icon' => 'seo',     'title' => 'SEO Friendly Website Designs', 'text' => 'All of our website design packages include expert SEO consultation. We incorporate high-quality, industry-related keywords in titles, descriptions, meta tags and URLs to quickly rank your website on the 1st page of Google.' ),
                 array( 'icon' => 'shield',  'title' => 'Easy to Manage & Track', 'text' => 'Our website editor lets you drag and drop items around the page where you want, and adding new content and images couldn\'t be easier. Every site ships with Google Analytics, custom goals and conversion tracking so you can keep improving.' ),
+                array( 'icon' => 'ads',     'title' => 'Conversion Tracking on Your Website', 'text' => 'To find out how your potential customers are interacting with your website, all website designs from 6ix Developers come with Google Analytics integration. We set up custom goals and conversion tracking so you can learn and improve your website for the best user experience — ensuring constant, gradual growth for your business.' ),
+            ),
+            'highlight' => array(
+                'heading' => 'Receive FREE Google Ads Setup Valued at $1500',
+                'lines' => array(
+                    'Start a Website Design service with us and get your Google Ads campaign setup — a $1500 value — completely free, so your new website starts generating leads from day one.',
+                ),
             ),
             'steps_heading' => 'How It Works',
             'need' => array(
@@ -73,6 +80,10 @@ function six_service_pages() {
                 array( 'q' => 'What is the turnaround time?', 'a' => 'Given you provide us all the necessary information up front, we can have your website up in a matter of weeks.' ),
                 array( 'q' => 'Is there a contract?', 'a' => 'No. We do not require any of our clients to sign a contract. Our monthly plans operate on a month-to-month basis.' ),
                 array( 'q' => 'Can SEO be done to your sites?', 'a' => 'Yes! All of our sites come with the SEO functionality built-in.' ),
+                array( 'q' => 'What is not included?', 'a' => 'Content creation, graphic design, logo design, and other services such as SEO and Google Ads will run at additional costs. Please contact us for more information or to get an estimate.' ),
+                array( 'q' => 'If I have a large site, can I still get a small package?', 'a' => 'Yes, but we do not recommend this. Doing so may limit the functionality of the website, and can impact the amount of content we can use.' ),
+                array( 'q' => 'How many pages do I get?', 'a' => 'Please refer to the website packages above — Starter (1 to 5 pages), Standard (6 to 12 pages), or Advanced / E-Commerce (13+ pages).' ),
+                array( 'q' => 'What do you need from me to get started?', 'a' => 'We will need your existing content, or a link to your website if we are copying your content. We will also need your logo and images (we recommend images be between 100kB and 600kB). Finally, we will need your website outline, contact form information, and your domain/hosting login.' ),
                 array( 'q' => 'Do I own the website?', 'a' => 'Yes! We do not operate under contracts, so you will 100% own your website once it is up and running.' ),
                 array( 'q' => 'Can I use the domain I already have?', 'a' => 'Yes! And we encourage it. We will need your login information. We also recommend purchasing a hosting plan (our favourite is GoDaddy).' ),
                 array( 'q' => 'Are there any monthly maintenance plans?', 'a' => 'Yes. It is important for the security of your website to have someone regularly back it up and provide assistance in case of malware or virus attacks, hackers, or website crashes. Please contact us for more information.' ),
@@ -84,38 +95,106 @@ function six_service_pages() {
         'ppc-google-ads-management-toronto' => array(
             'menu'     => 'Google Ads/PPC',
             'eyebrow'  => 'Google Ads / PPC',
-            'title'    => 'Top Rated Google Ads Agency Toronto',
+            'title'    => '#1 Rated Google Ads Agency in Toronto',
             'subtitle' => 'We Count Leads, Not Clicks',
             'lead'     => 'Certified Google Ads experts managing over $15 Million in monthly ad spend for 2000+ businesses.',
+
+            // Sign-up offer tiers (jumpstart your first campaign)
+            'offer_tiers' => array(
+                'heading' => 'Choose a sign-up offer to jumpstart your first Google Ads campaign',
+                'intro'   => 'Select an offer that fits your monthly Google Ads budget. Terms and conditions apply.',
+                'cta'     => 'Check your eligibility for up to $1800 in credit',
+                'tiers'   => array(
+                    array( 'credit' => 'Up to $600',  'text' => 'Spend $600 with Google Ads in the first 60 days to unlock the credit.' ),
+                    array( 'credit' => 'Up to $1800', 'text' => 'Spend $1800 with Google Ads in the first 60 days to unlock the credit.', 'featured' => true ),
+                    array( 'credit' => 'Up to $3600', 'text' => 'Spend $3600 with Google Ads in the first 60 days to unlock the credit.' ),
+                ),
+            ),
+
+            'intro_heading' => 'Top Rated Google Ads Agency Toronto',
             'intro'    => array(
                 'Unlock the power of Google Ads with our expert management services tailored specifically for your industry. With a proven track record of maximizing ROI for over 2000 businesses across Canada and the USA, our dedicated team of Google Ads Certified experts oversees more than $15 Million in monthly Google Ads spending.',
-                'As one of the fastest-growing Google Ads marketing agencies in Canada, headquartered in the vibrant city of Toronto, 6ix Developers is your trusted partner for driving unparalleled success in the competitive digital landscape. Gain the competitive edge you deserve — partner with us for unparalleled Google Ads/PPC management in Toronto!',
+                'Our extensive experience spans various industries, equipping us with the insights and strategies to elevate your online presence effectively. As one of the fastest-growing Google Ads marketing agencies in Canada, headquartered in the vibrant city of Toronto, 6ix Developers is your trusted partner for driving unparalleled success in the competitive digital landscape.',
+                'Gain the competitive edge you deserve — partner with us for unparalleled Google Ads/PPC management in Toronto!',
             ),
             'show_success'    => true,
             'success_heading' => 'Google Ads Client Success',
+
+            // Audit intro blocks (two alternating panels)
+            'audit_heading' => 'Stop Guessing, Understand Your Campaigns Better.',
+            'audit_blocks'  => array(
+                array(
+                    'title' => 'Comprehensive Google Ads Audit',
+                    'paras' => array(
+                        'Ensure the success of your PPC/Google Ads campaigns with a comprehensive audit tailored to your business. Periodic audits are crucial for optimizing performance, identifying areas for improvement, and maximizing your ROI. At 6ix Developers, we specialize in empowering businesses like yours to understand and optimize their campaigns for optimal results.',
+                        "Our Google Ads Certified specialists are ready to conduct a thorough audit of your account. By pinpointing areas of underperformance, we'll help you unlock hidden potential, generate more leads within your existing budget, and save money on your Google Ads.",
+                        "Don't leave the success of your campaigns to chance — schedule your Google Ads account audit today by booking a discovery call with one of our experts.",
+                    ),
+                    'cta' => 'Request Google Ads Account Audit',
+                ),
+                array(
+                    'title' => 'Maximize Your Google Ads Performance with an Account Audit!',
+                    'paras' => array(
+                        "Whether you're content with your current Google Ads performance or seeking ways to elevate it further, our discreet account audit offers invaluable insights into various performance metrics. From Law Firms to Med Spa Clinics, Construction companies to Restaurants, our Google Ads account audit is tailored to businesses across diverse industries, providing a comprehensive analysis of their campaigns' effectiveness.",
+                        'Discover hidden opportunities and uncover potential areas for improvement with our expert audit. Our Google Ads Certified specialists will meticulously evaluate your account, offering actionable recommendations to optimize performance and drive better results.',
+                        "Don't settle for mediocre campaign performance — schedule your Google Ads account audit today by booking a discovery call with one of our specialists.",
+                    ),
+                    'cta' => 'Request Google Ads Account Audit',
+                ),
+            ),
+
+            // The detailed 8-point audit checklist
+            'audit_checklist_heading' => "What's included in our comprehensive Google Ads Account Audit",
+            'audit_checklist' => array(
+                array( 'icon' => 'shield', 'title' => 'The Wasted Spend: Unlocking Your Google Ads Efficiency', 'paras' => array(
+                    'In our Google Ads audit, we delve into the crucial realm of negative keywords — a pivotal factor in minimizing AdWords costs. Failure to implement negative keywords could result in squandering thousands of dollars each month on irrelevant keywords that yield no leads.',
+                    'Our audit meticulously reviews your negative keyword usage, identifying areas where potential savings lie dormant. By optimizing your negative keyword strategy, we empower you to cut unnecessary spending and redirect your budget towards high-converting keywords that drive tangible results.',
+                ) ),
+                array( 'icon' => 'chart',  'title' => 'Unlock Your Ad Relevance with CTR Analysis', 'paras' => array(
+                    'CTR (Click-Through Rate) serves as a vital gauge of your ad targeting effectiveness. During our Google Ads audit, our specialists meticulously assess your campaigns, placing a strong emphasis on CTR analysis. This crucial metric offers insight into the relevance and uniqueness of your ad copy.',
+                    'A low CTR could signify lost opportunities and potential ground conceded to competitors. By scrutinizing your CTR, we uncover areas for improvement and refine your ad strategy to ensure maximum impact and engagement.',
+                ) ),
+                array( 'icon' => 'target', 'title' => 'Unlocking Profitability: Harness the Power of Long-Tail Keywords', 'paras' => array(
+                    'Long-tail keywords, the cornerstone of a lucrative PPC campaign, are often overlooked but hold immense potential. Failure to incorporate these highly targeted phrases means missed opportunities to capture relevant leads at a lower cost.',
+                    'In our assessment of your PPC strategy, we prioritize the integration of long-tail keywords. These specialized terms offer a direct path to highly qualified prospects, maximizing your ROI and minimizing wasted ad spend.',
+                ) ),
+                array( 'icon' => 'shield', 'title' => 'Our Certified Google Ads Specialist Ensures Adherence to Best Practices', 'paras' => array(
+                    'Our dedicated Google Ads specialist ensures that your campaigns adhere to the proven best practices followed by certified Google Ads experts. By implementing these industry-standard techniques, we guarantee optimal performance and maximize the effectiveness of your advertising investment.',
+                    'Trust in our expertise to elevate your campaigns to new heights of success and unlock the full potential of your Google Ads strategy.',
+                ) ),
+                array( 'icon' => 'spark',  'title' => 'Elevate Your ROI with Quality Score Optimization', 'paras' => array(
+                    "During our Google Ads audit, our specialist meticulously reviews your campaign's Quality Scores. These scores play a pivotal role in determining your ROI, as they directly impact your ad rankings and cost per click.",
+                    'By focusing on achieving high Quality Scores, we not only improve your ad rankings but also lower your cost per click, resulting in more relevant leads at a lower cost.',
+                ) ),
+                array( 'icon' => 'website','title' => 'Unlock Success with Dedicated Account Management', 'paras' => array(
+                    "Our PPC specialist meticulously assesses the time your Google Ads Account manager spends in your account. Through our analysis, we've uncovered a significant correlation between active account management and overall success rates.",
+                    'Clients who receive more dedicated attention tend to achieve higher levels of success. By prioritizing regular monitoring, optimization, and strategic adjustments, we ensure your campaigns are consistently optimized for maximum effectiveness and ROI.',
+                ) ),
+                array( 'icon' => 'ads',    'title' => 'Enhance Your Google Ads Performance with Text Ad Analysis', 'paras' => array(
+                    'Our Google Ads campaign audit includes a thorough review of your text ad usage, a crucial element for achieving strong performance metrics such as impressions, clicks, CTR (Click-Through Rate), ad relevance, and ranking.',
+                    'By meticulously analyzing your text ads, we identify areas for improvement and optimization. Our goal is to ensure that your ads are not only highly relevant to your target audience but also effectively drive engagement and conversions.',
+                ) ),
+                array( 'icon' => 'seo',    'title' => 'Elevate Your Business Front with Optimized Landing Pages', 'paras' => array(
+                    'Landing pages serve as the forefront of your business, dictating the success of your campaigns. Even with stellar Google Ads performance, a subpar landing page can hinder overall results. Our Google Ads Account audit prioritizes ensuring your landing pages are on par with competitors, optimizing them for maximum effectiveness.',
+                    "By conducting a thorough assessment, we identify opportunities to enhance your landing pages' performance. From design and functionality to content and user experience, we ensure your landing pages align with industry standards and surpass competitor benchmarks.",
+                ) ),
+            ),
+
+            'features_heading' => 'Strategic Google Ads Management',
+            'features' => array(
+                array( 'icon' => 'chart',  'title' => 'Maximize Your ROI with Strategic Google Ads Management', 'text' => "Running a search marketing campaign on Google can quickly become costly without a solid strategy in place. At 6ix Developers, we craft tailored strategies based on your business type, goals, competition, and other critical factors, ensuring every dollar spent is strategically allocated to keywords that drive tangible leads and maximum ROI." ),
+                array( 'icon' => 'spark',  'title' => 'Stay Ahead of Evolving Search Trends', 'text' => "The way people search for services is constantly evolving. Our Google Ads certified team keeps your strategy finely tuned to capture maximum leads — you'll pay only for the keywords directly relevant to your business, ensuring every click counts towards driving high-quality leads." ),
+                array( 'icon' => 'target', 'title' => 'Unlock Precision Targeting with GEO Strategy', 'text' => 'We implement a GEO marketing strategy for your campaigns, focusing on specific geographic locations so your ads are shown only to users within your target audience — reaching the right people, in the right place, at the right time, so every impression counts.' ),
+                array( 'icon' => 'website','title' => "Don't Underestimate the Impact of Website Speed", 'text' => 'A slow-loading landing page can result in higher costs per click than your competitors, even if they rank below you. Our in-house developers optimize the landing pages used for Google Ads to load quickly and minimize bounce rates, maximizing your ad performance and ROI.' ),
+            ),
+
             'results_heading' => 'Get the Results That Matter to You',
             'results' => array(
                 array( 'icon' => 'target', 'title' => 'Get More Qualified Leads', 'text' => 'Generate high intent, qualified leads by ranking #1 on Google at the right time.' ),
                 array( 'icon' => 'ads',    'title' => 'More Phone Calls',        'text' => 'Increase qualified call volume using Google Ads high-intent targeting.' ),
                 array( 'icon' => 'chart',  'title' => 'Transparency',            'text' => "Understand what's working with quantifiable Google Ads reports." ),
             ),
-            'features_heading' => 'Strategic Google Ads Management',
-            'features' => array(
-                array( 'icon' => 'chart',  'title' => 'Maximize Your ROI with Strategy', 'text' => 'We specialize in crafting tailored strategies based on your business type, goals, competition, and other critical factors. Our meticulous approach ensures every dollar spent on Google Ads is strategically allocated to keywords that drive tangible leads and maximum ROI.' ),
-                array( 'icon' => 'spark',  'title' => 'Ahead of Evolving Search Trends', 'text' => "Our Google Ads certified team keeps your strategy finely tuned to capture maximum leads. You'll pay only for the keywords directly relevant to your business, ensuring every click counts towards driving high-quality leads." ),
-                array( 'icon' => 'target', 'title' => 'GEO Targeting Strategy', 'text' => 'We implement a GEO marketing strategy for your campaigns, focusing on specific geographic locations so your ads are shown only to users within your target audience — maximizing relevance and driving desired actions.' ),
-                array( 'icon' => 'website','title' => 'Landing Page Speed Optimization', 'text' => 'A slow-loading page can result in higher costs per click. Our in-house developers optimize the landing pages used for Google Ads to load quickly and minimize bounce rates, maximizing your ad performance and ROI.' ),
-                array( 'icon' => 'seo',    'title' => 'Comprehensive Account Audit', 'text' => "Our Google Ads Certified specialists conduct a thorough audit of your account — negative keywords, CTR, long-tail keywords, Quality Scores, text ads and landing pages — to unlock hidden potential and generate more leads within your existing budget." ),
-                array( 'icon' => 'shield', 'title' => 'Dedicated Account Management', 'text' => "Clients who receive more dedicated attention tend to achieve higher levels of success. By prioritizing regular monitoring, optimization, and strategic adjustments, we ensure your campaigns are consistently optimized for maximum effectiveness and ROI." ),
-            ),
-            'highlight' => array(
-                'heading' => 'Get up to $1800 Ad Credit',
-                'lines' => array(
-                    'One Time Setup Fee: Get 33% Off, discounted at $999 (Reg. fee: $1500).',
-                    'Management Fee: $0 for the first 2 months — we build trust by showing results first. After that, our fee is $499/month or 15% of monthly Google Ads budget, whichever is greater. ($0 for 2 months applies on new accounts only.)',
-                    'Performance-based, month-to-month management. No contract. You pay Google directly for the ad spend — full transparency.',
-                ),
-            ),
+
             'steps_heading' => 'How It Works',
             'need' => array(
                 'heading' => 'What Do We Need From You?',
@@ -136,12 +215,38 @@ function six_service_pages() {
                     array( 'strong' => 'Track & report',  'text' => 'We set up conversion tracking, integrate advanced click-fraud protection, and create your reporting dashboard for quantifiable results.' ),
                 ),
             ),
+
+            // Pricing ("Grow Your Business With Google Ads")
+            'pricing' => array(
+                'heading' => 'Grow Your Business With Google Ads',
+                'intro'   => array(
+                    'No matter the size of your business, a strong Google Ads campaign is essential to capture qualified leads.',
+                    'Google Ads is ideal for businesses that are looking to capture high-intent, qualified leads.',
+                ),
+                'fees' => array(
+                    array( 'label' => 'One-Time Setup Fee', 'value' => '$999', 'note' => 'Onboarding fee $1500 — new Google Ads accounts pay only $999.' ),
+                    array( 'label' => 'Our Management Fee',  'value' => '$0 for 2 months', 'note' => 'New Google Ads accounts pay $0 for the first 2 months — we build trust by showing results before taking your money. After that, $799/month or 15% of monthly Google Ads budget, whichever is greater. ($0 for 2 months applies to new accounts only.)' ),
+                ),
+                'included_heading' => "What's Included",
+                'included' => array(
+                    'No contract — performance-based, month-to-month management.',
+                    'Get up to $1800 in Google Ads credit when you start with us.',
+                    'Flat-rate monthly fee — you pay the agreed-upon fee, no surprises.',
+                    'Full transparency — we work on your account and you pay Google directly for the ad spend.',
+                ),
+                'cta' => 'Talk to a PPC Expert',
+            ),
+
+            'faq_heading' => 'Google Ads FAQ',
             'faq' => array(
-                array( 'q' => 'Why is Google Ads right for my business?', 'a' => 'PPC advertising strongly positions your company to show in front of the right audience, in the right place, at the right time. It is the perfect tool whether you want to increase sales, increase traffic to your website, or simply establish your presence online.' ),
-                array( 'q' => 'How does Google Ads work?', 'a' => 'You set your budget, Google holds an "auction" considering everything from your budget to how relevant your website is, and the winner\'s ad is shown at the top of the search results page.' ),
+                array( 'q' => 'Why is Google Ads right for my business?', 'a' => 'In this digital era, establishing a great online advertising platform is almost essential for the success of any business. PPC advertising strongly positions your company to show in front of the right audience, in the right place, at the right time. It is the perfect tool whether you want to increase sales, increase traffic to your website, or simply establish your presence online. We are also experienced in designing landing pages that run cohesively with Google Ads — highly focused, mobile friendly and fast-loading.' ),
+                array( 'q' => 'What are other ways to promote my business?', 'a' => 'We offer website audits and consultations. Having a professionally designed and optimized website that is fast and easy-to-use is extremely important to rank high in Google Search and drive organic traffic. We also offer search engine optimization and social media management services — while an optimized website drives organic traffic, social media allows your business to build an extensive online presence and trust with your customers.' ),
+                array( 'q' => 'How does Google Ads work?', 'a' => '1. You set your budget. 2. Google holds an "auction", considering everything from your budget to how relevant your website is. 3. The "winner\'s" ad is shown at the top of the search results page.' ),
                 array( 'q' => 'What is a landing page?', 'a' => 'The landing page could be any existing page on your website, or completely separate from your main website. It is the page that customers land on when they click on the link in your ad.' ),
-                array( 'q' => 'Do I need a landing page or website for my campaign?', 'a' => 'No, but it is recommended. A landing page designed specifically for your campaign provides a more consistent experience and relevant content, which can improve your ad\'s overall Quality Score and ad ranking.' ),
-                array( 'q' => 'Why do I need a specialist to manage my campaign?', 'a' => 'An effective Google Ads campaign is an ongoing process — not a one-time thing. You need someone to monitor your progress and conduct regular research on your competitors and keywords. Our specialists are trained and certified on the Google Ads platform.' ),
+                array( 'q' => 'Why do I want my ad at the top of a search results page?', 'a' => 'Potential customers do not tend to scroll past the first page on a Google search, so an ad that does not show on this page is not going to benefit your business. As customers tend to click on the first result that resonates with them, the higher your ad shows, the more people see it — giving you a higher chance at making conversions.' ),
+                array( 'q' => 'How do you use Google Ads effectively?', 'a' => 'By researching keywords and competitors for your industry, we create Google Ads that have a high chance of conversion once someone clicks on them. By targeting specific groups of people, we direct more highly-qualified leads to your website.' ),
+                array( 'q' => 'Do I need a landing page or website for my campaign?', 'a' => 'No, but it is recommended. A landing page designed specifically for your campaign provides a more consistent experience and relevant content, which can improve your ad\'s overall Quality Score. The Quality Score helps to determine your ad ranking, which severely affects where your ad shows up on the page of any qualified search.' ),
+                array( 'q' => 'Why do I need a Google Ads specialist to manage my campaign?', 'a' => 'An effective Google Ads campaign is an ongoing process — not a one-time thing. You need someone to monitor your progress and conduct regular research on your competitors and keywords, so they can update your ads to keep you ahead of the competition. Our specialists are trained and certified on the Google Ads platform.' ),
             ),
         ),
 

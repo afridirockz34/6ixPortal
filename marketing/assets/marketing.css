@@ -377,6 +377,27 @@
 .six-mk .mk-logo-item img:hover { opacity: 1; filter: grayscale(0); }
 @media (max-width: 640px) { .six-mk .mk-logos { gap: 22px 30px; } .six-mk .mk-logo-item { height: 46px; } .six-mk .mk-logo-item img { max-height: 46px; max-width: 116px; } }
 
+/* ── Google Ads: sign-up offer tiers ─────────────────────── */
+.six-mk .mk-offer-card { text-align: center; align-items: center; position: relative; }
+.six-mk .mk-offer-featured { border-color: var(--mk-pink); box-shadow: 0 0 0 1px var(--mk-pink) inset; }
+.six-mk .mk-offer-tag { position: absolute; top: -11px; left: 50%; transform: translateX(-50%); background: var(--mk-grad); color: #fff; font-size: 11px; font-weight: 700; letter-spacing: .4px; padding: 3px 12px; border-radius: 100px; white-space: nowrap; }
+.six-mk .mk-offer-credit { font-family: 'Syne', sans-serif; font-weight: 800; font-size: clamp(1.9rem, 3.4vw, 2.6rem); line-height: 1.1; display: block; }
+.six-mk .mk-offer-label { display: block; font-size: .85rem; color: var(--mk-t2); margin: 2px 0 10px; text-transform: uppercase; letter-spacing: .6px; }
+
+/* ── Google Ads: audit checklist items ───────────────────── */
+.six-mk .mk-audit-item p { color: var(--mk-t2); font-size: .95rem; line-height: 1.6; }
+.six-mk .mk-audit-item p + p { margin-top: 10px; }
+
+/* ── Google Ads: pricing panel ───────────────────────────── */
+.six-mk .mk-pricing-panel { padding: 32px; display: flex; flex-direction: column; gap: 22px; max-width: 900px; margin: 0 auto; }
+.six-mk .mk-pricing-fees { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.six-mk .mk-pricing-fee { background: var(--mk-grad-soft); border-radius: 14px; padding: 20px; }
+.six-mk .mk-pricing-fee-label { font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--mk-t2); }
+.six-mk .mk-pricing-fee-val { font-family: 'Syne', sans-serif; font-weight: 800; font-size: clamp(1.5rem, 2.8vw, 2rem); line-height: 1.15; margin: 4px 0 6px; }
+.six-mk .mk-pricing-fee-note { font-size: .84rem; color: var(--mk-t2); line-height: 1.5; margin: 0; }
+.six-mk .mk-pricing-included h4 { font-size: 1rem; margin: 0 0 12px; }
+@media (max-width: 640px) { .six-mk .mk-pricing-fees { grid-template-columns: 1fr; } .six-mk .mk-pricing-panel { padding: 22px; } }
+
 /* ── Blog cards ─────────────────────────────────────────── */
 .six-mk .mk-post { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
 .six-mk .mk-post-thumb { aspect-ratio: 16/9; background: var(--mk-grad-soft); }
