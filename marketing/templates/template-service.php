@@ -107,7 +107,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
   <!-- ELIGIBILITY FORM (Google Ads $1800 credit) -->
   <?php if ( ! empty( $d['form_eligibility'] ) ) : ?>
   <section class="mk-section mk-section-sm mk-glow" id="eligibility">
-    <div class="mk-wrap" style="max-width:820px"><?php mk_form( 'eligibility' ); ?></div>
+    <div class="mk-wrap"><?php mk_form( 'eligibility' ); ?></div>
   </section>
   <?php endif; ?>
 
@@ -292,7 +292,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
   <!-- AUDIT REQUEST FORM -->
   <?php if ( ! empty( $d['form_audit'] ) ) : ?>
   <section class="mk-section mk-section-sm" id="audit">
-    <div class="mk-wrap" style="max-width:900px"><?php mk_form( 'audit' ); ?></div>
+    <div class="mk-wrap"><?php mk_form( 'audit' ); ?></div>
   </section>
   <?php endif; ?>
 
@@ -344,7 +344,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
   </section>
   <?php endif; ?>
 
-  <!-- PRICING (Grow Your Business) -->
+  <!-- PRICING (Grow Your Business) — original two-column layout, restyled -->
   <?php if ( ! empty( $d['pricing'] ) ) : ?>
   <section class="mk-section mk-section-sm" id="pricing">
     <div class="mk-wrap">
@@ -352,41 +352,61 @@ header( 'Content-Type: text/html; charset=utf-8' );
         <h2><?php echo esc_html( $d['pricing']['heading'] ?? 'Grow Your Business' ); ?></h2>
         <?php foreach ( (array) ( $d['pricing']['intro'] ?? array() ) as $p ) : ?><p class="mk-lead"><?php echo esc_html( $p ); ?></p><?php endforeach; ?>
       </div>
-      <div class="mk-pricing-panel mk-card mk-card-accent">
-        <div class="mk-pricing-fees">
-          <?php foreach ( (array) $d['pricing']['fees'] as $fee ) : ?>
-          <div class="mk-pricing-fee">
-            <div class="mk-pricing-fee-label"><?php echo esc_html( $fee['label'] ); ?></div>
-            <div class="mk-pricing-fee-val mk-grad-text"><?php echo esc_html( $fee['value'] ); ?></div>
-            <?php if ( ! empty( $fee['note'] ) ) : ?><p class="mk-pricing-fee-note"><?php echo esc_html( $fee['note'] ); ?></p><?php endif; ?>
+      <div class="mk-grow-grid">
+        <!-- Left: calculator + fees -->
+        <div class="mk-grow-left">
+          <?php if ( ! empty( $d['pricing']['calculator'] ) ) : ?>
+          <h3 class="mk-grow-calc-title"><?php echo esc_html( $d['pricing']['calc_heading'] ?? 'Find out your monthly management cost' ); ?></h3>
+          <div class="mk-calc-row">
+            <input type="text" id="mk-calc-field" inputmode="numeric" placeholder="Enter your monthly Google Ads budget">
           </div>
-          <?php endforeach; ?>
-        </div>
-        <?php if ( ! empty( $d['pricing']['included'] ) ) : ?>
-        <div class="mk-pricing-included">
-          <h4><?php echo esc_html( $d['pricing']['included_heading'] ?? "What's Included" ); ?></h4>
-          <ul class="mk-portal-features">
-            <?php foreach ( (array) $d['pricing']['included'] as $it ) : ?>
-            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span><?php echo esc_html( $it ); ?></span></li>
+          <div class="mk-calc-out" id="mk-calc-out"></div>
+          <div class="mk-grow-cta-row">
+            <button type="button" class="mk-btn mk-btn-primary" onclick="mkCalcManagement()">Calculate Now</button>
+            <a class="mk-btn mk-btn-ghost" href="<?php echo esc_url( home_url( '/contact-us' ) ); ?>"><?php echo esc_html( $d['pricing']['cta'] ?? 'Talk to a PPC Expert' ); ?></a>
+          </div>
+          <?php endif; ?>
+          <div class="mk-grow-fees">
+            <?php foreach ( (array) $d['pricing']['fees'] as $fee ) : ?>
+            <div class="mk-grow-fee">
+              <h4><?php echo esc_html( $fee['label'] ); ?></h4>
+              <p><?php echo esc_html( $fee['note'] ?? $fee['value'] ?? '' ); ?></p>
+            </div>
             <?php endforeach; ?>
-          </ul>
+          </div>
+        </div>
+        <!-- Right: What's Included table card -->
+        <?php if ( ! empty( $d['pricing']['included'] ) ) : ?>
+        <div class="mk-included-card">
+          <div class="mk-included-head"><?php echo esc_html( $d['pricing']['included_heading'] ?? "What's Included" ); ?></div>
+          <div class="mk-included-body">
+            <?php foreach ( (array) $d['pricing']['included'] as $row ) :
+              $label = is_array( $row ) ? ( $row[0] ?? '' ) : $row;
+              $val   = is_array( $row ) ? ( $row[1] ?? 'Yes' ) : 'Yes'; ?>
+            <div class="mk-included-row"><span><?php echo esc_html( $label ); ?></span><strong><?php echo esc_html( $val ); ?></strong></div>
+            <?php endforeach; ?>
+          </div>
         </div>
         <?php endif; ?>
-        <div class="mk-center" style="margin-top:6px">
-          <a class="mk-btn mk-btn-primary mk-btn-lg" href="<?php echo esc_url( home_url( '/contact-us' ) ); ?>"><?php echo esc_html( $d['pricing']['cta'] ?? 'Talk to a PPC Expert' ); ?> <?php echo $arrow; ?></a>
-        </div>
       </div>
-      <?php if ( ! empty( $d['pricing']['calculator'] ) ) : ?>
-      <div style="max-width:560px;margin:22px auto 0"><?php mk_form( 'calc' ); ?></div>
-      <?php endif; ?>
     </div>
   </section>
+  <script>
+  function mkCalcManagement(){
+    var v=parseFloat((document.getElementById('mk-calc-field').value||'').replace(/[^0-9.]/g,''))||0;
+    var out=document.getElementById('mk-calc-out'); if(!out) return;
+    var fee=Math.max(799, v*0.15);
+    out.innerHTML = v>0
+      ? 'Estimated management fee: <strong>$'+fee.toLocaleString(undefined,{maximumFractionDigits:0})+'/month</strong>'
+      : 'Enter your monthly budget to see your estimated fee.';
+  }
+  </script>
   <?php endif; ?>
 
   <!-- QUOTE / CONSULTATION FORM -->
   <?php if ( ! empty( $d['form_quote'] ) ) : ?>
   <section class="mk-section mk-section-sm mk-glow" id="quote">
-    <div class="mk-wrap" style="max-width:820px"><?php mk_form( 'quote', (array) $d['form_quote'] ); ?></div>
+    <div class="mk-wrap"><?php mk_form( 'quote', (array) $d['form_quote'] ); ?></div>
   </section>
   <?php endif; ?>
 
