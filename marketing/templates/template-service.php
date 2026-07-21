@@ -61,10 +61,19 @@ header( 'Content-Type: text/html; charset=utf-8' );
         <h1><?php echo esc_html( $d['title'] ); ?>
           <?php if ( ! empty( $d['subtitle'] ) ) : ?><span class="mk-grad-text" style="display:block;font-size:.6em;margin-top:10px"><?php echo esc_html( $d['subtitle'] ); ?></span><?php endif; ?>
         </h1>
-        <?php if ( ! empty( $d['lead'] ) ) : ?><p class="mk-lead"><?php echo esc_html( $d['lead'] ); ?></p><?php endif; ?>
+        <?php if ( ! empty( $d['lead'] ) ) : ?>
+        <p class="mk-lead"><?php echo esc_html( $d['lead'] ); ?>
+          <?php if ( ! empty( $d['typing_words'] ) ) : ?><br><span class="mk-typing" id="mk-typing" data-words="<?php echo esc_attr( is_array( $d['typing_words'] ) ? implode( ',', $d['typing_words'] ) : $d['typing_words'] ); ?>"></span><?php endif; ?></p>
+        <?php endif; ?>
         <div class="mk-hero-cta">
-          <a class="mk-btn mk-btn-primary mk-btn-lg" href="<?php echo esc_url( home_url( '/contact-us' ) ); ?>">Get your free consultation</a>
-          <a class="mk-btn mk-btn-ghost mk-btn-lg" href="<?php echo esc_url( mk_portal_url() ); ?>">See your marketing score</a>
+          <?php
+          $hc1 = $d['hero_cta1'] ?? array( 'label' => 'Get your free consultation', 'url' => '/contact-us' );
+          $hc2 = $d['hero_cta2'] ?? array( 'label' => 'See your marketing score', 'url' => '' );
+          $hc1_url = ! empty( $hc1['url'] ) ? ( strpos( $hc1['url'], '#' ) === 0 ? $hc1['url'] : home_url( $hc1['url'] ) ) : mk_portal_url();
+          $hc2_url = ! empty( $hc2['url'] ) ? ( strpos( $hc2['url'], '#' ) === 0 ? $hc2['url'] : home_url( $hc2['url'] ) ) : mk_portal_url();
+          ?>
+          <a class="mk-btn mk-btn-primary mk-btn-lg" href="<?php echo esc_url( $hc1_url ); ?>"><?php echo esc_html( $hc1['label'] ); ?></a>
+          <a class="mk-btn mk-btn-ghost mk-btn-lg" href="<?php echo esc_url( $hc2_url ); ?>"><?php echo esc_html( $hc2['label'] ); ?></a>
         </div>
       </div>
     </div>
@@ -247,8 +256,8 @@ header( 'Content-Type: text/html; charset=utf-8' );
             <?php foreach ( (array) $ab['paras'] as $p ) : ?><p><?php echo esc_html( $p ); ?></p><?php endforeach; ?>
             <a class="mk-btn mk-btn-primary" href="<?php echo esc_url( home_url( '/contact-us' ) ); ?>" style="align-self:flex-start;margin-top:6px"><?php echo esc_html( $ab['cta'] ?? 'Request Google Ads Account Audit' ); ?></a>
           </div>
-          <div class="mk-dd-media" style="<?php echo $i % 2 ? 'order:1' : ''; ?>">
-            <?php if ( ! empty( $ab['image'] ) ) : ?><img src="<?php echo esc_url( $ab['image'] ); ?>" alt=""><?php endif; ?>
+          <div class="mk-dd-media mk-dd-media-contain" style="<?php echo $i % 2 ? 'order:1' : ''; ?>">
+            <?php if ( ! empty( $ab['image'] ) ) : ?><img src="<?php echo esc_url( $ab['image'] ); ?>" alt="" loading="lazy"><?php endif; ?>
           </div>
         </div>
         <?php endforeach; ?>
@@ -337,7 +346,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
 
   <!-- PRICING (Grow Your Business) -->
   <?php if ( ! empty( $d['pricing'] ) ) : ?>
-  <section class="mk-section mk-section-sm">
+  <section class="mk-section mk-section-sm" id="pricing">
     <div class="mk-wrap">
       <div class="mk-sec-head mk-center mk-full">
         <h2><?php echo esc_html( $d['pricing']['heading'] ?? 'Grow Your Business' ); ?></h2>
@@ -472,6 +481,22 @@ header( 'Content-Type: text/html; charset=utf-8' );
     setH(); window.addEventListener('resize',setH); window.addEventListener('load',setH);
     reset();
   });
+})();
+
+// Hero typing effect (same behaviour as the homepage)
+(function(){
+  var el=document.getElementById('mk-typing'); if(!el) return;
+  var words=(el.getAttribute('data-words')||'').split(',').map(function(w){return w.trim();}).filter(Boolean);
+  if(!words.length) return;
+  var wi=0,ci=0,del=false;
+  (function tick(){
+    var w=words[wi];
+    el.textContent=w.slice(0,ci);
+    if(!del && ci<w.length){ci++;setTimeout(tick,70);}
+    else if(!del){del=true;setTimeout(tick,1400);}
+    else if(ci>0){ci--;setTimeout(tick,32);}
+    else{del=false;wi=(wi+1)%words.length;setTimeout(tick,300);}
+  })();
 })();
 </script>
 <?php wp_footer(); ?>

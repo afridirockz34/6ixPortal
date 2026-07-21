@@ -48,7 +48,7 @@ function mk_form_captcha() {
 /** Shared open/close wrappers so every form looks consistent. */
 function mk_form_open( $id, $heading, $sub = '', $submit = 'Submit' ) {
 	ob_start(); ?>
-	<div class="mk-formwrap mk-card mk-card-accent" id="<?php echo esc_attr( $id ); ?>-wrap">
+	<div class="mk-formwrap" id="<?php echo esc_attr( $id ); ?>-wrap">
 		<?php if ( $heading ) : ?><h3 class="mk-form-title"><?php echo esc_html( $heading ); ?></h3><?php endif; ?>
 		<?php if ( $sub ) : ?><p class="mk-form-sub"><?php echo esc_html( $sub ); ?></p><?php endif; ?>
 		<form class="mk-form" id="<?php echo esc_attr( $id ); ?>" method="post" action="#" novalidate>
@@ -56,8 +56,10 @@ function mk_form_open( $id, $heading, $sub = '', $submit = 'Submit' ) {
 }
 function mk_form_close( $submit = 'Submit' ) {
 	ob_start(); ?>
-			<?php echo mk_form_captcha(); ?>
-			<button type="submit" class="mk-btn mk-btn-primary mk-btn-lg mk-form-submit"><?php echo esc_html( $submit ); ?></button>
+			<div class="mk-form-foot">
+				<?php echo mk_form_captcha(); ?>
+				<button type="submit" class="mk-btn mk-btn-primary mk-btn-lg mk-form-submit"><?php echo esc_html( $submit ); ?></button>
+			</div>
 			<p class="mk-form-note">By submitting, you agree to be contacted by 6ix Developers about your enquiry.</p>
 		</form>
 	</div>

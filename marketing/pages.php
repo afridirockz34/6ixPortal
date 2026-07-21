@@ -104,7 +104,10 @@ function six_service_pages() {
             'eyebrow'  => 'Google Ads / PPC',
             'title'    => '#1 Rated Google Ads Agency in Toronto',
             'subtitle' => 'We Count Leads, Not Clicks',
-            'lead'     => 'Certified Google Ads experts managing over $15 Million in monthly ad spend for 2000+ businesses.',
+            'lead'     => 'Elevate your marketing through industry-leading:',
+            'typing_words' => 'PPC Management, Search Engine Marketing, Paid Social Media Advertising, Website Page Speed Optimization, Email Marketing',
+            'hero_cta1' => array( 'label' => 'Start Advertising Today', 'url' => '#eligibility' ),
+            'hero_cta2' => array( 'label' => 'See Pricing',            'url' => '#pricing' ),
 
             // Sign-up offer tiers (jumpstart your first campaign)
             'offer_tiers' => array(
@@ -140,6 +143,7 @@ function six_service_pages() {
                         "Don't leave the success of your campaigns to chance — schedule your Google Ads account audit today by booking a discovery call with one of our experts.",
                     ),
                     'cta' => 'Request Google Ads Account Audit',
+                    'image' => SIX_MK_URL . 'assets/media/campaign-1.png',
                 ),
                 array(
                     'title' => 'Maximize Your Google Ads Performance with an Account Audit!',
@@ -149,6 +153,7 @@ function six_service_pages() {
                         "Don't settle for mediocre campaign performance — schedule your Google Ads account audit today by booking a discovery call with one of our specialists.",
                     ),
                     'cta' => 'Request Google Ads Account Audit',
+                    'image' => SIX_MK_URL . 'assets/media/campaign-2.png',
                 ),
             ),
 
