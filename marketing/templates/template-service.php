@@ -200,7 +200,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
     <div class="mk-wrap">
       <div class="mk-narrative<?php echo ! empty( $sec['image'] ) ? ' mk-narrative-split' : ' mk-narrative-center'; ?>">
         <div class="mk-narrative-text">
-          <span class="mk-eyebrow"><?php echo esc_html( $sec['eyebrow'] ?? 'Website Design' ); ?></span>
+          <?php $sec_eyebrow = $sec['eyebrow'] ?? ( $d['eyebrow'] ?? '' ); if ( $sec_eyebrow ) : ?><span class="mk-eyebrow"><?php echo esc_html( $sec_eyebrow ); ?></span><?php endif; ?>
           <h2><?php echo esc_html( $sec['title'] ); ?></h2>
           <?php foreach ( (array) $sec['paras'] as $p ) : ?><p><?php echo esc_html( $p ); ?></p><?php endforeach; ?>
         </div>

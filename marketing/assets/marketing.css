@@ -542,6 +542,28 @@
 .six-mk .mk-role strong { display: block; font-family: var(--mk-head); color: var(--mk-t1); font-size: .95rem; }
 .six-mk .mk-role span { font-size: .8rem; color: var(--mk-t3); }
 
+/* ── Team cards (real roster, redesigned) ────────────────── */
+.six-mk .mk-team-card { background: var(--mk-surface); border: 1px solid var(--mk-border); border-radius: 16px;
+	padding: 22px 16px; text-align: center; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+.six-mk .mk-team-card:hover { transform: translateY(-4px); border-color: rgba(232,84,122,.35); box-shadow: 0 16px 34px rgba(232,84,122,.14); }
+.six-mk .mk-team-avatar { width: 66px; height: 66px; border-radius: 50%; margin: 0 auto 12px; display: flex;
+	align-items: center; justify-content: center; font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.25rem;
+	color: #fff; overflow: hidden; }
+.six-mk .mk-team-avatar img { width: 100%; height: 100%; object-fit: cover; }
+/* Tonal variations of the brand colour #e85479 */
+.six-mk .mk-team-avatar--a { background: linear-gradient(135deg, #e85479, #f0658a); }
+.six-mk .mk-team-avatar--b { background: linear-gradient(135deg, #e85479, #a855f7); }
+.six-mk .mk-team-avatar--c { background: linear-gradient(135deg, #f0658a, #ff9a6b); }
+.six-mk .mk-team-avatar--d { background: linear-gradient(135deg, #d6437a, #7b5cc0); }
+.six-mk .mk-team-name { font-family: var(--mk-head); font-weight: 700; color: var(--mk-t1); font-size: 1rem; }
+.six-mk .mk-team-role { font-size: .8rem; color: var(--mk-t2); margin-top: 3px; line-height: 1.35; }
+
+/* ── Principle cards (About) ─────────────────────────────── */
+.six-mk .mk-principle-card { position: relative; padding-top: 30px; }
+.six-mk .mk-principle-num { position: absolute; top: -16px; left: 26px; width: 40px; height: 40px; border-radius: 12px;
+	background: var(--mk-grad); color: #fff; display: flex; align-items: center; justify-content: center;
+	font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.15rem; box-shadow: 0 8px 20px rgba(232,84,122,.3); }
+
 /* ── Contact info cards ─────────────────────────────────── */
 .six-mk .mk-contact-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 18px; }
 .six-mk .mk-contact-card { display: flex; gap: 16px; align-items: flex-start; }
