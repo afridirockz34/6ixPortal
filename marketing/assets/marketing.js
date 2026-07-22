@@ -57,3 +57,56 @@
     run();
   }
 })();
+
+/**
+ * Balanced masonry for the gradient feature-card sections.
+ * Distributes each card into the currently-shortest column so the two columns
+ * end at roughly the same height — no big empty gap on one side. Cards keep
+ * their natural height (they are NOT forced equal). Falls back to the CSS
+ * column layout if JS is unavailable.
+ */
+(function () {
+  'use strict';
+  function balance() {
+    var grids = document.querySelectorAll('.mk-feature-grid');
+    Array.prototype.forEach.call(grids, function (grid) {
+      if (!grid.__cards) {
+        grid.__cards = Array.prototype.filter.call(grid.children, function (c) {
+          return c.classList && c.classList.contains('mk-feature-card');
+        });
+      }
+      var cards = grid.__cards;
+      if (!cards.length) return;
+
+      var twoCol = window.innerWidth > 760;
+      // Detach cards, then re-lay them out.
+      cards.forEach(function (c) { if (c.parentNode) c.parentNode.removeChild(c); });
+      grid.innerHTML = '';
+
+      if (!twoCol) {
+        grid.classList.remove('mk-fg-js');
+        cards.forEach(function (c) { grid.appendChild(c); });
+        return;
+      }
+
+      grid.classList.add('mk-fg-js');
+      var c1 = document.createElement('div'), c2 = document.createElement('div');
+      c1.className = 'mk-feature-col'; c2.className = 'mk-feature-col';
+      grid.appendChild(c1); grid.appendChild(c2);
+
+      var h1 = 0, h2 = 0;
+      cards.forEach(function (card) {
+        var target = (h1 <= h2) ? c1 : c2;
+        target.appendChild(card);
+        var hh = card.getBoundingClientRect().height;
+        if (target === c1) h1 += hh; else h2 += hh;
+      });
+    });
+  }
+
+  var t;
+  function onResize() { clearTimeout(t); t = setTimeout(balance, 150); }
+
+  function init() { balance(); window.addEventListener('resize', onResize); window.addEventListener('load', balance); }
+  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
+})();
