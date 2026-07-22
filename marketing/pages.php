@@ -58,27 +58,27 @@ function six_service_pages() {
             ),
             // Verbatim feature sections (were condensed cards before)
             'sections' => array(
-                array( 'title' => 'Website Designs Optimized for Lead Generation', 'paras' => array(
+                array( 'icon' => 'target', 'title' => 'Website Designs Optimized for Lead Generation', 'paras' => array(
                     "In today's business landscape, making a significant impact is essential for success, regardless of your business's size.",
                     'Website designs that are slow to load, poorly designed, or difficult to navigate simply won\'t work anymore. Additionally, if they are not mobile responsive, they will not be effective. These website designs are extremely difficult to rank on the first page of Google, even with extraordinary SEO efforts.',
                     'Website designs that are optimized for lead generation and lead capturing are essential to run a successful and modern business. Let our team at 6ix Developers design a website optimized for lead generation. We\'ll tailor it to your industry, considering how your potential clients interact with websites. Our goal is to make your website the final destination for their search.',
                 ) ),
-                array( 'title' => 'Flexible Website Designs', 'paras' => array(
+                array( 'icon' => 'layers', 'title' => 'Flexible Website Designs', 'paras' => array(
                     'Our website designs are fully customizable to ensure your vision is realized without limitations. We bring your dream website design to life. All website designs are developed under the supervision of our marketing team. This ensures the highest level of returns and longer user interaction.',
                 ) ),
-                array( 'title' => 'Beautiful across all Devices', 'paras' => array(
+                array( 'icon' => 'globe', 'title' => 'Beautiful across all Devices', 'paras' => array(
                     'We exclusively offer responsive website designs. Our website design team adheres to industry standards to ensure the best user experience across all devices, including mobile phones, tablets, computers, and projectors.',
                 ) ),
-                array( 'title' => 'Web Designs with Fast Google PageSpeed', 'paras' => array(
+                array( 'icon' => 'gauge', 'title' => 'Web Designs with Fast Google PageSpeed', 'paras' => array(
                     "Over half of all visitors will leave your website if it fails to load within 3 seconds. Do you know how long your website takes to load? Check its speed here. If your website's bounce rate is over 40% and it takes over 5 seconds to load, don't hesitate to call us. Every second counts. Every single second, people are bouncing off of your website because it's taking too long to load. Website designs at 6ix Developers are optimized for the fastest Google PageSpeed. Since May 4th, 2020, the top 3 factors for ranking #1 on Google are related to your website's PageSpeed. Don't waste time & contact us now. Each day you're losing 100s of potential clients who can take your business to the next level.",
                 ) ),
-                array( 'title' => 'SEO Friendly Website Designs (Search Engine Optimization)', 'paras' => array(
+                array( 'icon' => 'search', 'title' => 'SEO Friendly Website Designs (Search Engine Optimization)', 'paras' => array(
                     'Our website designs ensure customers find your website once launched. All of our website design packages include expert SEO consultation. We ensure your website is launched with the best SEO practices. This includes incorporating high-quality, industry-related keywords in titles, descriptions, meta tags, URLs, etc., to quickly rank your website on the 1st page of Google.',
                 ) ),
-                array( 'title' => 'Easy to Manage Website Designs', 'paras' => array(
+                array( 'icon' => 'pen', 'title' => 'Easy to Manage Website Designs', 'paras' => array(
                     "Website designs done by 6ix Developers are made to ensure you can make small changes on your website after its launch. Our website editor lets you drag and drop items around the page where you want. Adding new content and images couldn't be easier.",
                 ) ),
-                array( 'title' => 'Conversion Tracking on your Website', 'paras' => array(
+                array( 'icon' => 'trending', 'title' => 'Conversion Tracking on your Website', 'paras' => array(
                     'To find out how your potential customers are interacting with your website, all website designs from 6ix Developers come with Google Analytics integration. We set up custom goals and conversion tracking on your website for you to learn and improve your website for the best user experience, ensuring constant and gradual growth and improvement in your business.',
                 ) ),
             ),
@@ -148,9 +148,9 @@ function six_service_pages() {
                 'intro'   => 'Select an offer that fits your monthly Google Ads budget. Terms and conditions apply.',
                 'cta'     => 'Check your eligibility for up to $1800 in credit',
                 'tiers'   => array(
-                    array( 'credit' => 'Up to $600',  'text' => 'Spend $600 with Google Ads in the first 60 days to unlock the credit.' ),
-                    array( 'credit' => 'Up to $1800', 'text' => 'Spend $1800 with Google Ads in the first 60 days to unlock the credit.', 'featured' => true ),
-                    array( 'credit' => 'Up to $3600', 'text' => 'Spend $3600 with Google Ads in the first 60 days to unlock the credit.' ),
+                    array( 'credit' => '$600',  'text' => 'Spend $600 with Google Ads in the first 60 days to unlock the credit.' ),
+                    array( 'credit' => '$1200', 'text' => 'Spend $1200 with Google Ads in the first 60 days to unlock the credit.', 'featured' => true ),
+                    array( 'credit' => '$1800', 'text' => 'Spend $1800 with Google Ads in the first 60 days to unlock the credit.' ),
                 ),
             ),
 
@@ -164,6 +164,13 @@ function six_service_pages() {
             ),
             'show_success'    => true,
             'success_heading' => 'Google Ads Client Success',
+            'success_after_results' => true,
+            'process_cards' => array(
+                array( 'icon' => 'shield', 'title' => 'No Contract',           'text' => 'Performance based month to month Google Ads management.' ),
+                array( 'icon' => 'award',  'title' => 'Get up to $1800 Ad Credit','text' => 'Receive a credit of up to $1800 by starting Google Ads with us. Check your eligibility' ),
+                array( 'icon' => 'clock',  'title' => 'Flat Rate Monthly Fee',   'text' => 'You pay the agreed upon monthly management fee - no surprises.' ),
+                array( 'icon' => 'search', 'title' => 'Transparency',            'text' => 'We work on your Google Ads Account & you pay Google Ads directly for the PPC.' ),
+            ),
 
             // Audit intro blocks (two alternating panels)
             'audit_heading' => 'Stop Guessing, Understand Your Campaigns Better.',
@@ -335,11 +342,11 @@ function six_service_pages() {
                 "SEO (Search Engine Optimization) places your website under the organic results section of search engines like Google, Bing or Yahoo. Being found organically by ranking on the first page of Google is one of the best ways to grow your business consistently. Leads coming from organically ranked websites are always more likely to convert and they do not cost anything. Our Certified team of SEO experts are here to provide affordable SEO packages to small and large businesses. Whether you need local small business SEO or large enterprise SEO services, our team of SEO experts apply proven strategies and best practices across all businesses. Though there are many SEO companies in Toronto and the GTA offering SEO services, you can certainly trust us and let us help you rank on the 1st page of Google because we have done it all.",
             ),
             'sections' => array(
-                array( 'title' => 'Website SEO Analysis', 'paras' => array(
+                array( 'icon' => 'search', 'title' => 'Website SEO Analysis', 'paras' => array(
                     "Before starting the actual SEO of your business website, we need to understand your client base, industry requirement and your business goal. SEO team at 6ix Developers specializes in gathering all the industry benchmarks for your business. Our SEO team develops a comprehensive SEO strategy based on your initial website analysis and predicts the performance and the timeline. Our analytical audit covers all major and minor SEO aspects of our client's website.",
                 ) ),
-                array( 'title' => 'On-Page SEO', 'paras' => array() ),
-                array( 'title' => 'Off-Page SEO Link Building', 'paras' => array(
+                array( 'icon' => 'website', 'title' => 'On-Page SEO', 'paras' => array() ),
+                array( 'icon' => 'link', 'title' => 'Off-Page SEO Link Building', 'paras' => array(
                     "Our premium SEO writer works to include you in the news cycle. Our news desk identifies high quality news publishers in your industry and creates news stories that include your business's research on facts in the story.",
                 ) ),
             ),
@@ -376,19 +383,19 @@ function six_service_pages() {
                 "Social Media is changing the face of marketing. How your audience interacts with your brand is how you present yourself in Social Media these days. Most of your potential audience has Facebook and Instagram in their hands but they don't have your brand name. You can use these channels to get your brand in everybody's palms.",
             ),
             'sections' => array(
-                array( 'title' => 'How 6ix Developers can help your Business be seen on Social Media', 'paras' => array(
+                array( 'icon' => 'users', 'title' => 'How 6ix Developers can help your Business be seen on Social Media', 'paras' => array(
                     'The Social Media team at 6ix Developers is actively helping over 150 businesses in Canada with their Social Media marketing. We help you build a community that shares the same ideas as your business on social media platforms. With the latest and greatest tools and lots of experience, our qualified team of Social Media experts can take your business to the next level and make your potential audience remember your name when they need services you offer.',
                 ) ),
-                array( 'title' => 'Accelerated Marketing & Countable Results', 'paras' => array(
+                array( 'icon' => 'rocket', 'title' => 'Accelerated Marketing & Countable Results', 'paras' => array(
                     "We take your stagnant business growth and revenue to a consistently and gradually growing pace. If you're looking to expand your reach to your potential audience, Social Media Accelerated marketing is the best way to go. We can help your business get all those bounced visitors on your website back and turn them into solid leads/sales using Social Media Accelerated Marketing strategies.",
                 ) ),
-                array( 'title' => 'Instagram and Facebook Engagement Campaigns', 'paras' => array(
+                array( 'icon' => 'social', 'title' => 'Instagram and Facebook Engagement Campaigns', 'paras' => array(
                     'If your business is located within Canada, we have proven strategies for many industries on growing the engagement on social media channels. With constant growth and engagement your business will thrive and it will provide the best possible returns on $ invested on marketing.',
                 ) ),
-                array( 'title' => 'Social Media Paid Advertising', 'paras' => array(
+                array( 'icon' => 'ads', 'title' => 'Social Media Paid Advertising', 'paras' => array(
                     'Do not stop at organic growth. Although organic growth is constant and consistent, you most likely want to make use of paid marketing on Social Media. These paid marketing campaigns can bring you active and warm leads that are ready to convert. Our paid marketing strategies are designed to interact with an audience that has interacted with your business or a similar business as yours in the past. Ask us how we can help your business with paid social media marketing campaigns.',
                 ) ),
-                array( 'title' => 'Branding and Media', 'paras' => array(
+                array( 'icon' => 'spark', 'title' => 'Branding and Media', 'paras' => array(
                     'Use Social Media to build your brand and let your potential clients interact with it how you envisioned it. 6ix Developers can help your vision come to life and get your brand under the spotlight.',
                 ) ),
             ),

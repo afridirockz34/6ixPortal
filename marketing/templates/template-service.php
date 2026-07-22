@@ -127,6 +127,46 @@ header( 'Content-Type: text/html; charset=utf-8' );
   </section>
   <?php endif; ?>
 
+  <?php
+  // Client-success carousel captured once so it can render either directly
+  // under the Results section (Google Ads) or later in the flow (default).
+  $success_html = '';
+  if ( ! empty( $d['show_success'] ) ) {
+      ob_start(); ?>
+      <section class="mk-section mk-section-sm">
+        <div class="mk-wrap">
+          <div class="mk-sec-head mk-center"><h2><?php echo esc_html( $d['success_heading'] ?? 'Client Success' ); ?></h2></div>
+          <div class="mk-carousel" data-carousel data-autoplay="5000">
+            <button class="mk-carousel-arrow mk-prev" data-prev aria-label="Previous"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+            <button class="mk-carousel-arrow mk-next" data-next aria-label="Next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+            <div class="mk-carousel-viewport">
+              <div class="mk-carousel-track" data-track>
+                <?php foreach ( (array) $cs_slides as $s ) : ?>
+                <div class="mk-slide">
+                  <div class="mk-cs-card">
+                    <div class="mk-cs-img"><?php if ( ! empty( $s['image'] ) ) : ?><img src="<?php echo esc_url( $s['image'] ); ?>" alt="<?php echo esc_attr( $s['title'] ?? '' ); ?>"><?php endif; ?></div>
+                    <div>
+                      <h3><?php echo esc_html( $s['title'] ?? '' ); ?></h3>
+                      <div class="mk-cs-period"><?php echo esc_html( $s['period'] ?? '' ); ?></div>
+                      <div class="mk-cs-metrics">
+                        <div class="mk-cs-metric"><span class="mk-cs-num mk-grad-text"><?php echo esc_html( $s['conv'] ?? '' ); ?></span><span class="mk-cs-lbl">Conversion</span></div>
+                        <div class="mk-cs-metric"><span class="mk-cs-num mk-grad-text"><?php echo esc_html( $s['ctr'] ?? '' ); ?></span><span class="mk-cs-lbl">Click-Through</span></div>
+                        <div class="mk-cs-metric"><span class="mk-cs-num mk-grad-text"><?php echo esc_html( $s['cpl'] ?? '' ); ?></span><span class="mk-cs-lbl">Cost / Lead</span></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <?php endforeach; ?>
+              </div>
+            </div>
+            <div class="mk-dots" data-dots></div>
+          </div>
+        </div>
+      </section>
+      <?php $success_html = ob_get_clean();
+  }
+  ?>
+
   <!-- RESULTS (benefit cards) -->
   <?php if ( ! empty( $d['results'] ) ) : ?>
   <section class="mk-section mk-section-sm mk-glow">
@@ -144,6 +184,9 @@ header( 'Content-Type: text/html; charset=utf-8' );
     </div>
   </section>
   <?php endif; ?>
+
+  <!-- CLIENT SUCCESS — directly under Results (when success_after_results) -->
+  <?php if ( ! empty( $d['success_after_results'] ) ) echo $success_html; ?>
 
   <!-- PACKAGES -->
   <?php if ( ! empty( $d['packages'] ) ) : ?>
@@ -193,24 +236,24 @@ header( 'Content-Type: text/html; charset=utf-8' );
   </section>
   <?php endif; ?>
 
-  <!-- NARRATIVE SECTIONS (verbatim feature sections, alternating) -->
+  <!-- NARRATIVE SECTIONS — designed gradient feature cards (verbatim copy) -->
   <?php if ( ! empty( $d['sections'] ) ) : ?>
-  <?php foreach ( (array) $d['sections'] as $si => $sec ) : ?>
-  <section class="mk-section mk-section-sm<?php echo $si % 2 ? ' mk-glow' : ''; ?>">
+  <section class="mk-section mk-section-sm mk-glow">
     <div class="mk-wrap">
-      <div class="mk-narrative<?php echo ! empty( $sec['image'] ) ? ' mk-narrative-split' : ' mk-narrative-center'; ?>">
-        <div class="mk-narrative-text">
-          <?php $sec_eyebrow = $sec['eyebrow'] ?? ( $d['eyebrow'] ?? '' ); if ( $sec_eyebrow ) : ?><span class="mk-eyebrow"><?php echo esc_html( $sec_eyebrow ); ?></span><?php endif; ?>
-          <h2><?php echo esc_html( $sec['title'] ); ?></h2>
+      <?php if ( ! empty( $d['sections_heading'] ) ) : ?>
+      <div class="mk-sec-head mk-center mk-full"><h2><?php echo esc_html( $d['sections_heading'] ); ?></h2></div>
+      <?php endif; ?>
+      <div class="mk-feature-grid">
+        <?php foreach ( (array) $d['sections'] as $si => $sec ) : ?>
+        <div class="mk-feature-card mk-feature-card--<?php echo $si % 4; ?>">
+          <span class="mk-feature-ic"><?php echo mk_icon( $sec['icon'] ?? 'spark' ); ?></span>
+          <h3><?php echo esc_html( $sec['title'] ); ?></h3>
           <?php foreach ( (array) $sec['paras'] as $p ) : ?><p><?php echo esc_html( $p ); ?></p><?php endforeach; ?>
         </div>
-        <?php if ( ! empty( $sec['image'] ) ) : ?>
-        <div class="mk-narrative-media"><img src="<?php echo esc_url( $sec['image'] ); ?>" alt="" loading="lazy"></div>
-        <?php endif; ?>
+        <?php endforeach; ?>
       </div>
     </div>
   </section>
-  <?php endforeach; ?>
   <?php endif; ?>
 
   <!-- FEATURES (narrative stack) -->
@@ -254,39 +297,8 @@ header( 'Content-Type: text/html; charset=utf-8' );
   </section>
   <?php endif; ?>
 
-  <!-- CLIENT SUCCESS carousel -->
-  <?php if ( ! empty( $d['show_success'] ) ) : ?>
-  <section class="mk-section mk-section-sm">
-    <div class="mk-wrap">
-      <div class="mk-sec-head mk-center"><h2><?php echo esc_html( $d['success_heading'] ?? 'Client Success' ); ?></h2></div>
-      <div class="mk-carousel" data-carousel data-autoplay="5000">
-        <button class="mk-carousel-arrow mk-prev" data-prev aria-label="Previous"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
-        <button class="mk-carousel-arrow mk-next" data-next aria-label="Next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
-        <div class="mk-carousel-viewport">
-          <div class="mk-carousel-track" data-track>
-            <?php foreach ( (array) $cs_slides as $s ) : ?>
-            <div class="mk-slide">
-              <div class="mk-cs-card">
-                <div class="mk-cs-img"><?php if ( ! empty( $s['image'] ) ) : ?><img src="<?php echo esc_url( $s['image'] ); ?>" alt="<?php echo esc_attr( $s['title'] ?? '' ); ?>"><?php endif; ?></div>
-                <div>
-                  <h3><?php echo esc_html( $s['title'] ?? '' ); ?></h3>
-                  <div class="mk-cs-period"><?php echo esc_html( $s['period'] ?? '' ); ?></div>
-                  <div class="mk-cs-metrics">
-                    <div class="mk-cs-metric"><span class="mk-cs-num mk-grad-text"><?php echo esc_html( $s['conv'] ?? '' ); ?></span><span class="mk-cs-lbl">Conversion</span></div>
-                    <div class="mk-cs-metric"><span class="mk-cs-num mk-grad-text"><?php echo esc_html( $s['ctr'] ?? '' ); ?></span><span class="mk-cs-lbl">Click-Through</span></div>
-                    <div class="mk-cs-metric"><span class="mk-cs-num mk-grad-text"><?php echo esc_html( $s['cpl'] ?? '' ); ?></span><span class="mk-cs-lbl">Cost / Lead</span></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <?php endforeach; ?>
-          </div>
-        </div>
-        <div class="mk-dots" data-dots></div>
-      </div>
-    </div>
-  </section>
-  <?php endif; ?>
+  <!-- CLIENT SUCCESS — default position (when not pinned under Results) -->
+  <?php if ( empty( $d['success_after_results'] ) ) echo $success_html; ?>
 
   <!-- AUDIT intro blocks (Google Ads) -->
   <?php if ( ! empty( $d['audit_blocks'] ) ) : ?>
@@ -387,6 +399,18 @@ header( 'Content-Type: text/html; charset=utf-8' );
         </div>
         <?php endif; ?>
       </div>
+
+      <?php if ( ! empty( $d['process_cards'] ) ) : ?>
+      <div class="mk-grid mk-grid-4" style="margin-top:34px">
+        <?php foreach ( (array) $d['process_cards'] as $pc ) : ?>
+        <div class="mk-card mk-benefit">
+          <span class="mk-ic"><?php echo mk_icon( $pc['icon'] ?? 'spark' ); ?></span>
+          <h3 style="font-size:1.05rem"><?php echo esc_html( $pc['title'] ); ?></h3>
+          <p style="margin-bottom:0"><?php echo esc_html( $pc['text'] ); ?></p>
+        </div>
+        <?php endforeach; ?>
+      </div>
+      <?php endif; ?>
     </div>
   </section>
   <?php endif; ?>

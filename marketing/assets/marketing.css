@@ -657,16 +657,39 @@
 .six-mk .mk-reveal.mk-in { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) { .six-mk .mk-reveal { opacity: 1 !important; transform: none !important; transition: none !important; } }
 
-/* Every card gets a soft brand-tinted lift + a hairline gradient top accent
-   that lights up on hover — differentiates them from flat boxes. */
-.six-mk .mk-card::after {
-  content: ''; position: absolute; left: 22px; right: 22px; top: 0; height: 2px; border-radius: 2px;
-  background: var(--mk-grad); opacity: 0; transition: opacity .28s ease; pointer-events: none;
-}
+/* Soft brand-tinted lift on hover (no top-border line). */
 .six-mk .mk-card:hover { box-shadow: 0 18px 44px rgba(232,84,122,.14); border-color: rgba(232,84,122,.28); }
-.six-mk .mk-card:hover::after { opacity: .9; }
-/* Cards that already carry a gradient border shouldn't double up */
-.six-mk .mk-card-accent::after, .six-mk .mk-offer-card::after, .six-mk .mk-price-card::after { display: none; }
+
+/* ── Designed feature cards (gradient, masonry) ──────────── */
+.six-mk .mk-feature-grid { column-count: 2; column-gap: 24px; }
+@media (max-width: 760px) { .six-mk .mk-feature-grid { column-count: 1; } }
+.six-mk .mk-feature-card {
+  break-inside: avoid; -webkit-column-break-inside: avoid; page-break-inside: avoid;
+  display: block; width: 100%; margin: 0 0 24px; padding: 26px 28px; border-radius: 20px;
+  color: #fff; position: relative; overflow: hidden;
+  box-shadow: 0 20px 44px rgba(232,84,122,.20);
+  transition: transform .22s ease, box-shadow .22s ease;
+}
+.six-mk .mk-feature-card:hover { transform: translateY(-5px); box-shadow: 0 26px 56px rgba(232,84,122,.30); }
+/* Tonal gradient variants so cards feel intentional, not identical */
+.six-mk .mk-feature-card--0 { background: linear-gradient(135deg, #e85479 0%, #b95a9a 55%, #6ea6d8 100%); }
+.six-mk .mk-feature-card--1 { background: linear-gradient(135deg, #e85479 0%, #a855f7 100%); }
+.six-mk .mk-feature-card--2 { background: linear-gradient(135deg, #ef6a86 0%, #e85479 45%, #7d5cc4 100%); }
+.six-mk .mk-feature-card--3 { background: linear-gradient(135deg, #e85479 0%, #6ea6d8 100%); }
+/* subtle AI sheen */
+.six-mk .mk-feature-card::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+  background: radial-gradient(60% 40% at 85% 0%, rgba(255,255,255,.22), transparent 60%);
+}
+.six-mk .mk-feature-card > * { position: relative; z-index: 1; }
+.six-mk .mk-feature-card h3 { color: #fff; font-size: 1.2rem; margin: 4px 0 10px; }
+.six-mk .mk-feature-card p { color: rgba(255,255,255,.94); font-size: .96rem; line-height: 1.62; margin: 0 0 12px; }
+.six-mk .mk-feature-card p:last-child { margin-bottom: 0; }
+.six-mk .mk-feature-ic {
+  width: 54px; height: 54px; border-radius: 15px; display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.30); backdrop-filter: blur(4px); margin-bottom: 14px;
+}
+.six-mk .mk-feature-ic svg { width: 26px; height: 26px; color: #fff; }
 
 /* Benefit / results cards: number-free but distinct — brand icon chip sits in
    a tinted well, heading in ink, generous rhythm. */
