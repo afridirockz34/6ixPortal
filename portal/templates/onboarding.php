@@ -460,7 +460,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 
 <div class="ob-wrap">
 <aside class="ob-side">
-  <div class="ob-logo">6ix Developers</div>
+  <a class="ob-logo" href="<?php echo esc_url( home_url( '/' ) ); ?>" style="text-decoration:none;cursor:pointer">6ix Developers</a>
   <div class="ob-side-content">
     <h2 class="ob-side-hl">Your <span>marketing strategy</span> starts here.</h2>
     <p class="ob-side-desc">Tell us about your business, pick your services, and we'll build a personalised growth plan in minutes.</p>
@@ -953,6 +953,21 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
     </div>
   </div>
 
+  <!-- CALL REQUESTED CONFIRMATION -->
+  <div class="ob-panel" id="ob-call-done">
+    <div class="ob-done">
+      <div class="ob-done-ico" style="color:#1B9E52"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="36" height="36"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+      <h2 class="ob-done-ttl">Your call is booked!</h2>
+      <p class="ob-done-dsc">Thanks — your consultation request is in. Your 6ix Developers advisor will reach out to confirm your call at the time you picked.</p>
+      <div id="ob-call-when" style="display:inline-flex;align-items:center;gap:8px;background:var(--d3);border:1px solid var(--bdr);border-radius:10px;padding:10px 16px;font-size:13px;color:var(--t1);margin-bottom:22px"></div>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+        <a href="<?php echo esc_url(home_url('/portal/')); ?>" class="ob-btn ob-primary" style="font-size:15px;padding:15px 32px">Go to My Dashboard &rarr;</a>
+        <a href="<?php echo esc_url(home_url('/')); ?>" class="ob-btn ob-ghost" style="font-size:15px;padding:15px 28px">Back to Home</a>
+      </div>
+      <div style="margin-top:16px;font-size:12px;color:var(--t3)">A confirmation will be sent to <span id="ob-call-email" style="color:var(--cy)"></span></div>
+    </div>
+  </div>
+
 </div><!-- /.ob-main -->
 </div><!-- /.ob-wrap -->
 
@@ -986,12 +1001,18 @@ function panel(id){document.querySelectorAll('.ob-panel').forEach(function(p){p.
 function prog(n){
   var pr=$i('ob-prog'),fi=$i('ob-prog-fill'),lb=$i('ob-prog-lbl');
   if(!pr)return;
-  if(n>=1){pr.style.display='flex';fi.style.width=(n/5*100)+'%';lb.textContent='Step '+n+' / 5';}
+  // Normalise sub-steps (3a/3b/3c → 3) so the sidebar always highlights a stage.
+  var num;
+  if(typeof n==='string'){
+    if(n==='3a'||n==='3b'||n==='3c'){num=3;}
+    else{num=parseInt(n,10)||0;}
+  } else { num=n||0; }
+  if(num>=1){pr.style.display='flex';fi.style.width=(num/5*100)+'%';lb.textContent='Step '+num+' / 5';}
   else pr.style.display='none';
   document.querySelectorAll('.ob-step-item').forEach(function(el){
-    var s=parseInt(el.dataset.step);
+    var s=parseInt(el.dataset.step,10);
     el.classList.remove('active','done');
-    if(s===n)el.classList.add('active');else if(s<n)el.classList.add('done');
+    if(s===num)el.classList.add('active');else if(s<num)el.classList.add('done');
   });
 }
 
@@ -1089,6 +1110,10 @@ function buildPane(slug){
       +  '<div class="ob-gads-opt'+(S.q.gads_running==='yes'?' sel':'')+'" data-v="yes" onclick="OB.gadsRun(this,\'yes\')"><strong>Yes, I’m currently running Google Ads</strong><span>We’ll run an initial audit to spot opportunities</span></div>'
       +  '<div class="ob-gads-opt'+(S.q.gads_running==='no'?' sel':'')+'" data-v="no" onclick="OB.gadsRun(this,\'no\')"><strong>No, I’m not currently running Google Ads</strong><span>We’ll build a new campaign from scratch</span></div>'
       +'</div></div>';
+    // Everything below is hidden until the visitor answers the question above,
+    // so they choose their path first instead of seeing all the fields at once.
+    var _gadsAnswered=(S.q.gads_running==='yes'||S.q.gads_running==='no');
+    h+='<div id="q-gads-rest" style="display:'+(_gadsAnswered?'block':'none')+'">';
     // ── Existing-Google-Ads audit questions (shown only when "Yes") ──
     h+='<div id="q-gads-existing" style="display:'+(S.q.gads_running==='yes'?'block':'none')+'">'
       +qSec('Your Current Google Ads',
@@ -1114,6 +1139,7 @@ function buildPane(slug){
       +qFG('Why customers choose you','<input class="ob-inp" id="q-ads-usp" placeholder="What makes you the better choice?">','What makes you better than your competitors')
       +qFG('Any current offers?','<input class="ob-inp" id="q-ads-promo" placeholder="Any current offer (optional)">','A deal or discount we can feature in your ads (optional)')
     );
+    h+='</div>'; // /#q-gads-rest
   } else if(slug==='seo'){
     h+=qSec('SEO Setup',
       qFG('Pages you want found','<textarea class="ob-inp" id="q-seo-pages" rows="2" placeholder="e.g. '+indEx('pages')+'"></textarea>','The key pages you want ranking on Google (services, locations…)')
@@ -1181,6 +1207,8 @@ window.OB={
     if(wrap)wrap.querySelectorAll('.ob-gads-opt').forEach(function(b){b.classList.remove('sel');});
     el.classList.add('sel');
     var ex=$i('q-gads-existing');if(ex)ex.style.display=(val==='yes'?'block':'none');
+    // Reveal the rest of the Google Ads fields now that they've chosen a path.
+    var rest=$i('q-gads-rest');if(rest)rest.style.display='block';
   },
 
   // Re-populate the existing-Google-Ads audit fields from S.q so answers
@@ -1938,16 +1966,15 @@ window.OB={
     if(btn){btn.innerHTML='Confirm Call Request →';btn.disabled=false;}
 
     if(res&&res.success){
-      // Show confirmation
-      $i('ob-dual-path-wrap').innerHTML=
-        '<div style="text-align:center;padding:24px 0">'+
-          '<div style="width:48px;height:48px;border-radius:50%;background:rgba(27,158,82,.12);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;color:#1B9E52">'+
-            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>'+
-          '</div>'+
-          '<div style="font-size:16px;font-weight:700;color:var(--t1);margin-bottom:6px">Call Requested</div>'+
-          '<div style="font-size:13px;color:var(--t2)">Your advisor will reach out to confirm the time.</div>'+
-          '<div style="font-size:12px;color:var(--t3);margin-top:8px">'+date+' · '+time+'</div>'+
-        '</div>';
+      S.step='done';
+      OB._clearLocal();
+      // Route to the dedicated confirmation screen.
+      var when=$i('ob-call-when');
+      if(when)when.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> '+date+' &middot; '+time;
+      var ce=$i('ob-call-email');if(ce)ce.textContent=S.email||'';
+      panel('ob-call-done');
+      var pr=$i('ob-prog'); if(pr) pr.style.display='none';
+      window.scrollTo(0,0);
     } else {
       alert2('s5-sched-err', (res&&res.data)||'Something went wrong. Please try again.');
     }

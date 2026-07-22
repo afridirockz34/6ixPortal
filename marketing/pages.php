@@ -345,7 +345,10 @@ function six_service_pages() {
                 array( 'icon' => 'search', 'title' => 'Website SEO Analysis', 'paras' => array(
                     "Before starting the actual SEO of your business website, we need to understand your client base, industry requirement and your business goal. SEO team at 6ix Developers specializes in gathering all the industry benchmarks for your business. Our SEO team develops a comprehensive SEO strategy based on your initial website analysis and predicts the performance and the timeline. Our analytical audit covers all major and minor SEO aspects of our client's website.",
                 ) ),
-                array( 'icon' => 'website', 'title' => 'On-Page SEO', 'paras' => array() ),
+                array( 'icon' => 'website', 'title' => 'On-Page SEO', 'paras' => array(
+                    'On-Page SEO is where rankings are won or lost. Before building your strategy, our team runs a full technical diagnosis of your website and fixes every internal issue holding you back — page speed, mobile responsiveness, crawlability and a clean, logical site structure.',
+                    'We then optimise the elements search engines rely on most: your titles, meta descriptions, headers, image tags, URLs and internal links — all aligned to the keywords your customers are actually searching, so Google understands exactly what each page is about.',
+                ) ),
                 array( 'icon' => 'link', 'title' => 'Off-Page SEO Link Building', 'paras' => array(
                     "Our premium SEO writer works to include you in the news cycle. Our news desk identifies high quality news publishers in your industry and creates news stories that include your business's research on facts in the story.",
                 ) ),
