@@ -193,35 +193,35 @@ function six_service_pages() {
             // The detailed 8-point audit checklist
             'audit_checklist_heading' => "What's included in our comprehensive Google Ads Account Audit",
             'audit_checklist' => array(
-                array( 'icon' => 'shield', 'title' => 'The Wasted Spend: Unlocking Your Google Ads Efficiency', 'paras' => array(
+                array( 'icon' => 'gauge', 'title' => 'The Wasted Spend: Unlocking Your Google Ads Efficiency', 'paras' => array(
                     'In our Google Ads audit, we delve into the crucial realm of negative keywords — a pivotal factor in minimizing AdWords costs. Failure to implement negative keywords could result in squandering thousands of dollars each month on irrelevant keywords that yield no leads.',
                     'Our audit meticulously reviews your negative keyword usage, identifying areas where potential savings lie dormant. By optimizing your negative keyword strategy, we empower you to cut unnecessary spending and redirect your budget towards high-converting keywords that drive tangible results.',
                 ) ),
-                array( 'icon' => 'chart',  'title' => 'Unlock Your Ad Relevance with CTR Analysis', 'paras' => array(
+                array( 'icon' => 'trending', 'title' => 'Unlock Your Ad Relevance with CTR Analysis', 'paras' => array(
                     'CTR (Click-Through Rate) serves as a vital gauge of your ad targeting effectiveness. During our Google Ads audit, our specialists meticulously assess your campaigns, placing a strong emphasis on CTR analysis. This crucial metric offers insight into the relevance and uniqueness of your ad copy.',
                     'A low CTR could signify lost opportunities and potential ground conceded to competitors. By scrutinizing your CTR, we uncover areas for improvement and refine your ad strategy to ensure maximum impact and engagement.',
                 ) ),
-                array( 'icon' => 'target', 'title' => 'Unlocking Profitability: Harness the Power of Long-Tail Keywords', 'paras' => array(
+                array( 'icon' => 'search', 'title' => 'Unlocking Profitability: Harness the Power of Long-Tail Keywords', 'paras' => array(
                     'Long-tail keywords, the cornerstone of a lucrative PPC campaign, are often overlooked but hold immense potential. Failure to incorporate these highly targeted phrases means missed opportunities to capture relevant leads at a lower cost.',
                     'In our assessment of your PPC strategy, we prioritize the integration of long-tail keywords. These specialized terms offer a direct path to highly qualified prospects, maximizing your ROI and minimizing wasted ad spend.',
                 ) ),
-                array( 'icon' => 'shield', 'title' => 'Our Certified Google Ads Specialist Ensures Adherence to Best Practices', 'paras' => array(
+                array( 'icon' => 'award', 'title' => 'Our Certified Google Ads Specialist Ensures Adherence to Best Practices', 'paras' => array(
                     'Our dedicated Google Ads specialist ensures that your campaigns adhere to the proven best practices followed by certified Google Ads experts. By implementing these industry-standard techniques, we guarantee optimal performance and maximize the effectiveness of your advertising investment.',
                     'Trust in our expertise to elevate your campaigns to new heights of success and unlock the full potential of your Google Ads strategy.',
                 ) ),
-                array( 'icon' => 'spark',  'title' => 'Elevate Your ROI with Quality Score Optimization', 'paras' => array(
+                array( 'icon' => 'target', 'title' => 'Elevate Your ROI with Quality Score Optimization', 'paras' => array(
                     "During our Google Ads audit, our specialist meticulously reviews your campaign's Quality Scores. These scores play a pivotal role in determining your ROI, as they directly impact your ad rankings and cost per click.",
                     'By focusing on achieving high Quality Scores, we not only improve your ad rankings but also lower your cost per click, resulting in more relevant leads at a lower cost.',
                 ) ),
-                array( 'icon' => 'website','title' => 'Unlock Success with Dedicated Account Management', 'paras' => array(
+                array( 'icon' => 'users', 'title' => 'Unlock Success with Dedicated Account Management', 'paras' => array(
                     "Our PPC specialist meticulously assesses the time your Google Ads Account manager spends in your account. Through our analysis, we've uncovered a significant correlation between active account management and overall success rates.",
                     'Clients who receive more dedicated attention tend to achieve higher levels of success. By prioritizing regular monitoring, optimization, and strategic adjustments, we ensure your campaigns are consistently optimized for maximum effectiveness and ROI.',
                 ) ),
-                array( 'icon' => 'ads',    'title' => 'Enhance Your Google Ads Performance with Text Ad Analysis', 'paras' => array(
+                array( 'icon' => 'pen', 'title' => 'Enhance Your Google Ads Performance with Text Ad Analysis', 'paras' => array(
                     'Our Google Ads campaign audit includes a thorough review of your text ad usage, a crucial element for achieving strong performance metrics such as impressions, clicks, CTR (Click-Through Rate), ad relevance, and ranking.',
                     'By meticulously analyzing your text ads, we identify areas for improvement and optimization. Our goal is to ensure that your ads are not only highly relevant to your target audience but also effectively drive engagement and conversions.',
                 ) ),
-                array( 'icon' => 'seo',    'title' => 'Elevate Your Business Front with Optimized Landing Pages', 'paras' => array(
+                array( 'icon' => 'layers', 'title' => 'Elevate Your Business Front with Optimized Landing Pages', 'paras' => array(
                     'Landing pages serve as the forefront of your business, dictating the success of your campaigns. Even with stellar Google Ads performance, a subpar landing page can hinder overall results. Our Google Ads Account audit prioritizes ensuring your landing pages are on par with competitors, optimizing them for maximum effectiveness.',
                     "By conducting a thorough assessment, we identify opportunities to enhance your landing pages' performance. From design and functionality to content and user experience, we ensure your landing pages align with industry standards and surpass competitor benchmarks.",
                 ) ),
@@ -230,17 +230,17 @@ function six_service_pages() {
 
             'features_heading' => 'Strategic Google Ads Management',
             'features' => array(
-                array( 'icon' => 'chart',  'title' => 'Maximize Your ROI with Strategic Google Ads Management', 'text' => "Running a search marketing campaign on Google can quickly become costly without a solid strategy in place. At 6ix Developers, we craft tailored strategies based on your business type, goals, competition, and other critical factors, ensuring every dollar spent is strategically allocated to keywords that drive tangible leads and maximum ROI." ),
-                array( 'icon' => 'spark',  'title' => 'Stay Ahead of Evolving Search Trends', 'text' => "The way people search for services is constantly evolving. Our Google Ads certified team keeps your strategy finely tuned to capture maximum leads — you'll pay only for the keywords directly relevant to your business, ensuring every click counts towards driving high-quality leads." ),
-                array( 'icon' => 'target', 'title' => 'Unlock Precision Targeting with GEO Strategy', 'text' => 'We implement a GEO marketing strategy for your campaigns, focusing on specific geographic locations so your ads are shown only to users within your target audience — reaching the right people, in the right place, at the right time, so every impression counts.' ),
-                array( 'icon' => 'website','title' => "Don't Underestimate the Impact of Website Speed", 'text' => 'A slow-loading landing page can result in higher costs per click than your competitors, even if they rank below you. Our in-house developers optimize the landing pages used for Google Ads to load quickly and minimize bounce rates, maximizing your ad performance and ROI.' ),
+                array( 'icon' => 'rocket', 'title' => 'Maximize Your ROI with Strategic Google Ads Management', 'text' => "Running a search marketing campaign on Google can quickly become costly without a solid strategy in place. At 6ix Developers, we craft tailored strategies based on your business type, goals, competition, and other critical factors, ensuring every dollar spent is strategically allocated to keywords that drive tangible leads and maximum ROI." ),
+                array( 'icon' => 'trending', 'title' => 'Stay Ahead of Evolving Search Trends', 'text' => "The way people search for services is constantly evolving. Our Google Ads certified team keeps your strategy finely tuned to capture maximum leads — you'll pay only for the keywords directly relevant to your business, ensuring every click counts towards driving high-quality leads." ),
+                array( 'icon' => 'globe', 'title' => 'Unlock Precision Targeting with GEO Strategy', 'text' => 'We implement a GEO marketing strategy for your campaigns, focusing on specific geographic locations so your ads are shown only to users within your target audience — reaching the right people, in the right place, at the right time, so every impression counts.' ),
+                array( 'icon' => 'gauge', 'title' => "Don't Underestimate the Impact of Website Speed", 'text' => 'A slow-loading landing page can result in higher costs per click than your competitors, even if they rank below you. Our in-house developers optimize the landing pages used for Google Ads to load quickly and minimize bounce rates, maximizing your ad performance and ROI.' ),
             ),
 
             'results_heading' => 'Get the Results That Matter to You',
             'results' => array(
-                array( 'icon' => 'target', 'title' => 'Get More Qualified Leads', 'text' => 'Generate high intent, qualified leads by ranking #1 on Google at the right time.' ),
+                array( 'icon' => 'search', 'title' => 'Get More Qualified Leads', 'text' => 'Generate high intent, qualified leads by ranking #1 on Google at the right time.' ),
                 array( 'icon' => 'ads',    'title' => 'More Phone Calls',        'text' => 'Increase qualified call volume using Google Ads high-intent targeting.' ),
-                array( 'icon' => 'chart',  'title' => 'Transparency',            'text' => "Understand what's working with quantifiable Google Ads reports." ),
+                array( 'icon' => 'gauge',  'title' => 'Transparency',            'text' => "Understand what's working with quantifiable Google Ads reports." ),
             ),
 
             'steps_heading' => 'How It Works',

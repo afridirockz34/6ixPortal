@@ -114,6 +114,19 @@ function mk_icon( $name ) {
         'shield'   => '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/>',
         'chart'    => '<path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 5-6"/>',
         'target'   => '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
+        // Extended, distinct set — so sections don't reuse the same glyph.
+        'search'   => '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/><path d="M8 11h6M11 8v6"/>',
+        'trending' => '<polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/>',
+        'gauge'    => '<path d="M12 13l4-4"/><path d="M4 18a8 8 0 1 1 16 0"/><circle cx="12" cy="18" r="1"/>',
+        'award'    => '<circle cx="12" cy="9" r="6"/><polyline points="8.2 13.5 7 22 12 19 17 22 15.8 13.5"/>',
+        'users'    => '<path d="M17 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+        'pen'      => '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+        'layers'   => '<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/>',
+        'rocket'   => '<path d="M5 13c-1.5.7-3 2.5-3 6 3.5 0 5.3-1.5 6-3"/><path d="M15 5s5 0 5 5c0 0-3 8-9 11 0 0-3-2-4-4 3-6 8-12 8-12z"/><circle cx="14.5" cy="9.5" r="1.5"/>',
+        'globe'    => '<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/>',
+        'bulb'     => '<path d="M9 18h6"/><path d="M10 22h4"/><path d="M8 14a5 5 0 1 1 8 0c-.7 1-1.5 1.6-1.5 3h-5c0-1.4-.8-2-1.5-3z"/>',
+        'clock'    => '<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/>',
+        'link'     => '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7L12 18"/>',
     );
     $p = $icons[ $name ] ?? $icons['spark'];
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' . $p . '</svg>';
