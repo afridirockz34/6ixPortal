@@ -11,7 +11,6 @@
     '.mk-section .mk-card',
     '.mk-sec-head',
     '.mk-narrative',
-    '.mk-cs-card',
     '.mk-team-card',
     '.mk-included-card',
     '.mk-grow-left',
