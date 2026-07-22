@@ -34,67 +34,100 @@ function six_service_pages() {
             ),
             'intro'    => array(
                 'Having a website for your business is necessary now. Having a website is just the beginning; ensuring proper website layout and design encourages customers to stay and take desired actions, such as submitting forms, calling your business, or making online purchases.',
-                'With 6ix Developers, you receive website designs tailored to your industry and competitors, aimed at securing the top position in Google search results. Choosing 6ix Developers for your website design means having a 24/7 online salesperson working for you. Our website designs are carefully analyzed and tested before deployment. This ensures we measure and improve returns on your investment, as well as increase user engagement and conversion rates on your website.',
+                'Get the website that pays for itself. With 6ix Developers, you receive website designs tailored to your industry and competitors, aimed at securing the top position in Google search results. Choosing 6ix Developers for your website design means having a 24/7 online salesperson working for you. Our website designs are carefully analyzed and tested before deployment. This ensures we measure and improve returns on your investment, as well as increase user engagement and conversion rates on your website.',
             ),
             'packages_heading' => 'Website Packages',
-            'packages_intro'   => 'No matter the size of your business, a website is essential to make an impact with customers. To ensure your website is successful and easy to find, it needs to be fast, easy-to-use, and visually appealing on all devices.',
+            'packages_intro'   => "No matter the size of your business, a website is essential to make an impact with customers. To ensure your website is successful and easy to find, it needs to be fast, easy-to-use, and visually appealing on all devices. Any website that doesn't meet these criteria will not be effective anymore.",
             'packages' => array(
-                array( 'badge' => 'Starter',              'size' => '1 to 5 Pages',   'text' => 'Great for companies offering minimal services, if you are just starting your company, or if you are just beginning to establish your presence online.' ),
-                array( 'badge' => 'Standard',             'size' => '6 to 12 Pages',  'text' => 'Great for companies that offer multiple services or locations, if your company is already well-established, or if you want to rebrand your online presence.' ),
-                array( 'badge' => 'Advanced / E-Commerce','size' => '13+ Pages',      'text' => 'Perfect for large companies, or if you already have a lot of existing content on your website. Also great for e-commerce companies selling products online.' ),
+                array( 'badge' => 'Starter',              'size' => '1 to 5 Pages' ),
+                array( 'badge' => 'Standard',             'size' => '6 to 12 Pages' ),
+                array( 'badge' => 'Advanced / E-Commerce','size' => '13+ Pages' ),
             ),
-            'features_heading' => 'Websites Built to Win You Business',
-            'features' => array(
-                array( 'icon' => 'target',  'title' => 'Optimized for Lead Generation', 'text' => "Website designs that are optimized for lead generation and lead capturing are essential to run a successful and modern business. We'll tailor yours to your industry, considering how your potential clients interact with websites, to make your website the final destination for their search." ),
-                array( 'icon' => 'spark',   'title' => 'Flexible Website Designs', 'text' => 'Our website designs are fully customizable to ensure your vision is realized without limitations. All website designs are developed under the supervision of our marketing team, ensuring the highest level of returns and longer user interaction.' ),
-                array( 'icon' => 'website', 'title' => 'Beautiful Across All Devices', 'text' => 'We exclusively offer responsive website designs. Our team adheres to industry standards to ensure the best user experience across all devices, including mobile phones, tablets, computers, and projectors.' ),
-                array( 'icon' => 'chart',   'title' => 'Fast Google PageSpeed', 'text' => 'Over half of all visitors will leave your website if it fails to load within 3 seconds. Our website designs are optimized for the fastest Google PageSpeed — and since May 4th, 2020, the top 3 factors for ranking #1 on Google are related to your website\'s PageSpeed.' ),
-                array( 'icon' => 'seo',     'title' => 'SEO Friendly Website Designs', 'text' => 'All of our website design packages include expert SEO consultation. We incorporate high-quality, industry-related keywords in titles, descriptions, meta tags and URLs to quickly rank your website on the 1st page of Google.' ),
-                array( 'icon' => 'shield',  'title' => 'Easy to Manage & Track', 'text' => 'Our website editor lets you drag and drop items around the page where you want, and adding new content and images couldn\'t be easier. Every site ships with Google Analytics, custom goals and conversion tracking so you can keep improving.' ),
-                array( 'icon' => 'ads',     'title' => 'Conversion Tracking on Your Website', 'text' => 'To find out how your potential customers are interacting with your website, all website designs from 6ix Developers come with Google Analytics integration. We set up custom goals and conversion tracking so you can learn and improve your website for the best user experience — ensuring constant, gradual growth for your business.' ),
-            ),
-            'highlight' => array(
-                'heading' => 'Receive FREE Google Ads Setup Valued at $1500',
-                'lines' => array(
-                    'Start a Website Design service with us and get your Google Ads campaign setup — a $1500 value — completely free, so your new website starts generating leads from day one.',
+            // "What website is right for me?" (verbatim)
+            'packages_guide' => array(
+                'heading' => 'What website is right for me?',
+                'items' => array(
+                    array( 'title' => 'Starter',            'text' => 'Great for companies offering minimal services, if you are just starting your company, or if you are just beginning to establish your presence online.' ),
+                    array( 'title' => 'Standard',           'text' => 'Great for companies that offer multiple services or locations, if your company is already well-established, or if you want to rebrand your online presence.' ),
+                    array( 'title' => 'Advanced/Ecommerce', 'text' => 'Perfect for large companies, or if you already have a lot of existing content on your website. Also great for e-commerce companies selling products online.' ),
                 ),
+                'qa' => array(
+                    array( 'q' => 'What if I want to promote my website?',   'a' => 'We also specialise in Google Ads campaigns. Click here to request a quote.' ),
+                    array( 'q' => 'What happens after my website is done?', 'a' => 'We also offer website management packages. Though not mandatory, website management is incredibly important when you own a website to have the backup you need In case of security breaches, malware, viruses, or even just the website crashing.' ),
+                ),
+            ),
+            // Verbatim feature sections (were condensed cards before)
+            'sections' => array(
+                array( 'title' => 'Website Designs Optimized for Lead Generation', 'paras' => array(
+                    "In today's business landscape, making a significant impact is essential for success, regardless of your business's size.",
+                    'Website designs that are slow to load, poorly designed, or difficult to navigate simply won\'t work anymore. Additionally, if they are not mobile responsive, they will not be effective. These website designs are extremely difficult to rank on the first page of Google, even with extraordinary SEO efforts.',
+                    'Website designs that are optimized for lead generation and lead capturing are essential to run a successful and modern business. Let our team at 6ix Developers design a website optimized for lead generation. We\'ll tailor it to your industry, considering how your potential clients interact with websites. Our goal is to make your website the final destination for their search.',
+                ) ),
+                array( 'title' => 'Flexible Website Designs', 'paras' => array(
+                    'Our website designs are fully customizable to ensure your vision is realized without limitations. We bring your dream website design to life. All website designs are developed under the supervision of our marketing team. This ensures the highest level of returns and longer user interaction.',
+                ) ),
+                array( 'title' => 'Beautiful across all Devices', 'paras' => array(
+                    'We exclusively offer responsive website designs. Our website design team adheres to industry standards to ensure the best user experience across all devices, including mobile phones, tablets, computers, and projectors.',
+                ) ),
+                array( 'title' => 'Web Designs with Fast Google PageSpeed', 'paras' => array(
+                    "Over half of all visitors will leave your website if it fails to load within 3 seconds. Do you know how long your website takes to load? Check its speed here. If your website's bounce rate is over 40% and it takes over 5 seconds to load, don't hesitate to call us. Every second counts. Every single second, people are bouncing off of your website because it's taking too long to load. Website designs at 6ix Developers are optimized for the fastest Google PageSpeed. Since May 4th, 2020, the top 3 factors for ranking #1 on Google are related to your website's PageSpeed. Don't waste time & contact us now. Each day you're losing 100s of potential clients who can take your business to the next level.",
+                ) ),
+                array( 'title' => 'SEO Friendly Website Designs (Search Engine Optimization)', 'paras' => array(
+                    'Our website designs ensure customers find your website once launched. All of our website design packages include expert SEO consultation. We ensure your website is launched with the best SEO practices. This includes incorporating high-quality, industry-related keywords in titles, descriptions, meta tags, URLs, etc., to quickly rank your website on the 1st page of Google.',
+                ) ),
+                array( 'title' => 'Easy to Manage Website Designs', 'paras' => array(
+                    "Website designs done by 6ix Developers are made to ensure you can make small changes on your website after its launch. Our website editor lets you drag and drop items around the page where you want. Adding new content and images couldn't be easier.",
+                ) ),
+                array( 'title' => 'Conversion Tracking on your Website', 'paras' => array(
+                    'To find out how your potential customers are interacting with your website, all website designs from 6ix Developers come with Google Analytics integration. We set up custom goals and conversion tracking on your website for you to learn and improve your website for the best user experience, ensuring constant and gradual growth and improvement in your business.',
+                ) ),
+            ),
+            // Real Clients With Real Results (client success carousel)
+            'show_success'    => true,
+            'success_heading' => 'Real Clients With Real Results',
+            'highlight' => array(
+                'heading' => 'Receive FREE Google Ads Setup Valued $1500, with Website Design Service',
+                'lines'   => array(),
+                'cta'     => 'Get your free consultation',
+                'cta_url' => '/contact-us',
             ),
             'steps_heading' => 'How It Works',
             'need' => array(
                 'heading' => 'What Do We Need From You?',
-                'text'    => 'To begin creating your beautiful website, we\'ll need a few things from you first.',
+                'text'    => "To begin creating your beautiful website, we'll need a few things from you first.",
                 'items'   => array(
-                    'All of your content as soon as possible — if you do not have content, our premium content creator will create it for your website.',
-                    'Your logo as a high-quality graphic in .svg, .jpg, or .png format.',
-                    'High quality images (we recommend 100kB–600kB). No images? We\'ll use custom stock images for your website.',
-                    'The pages you would like to include on your site.',
-                    'Contact form details and the email that should receive submissions.',
-                    'If you have an existing domain and hosting, your login information to get started.',
+                    'Content: We will need you to provide all of your content as soon as possible. This ensures an efficient launch of your website. If you do not have content, our premium content creator will create content for your website.',
+                    'Logos: Please provide your logo as a high-quality graphic in either an .svg, .jpg, or .png format. These will be uploaded to our Google Drive.',
+                    'Images: High quality images are extremely important to make a good impression with your website. We recommend photos between 100kB and 600kB – this ensures high-quality without sacrificing speed too much. These should be uploaded to a Google Drive if possible. If you do not have images available, do not worry, we will use custom stock images for your website.',
+                    'Sitemap: The pages you would like to include on your site.',
+                    'Contact Forms: All the information you need to collect should you have a contact form, and the email to receive the form.',
+                    "Logins: If you have an existing domain and hosting, we'll need your login information to start.",
                 ),
             ),
             'steps' => array(
                 'heading' => 'How Does The Web Design Process Work?',
                 'list' => array(
-                    array( 'strong' => 'Plan & design',     'text' => 'We develop an initial document that outlines the website and its content, and work with you to come up with a design you like.' ),
-                    array( 'strong' => 'Build',             'text' => 'Once the content and design are approved, we send this to the developer to begin building your website.' ),
-                    array( 'strong' => 'Revise',            'text' => 'Once the website is completed, we go back in and make revisions.' ),
-                    array( 'strong' => 'Launch',            'text' => 'After all the changes are made, we migrate the website to your domain and hosting.' ),
-                    array( 'strong' => 'Maintain',          'text' => 'We offer optional monthly management and maintenance — helping with crashes, malware or virus attacks, hackers, and regular updates.' ),
+                    array( 'strong' => 'Step 1', 'text' => 'We develop an initial document that outlines the website and the content in it. We will also work with you to come up with a design you like.' ),
+                    array( 'strong' => 'Step 2', 'text' => 'Once the content and design of the website is approved, we send this to the developer to begin building your website.' ),
+                    array( 'strong' => 'Step 3', 'text' => 'Once the website is completed, we can go back in and make revisions.' ),
+                    array( 'strong' => 'Step 4', 'text' => 'After all the changes are made, we will migrate the website to your domain and hosting.' ),
+                    array( 'strong' => 'Step 5', 'text' => 'We offer optional monthly management and maintenance services for your website. This helps with website crashes, malware or virus attacks, hackers, etc. as well as regular updates.' ),
                 ),
             ),
+            'faq_heading' => 'FAQ',
             'faq' => array(
-                array( 'q' => 'Where does my content come from?', 'a' => 'You! We include the content you send us, or that already exists on your website. We are more than happy to help you write your content as well at our rate of $0.15 per word.' ),
+                array( 'q' => 'Where does my content come from?', 'a' => 'You! We include the content you send us, or that already exists on your website. We are more than happy to help you write your content as well at our rate of 0.15 per word.' ),
                 array( 'q' => 'What is the turnaround time?', 'a' => 'Given you provide us all the necessary information up front, we can have your website up in a matter of weeks.' ),
                 array( 'q' => 'Is there a contract?', 'a' => 'No. We do not require any of our clients to sign a contract. Our monthly plans operate on a month-to-month basis.' ),
                 array( 'q' => 'Can SEO be done to your sites?', 'a' => 'Yes! All of our sites come with the SEO functionality built-in.' ),
                 array( 'q' => 'What is not included?', 'a' => 'Content creation, graphic design, logo design, and other services such as SEO and Google Ads will run at additional costs. Please contact us for more information or to get an estimate.' ),
-                array( 'q' => 'If I have a large site, can I still get a small package?', 'a' => 'Yes, but we do not recommend this. Doing so may limit the functionality of the website, and can impact the amount of content we can use.' ),
-                array( 'q' => 'How many pages do I get?', 'a' => 'Please refer to the website packages above — Starter (1 to 5 pages), Standard (6 to 12 pages), or Advanced / E-Commerce (13+ pages).' ),
-                array( 'q' => 'What do you need from me to get started?', 'a' => 'We will need your existing content, or a link to your website if we are copying your content. We will also need your logo and images (we recommend images be between 100kB and 600kB). Finally, we will need your website outline, contact form information, and your domain/hosting login.' ),
+                array( 'q' => 'If I have a large site, can I still get a small package?', 'a' => 'Yes but, we do not recommend this. Doing so may limit the functionality of the website, and can impact the amount of content we can use.' ),
+                array( 'q' => 'How many pages do I get?', 'a' => 'Please refer to the website packages located under Step 1 of our consultation form.' ),
+                array( 'q' => 'Can I use the domain I already have?', 'a' => 'Yes! And we encourage it! We will need your login information. We also recommend purchasing a hosting plan (our favourite is GoDaddy).' ),
+                array( 'q' => 'Are there any monthly maintenance plans?', 'a' => 'It is important for the security of your website to have someone regularly back it up, and provide assistance incase of malware or virus attacks, hackers, website crashes, etc. It also allows your website to be updated professionally every month if need be. Therefore, we do offer a range of monthly plans. Please contact us for more information.' ),
                 array( 'q' => 'Do I own the website?', 'a' => 'Yes! We do not operate under contracts, so you will 100% own your website once it is up and running.' ),
-                array( 'q' => 'Can I use the domain I already have?', 'a' => 'Yes! And we encourage it. We will need your login information. We also recommend purchasing a hosting plan (our favourite is GoDaddy).' ),
-                array( 'q' => 'Are there any monthly maintenance plans?', 'a' => 'Yes. It is important for the security of your website to have someone regularly back it up and provide assistance in case of malware or virus attacks, hackers, or website crashes. Please contact us for more information.' ),
-                array( 'q' => 'How do I promote my new website?', 'a' => 'We specialise in Google Ads campaigns for all types of businesses. Contact us to get a quote.' ),
+                array( 'q' => 'What do you need from me to get started?', 'a' => 'We will need your existing content, or link to your website if we are copying your content. We will also need you to provide us with your logo and images – we recommend images be between 100kB and 600kB. Finally, we will need to know your website outline, contact form information, and your domain/hosting login.' ),
+                array( 'q' => 'How do I promote my new website?', 'a' => 'We specialise in Google Ads campaigns for all types of businesses. Click here to get a quote.' ),
             ),
         ),
 

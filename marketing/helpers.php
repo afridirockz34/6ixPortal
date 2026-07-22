@@ -47,7 +47,7 @@ function mk_portal_band( $args = array() ) {
         'text'     => mk_opt( 'portal_band_text', 'See exactly how you stack up against your competitors, where your leads come from, and what to fix next — in one live dashboard built for your business.' ),
         'features' => mk_opt( 'portal_band_features', array(
             array( 'feature' => 'Compare yourself to local competitors' ),
-            array( 'feature' => 'A live marketing readiness score' ),
+            array( 'feature' => 'A live Business Growth Score' ),
             array( 'feature' => 'A tailored 60-day growth plan' ),
         ) ),
         'cta'      => mk_opt( 'portal_band_cta', 'Get started free' ),
@@ -78,14 +78,14 @@ function mk_portal_band( $args = array() ) {
             <div class="mk-portal-viz" aria-hidden="true">
               <div class="mk-portal-ring">
                 <div class="mk-portal-ring-num mk-grad-text"><?php echo intval( $a['score'] ); ?></div>
-                <div style="font-size:.85rem;color:var(--mk-t3)">Marketing<br>Readiness Score</div>
+                <div style="font-size:.85rem;color:var(--mk-t3)">Business<br>Growth Score</div>
               </div>
               <?php
               $rows = array(
-                  array( 'SEO visibility', 72 ),
-                  array( 'Paid efficiency', 84 ),
-                  array( 'Local presence', 66 ),
-                  array( 'Website health', 80 ),
+                  array( 'Getting found on Google', 72 ),
+                  array( 'Ad performance', 84 ),
+                  array( 'Local visibility', 66 ),
+                  array( 'Website experience', 80 ),
               );
               foreach ( $rows as $r ) : ?>
               <div style="margin-top:14px">
