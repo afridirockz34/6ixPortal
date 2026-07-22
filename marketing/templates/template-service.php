@@ -68,7 +68,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
         <div class="mk-hero-cta">
           <?php
           $hc1 = $d['hero_cta1'] ?? array( 'label' => 'Get your free consultation', 'url' => '/contact-us' );
-          $hc2 = $d['hero_cta2'] ?? array( 'label' => 'See your marketing score', 'url' => '' );
+          $hc2 = $d['hero_cta2'] ?? array( 'label' => 'See where you can grow', 'url' => '' );
           $hc1_url = ! empty( $hc1['url'] ) ? ( strpos( $hc1['url'], '#' ) === 0 ? $hc1['url'] : home_url( $hc1['url'] ) ) : mk_portal_url();
           $hc2_url = ! empty( $hc2['url'] ) ? ( strpos( $hc2['url'], '#' ) === 0 ? $hc2['url'] : home_url( $hc2['url'] ) ) : mk_portal_url();
           ?>
@@ -158,12 +158,59 @@ header( 'Content-Type: text/html; charset=utf-8' );
         <div class="mk-card mk-card-accent mk-price-card">
           <span class="mk-price-badge"><?php echo esc_html( $pk['badge'] ); ?></span>
           <span class="mk-price-size mk-grad-text"><?php echo esc_html( $pk['size'] ); ?></span>
-          <p><?php echo esc_html( $pk['text'] ); ?></p>
+          <?php if ( ! empty( $pk['text'] ) ) : ?><p><?php echo esc_html( $pk['text'] ); ?></p><?php endif; ?>
         </div>
         <?php endforeach; ?>
       </div>
     </div>
   </section>
+  <?php endif; ?>
+
+  <!-- PACKAGES GUIDE ("What website is right for me?") -->
+  <?php if ( ! empty( $d['packages_guide'] ) ) : ?>
+  <section class="mk-section mk-section-sm">
+    <div class="mk-wrap">
+      <div class="mk-sec-head mk-center mk-full"><h2><?php echo esc_html( $d['packages_guide']['heading'] ?? 'What website is right for me?' ); ?></h2></div>
+      <div class="mk-grid mk-grid-3">
+        <?php foreach ( (array) ( $d['packages_guide']['items'] ?? array() ) as $g ) : ?>
+        <div class="mk-card mk-guide-card">
+          <span class="mk-guide-badge"><?php echo esc_html( $g['title'] ); ?></span>
+          <p><?php echo esc_html( $g['text'] ); ?></p>
+        </div>
+        <?php endforeach; ?>
+      </div>
+      <?php if ( ! empty( $d['packages_guide']['qa'] ) ) : ?>
+      <div class="mk-grid mk-grid-2" style="margin-top:22px">
+        <?php foreach ( (array) $d['packages_guide']['qa'] as $qa ) : ?>
+        <div class="mk-card mk-qa-card">
+          <h3><?php echo esc_html( $qa['q'] ); ?></h3>
+          <p style="margin-bottom:0"><?php echo esc_html( $qa['a'] ); ?></p>
+        </div>
+        <?php endforeach; ?>
+      </div>
+      <?php endif; ?>
+    </div>
+  </section>
+  <?php endif; ?>
+
+  <!-- NARRATIVE SECTIONS (verbatim feature sections, alternating) -->
+  <?php if ( ! empty( $d['sections'] ) ) : ?>
+  <?php foreach ( (array) $d['sections'] as $si => $sec ) : ?>
+  <section class="mk-section mk-section-sm<?php echo $si % 2 ? ' mk-glow' : ''; ?>">
+    <div class="mk-wrap">
+      <div class="mk-narrative<?php echo ! empty( $sec['image'] ) ? ' mk-narrative-split' : ' mk-narrative-center'; ?>">
+        <div class="mk-narrative-text">
+          <?php $sec_eyebrow = $sec['eyebrow'] ?? ( $d['eyebrow'] ?? '' ); if ( $sec_eyebrow ) : ?><span class="mk-eyebrow"><?php echo esc_html( $sec_eyebrow ); ?></span><?php endif; ?>
+          <h2><?php echo esc_html( $sec['title'] ); ?></h2>
+          <?php foreach ( (array) $sec['paras'] as $p ) : ?><p><?php echo esc_html( $p ); ?></p><?php endforeach; ?>
+        </div>
+        <?php if ( ! empty( $sec['image'] ) ) : ?>
+        <div class="mk-narrative-media"><img src="<?php echo esc_url( $sec['image'] ); ?>" alt="" loading="lazy"></div>
+        <?php endif; ?>
+      </div>
+    </div>
+  </section>
+  <?php endforeach; ?>
   <?php endif; ?>
 
   <!-- FEATURES (narrative stack) -->

@@ -17,6 +17,7 @@ $links   = mk_opt( 'footer_links', array(
     array( 'label' => 'Website Design',           'url' => '/website-design-agency-toronto' ),
     array( 'label' => 'Google Ads',               'url' => '/ppc-google-ads-management-toronto' ),
     array( 'label' => 'SEO Services',             'url' => '/seo-agency-toronto' ),
+    array( 'label' => 'Social Media',             'url' => '/social-media-marketing-agency-toronto' ),
     array( 'label' => 'Digital Marketing',        'url' => '/digital-marketing-agency-toronto' ),
     array( 'label' => 'PPC Agency Toronto',       'url' => '/ppc-agency-toronto' ),
     array( 'label' => 'About Us',                 'url' => '/about-us' ),
@@ -25,6 +26,7 @@ $links   = mk_opt( 'footer_links', array(
 $social  = mk_opt( 'footer_social', array(
     array( 'label' => 'Facebook',  'url' => 'https://web.facebook.com/6ixDevelopers/' ),
     array( 'label' => 'Instagram', 'url' => 'https://www.instagram.com/6ixdevelopers/' ),
+    array( 'label' => 'Email',     'url' => 'mailto:help@6ixdevelopers.com' ),
 ) );
 $legal   = mk_opt( 'footer_legal', array(
     array( 'label' => 'Privacy Policy',     'url' => '/privacy-policy' ),

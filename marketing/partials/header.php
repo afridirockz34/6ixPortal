@@ -20,7 +20,7 @@ $services    = mk_opt( 'nav_services', array(
 ) );
 $contact_label = mk_opt( 'header_contact_label', 'Contact us' );
 $contact_url   = mk_opt( 'header_contact_url', '/contact-us' );
-$login_label   = mk_opt( 'header_login_label', 'Client Login' );
+$login_label   = mk_opt( 'header_login_label', 'Login' );
 $mkurl = function ( $u ) { return ( strpos( $u, 'http' ) === 0 ) ? $u : home_url( $u ); };
 
 // Login modal needs to talk to the same AJAX auth the /get-started/ page uses.
@@ -111,7 +111,7 @@ if ( $mk_logged_in ) {
     <button type="button" class="mk-login-x" aria-label="Close" data-mk-login-close>
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
     </button>
-    <h3 id="mk-login-title">Client Login</h3>
+    <h3 id="mk-login-title">Login</h3>
     <p class="mk-login-sub">Sign in to your marketing dashboard.</p>
 
     <div class="mk-login-social"><?php echo do_shortcode( '[nextend_social_login provider="google" style="fullwidth"]' ); ?></div>

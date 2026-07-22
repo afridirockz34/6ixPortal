@@ -46,6 +46,9 @@ add_action( 'wp_enqueue_scripts', function () {
     );
     $css = SIX_MK_DIR . 'assets/marketing.css';
     wp_enqueue_style( 'six-mk', SIX_MK_URL . 'assets/marketing.css', array(), file_exists( $css ) ? filemtime( $css ) : '1' );
+
+    $js = SIX_MK_DIR . 'assets/marketing.js';
+    wp_enqueue_script( 'six-mk', SIX_MK_URL . 'assets/marketing.js', array(), file_exists( $js ) ? filemtime( $js ) : '1', true );
 }, 20 );
 
 // On marketing pages, strip Divi's front-end shell so our template owns the page.

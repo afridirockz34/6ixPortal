@@ -34,67 +34,100 @@ function six_service_pages() {
             ),
             'intro'    => array(
                 'Having a website for your business is necessary now. Having a website is just the beginning; ensuring proper website layout and design encourages customers to stay and take desired actions, such as submitting forms, calling your business, or making online purchases.',
-                'With 6ix Developers, you receive website designs tailored to your industry and competitors, aimed at securing the top position in Google search results. Choosing 6ix Developers for your website design means having a 24/7 online salesperson working for you. Our website designs are carefully analyzed and tested before deployment. This ensures we measure and improve returns on your investment, as well as increase user engagement and conversion rates on your website.',
+                'Get the website that pays for itself. With 6ix Developers, you receive website designs tailored to your industry and competitors, aimed at securing the top position in Google search results. Choosing 6ix Developers for your website design means having a 24/7 online salesperson working for you. Our website designs are carefully analyzed and tested before deployment. This ensures we measure and improve returns on your investment, as well as increase user engagement and conversion rates on your website.',
             ),
             'packages_heading' => 'Website Packages',
-            'packages_intro'   => 'No matter the size of your business, a website is essential to make an impact with customers. To ensure your website is successful and easy to find, it needs to be fast, easy-to-use, and visually appealing on all devices.',
+            'packages_intro'   => "No matter the size of your business, a website is essential to make an impact with customers. To ensure your website is successful and easy to find, it needs to be fast, easy-to-use, and visually appealing on all devices. Any website that doesn't meet these criteria will not be effective anymore.",
             'packages' => array(
-                array( 'badge' => 'Starter',              'size' => '1 to 5 Pages',   'text' => 'Great for companies offering minimal services, if you are just starting your company, or if you are just beginning to establish your presence online.' ),
-                array( 'badge' => 'Standard',             'size' => '6 to 12 Pages',  'text' => 'Great for companies that offer multiple services or locations, if your company is already well-established, or if you want to rebrand your online presence.' ),
-                array( 'badge' => 'Advanced / E-Commerce','size' => '13+ Pages',      'text' => 'Perfect for large companies, or if you already have a lot of existing content on your website. Also great for e-commerce companies selling products online.' ),
+                array( 'badge' => 'Starter',              'size' => '1 to 5 Pages' ),
+                array( 'badge' => 'Standard',             'size' => '6 to 12 Pages' ),
+                array( 'badge' => 'Advanced / E-Commerce','size' => '13+ Pages' ),
             ),
-            'features_heading' => 'Websites Built to Win You Business',
-            'features' => array(
-                array( 'icon' => 'target',  'title' => 'Optimized for Lead Generation', 'text' => "Website designs that are optimized for lead generation and lead capturing are essential to run a successful and modern business. We'll tailor yours to your industry, considering how your potential clients interact with websites, to make your website the final destination for their search." ),
-                array( 'icon' => 'spark',   'title' => 'Flexible Website Designs', 'text' => 'Our website designs are fully customizable to ensure your vision is realized without limitations. All website designs are developed under the supervision of our marketing team, ensuring the highest level of returns and longer user interaction.' ),
-                array( 'icon' => 'website', 'title' => 'Beautiful Across All Devices', 'text' => 'We exclusively offer responsive website designs. Our team adheres to industry standards to ensure the best user experience across all devices, including mobile phones, tablets, computers, and projectors.' ),
-                array( 'icon' => 'chart',   'title' => 'Fast Google PageSpeed', 'text' => 'Over half of all visitors will leave your website if it fails to load within 3 seconds. Our website designs are optimized for the fastest Google PageSpeed — and since May 4th, 2020, the top 3 factors for ranking #1 on Google are related to your website\'s PageSpeed.' ),
-                array( 'icon' => 'seo',     'title' => 'SEO Friendly Website Designs', 'text' => 'All of our website design packages include expert SEO consultation. We incorporate high-quality, industry-related keywords in titles, descriptions, meta tags and URLs to quickly rank your website on the 1st page of Google.' ),
-                array( 'icon' => 'shield',  'title' => 'Easy to Manage & Track', 'text' => 'Our website editor lets you drag and drop items around the page where you want, and adding new content and images couldn\'t be easier. Every site ships with Google Analytics, custom goals and conversion tracking so you can keep improving.' ),
-                array( 'icon' => 'ads',     'title' => 'Conversion Tracking on Your Website', 'text' => 'To find out how your potential customers are interacting with your website, all website designs from 6ix Developers come with Google Analytics integration. We set up custom goals and conversion tracking so you can learn and improve your website for the best user experience — ensuring constant, gradual growth for your business.' ),
-            ),
-            'highlight' => array(
-                'heading' => 'Receive FREE Google Ads Setup Valued at $1500',
-                'lines' => array(
-                    'Start a Website Design service with us and get your Google Ads campaign setup — a $1500 value — completely free, so your new website starts generating leads from day one.',
+            // "What website is right for me?" (verbatim)
+            'packages_guide' => array(
+                'heading' => 'What website is right for me?',
+                'items' => array(
+                    array( 'title' => 'Starter',            'text' => 'Great for companies offering minimal services, if you are just starting your company, or if you are just beginning to establish your presence online.' ),
+                    array( 'title' => 'Standard',           'text' => 'Great for companies that offer multiple services or locations, if your company is already well-established, or if you want to rebrand your online presence.' ),
+                    array( 'title' => 'Advanced/Ecommerce', 'text' => 'Perfect for large companies, or if you already have a lot of existing content on your website. Also great for e-commerce companies selling products online.' ),
                 ),
+                'qa' => array(
+                    array( 'q' => 'What if I want to promote my website?',   'a' => 'We also specialise in Google Ads campaigns. Click here to request a quote.' ),
+                    array( 'q' => 'What happens after my website is done?', 'a' => 'We also offer website management packages. Though not mandatory, website management is incredibly important when you own a website to have the backup you need In case of security breaches, malware, viruses, or even just the website crashing.' ),
+                ),
+            ),
+            // Verbatim feature sections (were condensed cards before)
+            'sections' => array(
+                array( 'title' => 'Website Designs Optimized for Lead Generation', 'paras' => array(
+                    "In today's business landscape, making a significant impact is essential for success, regardless of your business's size.",
+                    'Website designs that are slow to load, poorly designed, or difficult to navigate simply won\'t work anymore. Additionally, if they are not mobile responsive, they will not be effective. These website designs are extremely difficult to rank on the first page of Google, even with extraordinary SEO efforts.',
+                    'Website designs that are optimized for lead generation and lead capturing are essential to run a successful and modern business. Let our team at 6ix Developers design a website optimized for lead generation. We\'ll tailor it to your industry, considering how your potential clients interact with websites. Our goal is to make your website the final destination for their search.',
+                ) ),
+                array( 'title' => 'Flexible Website Designs', 'paras' => array(
+                    'Our website designs are fully customizable to ensure your vision is realized without limitations. We bring your dream website design to life. All website designs are developed under the supervision of our marketing team. This ensures the highest level of returns and longer user interaction.',
+                ) ),
+                array( 'title' => 'Beautiful across all Devices', 'paras' => array(
+                    'We exclusively offer responsive website designs. Our website design team adheres to industry standards to ensure the best user experience across all devices, including mobile phones, tablets, computers, and projectors.',
+                ) ),
+                array( 'title' => 'Web Designs with Fast Google PageSpeed', 'paras' => array(
+                    "Over half of all visitors will leave your website if it fails to load within 3 seconds. Do you know how long your website takes to load? Check its speed here. If your website's bounce rate is over 40% and it takes over 5 seconds to load, don't hesitate to call us. Every second counts. Every single second, people are bouncing off of your website because it's taking too long to load. Website designs at 6ix Developers are optimized for the fastest Google PageSpeed. Since May 4th, 2020, the top 3 factors for ranking #1 on Google are related to your website's PageSpeed. Don't waste time & contact us now. Each day you're losing 100s of potential clients who can take your business to the next level.",
+                ) ),
+                array( 'title' => 'SEO Friendly Website Designs (Search Engine Optimization)', 'paras' => array(
+                    'Our website designs ensure customers find your website once launched. All of our website design packages include expert SEO consultation. We ensure your website is launched with the best SEO practices. This includes incorporating high-quality, industry-related keywords in titles, descriptions, meta tags, URLs, etc., to quickly rank your website on the 1st page of Google.',
+                ) ),
+                array( 'title' => 'Easy to Manage Website Designs', 'paras' => array(
+                    "Website designs done by 6ix Developers are made to ensure you can make small changes on your website after its launch. Our website editor lets you drag and drop items around the page where you want. Adding new content and images couldn't be easier.",
+                ) ),
+                array( 'title' => 'Conversion Tracking on your Website', 'paras' => array(
+                    'To find out how your potential customers are interacting with your website, all website designs from 6ix Developers come with Google Analytics integration. We set up custom goals and conversion tracking on your website for you to learn and improve your website for the best user experience, ensuring constant and gradual growth and improvement in your business.',
+                ) ),
+            ),
+            // Real Clients With Real Results (client success carousel)
+            'show_success'    => true,
+            'success_heading' => 'Real Clients With Real Results',
+            'highlight' => array(
+                'heading' => 'Receive FREE Google Ads Setup Valued $1500, with Website Design Service',
+                'lines'   => array(),
+                'cta'     => 'Get your free consultation',
+                'cta_url' => '/contact-us',
             ),
             'steps_heading' => 'How It Works',
             'need' => array(
                 'heading' => 'What Do We Need From You?',
-                'text'    => 'To begin creating your beautiful website, we\'ll need a few things from you first.',
+                'text'    => "To begin creating your beautiful website, we'll need a few things from you first.",
                 'items'   => array(
-                    'All of your content as soon as possible — if you do not have content, our premium content creator will create it for your website.',
-                    'Your logo as a high-quality graphic in .svg, .jpg, or .png format.',
-                    'High quality images (we recommend 100kB–600kB). No images? We\'ll use custom stock images for your website.',
-                    'The pages you would like to include on your site.',
-                    'Contact form details and the email that should receive submissions.',
-                    'If you have an existing domain and hosting, your login information to get started.',
+                    'Content: We will need you to provide all of your content as soon as possible. This ensures an efficient launch of your website. If you do not have content, our premium content creator will create content for your website.',
+                    'Logos: Please provide your logo as a high-quality graphic in either an .svg, .jpg, or .png format. These will be uploaded to our Google Drive.',
+                    'Images: High quality images are extremely important to make a good impression with your website. We recommend photos between 100kB and 600kB – this ensures high-quality without sacrificing speed too much. These should be uploaded to a Google Drive if possible. If you do not have images available, do not worry, we will use custom stock images for your website.',
+                    'Sitemap: The pages you would like to include on your site.',
+                    'Contact Forms: All the information you need to collect should you have a contact form, and the email to receive the form.',
+                    "Logins: If you have an existing domain and hosting, we'll need your login information to start.",
                 ),
             ),
             'steps' => array(
                 'heading' => 'How Does The Web Design Process Work?',
                 'list' => array(
-                    array( 'strong' => 'Plan & design',     'text' => 'We develop an initial document that outlines the website and its content, and work with you to come up with a design you like.' ),
-                    array( 'strong' => 'Build',             'text' => 'Once the content and design are approved, we send this to the developer to begin building your website.' ),
-                    array( 'strong' => 'Revise',            'text' => 'Once the website is completed, we go back in and make revisions.' ),
-                    array( 'strong' => 'Launch',            'text' => 'After all the changes are made, we migrate the website to your domain and hosting.' ),
-                    array( 'strong' => 'Maintain',          'text' => 'We offer optional monthly management and maintenance — helping with crashes, malware or virus attacks, hackers, and regular updates.' ),
+                    array( 'strong' => 'Step 1', 'text' => 'We develop an initial document that outlines the website and the content in it. We will also work with you to come up with a design you like.' ),
+                    array( 'strong' => 'Step 2', 'text' => 'Once the content and design of the website is approved, we send this to the developer to begin building your website.' ),
+                    array( 'strong' => 'Step 3', 'text' => 'Once the website is completed, we can go back in and make revisions.' ),
+                    array( 'strong' => 'Step 4', 'text' => 'After all the changes are made, we will migrate the website to your domain and hosting.' ),
+                    array( 'strong' => 'Step 5', 'text' => 'We offer optional monthly management and maintenance services for your website. This helps with website crashes, malware or virus attacks, hackers, etc. as well as regular updates.' ),
                 ),
             ),
+            'faq_heading' => 'FAQ',
             'faq' => array(
-                array( 'q' => 'Where does my content come from?', 'a' => 'You! We include the content you send us, or that already exists on your website. We are more than happy to help you write your content as well at our rate of $0.15 per word.' ),
+                array( 'q' => 'Where does my content come from?', 'a' => 'You! We include the content you send us, or that already exists on your website. We are more than happy to help you write your content as well at our rate of 0.15 per word.' ),
                 array( 'q' => 'What is the turnaround time?', 'a' => 'Given you provide us all the necessary information up front, we can have your website up in a matter of weeks.' ),
                 array( 'q' => 'Is there a contract?', 'a' => 'No. We do not require any of our clients to sign a contract. Our monthly plans operate on a month-to-month basis.' ),
                 array( 'q' => 'Can SEO be done to your sites?', 'a' => 'Yes! All of our sites come with the SEO functionality built-in.' ),
                 array( 'q' => 'What is not included?', 'a' => 'Content creation, graphic design, logo design, and other services such as SEO and Google Ads will run at additional costs. Please contact us for more information or to get an estimate.' ),
-                array( 'q' => 'If I have a large site, can I still get a small package?', 'a' => 'Yes, but we do not recommend this. Doing so may limit the functionality of the website, and can impact the amount of content we can use.' ),
-                array( 'q' => 'How many pages do I get?', 'a' => 'Please refer to the website packages above — Starter (1 to 5 pages), Standard (6 to 12 pages), or Advanced / E-Commerce (13+ pages).' ),
-                array( 'q' => 'What do you need from me to get started?', 'a' => 'We will need your existing content, or a link to your website if we are copying your content. We will also need your logo and images (we recommend images be between 100kB and 600kB). Finally, we will need your website outline, contact form information, and your domain/hosting login.' ),
+                array( 'q' => 'If I have a large site, can I still get a small package?', 'a' => 'Yes but, we do not recommend this. Doing so may limit the functionality of the website, and can impact the amount of content we can use.' ),
+                array( 'q' => 'How many pages do I get?', 'a' => 'Please refer to the website packages located under Step 1 of our consultation form.' ),
+                array( 'q' => 'Can I use the domain I already have?', 'a' => 'Yes! And we encourage it! We will need your login information. We also recommend purchasing a hosting plan (our favourite is GoDaddy).' ),
+                array( 'q' => 'Are there any monthly maintenance plans?', 'a' => 'It is important for the security of your website to have someone regularly back it up, and provide assistance incase of malware or virus attacks, hackers, website crashes, etc. It also allows your website to be updated professionally every month if need be. Therefore, we do offer a range of monthly plans. Please contact us for more information.' ),
                 array( 'q' => 'Do I own the website?', 'a' => 'Yes! We do not operate under contracts, so you will 100% own your website once it is up and running.' ),
-                array( 'q' => 'Can I use the domain I already have?', 'a' => 'Yes! And we encourage it. We will need your login information. We also recommend purchasing a hosting plan (our favourite is GoDaddy).' ),
-                array( 'q' => 'Are there any monthly maintenance plans?', 'a' => 'Yes. It is important for the security of your website to have someone regularly back it up and provide assistance in case of malware or virus attacks, hackers, or website crashes. Please contact us for more information.' ),
-                array( 'q' => 'How do I promote my new website?', 'a' => 'We specialise in Google Ads campaigns for all types of businesses. Contact us to get a quote.' ),
+                array( 'q' => 'What do you need from me to get started?', 'a' => 'We will need your existing content, or link to your website if we are copying your content. We will also need you to provide us with your logo and images – we recommend images be between 100kB and 600kB. Finally, we will need to know your website outline, contact form information, and your domain/hosting login.' ),
+                array( 'q' => 'How do I promote my new website?', 'a' => 'We specialise in Google Ads campaigns for all types of businesses. Click here to get a quote.' ),
             ),
         ),
 
@@ -160,35 +193,35 @@ function six_service_pages() {
             // The detailed 8-point audit checklist
             'audit_checklist_heading' => "What's included in our comprehensive Google Ads Account Audit",
             'audit_checklist' => array(
-                array( 'icon' => 'shield', 'title' => 'The Wasted Spend: Unlocking Your Google Ads Efficiency', 'paras' => array(
+                array( 'icon' => 'gauge', 'title' => 'The Wasted Spend: Unlocking Your Google Ads Efficiency', 'paras' => array(
                     'In our Google Ads audit, we delve into the crucial realm of negative keywords — a pivotal factor in minimizing AdWords costs. Failure to implement negative keywords could result in squandering thousands of dollars each month on irrelevant keywords that yield no leads.',
                     'Our audit meticulously reviews your negative keyword usage, identifying areas where potential savings lie dormant. By optimizing your negative keyword strategy, we empower you to cut unnecessary spending and redirect your budget towards high-converting keywords that drive tangible results.',
                 ) ),
-                array( 'icon' => 'chart',  'title' => 'Unlock Your Ad Relevance with CTR Analysis', 'paras' => array(
+                array( 'icon' => 'trending', 'title' => 'Unlock Your Ad Relevance with CTR Analysis', 'paras' => array(
                     'CTR (Click-Through Rate) serves as a vital gauge of your ad targeting effectiveness. During our Google Ads audit, our specialists meticulously assess your campaigns, placing a strong emphasis on CTR analysis. This crucial metric offers insight into the relevance and uniqueness of your ad copy.',
                     'A low CTR could signify lost opportunities and potential ground conceded to competitors. By scrutinizing your CTR, we uncover areas for improvement and refine your ad strategy to ensure maximum impact and engagement.',
                 ) ),
-                array( 'icon' => 'target', 'title' => 'Unlocking Profitability: Harness the Power of Long-Tail Keywords', 'paras' => array(
+                array( 'icon' => 'search', 'title' => 'Unlocking Profitability: Harness the Power of Long-Tail Keywords', 'paras' => array(
                     'Long-tail keywords, the cornerstone of a lucrative PPC campaign, are often overlooked but hold immense potential. Failure to incorporate these highly targeted phrases means missed opportunities to capture relevant leads at a lower cost.',
                     'In our assessment of your PPC strategy, we prioritize the integration of long-tail keywords. These specialized terms offer a direct path to highly qualified prospects, maximizing your ROI and minimizing wasted ad spend.',
                 ) ),
-                array( 'icon' => 'shield', 'title' => 'Our Certified Google Ads Specialist Ensures Adherence to Best Practices', 'paras' => array(
+                array( 'icon' => 'award', 'title' => 'Our Certified Google Ads Specialist Ensures Adherence to Best Practices', 'paras' => array(
                     'Our dedicated Google Ads specialist ensures that your campaigns adhere to the proven best practices followed by certified Google Ads experts. By implementing these industry-standard techniques, we guarantee optimal performance and maximize the effectiveness of your advertising investment.',
                     'Trust in our expertise to elevate your campaigns to new heights of success and unlock the full potential of your Google Ads strategy.',
                 ) ),
-                array( 'icon' => 'spark',  'title' => 'Elevate Your ROI with Quality Score Optimization', 'paras' => array(
+                array( 'icon' => 'target', 'title' => 'Elevate Your ROI with Quality Score Optimization', 'paras' => array(
                     "During our Google Ads audit, our specialist meticulously reviews your campaign's Quality Scores. These scores play a pivotal role in determining your ROI, as they directly impact your ad rankings and cost per click.",
                     'By focusing on achieving high Quality Scores, we not only improve your ad rankings but also lower your cost per click, resulting in more relevant leads at a lower cost.',
                 ) ),
-                array( 'icon' => 'website','title' => 'Unlock Success with Dedicated Account Management', 'paras' => array(
+                array( 'icon' => 'users', 'title' => 'Unlock Success with Dedicated Account Management', 'paras' => array(
                     "Our PPC specialist meticulously assesses the time your Google Ads Account manager spends in your account. Through our analysis, we've uncovered a significant correlation between active account management and overall success rates.",
                     'Clients who receive more dedicated attention tend to achieve higher levels of success. By prioritizing regular monitoring, optimization, and strategic adjustments, we ensure your campaigns are consistently optimized for maximum effectiveness and ROI.',
                 ) ),
-                array( 'icon' => 'ads',    'title' => 'Enhance Your Google Ads Performance with Text Ad Analysis', 'paras' => array(
+                array( 'icon' => 'pen', 'title' => 'Enhance Your Google Ads Performance with Text Ad Analysis', 'paras' => array(
                     'Our Google Ads campaign audit includes a thorough review of your text ad usage, a crucial element for achieving strong performance metrics such as impressions, clicks, CTR (Click-Through Rate), ad relevance, and ranking.',
                     'By meticulously analyzing your text ads, we identify areas for improvement and optimization. Our goal is to ensure that your ads are not only highly relevant to your target audience but also effectively drive engagement and conversions.',
                 ) ),
-                array( 'icon' => 'seo',    'title' => 'Elevate Your Business Front with Optimized Landing Pages', 'paras' => array(
+                array( 'icon' => 'layers', 'title' => 'Elevate Your Business Front with Optimized Landing Pages', 'paras' => array(
                     'Landing pages serve as the forefront of your business, dictating the success of your campaigns. Even with stellar Google Ads performance, a subpar landing page can hinder overall results. Our Google Ads Account audit prioritizes ensuring your landing pages are on par with competitors, optimizing them for maximum effectiveness.',
                     "By conducting a thorough assessment, we identify opportunities to enhance your landing pages' performance. From design and functionality to content and user experience, we ensure your landing pages align with industry standards and surpass competitor benchmarks.",
                 ) ),
@@ -197,17 +230,17 @@ function six_service_pages() {
 
             'features_heading' => 'Strategic Google Ads Management',
             'features' => array(
-                array( 'icon' => 'chart',  'title' => 'Maximize Your ROI with Strategic Google Ads Management', 'text' => "Running a search marketing campaign on Google can quickly become costly without a solid strategy in place. At 6ix Developers, we craft tailored strategies based on your business type, goals, competition, and other critical factors, ensuring every dollar spent is strategically allocated to keywords that drive tangible leads and maximum ROI." ),
-                array( 'icon' => 'spark',  'title' => 'Stay Ahead of Evolving Search Trends', 'text' => "The way people search for services is constantly evolving. Our Google Ads certified team keeps your strategy finely tuned to capture maximum leads — you'll pay only for the keywords directly relevant to your business, ensuring every click counts towards driving high-quality leads." ),
-                array( 'icon' => 'target', 'title' => 'Unlock Precision Targeting with GEO Strategy', 'text' => 'We implement a GEO marketing strategy for your campaigns, focusing on specific geographic locations so your ads are shown only to users within your target audience — reaching the right people, in the right place, at the right time, so every impression counts.' ),
-                array( 'icon' => 'website','title' => "Don't Underestimate the Impact of Website Speed", 'text' => 'A slow-loading landing page can result in higher costs per click than your competitors, even if they rank below you. Our in-house developers optimize the landing pages used for Google Ads to load quickly and minimize bounce rates, maximizing your ad performance and ROI.' ),
+                array( 'icon' => 'rocket', 'title' => 'Maximize Your ROI with Strategic Google Ads Management', 'text' => "Running a search marketing campaign on Google can quickly become costly without a solid strategy in place. At 6ix Developers, we craft tailored strategies based on your business type, goals, competition, and other critical factors, ensuring every dollar spent is strategically allocated to keywords that drive tangible leads and maximum ROI." ),
+                array( 'icon' => 'trending', 'title' => 'Stay Ahead of Evolving Search Trends', 'text' => "The way people search for services is constantly evolving. Our Google Ads certified team keeps your strategy finely tuned to capture maximum leads — you'll pay only for the keywords directly relevant to your business, ensuring every click counts towards driving high-quality leads." ),
+                array( 'icon' => 'globe', 'title' => 'Unlock Precision Targeting with GEO Strategy', 'text' => 'We implement a GEO marketing strategy for your campaigns, focusing on specific geographic locations so your ads are shown only to users within your target audience — reaching the right people, in the right place, at the right time, so every impression counts.' ),
+                array( 'icon' => 'gauge', 'title' => "Don't Underestimate the Impact of Website Speed", 'text' => 'A slow-loading landing page can result in higher costs per click than your competitors, even if they rank below you. Our in-house developers optimize the landing pages used for Google Ads to load quickly and minimize bounce rates, maximizing your ad performance and ROI.' ),
             ),
 
             'results_heading' => 'Get the Results That Matter to You',
             'results' => array(
-                array( 'icon' => 'target', 'title' => 'Get More Qualified Leads', 'text' => 'Generate high intent, qualified leads by ranking #1 on Google at the right time.' ),
+                array( 'icon' => 'search', 'title' => 'Get More Qualified Leads', 'text' => 'Generate high intent, qualified leads by ranking #1 on Google at the right time.' ),
                 array( 'icon' => 'ads',    'title' => 'More Phone Calls',        'text' => 'Increase qualified call volume using Google Ads high-intent targeting.' ),
-                array( 'icon' => 'chart',  'title' => 'Transparency',            'text' => "Understand what's working with quantifiable Google Ads reports." ),
+                array( 'icon' => 'gauge',  'title' => 'Transparency',            'text' => "Understand what's working with quantifiable Google Ads reports." ),
             ),
 
             'steps_heading' => 'How It Works',
@@ -288,8 +321,8 @@ function six_service_pages() {
             'menu'     => 'SEO Services',
             'eyebrow'  => 'Search Engine Optimization',
             'title'    => 'Toronto SEO Agency That You Can Trust',
-            'subtitle' => 'Hire Us & Start Seeing Results in 30 Days',
-            'lead'     => 'Increase your organic ranking with proven search engine optimization services.',
+            'subtitle' => 'Hire Us & Start Seeing Results in 30 Days!',
+            'lead'     => 'Increase your organic ranking with proven Search Engine Optimization services.',
             'form_quote' => array(
                 'heading'      => 'Schedule SEO Call Today',
                 'sub'          => 'Book a call with our SEO team and start seeing results in 30 days.',
@@ -297,25 +330,28 @@ function six_service_pages() {
                 'goal_options' => array( 'Rank higher on Google', 'More organic traffic', 'Local SEO / Google Maps', 'Recover lost rankings', 'Not sure yet' ),
                 'submit'       => 'Schedule My Call',
             ),
+            'intro_heading' => 'Increase Your Organic Ranking With Our Search Engine Optimization Services',
             'intro'    => array(
-                'SEO (Search Engine Optimization) places your website under the organic results section of search engines like Google, Bing or Yahoo. Being found organically by ranking on the first page of Google is one of the best ways to grow your business consistently. Leads coming from organically ranked websites are always more likely to convert and they do not cost anything.',
-                'Our certified team of SEO experts are here to provide affordable SEO packages to small and large businesses. Whether you need local small business SEO or large enterprise SEO services, our team applies proven strategies and best practices across all businesses. You can certainly trust us to help you rank on the 1st page of Google, because we have done it all.',
+                "SEO (Search Engine Optimization) places your website under the organic results section of search engines like Google, Bing or Yahoo. Being found organically by ranking on the first page of Google is one of the best ways to grow your business consistently. Leads coming from organically ranked websites are always more likely to convert and they do not cost anything. Our Certified team of SEO experts are here to provide affordable SEO packages to small and large businesses. Whether you need local small business SEO or large enterprise SEO services, our team of SEO experts apply proven strategies and best practices across all businesses. Though there are many SEO companies in Toronto and the GTA offering SEO services, you can certainly trust us and let us help you rank on the 1st page of Google because we have done it all.",
             ),
-            'features_heading' => 'How We Rank Your Website',
-            'features' => array(
-                array( 'icon' => 'seo',    'title' => 'Website SEO Analysis', 'text' => 'Before starting the actual SEO of your business website, we understand your client base, industry requirements and business goals. Our team gathers all the industry benchmarks for your business and develops a comprehensive SEO strategy based on your initial website analysis, predicting the performance and the timeline.' ),
-                array( 'icon' => 'website','title' => 'On-Page SEO', 'text' => 'Our team runs a comprehensive diagnosis on your website to fix all internal errors before starting anything — including slow Google PageSpeed, one of the top 3 ranking factors since May 2020. We create a technical document that is handed over to the development team for implementation.' ),
-                array( 'icon' => 'ads',    'title' => 'Off-Page SEO Link Building', 'text' => "Our premium SEO writer works to include you in the news cycle. Our news desk identifies high quality news publishers in your industry and creates news stories that include your business's research and facts in the story." ),
+            'sections' => array(
+                array( 'title' => 'Website SEO Analysis', 'paras' => array(
+                    "Before starting the actual SEO of your business website, we need to understand your client base, industry requirement and your business goal. SEO team at 6ix Developers specializes in gathering all the industry benchmarks for your business. Our SEO team develops a comprehensive SEO strategy based on your initial website analysis and predicts the performance and the timeline. Our analytical audit covers all major and minor SEO aspects of our client's website.",
+                ) ),
+                array( 'title' => 'On-Page SEO', 'paras' => array() ),
+                array( 'title' => 'Off-Page SEO Link Building', 'paras' => array(
+                    "Our premium SEO writer works to include you in the news cycle. Our news desk identifies high quality news publishers in your industry and creates news stories that include your business's research on facts in the story.",
+                ) ),
             ),
             'benefits_heading' => 'Why SEO with 6ix Developers',
-            'benefits_intro'   => 'Our success is in your success. Our SEO packages follow aggressive optimization strategies in collaboration with search engines like Google, Bing and Yahoo — setting a high standard for both small and large business SEO.',
+            'benefits_intro'   => 'Our success is in your success. Our SEO packages are completed following aggressive website optimization stretegies and in collaboration with the search engines like Google, Bing and Yahoo. Our promise to excellent local SEO management sets a high standard for our small and large business SEO services. Customer satisfaction is our utmost priority and aligning goals so 6ix Developers and our clients can succeed together.',
             'benefits' => array(
-                array( 'icon' => 'target', 'title' => 'Prominent Position',        'text' => 'Rank for keywords that actually convert.' ),
-                array( 'icon' => 'chart',  'title' => 'Detailed Tracking & Reporting', 'text' => 'We set up tracking codes to track user actions and use that information for better UX and improved ranking. Customized reports are shared bi-weekly to illustrate visible improvement.' ),
-                array( 'icon' => 'shield',  'title' => 'No Annual Contracts',        'text' => 'Be comfortable with our no long-term contract SEO plans — our success is in your success.' ),
-                array( 'icon' => 'spark',  'title' => 'Dedicated Management Team',    'text' => 'You get a dedicated SEO manager who shares a monthly calendar of all actionable SEO work and goes over progress with you every 2 weeks.' ),
-                array( 'icon' => 'social', 'title' => 'Multiple Options',             'text' => 'Our dedicated team of SEO specialists will put a plan together that fits your needs.' ),
-                array( 'icon' => 'website','title' => 'SEO Dashboard',                'text' => 'Access our online reporting dashboard anytime, anywhere to see your daily real-time traffic reports.' ),
+                array( 'icon' => 'target', 'title' => 'Prominent Position',                  'text' => 'Rank for keywords that actually convert.' ),
+                array( 'icon' => 'chart',  'title' => 'Detailed SEO Website Tracking/Reporting','text' => 'We set up tracking codes on your website to track user actions on the website. We take all that information and use it for better user experience and overall improved SEO ranking. Customized reports are shared on bi-weekly basis to illustrate visible improvement.' ),
+                array( 'icon' => 'shield', 'title' => 'No Annual Contracts',                  'text' => 'Our success is in your success. Be comfortable with our no long terms contract SEO plans.' ),
+                array( 'icon' => 'spark',  'title' => 'Dedicated Management Team',             'text' => 'You get your dedicated SEO manager who shares with you your monthly calendar consists of all the actionable SEO work. Your SEO manager also goes over the progress with you every 2 weeks.' ),
+                array( 'icon' => 'social', 'title' => 'Multiple Options',                      'text' => 'Our dedicated team of SEO specialists will make sure to put a plan together that fits your needs.' ),
+                array( 'icon' => 'website','title' => 'SEO Dashboard',                         'text' => 'You get access to our online reporting dashboard which you can use anytime, anywhere to access your daily real time traffic reports.' ),
             ),
             'faq' => array(),
         ),
@@ -324,27 +360,37 @@ function six_service_pages() {
         'social-media-marketing-agency-toronto' => array(
             'menu'     => 'Social Media',
             'eyebrow'  => 'Social Media Marketing',
-            'title'    => 'Social Media Marketing Agency Toronto',
-            'subtitle' => 'Explore the Power of Social Media',
-            'lead'     => 'Building brands with passion — get your brand into everybody\'s palms.',
+            'title'    => 'Explore the Power of Social Media',
+            'subtitle' => 'Building Brands with Passion',
+            'lead'     => 'Get your brand into everybody\'s palms.',
             'form_quote' => array(
                 'heading'      => 'Get Quote Now',
                 'sub'          => 'Tell us about your brand and our social media team will put a plan together for you.',
-                'goal_label'   => 'What do you need help with?',
+                'goal_label'   => 'Social Media Inquiry',
                 'goal_options' => array( 'Grow my following', 'Social media management', 'Paid social advertising', 'Branding & content', 'Not sure yet' ),
                 'submit'       => 'Get My Quote',
             ),
+            'intro_heading' => 'Social Media Marketing Agency Toronto',
             'intro'    => array(
-                'Social Media is the fastest moving industry in the world. Your audience spends hours on social media — big examples like Facebook & Instagram — each day. Being on social media is not just an additional way of reaching out to your potential audience anymore; it is the smartest way of getting your brand name out there and building a community that shares the same interests as your brand.',
-                'Social media is changing the face of marketing. How your audience interacts with your brand is how you present yourself on social media these days. Most of your potential audience has Facebook and Instagram in their hands but they don\'t have your brand name — you can use these channels to get your brand in everybody\'s palms.',
+                'Social Media is the fastest moving industry in the world. Your audience spends hours on Social Media big examples like Facebook & Instagram each day. Being on Social Media is not just an additional way of reaching out to your potential audience anymore, it is The smartest way of getting your brand name out there, building the community that shares the same interests as your brand.',
+                "Social Media is changing the face of marketing. How your audience interacts with your brand is how you present yourself in Social Media these days. Most of your potential audience has Facebook and Instagram in their hands but they don't have your brand name. You can use these channels to get your brand in everybody's palms.",
             ),
-            'features_heading' => 'How We Grow Your Presence',
-            'features' => array(
-                array( 'icon' => 'social', 'title' => 'Be Seen on Social Media', 'text' => 'The Social Media team at 6ix Developers is actively helping over 150 businesses in Canada. We help you build a community that shares the same ideas as your business, using the latest tools and lots of experience to make your potential audience remember your name when they need the services you offer.' ),
-                array( 'icon' => 'chart',  'title' => 'Accelerated Marketing & Countable Results', 'text' => "We take your stagnant business growth and revenue to a consistently and gradually growing pace. We can help your business get all those bounced website visitors back and turn them into solid leads and sales using Social Media Accelerated Marketing strategies." ),
-                array( 'icon' => 'spark',  'title' => 'Instagram & Facebook Engagement Campaigns', 'text' => 'If your business is located within Canada, we have proven strategies for many industries on growing engagement on social channels. With constant growth and engagement your business will thrive and provide the best possible returns on your marketing dollars.' ),
-                array( 'icon' => 'ads',    'title' => 'Social Media Paid Advertising', 'text' => "Don't stop at organic growth. Our paid marketing strategies are designed to interact with an audience that has engaged with your business — or a similar business — in the past, bringing you active and warm leads that are ready to convert." ),
-                array( 'icon' => 'target', 'title' => 'Branding & Media', 'text' => 'Use social media to build your brand and let your potential clients interact with it how you envisioned it. 6ix Developers can help your vision come to life and get your brand under the spotlight.' ),
+            'sections' => array(
+                array( 'title' => 'How 6ix Developers can help your Business be seen on Social Media', 'paras' => array(
+                    'The Social Media team at 6ix Developers is actively helping over 150 businesses in Canada with their Social Media marketing. We help you build a community that shares the same ideas as your business on social media platforms. With the latest and greatest tools and lots of experience, our qualified team of Social Media experts can take your business to the next level and make your potential audience remember your name when they need services you offer.',
+                ) ),
+                array( 'title' => 'Accelerated Marketing & Countable Results', 'paras' => array(
+                    "We take your stagnant business growth and revenue to a consistently and gradually growing pace. If you're looking to expand your reach to your potential audience, Social Media Accelerated marketing is the best way to go. We can help your business get all those bounced visitors on your website back and turn them into solid leads/sales using Social Media Accelerated Marketing strategies.",
+                ) ),
+                array( 'title' => 'Instagram and Facebook Engagement Campaigns', 'paras' => array(
+                    'If your business is located within Canada, we have proven strategies for many industries on growing the engagement on social media channels. With constant growth and engagement your business will thrive and it will provide the best possible returns on $ invested on marketing.',
+                ) ),
+                array( 'title' => 'Social Media Paid Advertising', 'paras' => array(
+                    'Do not stop at organic growth. Although organic growth is constant and consistent, you most likely want to make use of paid marketing on Social Media. These paid marketing campaigns can bring you active and warm leads that are ready to convert. Our paid marketing strategies are designed to interact with an audience that has interacted with your business or a similar business as yours in the past. Ask us how we can help your business with paid social media marketing campaigns.',
+                ) ),
+                array( 'title' => 'Branding and Media', 'paras' => array(
+                    'Use Social Media to build your brand and let your potential clients interact with it how you envisioned it. 6ix Developers can help your vision come to life and get your brand under the spotlight.',
+                ) ),
             ),
             'faq' => array(),
         ),

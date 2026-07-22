@@ -56,11 +56,11 @@ function mk_form_open( $id, $heading, $sub = '', $submit = 'Submit' ) {
 }
 function mk_form_close( $submit = 'Submit' ) {
 	ob_start(); ?>
-			<div class="mk-form-foot">
-				<?php echo mk_form_captcha(); ?>
+			<?php echo mk_form_captcha(); ?>
+			<div class="mk-form-actions">
 				<button type="submit" class="mk-btn mk-btn-primary mk-btn-lg mk-form-submit"><?php echo esc_html( $submit ); ?></button>
+				<p class="mk-form-note">By submitting, you agree to be contacted by 6ix Developers about your enquiry.</p>
 			</div>
-			<p class="mk-form-note">By submitting, you agree to be contacted by 6ix Developers about your enquiry.</p>
 		</form>
 	</div>
 	<?php return ob_get_clean();

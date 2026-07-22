@@ -99,7 +99,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
           <span class="mk-typing" id="mk-typing" data-words="<?php echo esc_attr( $typing_words ); ?>"></span></p>
         <div class="mk-hero-cta">
           <a class="mk-btn mk-btn-primary mk-btn-lg" href="<?php echo esc_url( home_url( mk_field( 'hero_cta1_url', '/contact-us' ) ) ); ?>"><?php mk_e( 'hero_cta1_label', 'Get your free consultation' ); ?></a>
-          <a class="mk-btn mk-btn-ghost mk-btn-lg" href="<?php echo esc_url( mk_portal_url() ); ?>"><?php mk_e( 'hero_cta2_label', 'Get to know your marketing' ); ?></a>
+          <a class="mk-btn mk-btn-ghost mk-btn-lg" href="<?php echo esc_url( mk_portal_url() ); ?>"><?php mk_e( 'hero_cta2_label', 'Find out how your business is doing' ); ?></a>
         </div>
       </div>
     </div>
@@ -209,22 +209,6 @@ header( 'Content-Type: text/html; charset=utf-8' );
     </div>
   </section>
 
-  <!-- BUSINESSES WHO TRUST US — client logo strip (original section) -->
-  <?php if ( ! empty( $logos ) ) : ?>
-  <section class="mk-section mk-section-sm">
-    <div class="mk-wrap">
-      <div class="mk-sec-head mk-center">
-        <h2><?php echo esc_html( mk_field( 'logos_heading', 'Businesses Who Trust Us' ) ); ?></h2>
-      </div>
-      <div class="mk-logos">
-        <?php foreach ( (array) $logos as $lg ) : if ( empty( $lg['image'] ) ) continue; ?>
-        <div class="mk-logo-item"><img src="<?php echo esc_url( $lg['image'] ); ?>" alt="Client logo" loading="lazy"></div>
-        <?php endforeach; ?>
-      </div>
-    </div>
-  </section>
-  <?php endif; ?>
-
   <!-- WHAT OUR CLIENTS SAY — testimonial slider (editable via CPT) -->
   <section class="mk-section mk-section-sm mk-glow">
     <div class="mk-wrap">
@@ -288,7 +272,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
       <h2 class="mk-grad-text"><?php echo esc_html( mk_field( 'final_heading', 'Ready to find out what sets 6ix Developers apart?' ) ); ?></h2>
       <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:10px">
         <a class="mk-btn mk-btn-primary mk-btn-lg" href="<?php echo esc_url( home_url( mk_field( 'final_cta_url', '/contact-us' ) ) ); ?>"><?php mk_e( 'final_cta_label', 'Get free consultation now' ); ?></a>
-        <a class="mk-btn mk-btn-ghost mk-btn-lg" href="<?php echo esc_url( mk_portal_url() ); ?>">See your marketing score</a>
+        <a class="mk-btn mk-btn-ghost mk-btn-lg" href="<?php echo esc_url( mk_portal_url() ); ?>">See where your business can grow</a>
       </div>
     </div>
   </section>
