@@ -125,6 +125,63 @@ add_action( 'wp_ajax_six_save_profile', function() {
 // hook and write conflicting step values — removed.
 
 // ─────────────────────────────────────────────────────────────────────────────
+// DATA SOURCES — customer connects analytics/ad accounts so live numbers can
+// replace the post-onboarding projection. Stores the (non-secret) account
+// identifier and notifies the advisor to complete the access grant.
+// ─────────────────────────────────────────────────────────────────────────────
+function six_data_source_meta_map() {
+    return array(
+        'ga4'   => array( 'meta' => 'six_ga4_property_id',     'label' => 'Google Analytics 4' ),
+        'gads'  => array( 'meta' => 'six_gads_customer_id',    'label' => 'Google Ads' ),
+        'meta'  => array( 'meta' => 'six_meta_ad_account_id',  'label' => 'Meta Ads' ),
+        'gbp'   => array( 'meta' => 'six_gbp_location_id',     'label' => 'Google Business Profile' ),
+        'gsc'   => array( 'meta' => 'six_gsc_site',            'label' => 'Google Search Console' ),
+    );
+}
+
+add_action( 'wp_ajax_six_save_data_source', function() {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    $user_id = get_current_user_id();
+    if ( ! $user_id ) wp_send_json_error( 'Not logged in.' );
+
+    $map    = six_data_source_meta_map();
+    $source = sanitize_key( $_POST['source'] ?? '' );
+    if ( ! isset( $map[ $source ] ) ) wp_send_json_error( 'Unknown data source.' );
+
+    $value = sanitize_text_field( $_POST['value'] ?? '' );
+    if ( $value === '' ) wp_send_json_error( 'Please enter your account ID.' );
+
+    update_user_meta( $user_id, $map[ $source ]['meta'], $value );
+    update_user_meta( $user_id, 'six_ds_' . $source . '_at', current_time('mysql') );
+
+    // Notify the assigned advisor to complete the access grant.
+    global $wpdb;
+    $advisor_id = $wpdb->get_var( $wpdb->prepare(
+        "SELECT advisor_id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d", $user_id ) );
+    if ( $advisor_id && class_exists('Six_Notifications') ) {
+        $u = get_userdata( $user_id );
+        Six_Notifications::create( array(
+            'user_id'    => $advisor_id,
+            'type'       => 'data_source_connected',
+            'title'      => 'Client connected a data source',
+            'message'    => ( $u->display_name ?: $u->user_email ) . ' provided their ' . $map[$source]['label'] . ' ID (' . $value . '). Complete the access grant to pull live data.',
+            'action_url' => admin_url('admin.php?page=six-clients'),
+        ) );
+    }
+
+    // Compute new completeness for the UI.
+    $connected = 0;
+    foreach ( $map as $s ) { if ( get_user_meta( $user_id, $s['meta'], true ) ) $connected++; }
+
+    wp_send_json_success( array(
+        'message'    => 'Connected. Your advisor will finish linking it.',
+        'connected'  => $connected,
+        'total'      => count( $map ),
+        'source'     => $source,
+    ) );
+} );
+
+// ─────────────────────────────────────────────────────────────────────────────
 // SERVICES
 // ─────────────────────────────────────────────────────────────────────────────
 

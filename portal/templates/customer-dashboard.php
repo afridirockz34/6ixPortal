@@ -1075,6 +1075,107 @@ $has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
 
 
 
+<!-- ── DATA SOURCES: connect accounts to replace projections with live data ── -->
+<?php
+$ds_defs = array(
+    'ga4'  => array('label'=>'Google Analytics 4',      'meta'=>'six_ga4_property_id',    'metric'=>'Visitors',       'hint'=>'GA4 Property ID (e.g. 123456789)'),
+    'gads' => array('label'=>'Google Ads',              'meta'=>'six_gads_customer_id',   'metric'=>'Leads & spend',  'hint'=>'Customer ID (e.g. 123-456-7890)'),
+    'meta' => array('label'=>'Meta Ads',                'meta'=>'six_meta_ad_account_id', 'metric'=>'Social leads',   'hint'=>'Ad Account ID (e.g. act_1234567890)'),
+    'gbp'  => array('label'=>'Google Business Profile', 'meta'=>'six_gbp_location_id',    'metric'=>'Calls & local',  'hint'=>'Business name or location ID'),
+    'gsc'  => array('label'=>'Google Search Console',   'meta'=>'six_gsc_site',           'metric'=>'Organic traffic','hint'=>'Website domain (e.g. yoursite.com)'),
+);
+$ds_connected = 0;
+foreach ( $ds_defs as $d ) { if ( get_user_meta($user_id,$d['meta'],true) ) $ds_connected++; }
+$ds_total = count($ds_defs);
+$ds_pct   = $ds_total ? round(($ds_connected/$ds_total)*100) : 0;
+?>
+<div class="six-card" id="six-data-sources" style="margin-bottom:20px" data-total="<?php echo $ds_total; ?>">
+    <div class="six-card-header" style="align-items:flex-start">
+        <div>
+            <span class="six-card-title">Connect Your Data Sources</span>
+            <div style="font-size:11.5px;color:var(--text3);margin-top:3px">The more you connect, the sooner your projections become live, verified numbers.</div>
+        </div>
+        <div style="text-align:right;min-width:120px">
+            <div style="font-size:12px;color:var(--text3)"><span id="ds-count"><?php echo $ds_connected; ?></span>/<?php echo $ds_total; ?> connected</div>
+            <div style="height:7px;border-radius:5px;background:var(--border,rgba(255,255,255,.08));margin-top:6px;overflow:hidden">
+                <div id="ds-bar" style="height:100%;width:<?php echo $ds_pct; ?>%;border-radius:5px;background:linear-gradient(90deg,#83C5ED,#FF6699);transition:width .4s"></div>
+            </div>
+        </div>
+    </div>
+    <div class="six-card-body" style="display:flex;flex-direction:column;gap:10px">
+        <?php foreach ( $ds_defs as $key => $d ):
+            $val = get_user_meta($user_id, $d['meta'], true);
+            $is_conn = ! empty($val);
+        ?>
+        <div class="six-ds-row" data-source="<?php echo esc_attr($key); ?>" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:12px">
+            <div style="flex:1;min-width:0">
+                <div style="font-size:13.5px;font-weight:600;color:var(--text1)"><?php echo esc_html($d['label']); ?></div>
+                <div style="font-size:11px;color:var(--text3);margin-top:1px"><?php echo esc_html($d['metric']); ?></div>
+            </div>
+            <span class="six-ds-badge" style="font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:20px;<?php echo $is_conn ? 'background:rgba(86,211,100,.14);color:#1a7a2e' : 'background:var(--border,rgba(255,255,255,.06));color:var(--text3)'; ?>">
+                <?php echo $is_conn ? 'Connected' : 'Not connected'; ?>
+            </span>
+            <button type="button" class="six-btn six-btn-ghost six-btn-sm six-ds-toggle" style="font-size:12px"><?php echo $is_conn ? 'Update' : 'Connect'; ?></button>
+        </div>
+        <div class="six-ds-form" data-source="<?php echo esc_attr($key); ?>" style="display:none;gap:8px;padding:0 2px 4px">
+            <input class="six-input six-ds-input" type="text" value="<?php echo esc_attr($val); ?>" placeholder="<?php echo esc_attr($d['hint']); ?>" style="flex:1;font-size:12.5px">
+            <button type="button" class="six-btn six-btn-primary six-btn-sm six-ds-save" style="font-size:12px">Save</button>
+            <div class="six-ds-msg" style="font-size:11px;align-self:center"></div>
+        </div>
+        <?php endforeach; ?>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">We only store your account ID — never a password. Your advisor completes the secure access grant from their side.</div>
+    </div>
+</div>
+<script>
+(function(){
+    var card = document.getElementById('six-data-sources');
+    if (!card) return;
+    var total = parseInt(card.getAttribute('data-total'),10) || 5;
+    card.querySelectorAll('.six-ds-toggle').forEach(function(btn){
+        btn.addEventListener('click', function(){
+            var row = btn.closest('.six-ds-row');
+            var src = row.getAttribute('data-source');
+            var form = card.querySelector('.six-ds-form[data-source="'+src+'"]');
+            if (!form) return;
+            var open = form.style.display !== 'none' && form.style.display !== '';
+            form.style.display = open ? 'none' : 'flex';
+        });
+    });
+    card.querySelectorAll('.six-ds-save').forEach(function(btn){
+        btn.addEventListener('click', function(){
+            var form = btn.closest('.six-ds-form');
+            var src  = form.getAttribute('data-source');
+            var input= form.querySelector('.six-ds-input');
+            var msg  = form.querySelector('.six-ds-msg');
+            var val  = (input.value||'').trim();
+            if (!val){ msg.style.color='var(--danger,#dc2626)'; msg.textContent='Enter your ID.'; return; }
+            btn.disabled=true; msg.style.color='var(--text3)'; msg.textContent='Saving…';
+            post({action:'six_save_data_source', source:src, value:val}).then(function(res){
+                btn.disabled=false;
+                if(res && res.success){
+                    msg.style.color='#1a7a2e'; msg.textContent='Connected';
+                    var row = card.querySelector('.six-ds-row[data-source="'+src+'"]');
+                    if(row){
+                        var badge=row.querySelector('.six-ds-badge');
+                        badge.textContent='Connected';
+                        badge.style.background='rgba(86,211,100,.14)'; badge.style.color='#1a7a2e';
+                        row.querySelector('.six-ds-toggle').textContent='Update';
+                    }
+                    var d=res.data||{};
+                    if(typeof d.connected!=='undefined'){
+                        document.getElementById('ds-count').textContent=d.connected;
+                        document.getElementById('ds-bar').style.width=Math.round((d.connected/total)*100)+'%';
+                    }
+                    setTimeout(function(){ form.style.display='none'; msg.textContent=''; },1200);
+                } else {
+                    msg.style.color='var(--danger,#dc2626)'; msg.textContent=(res&&res.data&&res.data.message)||(res&&res.data)||'Could not save.';
+                }
+            }).catch(function(){ btn.disabled=false; msg.style.color='var(--danger,#dc2626)'; msg.textContent='Network error.'; });
+        });
+    });
+})();
+</script>
+
 <!-- Recommendations -->
 <?php
 $adv_recs=array_values(array_filter((array)$recs,fn($r)=>strpos($r->source??'','advisor_')===0));
