@@ -37,6 +37,7 @@ $optional_files = array(
     'class-growth-engine.php', // Growth Engine
     'class-stripe.php',
     'class-google-ads-calendar.php',
+    'class-appointments.php',   // unified calls/meetings store (after calendar + odoo)
     'ajax-handlers.php',
     'admin-settings.php',
     'social-login.php',        // Nextend Social Login (Google) integration

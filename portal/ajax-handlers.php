@@ -125,6 +125,63 @@ add_action( 'wp_ajax_six_save_profile', function() {
 // hook and write conflicting step values — removed.
 
 // ─────────────────────────────────────────────────────────────────────────────
+// DATA SOURCES — customer connects analytics/ad accounts so live numbers can
+// replace the post-onboarding projection. Stores the (non-secret) account
+// identifier and notifies the advisor to complete the access grant.
+// ─────────────────────────────────────────────────────────────────────────────
+function six_data_source_meta_map() {
+    return array(
+        'ga4'   => array( 'meta' => 'six_ga4_property_id',     'label' => 'Google Analytics 4' ),
+        'gads'  => array( 'meta' => 'six_gads_customer_id',    'label' => 'Google Ads' ),
+        'meta'  => array( 'meta' => 'six_meta_ad_account_id',  'label' => 'Meta Ads' ),
+        'gbp'   => array( 'meta' => 'six_gbp_location_id',     'label' => 'Google Business Profile' ),
+        'gsc'   => array( 'meta' => 'six_gsc_site',            'label' => 'Google Search Console' ),
+    );
+}
+
+add_action( 'wp_ajax_six_save_data_source', function() {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    $user_id = get_current_user_id();
+    if ( ! $user_id ) wp_send_json_error( 'Not logged in.' );
+
+    $map    = six_data_source_meta_map();
+    $source = sanitize_key( $_POST['source'] ?? '' );
+    if ( ! isset( $map[ $source ] ) ) wp_send_json_error( 'Unknown data source.' );
+
+    $value = sanitize_text_field( $_POST['value'] ?? '' );
+    if ( $value === '' ) wp_send_json_error( 'Please enter your account ID.' );
+
+    update_user_meta( $user_id, $map[ $source ]['meta'], $value );
+    update_user_meta( $user_id, 'six_ds_' . $source . '_at', current_time('mysql') );
+
+    // Notify the assigned advisor to complete the access grant.
+    global $wpdb;
+    $advisor_id = $wpdb->get_var( $wpdb->prepare(
+        "SELECT advisor_id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d", $user_id ) );
+    if ( $advisor_id && class_exists('Six_Notifications') ) {
+        $u = get_userdata( $user_id );
+        Six_Notifications::create( array(
+            'user_id'    => $advisor_id,
+            'type'       => 'data_source_connected',
+            'title'      => 'Client connected a data source',
+            'message'    => ( $u->display_name ?: $u->user_email ) . ' provided their ' . $map[$source]['label'] . ' ID (' . $value . '). Complete the access grant to pull live data.',
+            'action_url' => admin_url('admin.php?page=six-clients'),
+        ) );
+    }
+
+    // Compute new completeness for the UI.
+    $connected = 0;
+    foreach ( $map as $s ) { if ( get_user_meta( $user_id, $s['meta'], true ) ) $connected++; }
+
+    wp_send_json_success( array(
+        'message'    => 'Connected. Your advisor will finish linking it.',
+        'connected'  => $connected,
+        'total'      => count( $map ),
+        'source'     => $source,
+    ) );
+} );
+
+// ─────────────────────────────────────────────────────────────────────────────
 // SERVICES
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -533,20 +590,22 @@ add_action( 'wp_ajax_six_upload_report', function() {
 
 add_action( 'wp_ajax_six_book_meeting', function() {
     check_ajax_referer( 'six_nonce', 'nonce' );
-    global $wpdb;
-    $client_id  = get_current_user_id();
-    $advisor_id = intval( $wpdb->get_var( $wpdb->prepare(
-        "SELECT advisor_id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d", $client_id
-    ) ) );
-    if ( ! $advisor_id ) wp_send_json_error( 'No advisor assigned' );
-    $result = Six_Google_Calendar::book_meeting( array(
-        'client_id'  => $client_id, 'advisor_id' => $advisor_id,
-        'start'      => sanitize_text_field( $_POST['start']    ?? '' ),
-        'duration'   => intval( $_POST['duration']              ?? 30 ),
-        'notes'      => sanitize_textarea_field( $_POST['notes'] ?? '' ),
+    $client_id = get_current_user_id();
+    if ( ! $client_id ) wp_send_json_error( 'Not logged in.' );
+    if ( ! class_exists( 'Six_Appointments' ) ) wp_send_json_error( 'Booking unavailable.' );
+
+    // Unified path: persists the appointment, creates a Google Calendar event +
+    // Meet link (when the advisor has connected their calendar), and emails BOTH
+    // the customer and the advisor.
+    $result = Six_Appointments::create( array(
+        'client_id' => $client_id,
+        'start'     => sanitize_text_field( $_POST['start'] ?? '' ),
+        'duration'  => intval( $_POST['duration'] ?? 30 ),
+        'notes'     => sanitize_textarea_field( $_POST['notes'] ?? '' ),
+        'source'    => 'booking',
     ) );
-    if ( $result ) wp_send_json_success( $result );
-    else wp_send_json_error( 'Could not book meeting' );
+    if ( ! empty( $result['success'] ) ) wp_send_json_success( $result );
+    wp_send_json_error( $result['error'] ?? 'Could not book meeting.' );
 } );
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1199,7 +1258,7 @@ add_action( 'wp_ajax_six_save_client_datasource', function() {
     $client_id = intval($_POST['client_id']??0);
     $key       = sanitize_key($_POST['key']??'');
     $value     = sanitize_text_field($_POST['value']??'');
-    $allowed   = array('six_ga4_property_id','six_meta_pixel_id');
+    $allowed   = array('six_ga4_property_id','six_meta_pixel_id','six_gbp_location_id','six_gsc_site');
     if(!$client_id||!in_array($key,$allowed)) wp_send_json_error('Not allowed.');
     update_user_meta($client_id,$key,$value);
     wp_send_json_success();
@@ -1499,53 +1558,133 @@ function six_advisor_complete_onboarding() {
     $budget        = intval( $_POST['budget']          ?? 0 );
     $payment_note  = sanitize_text_field( $_POST['payment_method']  ?? '' );
     $notes         = sanitize_textarea_field( $_POST['notes']       ?? '' );
+    $send_login    = ! empty( $_POST['send_login'] ) && $_POST['send_login'] !== '0';
 
     if ( ! $client_id ) { wp_send_json_error('No client ID'); return; }
+    $client = get_userdata( $client_id );
+    if ( ! $client ) { wp_send_json_error('Client account not found'); return; }
 
     global $wpdb;
 
-    // 1. Update checkout_progress
+    // 1. Update checkout_progress + completion flags (mirror the customer flow)
     $wpdb->update(
         $wpdb->prefix . 'six_checkout_progress',
         array(
-            'platforms'    => $services,
-            'mktg_budget'  => $budget,
-            'step'         => 5,
+            'platforms'   => $services,
+            'mktg_budget' => $budget,
+            'step'        => 5,
+            'score'       => 100,
+            'completed'   => 1,
+            'updated_at'  => current_time('mysql'),
         ),
         array('user_id' => $client_id)
     );
-
-    // 2. Mark as completed in user meta
     update_user_meta($client_id, 'six_checkout_completed', 1);
     update_user_meta($client_id, 'six_checkout_step', 5);
+    update_user_meta($client_id, 'six_checkout_score', 100);
 
-    // 3. Move Odoo lead to Onboarding Submitted
+    // 2. Create the selected service records so they appear in both dashboards.
+    $svc_names = array(
+        'google-ads'      => 'Google Ads',
+        'seo'             => 'SEO',
+        'social-media'    => 'Social Media Marketing',
+        'brand-dev'       => 'Brand Development',
+        'website'         => 'Website Development',
+        'google-business' => 'Google Business Profile',
+    );
+    $svc_slugs = array_filter( array_map( 'trim', explode( ',', $services ) ) );
+    $per_svc   = count($svc_slugs) ? intval( round( $budget / count($svc_slugs) ) ) : 0;
+    foreach ( $svc_slugs as $slug ) {
+        $exists = $wpdb->get_var( $wpdb->prepare(
+            "SELECT id FROM {$wpdb->prefix}six_client_services WHERE client_id=%d AND service_slug=%s",
+            $client_id, $slug ) );
+        if ( $exists ) {
+            // Activate an existing (pending) row.
+            $wpdb->update( "{$wpdb->prefix}six_client_services",
+                array( 'status' => 'active', 'budget' => $per_svc ),
+                array( 'id' => $exists ) );
+        } else {
+            $wpdb->insert( "{$wpdb->prefix}six_client_services", array(
+                'client_id'    => $client_id,
+                'service_slug' => $slug,
+                'service_name' => $svc_names[$slug] ?? ucwords( str_replace('-',' ',$slug) ),
+                'status'       => 'active',
+                'budget'       => $per_svc,
+            ) );
+        }
+    }
+
+    // 3. Generate fresh login credentials and email them to the customer.
+    //    Call requesters often never set a password, so we set a new one and
+    //    send it, guaranteeing they can log in.
+    $new_password = '';
+    if ( $send_login ) {
+        $new_password = wp_generate_password( 12, false );
+        wp_set_password( $new_password, $client_id ); // note: also clears sessions
+        $login_url = home_url( '/portal/' );
+        $svc_list  = array();
+        foreach ( $svc_slugs as $slug ) $svc_list[] = $svc_names[$slug] ?? $slug;
+        wp_mail(
+            $client->user_email,
+            'Your 6ix Developers account is ready',
+            '<div style="font-family:Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;color:#1a1a2e">'
+            . '<h2 style="color:#0f1428">Welcome to 6ix Developers</h2>'
+            . '<p>Hi ' . esc_html( $client->first_name ?: $client->display_name ) . ',</p>'
+            . '<p>Your account has been set up and your onboarding is complete. You can now log in to your client dashboard to track your growth, message your advisor, and manage your services.</p>'
+            . '<table style="font-size:14px;line-height:1.9;margin:10px 0;background:#f6f8fc;border-radius:8px;padding:6px 14px">'
+            . '<tr><td style="color:#666;padding-right:14px">Email</td><td><strong>' . esc_html( $client->user_email ) . '</strong></td></tr>'
+            . '<tr><td style="color:#666;padding-right:14px">Password</td><td><strong>' . esc_html( $new_password ) . '</strong></td></tr>'
+            . '</table>'
+            . ( $svc_list ? '<p style="font-size:13px;color:#555">Services: ' . esc_html( implode( ', ', $svc_list ) ) . '</p>' : '' )
+            . '<p style="margin:18px 0"><a href="' . esc_url( $login_url ) . '" style="display:inline-block;background:#FF6699;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:8px">Log in to your dashboard</a></p>'
+            . '<p style="font-size:12px;color:#888">For your security, change your password after your first login from Profile settings.</p>'
+            . '<p style="font-size:12px;color:#999">— 6ix Developers</p></div>',
+            array( 'Content-Type: text/html; charset=UTF-8' )
+        );
+        delete_user_meta( $client_id, 'six_temp_password' );
+    }
+
+    // 4. Move Odoo lead to Onboarding Submitted (out of Call Requested).
     if ( class_exists('Six_Odoo') ) {
         Six_Odoo::on_onboarding_completed(
             $client_id,
             $services,
             $budget,
-            false // no card collected via portal
+            $payment_note && $payment_note !== '0'
         );
 
-        // Add advisor note
         $lead_id = intval(get_user_meta($client_id, 'six_odoo_lead_id', true));
-        if ($lead_id && $notes) {
-            $advisor    = get_userdata(get_current_user_id());
-            $adv_name   = $advisor ? $advisor->display_name : 'Advisor';
+        if ($lead_id) {
+            $advisor  = get_userdata(get_current_user_id());
+            $adv_name = $advisor ? $advisor->display_name : 'Advisor';
             Six_Odoo::post_note(
                 $lead_id,
-                "Onboarding completed by advisor ({$adv_name}).
-"
-                . ( $payment_note ? "Payment: {$payment_note}
-" : '' )
+                "Onboarding completed by advisor ({$adv_name}).\n"
+                . ( $payment_note ? "Payment: {$payment_note}\n" : '' )
+                . ( $send_login ? "Login credentials emailed to customer.\n" : '' )
                 . ( $notes ? "Notes: {$notes}" : '' )
             );
         }
     }
 
-    error_log("6ix Advisor: completed onboarding for client={$client_id} by advisor=" . get_current_user_id());
-    wp_send_json_success(array('message' => 'Onboarding completed.'));
+    // 5. Notify the customer in-portal too.
+    if ( class_exists('Six_Notifications') ) {
+        Six_Notifications::create( array(
+            'user_id'    => $client_id,
+            'type'       => 'onboarding_completed',
+            'title'      => 'Your account is ready',
+            'message'    => 'Your onboarding is complete and your services are active. Welcome aboard!',
+            'action_url' => home_url('/portal/'),
+        ) );
+    }
+
+    error_log("6ix Advisor: completed onboarding for client={$client_id} by advisor=" . get_current_user_id() . " login_sent=" . ($send_login?'yes':'no'));
+    wp_send_json_success(array(
+        'message'      => 'Onboarding completed.' . ( $send_login ? ' Login details emailed to the customer.' : '' ),
+        'login_sent'   => $send_login,
+        'password'     => $send_login ? $new_password : '', // shown to advisor as a fallback
+        'client_email' => $client->user_email,
+    ));
 }
 
 

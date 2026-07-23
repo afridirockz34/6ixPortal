@@ -413,6 +413,93 @@ function six_calc_trend($val_str, $prev_str) {
 $trend_nc  = six_calc_trend($kpi_nc['val'],  $kpi_nc['prev']);
 $trend_rev = six_calc_trend($kpi_rev['val'], $kpi_rev['prev']);
 $trend_vis = six_calc_trend($kpi_vis['val'], $kpi_vis['prev']);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// POST-ONBOARDING GROWTH PROJECTION (bounded 90-day ramp, confidence band)
+// Honest, transparent projection — NOT random data. Grounded in the customer's
+// budget, real market CPC (DataForSEO, cached at onboarding), and their own
+// deal economics (avg value x close rate). Every figure is labelled Projected.
+// ═══════════════════════════════════════════════════════════════════════════
+$proj_deal    = intval( $checkout->deal_value ?? 0 );
+$proj_close   = intval( $checkout->close_rate ?? 0 );            // percent
+$proj_cpc     = floatval( get_user_meta($user_id,'six_market_avg_cpc',true) );
+$proj_kw_src  = get_user_meta($user_id,'six_market_kw_source',true) ?: '';
+$proj_budget  = class_exists('Six_Odoo') && method_exists('Six_Odoo','effective_monthly_budget')
+    ? intval( Six_Odoo::effective_monthly_budget($user_id, $checkout) )
+    : max( intval($onb_budget), intval($total_budget) );
+
+// Mature monthly baseline (run-rate the plan aims for by ~month 3)
+$mature_leads    = max( 0, intval($est_leads) );
+$mature_visitors = max( 0, intval($est_visitors) );
+
+// Refine from real market economics when we have a live CPC + budget.
+if ( $proj_cpc > 0 && $proj_budget > 0 ) {
+    // Industry lead-conversion rate (visitor/click -> lead), percent.
+    $ind = strtolower( $checkout->industry ?? '' );
+    $conv_tbl = array('dental'=>3.8,'dentist'=>3.8,'legal'=>2.7,'law'=>2.7,'lawyer'=>2.7,
+        'real estate'=>2.4,'plumb'=>4.1,'hvac'=>4.2,'roof'=>3.9,'electric'=>3.8,
+        'contractor'=>3.2,'medical'=>3.3,'health'=>3.3,'fitness'=>2.8,'gym'=>2.8,
+        'restaurant'=>2.1,'retail'=>2.3,'ecommerce'=>1.9,'finance'=>2.9,'insurance'=>2.6,
+        'account'=>3.0,'education'=>3.1,'tutor'=>3.4,'auto'=>3.4,'clean'=>3.7,'salon'=>3.0,'spa'=>2.8);
+    $conv = 2.7;
+    foreach ( $conv_tbl as $k=>$v ) { if ( $ind && strpos($ind,$k)!==false ) { $conv = $v; break; } }
+    // ~65% of budget becomes paid clicks (rest = management/creative/other).
+    $paid_clicks = ( $proj_budget * 0.65 ) / max($proj_cpc, 0.5);
+    $paid_leads  = $paid_clicks * ( $conv / 100 );
+    // Blend with benchmark baseline (covers organic/SEO/social not driven by CPC).
+    $mature_visitors = max( $mature_visitors, (int) round( $paid_clicks + $mature_visitors * 0.5 ) );
+    $mature_leads    = max( $mature_leads,    (int) round( $paid_leads  + $mature_leads    * 0.4 ) );
+}
+
+// Revenue from the customer's OWN deal economics when provided.
+if ( $proj_deal > 0 && $proj_close > 0 && $mature_leads > 0 ) {
+    $mature_revenue = (int) round( $mature_leads * ( $proj_close / 100 ) * $proj_deal );
+    $rev_grounded   = true;
+} else {
+    $mature_revenue = intval($est_roi);   // fall back to existing benchmark ROI $
+    $rev_grounded   = false;
+}
+
+// Build a 12-week ramp (logistic S-curve, normalised 0.15 -> 1.0) with an
+// asymmetric confidence band. Weeks are monthly run-rate, not cumulative, so
+// the line settles at the mature figure instead of climbing forever.
+$six_proj_series = function( $mature ) {
+    $mature = max( 0, (int) $mature );
+    $pts = array();
+    $raw = array();
+    for ( $w = 1; $w <= 12; $w++ ) { $raw[$w] = 1 / ( 1 + exp( -0.7 * ( $w - 6 ) ) ); }
+    $min = min($raw); $max = max($raw);
+    for ( $w = 1; $w <= 12; $w++ ) {
+        $f   = 0.15 + ( ( $raw[$w] - $min ) / max( $max - $min, 0.0001 ) ) * 0.85; // 0.15..1.0
+        $exp = $mature * $f;
+        // Band widens a touch early (more uncertainty), tightens as it matures.
+        $spread = 0.30 + ( 1 - $f ) * 0.10; // ~0.40 early -> 0.30 late
+        $pts[] = array(
+            'w'    => $w,
+            'low'  => round( $exp * ( 1 - $spread ) ),
+            'exp'  => round( $exp ),
+            'high' => round( $exp * ( 1 + $spread + 0.05 ) ), // slight upside skew
+        );
+    }
+    return $pts;
+};
+
+$six_projection = array(
+    'has'     => ( $mature_leads > 0 || $mature_visitors > 0 || $mature_revenue > 0 ),
+    'grounded'=> array(
+        'budget'    => $proj_budget,
+        'cpc'       => $proj_cpc,
+        'kw_source' => $proj_kw_src,
+        'deal'      => $proj_deal,
+        'close'     => $proj_close,
+        'rev_from_deal' => $rev_grounded,
+    ),
+    'metrics' => array(
+        'visitors' => array( 'label'=>'Visitors', 'unit'=>'',  'mature'=>$mature_visitors, 'points'=>$six_proj_series($mature_visitors) ),
+        'leads'    => array( 'label'=>'Leads',    'unit'=>'',  'mature'=>$mature_leads,    'points'=>$six_proj_series($mature_leads) ),
+        'revenue'  => array( 'label'=>'Revenue',  'unit'=>'$', 'mature'=>$mature_revenue,  'points'=>$six_proj_series($mature_revenue) ),
+    ),
+);
 ?>
 
 <!-- ── GREETING ──────────────────────────────────────────────────────────── -->
@@ -607,6 +694,25 @@ $has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
                 Book Call
             </a>
         </div>
+        <!-- Upcoming call (from unified appointments) -->
+        <?php
+        $my_appts  = class_exists('Six_Appointments') ? ( Six_Appointments::get_upcoming_for_client($user_id, 60) ?: array() ) : array();
+        $next_appt = !empty($my_appts) ? $my_appts[0] : null;
+        if ($next_appt):
+            if (!empty($next_appt->start_datetime)) { $na_when = date('D, M j · g:i A', strtotime($next_appt->start_datetime)); }
+            else { $na_when = ($next_appt->time_window ?: 'Time to be confirmed'); }
+        ?>
+        <div style="background:rgba(131,197,237,.06);border:1px solid rgba(131,197,237,.2);border-radius:12px;padding:14px;margin-bottom:20px">
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);font-weight:700;margin-bottom:6px">Upcoming Call</div>
+            <div style="font-size:14px;font-weight:700;color:var(--text1)"><?php echo esc_html($na_when); ?></div>
+            <?php if(!empty($next_appt->notes)):?><div style="font-size:11px;color:var(--text3);margin-top:3px"><?php echo esc_html(mb_substr($next_appt->notes,0,80)); ?></div><?php endif;?>
+            <?php if(!empty($next_appt->meet_link)): ?>
+                <a href="<?php echo esc_url($next_appt->meet_link); ?>" target="_blank" class="six-btn six-btn-primary six-btn-sm" style="margin-top:10px;width:100%;justify-content:center">Join Google Meet</a>
+            <?php else: ?>
+                <div style="font-size:11px;color:var(--text3);margin-top:6px">Your advisor will send the Google Meet link before the call.</div>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
         <!-- Services list -->
         <div class="six-adv-services">
             <?php foreach($active_svcs as $s):
@@ -752,425 +858,342 @@ $has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
 </style>
 
 <style>
-/* The dark chart card fills the pane (so no light gap shows when the pane
-   stretches to match the advisor card), but the plot itself keeps a fixed,
-   bounded height so it can NEVER run away — the SVG uses overflow:visible, and
-   an unbounded/flex plot height made it draw far beyond the card. */
-#six-analytics-chart {
-    width: 100%;
-    height: 100%;
-}
-#analytics-root {
-    border-radius: 14px !important;
-    height: 100%;
-    overflow: hidden;
-}
-#anl-wrap {
-    height: 360px !important;
-}
+/* Growth projection card fills the pane; the plot keeps a fixed, bounded
+   height so it can never run away. */
+#six-analytics-chart { width:100%; height:100%; }
+#analytics-root { border-radius:14px !important; height:100%; overflow:hidden; display:flex; flex-direction:column; }
+#proj-plot { height:250px !important; }
+.proj-pill{cursor:pointer;font-size:11.5px;font-weight:700;padding:5px 12px;border-radius:20px;border:1px solid transparent;transition:all .18s;user-select:none}
+.proj-pill.off{opacity:.4;cursor:not-allowed}
 </style>
 
 <script>
-// ── Animated Analytics Line Chart (D3-style, pure vanilla JS + SVG) ───────
+// ── Post-onboarding Growth PROJECTION chart (bounded 90-day ramp + band) ──────
+// Honest, transparent projection built from PHP data — NOT random. Shows a
+// conservative/expected/optimistic band per metric, everything badged Projected.
 (function() {
+  var PROJ = <?php echo wp_json_encode($six_projection); ?>;
+  var mount = document.getElementById('six-analytics-chart');
+  if (!mount) return;
 
-// ── 1. Pull real metrics from PHP KPI data ─────────────────────────────────
-// We use the PHP-resolved KPI values to seed initial data, then let the
-// live-update loop add new points from the /api/analytics endpoint.
-var phpKpiLeads    = <?php echo intval($est_leads    ?? 0); ?>;
-var phpKpiVisitors = <?php echo intval($est_visitors ?? 0); ?>;
-var phpKpiRoi      = <?php echo floatval($est_roi    ?? 0); ?>;
-var siteUrl        = <?php echo wp_json_encode(get_bloginfo('url')); ?>;
+  var ns = 'http://www.w3.org/2000/svg';
+  var isDark, METRIC, GEO = null;
 
-// ── 2. Generate mock history shaped around real KPI values ─────────────────
-function generateData(days, baseV, baseL, baseR) {
-    var data = [];
-    var now = new Date();
-    var v = Math.max(200, baseV * 0.7);
-    var l = Math.max(20, baseL * 0.7);
-    var r = Math.max(0.8, baseR * 0.7);
-    for (var i = days; i >= 0; i--) {
-        var d = new Date(now);
-        d.setDate(d.getDate() - i);
-        v += (Math.random() - 0.3) * (baseV * 0.08) + (baseV / days) * 0.6;
-        l += (Math.random() - 0.3) * (baseL * 0.08) + (baseL / days) * 0.6;
-        r += (Math.random() - 0.3) * 0.15 + (baseR / days) * 0.5;
-        data.push({
-            date: d.toISOString().slice(0,10),
-            visitors: Math.max(100, Math.round(v)),
-            leads:    Math.max(10,  Math.round(l)),
-            roi:      Math.max(0.5, parseFloat(r.toFixed(2)))
-        });
-    }
-    return data;
-}
+  // default metric = the most tangible one that has data
+  METRIC = (PROJ.metrics.leads.mature > 0) ? 'leads'
+         : (PROJ.metrics.visitors.mature > 0 ? 'visitors'
+         : 'revenue');
 
-// ── 3. fetchAnalytics — swap for real API ──────────────────────────────────
-async function fetchAnalytics(domain) {
-    // Real integration (uncomment one):
-    // const r = await fetch('/api/analytics?domain=' + domain); return r.json();
-    // GA4:   await fetch('https://analyticsdata.googleapis.com/v1beta/...')
-    // GAds:  await fetch('https://googleads.googleapis.com/v17/...')
-    return generateData(30,
-        phpKpiVisitors > 0 ? phpKpiVisitors * 30 : 1200,
-        phpKpiLeads    > 0 ? phpKpiLeads    * 30 : 120,
-        phpKpiRoi      > 0 ? phpKpiRoi           : 2.4
-    );
-}
+  function fmt(n, unit){ n = Math.round(n); return (unit==='$'?'$':'') + n.toLocaleString(); }
+  function grid(){ return isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,20,40,0.07)'; }
+  function lbl(){  return isDark ? 'rgba(255,255,255,0.34)' : 'rgba(15,20,40,0.42)'; }
 
-// ── 4. Chart state ──────────────────────────────────────────────────────────
-var DATA = [];
-var animStart = null, animFrame = null, animProg = 0;
-var ANIM_MS = 2400; // slow, cinematic animation — once on load only
-var isDark = (localStorage.getItem('six_theme') || 'dark') === 'dark';
+  function caption(){
+    var g = PROJ.grounded, parts = [];
+    if (g.budget > 0) parts.push('your $' + Math.round(g.budget).toLocaleString() + '/mo budget');
+    if (g.cpc > 0)    parts.push('~$' + (Math.round(g.cpc*100)/100) + ' avg CPC in your market' + (g.kw_source ? ' (' + g.kw_source + ')' : ''));
+    if (g.rev_from_deal && g.deal > 0 && g.close > 0) parts.push('$' + Math.round(g.deal).toLocaleString() + ' avg sale × ' + g.close + '% close rate');
+    if (!parts.length) return 'Projected from your selected services and industry benchmarks. Your advisor refines this with live data.';
+    return 'Projected from ' + parts.join(' · ') + '. Connect your accounts to replace projections with live numbers.';
+  }
 
-// ── 5. Mount the root element ───────────────────────────────────────────────
-var mount = document.getElementById('six-analytics-chart');
-if (!mount) return;
+  // ── Empty state (no data at all) ──────────────────────────────────────────
+  if (!PROJ.has) {
+    isDark = (localStorage.getItem('six_theme')||'dark')==='dark';
+    mount.innerHTML = '<div id="analytics-root" style="background:'+(isDark?'#0B0F1A':'#F4F6FB')+';padding:28px;display:flex;align-items:center;justify-content:center;text-align:center">'
+      + '<div style="color:'+(isDark?'rgba(255,255,255,.5)':'rgba(15,20,40,.5)')+';font-size:13px;line-height:1.6;max-width:280px">Your growth projection appears here once your services and budget are set. Complete onboarding or add a service to see it.</div></div>';
+    return;
+  }
 
-mount.innerHTML = [
-'<div id="analytics-root" style="',
-'  background:' + (isDark ? '#0B0F1A' : '#F4F6FB') + ';',
-'  border-radius:14px;padding:22px 22px 14px;position:relative;overflow:hidden;',
-'  font-family:\'Mulish\',\'Helvetica Neue\',sans-serif;transition:background .4s">',
-
-'  <canvas id="anl-particles" style="position:absolute;inset:0;pointer-events:none;border-radius:14px;opacity:0.45"></canvas>',
-
-'  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;position:relative">',
-'    <div>',
-'      <div style="font-size:14px;font-weight:600;letter-spacing:-.01em;color:' + (isDark?'rgba(255,255,255,.85)':'rgba(15,20,40,.85)') + '" id="anl-title">Growth Analytics</div>',
-'      <div style="font-size:11px;color:' + (isDark?'rgba(255,255,255,.3)':'rgba(15,20,40,.38)') + ';margin-top:3px">Visitors · Leads · ROI</div>',
-'    </div>',
-'    <div style="display:flex;align-items:center;gap:8px">',
-'      <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:#FF6699;font-family:monospace;letter-spacing:.04em;opacity:.7">',
-'        <div id="anl-live-dot" style="width:5px;height:5px;border-radius:50%;background:#FF6699;animation:anlPulse 1.6s ease-in-out infinite"></div>LIVE',
-'      </div>',
-'    </div>',
-'  </div>',
-
-'  <div id="anl-wrap" style="position:relative;width:100%;height:200px;margin:12px 0 6px">',
-'    <svg id="anl-svg" style="width:100%;height:100%;overflow:visible" role="img" aria-label="Growth analytics: visitors, leads and ROI over 30 days">',
-'      <defs>',
-'        <linearGradient id="anlGV" x1="0%" y1="0%" x2="100%" y2="0%">',
-'          <stop offset="0%" stop-color="#70C9F2" stop-opacity=".9"/>',
-'          <stop offset="100%" stop-color="#A2C84E" stop-opacity="1"/>',
-'        </linearGradient>',
-'        <linearGradient id="anlGL" x1="0%" y1="0%" x2="100%" y2="0%">',
-'          <stop offset="0%" stop-color="#70C9F2" stop-opacity=".9"/>',
-'          <stop offset="100%" stop-color="#8782BA" stop-opacity="1"/>',
-'        </linearGradient>',
-'        <linearGradient id="anlGR" x1="0%" y1="0%" x2="100%" y2="0%">',
-'          <stop offset="0%" stop-color="#70C9F2" stop-opacity=".9"/>',
-'          <stop offset="100%" stop-color="#FF6699" stop-opacity="1"/>',
-'        </linearGradient>',
-'        <linearGradient id="anlFV" x1="0%" y1="0%" x2="0%" y2="100%">',
-'          <stop offset="0%" stop-color="#A2C84E" stop-opacity=".16"/>',
-'          <stop offset="100%" stop-color="#A2C84E" stop-opacity="0"/>',
-'        </linearGradient>',
-'        <linearGradient id="anlFL" x1="0%" y1="0%" x2="0%" y2="100%">',
-'          <stop offset="0%" stop-color="#8782BA" stop-opacity=".18"/>',
-'          <stop offset="100%" stop-color="#8782BA" stop-opacity="0"/>',
-'        </linearGradient>',
-'        <linearGradient id="anlFR" x1="0%" y1="0%" x2="0%" y2="100%">',
-'          <stop offset="0%" stop-color="#FF6699" stop-opacity=".14"/>',
-'          <stop offset="100%" stop-color="#FF6699" stop-opacity="0"/>',
-'        </linearGradient>',
-'        <filter id="anlGlV"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>',
-'        <filter id="anlGlL"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>',
-'        <filter id="anlGlR"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>',
-'        <clipPath id="anlClip"><rect id="anl-clip-r" x="0" y="0" width="0" height="400"/></clipPath>',
-'      </defs>',
-'      <g id="anl-grid"></g>',
-'      <g id="anl-xlbl"></g>',
-'      <g id="anl-ylbl"></g>',
-'      <g clip-path="url(#anlClip)">',
-'        <path id="anl-av" fill="url(#anlFV)" opacity=".7"/>',
-'        <path id="anl-al" fill="url(#anlFL)" opacity=".7"/>',
-'        <path id="anl-ar" fill="url(#anlFR)" opacity=".7"/>',
-'        <path id="anl-lv" fill="none" stroke="url(#anlGV)" stroke-width="2.2" filter="url(#anlGlV)"/>',
-'        <path id="anl-ll" fill="none" stroke="url(#anlGL)" stroke-width="2.4" filter="url(#anlGlL)"/>',
-'        <path id="anl-lr" fill="none" stroke="url(#anlGR)" stroke-width="2.2" filter="url(#anlGlR)"/>',
-'        <g id="anl-dv"></g><g id="anl-dl"></g><g id="anl-dr"></g>',
-'      </g>',
-'      <line id="anl-hvline" stroke="rgba(255,255,255,.1)" stroke-width="1" stroke-dasharray="3,3" opacity="0"/>',
-'    </svg>',
-'    <div id="anl-tt" style="position:absolute;pointer-events:none;opacity:0;background:rgba(11,15,26,.88);',
-'         backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(112,201,242,.18);',
-'         border-radius:10px;padding:10px 14px;font-family:inherit;min-width:148px;',
-'         box-shadow:0 8px 32px rgba(0,0,0,.45);transition:opacity .12s;z-index:20">',
-'      <div id="anl-tt-d" style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.38);margin-bottom:7px;font-family:monospace"></div>',
-'      <div style="display:flex;align-items:center;gap:7px;font-size:12px;color:rgba(255,255,255,.82);margin-bottom:4px">',
-'        <span style="width:7px;height:7px;border-radius:50%;background:#A2C84E;flex-shrink:0"></span>Visitors',
-'        <span style="margin-left:auto;font-family:monospace;font-weight:500" id="anl-tt-v"></span>',
-'      </div>',
-'      <div style="display:flex;align-items:center;gap:7px;font-size:12px;color:rgba(255,255,255,.82);margin-bottom:4px">',
-'        <span style="width:7px;height:7px;border-radius:50%;background:#8782BA;flex-shrink:0"></span>Leads',
-'        <span style="margin-left:auto;font-family:monospace;font-weight:500" id="anl-tt-l"></span>',
-'      </div>',
-'      <div style="display:flex;align-items:center;gap:7px;font-size:12px;color:rgba(255,255,255,.82)">',
-'        <span style="width:7px;height:7px;border-radius:50%;background:#FF6699;flex-shrink:0"></span>ROI',
-'        <span style="margin-left:auto;font-family:monospace;font-weight:500" id="anl-tt-r"></span>',
-'      </div>',
-'    </div>',
-'  </div>',
-
-'  <div style="display:flex;justify-content:flex-end;gap:18px;align-items:center;position:relative">',
-'    <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:rgba(255,255,255,.32);cursor:pointer">',
-'      <div style="width:18px;height:2px;border-radius:1px;background:#A2C84E"></div>Visitors',
-'    </div>',
-'    <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:rgba(255,255,255,.32);cursor:pointer">',
-'      <div style="width:18px;height:2px;border-radius:1px;background:#8782BA"></div>Leads',
-'    </div>',
-'    <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:rgba(255,255,255,.32);cursor:pointer">',
-'      <div style="width:18px;height:2px;border-radius:1px;background:#FF6699"></div>ROI',
-'    </div>',
-'  </div>',
-'</div>',
-
-'<style>',
-'@keyframes anlPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.65)}}',
-'@keyframes anlDotPulse{0%,100%{r:3;opacity:1}50%{r:5;opacity:.55}}',
-'.anl-dot{animation:anlDotPulse 2.4s ease-in-out infinite}',
-'</style>'
-].join('');
-
-// ── 6. Spline path (Catmull-Rom) ────────────────────────────────────────────
-function spline(pts) {
-    if (pts.length < 2) return '';
+  // ── Smooth path (Catmull-Rom) ─────────────────────────────────────────────
+  function smooth(pts){
+    if (pts.length < 2) return pts.length ? 'M '+pts[0][0]+','+pts[0][1] : '';
     var d = 'M ' + pts[0][0] + ',' + pts[0][1];
-    for (var i = 0; i < pts.length - 1; i++) {
-        var p0 = pts[Math.max(0, i-1)];
-        var p1 = pts[i];
-        var p2 = pts[i+1];
-        var p3 = pts[Math.min(pts.length-1, i+2)];
-        var cp1x = p1[0] + (p2[0]-p0[0])/6, cp1y = p1[1] + (p2[1]-p0[1])/6;
-        var cp2x = p2[0] - (p3[0]-p1[0])/6, cp2y = p2[1] - (p3[1]-p1[1])/6;
-        d += ' C ' + cp1x + ',' + cp1y + ' ' + cp2x + ',' + cp2y + ' ' + p2[0] + ',' + p2[1];
+    for (var i=0;i<pts.length-1;i++){
+      var p0=pts[Math.max(0,i-1)], p1=pts[i], p2=pts[i+1], p3=pts[Math.min(pts.length-1,i+2)];
+      var c1x=p1[0]+(p2[0]-p0[0])/6, c1y=p1[1]+(p2[1]-p0[1])/6;
+      var c2x=p2[0]-(p3[0]-p1[0])/6, c2y=p2[1]-(p3[1]-p1[1])/6;
+      d += ' C '+c1x+','+c1y+' '+c2x+','+c2y+' '+p2[0]+','+p2[1];
     }
     return d;
-}
-function area(pts, by) {
-    return spline(pts) + ' L ' + pts[pts.length-1][0] + ',' + by + ' L ' + pts[0][0] + ',' + by + ' Z';
-}
+  }
 
-// ── 7. Render ───────────────────────────────────────────────────────────────
-function render(prog) {
-    var wrap = document.getElementById('anl-wrap');
-    var svg  = document.getElementById('anl-svg');
-    if (!wrap || !svg || !DATA.length) return;
+  function styleTab(el, active){
+    if (active){ el.style.background='linear-gradient(135deg,#FF6699,#83C5ED)'; el.style.color='#fff'; el.style.borderColor='transparent'; }
+    else { el.style.background=isDark?'rgba(255,255,255,.05)':'rgba(15,20,40,.05)'; el.style.color=isDark?'rgba(255,255,255,.6)':'rgba(15,20,40,.6)'; el.style.borderColor=isDark?'rgba(255,255,255,.08)':'rgba(15,20,40,.08)'; }
+  }
+  function refreshTabs(){
+    var tabWrap = document.getElementById('proj-tabs'); if (!tabWrap) return;
+    Array.prototype.forEach.call(tabWrap.children, function(el){
+      if (el.classList.contains('off')) return;
+      styleTab(el, el.getAttribute('data-k') === METRIC);
+    });
+  }
+
+  function render(){
+    var m = PROJ.metrics[METRIC];
+    var mo = document.getElementById('proj-mature'); if (mo) mo.textContent = fmt(m.mature, m.unit);
+
+    var wrap = document.getElementById('proj-plot');
+    var svg  = document.getElementById('proj-svg');
+    if (!wrap || !svg) return;
     var W = wrap.clientWidth, H = wrap.clientHeight;
-    var pad = {t:16, b:28, l:40, r:12};
-    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    if (!W || !H) return;
+    svg.setAttribute('viewBox','0 0 '+W+' '+H);
+    var pad = { t:14, b:26, l:(m.unit==='$'?54:42), r:16 };
 
-    var gc = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)';
-    var lc = isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.33)';
+    var pts = m.points, n = pts.length;
+    var maxY = Math.max.apply(null, pts.map(function(p){return p.high;})) * 1.08 || 1;
+    var X = function(i){ return pad.l + (i/(n-1)) * (W-pad.l-pad.r); };
+    var Y = function(v){ return H-pad.b - (v/maxY) * (H-pad.t-pad.b); };
 
-    // scales
-    var maxV=Math.max.apply(null,DATA.map(function(d){return d.visitors}));
-    var minV=Math.min.apply(null,DATA.map(function(d){return d.visitors}));
-    var maxL=Math.max.apply(null,DATA.map(function(d){return d.leads}));
-    var minL=Math.min.apply(null,DATA.map(function(d){return d.leads}));
-    var maxR=Math.max.apply(null,DATA.map(function(d){return d.roi}));
-    var minR=Math.min.apply(null,DATA.map(function(d){return d.roi}));
-    function sy(v,mn,mx){return H-pad.b-((v-mn)/(mx-mn+0.001))*(H-pad.t-pad.b);}
-    function sx(i){return pad.l+(i/(DATA.length-1))*(W-pad.l-pad.r);}
-
-    // grid
-    var gg = document.getElementById('anl-grid'); gg.innerHTML='';
-    var ns = 'http://www.w3.org/2000/svg';
-    for (var gi=0;gi<=5;gi++){
-        var gy=pad.t+(gi/5)*(H-pad.t-pad.b);
-        var gl=document.createElementNS(ns,'line');
-        gl.setAttribute('x1',pad.l);gl.setAttribute('x2',W-pad.r);
-        gl.setAttribute('y1',gy);gl.setAttribute('y2',gy);
-        gl.setAttribute('stroke',gc);gl.setAttribute('stroke-width','1');
-        gg.appendChild(gl);
+    var g = document.getElementById('proj-grid'); g.innerHTML='';
+    var yl = document.getElementById('proj-ylbl'); yl.innerHTML='';
+    var steps = 4;
+    for (var s=0;s<=steps;s++){
+      var val = maxY * s/steps, y = Y(val);
+      var ln = document.createElementNS(ns,'line');
+      ln.setAttribute('x1',pad.l); ln.setAttribute('x2',W-pad.r);
+      ln.setAttribute('y1',y); ln.setAttribute('y2',y);
+      ln.setAttribute('stroke',grid()); ln.setAttribute('stroke-width','1');
+      g.appendChild(ln);
+      var t = document.createElementNS(ns,'text');
+      t.setAttribute('x',pad.l-8); t.setAttribute('y',y+3);
+      t.setAttribute('text-anchor','end'); t.setAttribute('font-size','10');
+      t.setAttribute('fill',lbl()); t.setAttribute('font-family','monospace');
+      t.textContent = (m.unit==='$'?'$':'') + (val>=1000?(Math.round(val/100)/10)+'k':Math.round(val));
+      yl.appendChild(t);
     }
-
-    // y labels
-    var yg=document.getElementById('anl-ylbl');yg.innerHTML='';
-    for (var yi=0;yi<=5;yi++){
-        var yv=minV+((5-yi)/5)*(maxV-minV);
-        var yt=pad.t+(yi/5)*(H-pad.t-pad.b);
-        var ytx=document.createElementNS(ns,'text');
-        ytx.setAttribute('x',pad.l-5);ytx.setAttribute('y',yt+4);
-        ytx.setAttribute('text-anchor','end');ytx.setAttribute('fill',lc);
-        ytx.setAttribute('font-size','9.5');ytx.setAttribute('font-family','DM Mono,monospace');
-        ytx.textContent=yv>=1000?Math.round(yv/100)/10+'k':Math.round(yv);
-        yg.appendChild(ytx);
-    }
-
-    // x labels
-    var xg=document.getElementById('anl-xlbl');xg.innerHTML='';
-    var step=Math.ceil(DATA.length/6);
-    DATA.forEach(function(d,i){
-        if(i%step!==0&&i!==DATA.length-1)return;
-        var xtx=document.createElementNS(ns,'text');
-        xtx.setAttribute('x',sx(i));xtx.setAttribute('y',H-3);
-        xtx.setAttribute('text-anchor','middle');xtx.setAttribute('fill',lc);
-        xtx.setAttribute('font-size','9.5');xtx.setAttribute('font-family','DM Mono,monospace');
-        xtx.textContent=new Date(d.date).toLocaleDateString('en-US',{month:'short',day:'numeric'});
-        xg.appendChild(xtx);
+    var xl = document.getElementById('proj-xlbl'); xl.innerHTML='';
+    [0,3,7,11].forEach(function(i){
+      var t = document.createElementNS(ns,'text');
+      t.setAttribute('x',X(i)); t.setAttribute('y',H-9);
+      t.setAttribute('text-anchor','middle'); t.setAttribute('font-size','10');
+      t.setAttribute('fill',lbl()); t.setAttribute('font-family','monospace');
+      t.textContent = 'Wk ' + (i+1);
+      xl.appendChild(t);
     });
 
-    // clip reveal
-    var cr=document.getElementById('anl-clip-r');
-    var cw=(W-pad.l-pad.r)*prog+pad.l;
-    cr.setAttribute('width',cw);cr.setAttribute('height',H+20);
+    var hiPts = pts.map(function(p,i){ return [X(i), Y(p.high)]; });
+    var loPts = pts.map(function(p,i){ return [X(i), Y(p.low)]; });
+    var exPts = pts.map(function(p,i){ return [X(i), Y(p.exp)]; });
 
-    // point arrays
-    var pv=DATA.map(function(d,i){return[sx(i),sy(d.visitors,minV,maxV)];});
-    var pl=DATA.map(function(d,i){return[sx(i),sy(d.leads,minL,maxL)];});
-    var pr=DATA.map(function(d,i){return[sx(i),sy(d.roi,minR,maxR)];});
-    var by=H-pad.b;
+    var loRev = ''; for (var k=loPts.length-1;k>=0;k--){ loRev += 'L '+loPts[k][0]+','+loPts[k][1]+' '; }
+    var areaD = smooth(hiPts) + ' L ' + loPts[loPts.length-1][0] + ',' + loPts[loPts.length-1][1] + ' ' + loRev + ' Z';
+    document.getElementById('proj-area').setAttribute('d', areaD);
+    document.getElementById('proj-hi').setAttribute('d', smooth(hiPts));
+    document.getElementById('proj-lo').setAttribute('d', smooth(loPts));
+    document.getElementById('proj-exp').setAttribute('d', smooth(exPts));
 
-    document.getElementById('anl-lv').setAttribute('d',spline(pv));
-    document.getElementById('anl-ll').setAttribute('d',spline(pl));
-    document.getElementById('anl-lr').setAttribute('d',spline(pr));
-    document.getElementById('anl-av').setAttribute('d',area(pv,by));
-    document.getElementById('anl-al').setAttribute('d',area(pl,by));
-    document.getElementById('anl-ar').setAttribute('d',area(pr,by));
+    var end = document.getElementById('proj-end');
+    end.setAttribute('cx', exPts[exPts.length-1][0]);
+    end.setAttribute('cy', exPts[exPts.length-1][1]);
 
-    // dots
-    var dotOp=Math.max(0,(prog-0.65)/0.35);
-    [['anl-dv',pv,'#A2C84E'],['anl-dl',pl,'#8782BA'],['anl-dr',pr,'#FF6699']].forEach(function(s){
-        var grp=document.getElementById(s[0]);grp.innerHTML='';
-        if(dotOp<0.04)return;
-        s[1].forEach(function(pt,i){
-            if(i%4!==0&&i!==DATA.length-1)return;
-            var h=document.createElementNS(ns,'circle');
-            h.setAttribute('cx',pt[0]);h.setAttribute('cy',pt[1]);h.setAttribute('r','7');
-            h.setAttribute('fill',s[2]);h.setAttribute('opacity',String(0.1*dotOp));
-            grp.appendChild(h);
-            var dot=document.createElementNS(ns,'circle');
-            dot.setAttribute('cx',pt[0]);dot.setAttribute('cy',pt[1]);dot.setAttribute('r','3');
-            dot.setAttribute('fill',s[2]);dot.setAttribute('opacity',String(dotOp));
-            dot.classList.add('anl-dot');
-            dot.style.animationDelay=(i*0.09)+'s';
-            grp.appendChild(dot);
-        });
+    GEO = { X:X, Y:Y, pad:pad, W:W, H:H, n:n, m:m };
+  }
+
+  function build(){
+    isDark = (localStorage.getItem('six_theme')||'dark')==='dark';
+    var bg = isDark ? '#0B0F1A' : '#F4F6FB';
+    var strong = isDark ? '#fff' : '#0f1428';
+    var muted  = isDark ? 'rgba(255,255,255,.32)' : 'rgba(15,20,40,.4)';
+    mount.innerHTML = [
+    '<div id="analytics-root" style="background:'+bg+';padding:20px 22px 14px;font-family:\'Mulish\',\'Helvetica Neue\',sans-serif;transition:background .3s">',
+    '  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">',
+    '    <div>',
+    '      <div style="display:flex;align-items:center;gap:9px">',
+    '        <div style="font-size:15px;font-weight:700;letter-spacing:-.01em;color:'+(isDark?'rgba(255,255,255,.9)':'rgba(15,20,40,.9)')+'">Growth Projection</div>',
+    '        <span style="font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#5b4708;background:#E3B341;padding:2.5px 7px;border-radius:5px">Projected</span>',
+    '      </div>',
+    '      <div style="font-size:11.5px;color:'+muted+';margin-top:4px">Your first 90 days · conservative to optimistic range</div>',
+    '    </div>',
+    '    <div style="text-align:right">',
+    '      <div id="proj-mature" style="font-size:22px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:'+strong+'"></div>',
+    '      <div style="font-size:10.5px;color:'+muted+'">projected / mo by day 90</div>',
+    '    </div>',
+    '  </div>',
+    '  <div id="proj-tabs" style="display:flex;gap:8px;margin:14px 0 2px"></div>',
+    '  <div id="proj-plot" style="position:relative;width:100%;margin:8px 0 4px">',
+    '    <svg id="proj-svg" style="width:100%;height:100%;overflow:visible" role="img" aria-label="Growth projection range over the first 90 days">',
+    '      <defs>',
+    '        <linearGradient id="projBand" x1="0" y1="0" x2="0" y2="1">',
+    '          <stop offset="0%" stop-color="#83C5ED" stop-opacity=".28"/>',
+    '          <stop offset="100%" stop-color="#83C5ED" stop-opacity=".03"/>',
+    '        </linearGradient>',
+    '        <linearGradient id="projLine" x1="0" y1="0" x2="1" y2="0">',
+    '          <stop offset="0%" stop-color="#83C5ED"/><stop offset="100%" stop-color="#FF6699"/>',
+    '        </linearGradient>',
+    '      </defs>',
+    '      <g id="proj-grid"></g>',
+    '      <path id="proj-area" fill="url(#projBand)"/>',
+    '      <path id="proj-lo" fill="none" stroke="'+(isDark?'rgba(131,197,237,.5)':'rgba(131,197,237,.7)')+'" stroke-width="1.2" stroke-dasharray="4,4"/>',
+    '      <path id="proj-hi" fill="none" stroke="'+(isDark?'rgba(255,102,153,.45)':'rgba(255,102,153,.6)')+'" stroke-width="1.2" stroke-dasharray="4,4"/>',
+    '      <path id="proj-exp" fill="none" stroke="url(#projLine)" stroke-width="2.6" stroke-linecap="round"/>',
+    '      <g id="proj-xlbl"></g><g id="proj-ylbl"></g>',
+    '      <circle id="proj-end" r="4.5" fill="#FF6699"/>',
+    '      <line id="proj-hv" stroke="'+(isDark?'rgba(255,255,255,.14)':'rgba(15,20,40,.14)')+'" stroke-width="1" stroke-dasharray="3,3" opacity="0"/>',
+    '    </svg>',
+    '    <div id="proj-tt" style="position:absolute;pointer-events:none;opacity:0;background:'+(isDark?'rgba(11,15,26,.92)':'rgba(255,255,255,.96)')+';border:1px solid '+(isDark?'rgba(131,197,237,.2)':'rgba(15,20,40,.12)')+';border-radius:9px;padding:8px 11px;font-size:11.5px;min-width:132px;box-shadow:0 8px 28px rgba(0,0,0,.32);transition:opacity .12s;z-index:20;color:'+strong+'">',
+    '      <div id="proj-tt-w" style="font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;opacity:.5;margin-bottom:5px"></div>',
+    '      <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:2px"><span style="color:#FF6699;font-weight:700">Expected</span><span id="proj-tt-e" style="font-variant-numeric:tabular-nums"></span></div>',
+    '      <div style="display:flex;justify-content:space-between;gap:12px;font-size:10.5px;opacity:.7"><span>Range</span><span id="proj-tt-r" style="font-variant-numeric:tabular-nums"></span></div>',
+    '    </div>',
+    '  </div>',
+    '  <div style="font-size:10.5px;line-height:1.5;color:'+(isDark?'rgba(255,255,255,.34)':'rgba(15,20,40,.45)')+';margin-top:6px">'+caption()+'</div>',
+    '</div>'
+    ].join('');
+
+    // tabs
+    var tabWrap = document.getElementById('proj-tabs');
+    ['visitors','leads','revenue'].forEach(function(key){
+      var m = PROJ.metrics[key], on = m.mature > 0;
+      var pill = document.createElement('div');
+      pill.className = 'proj-pill' + (on ? '' : ' off');
+      pill.setAttribute('data-k', key);
+      pill.textContent = m.label;
+      styleTab(pill, key === METRIC);
+      if (on) pill.addEventListener('click', function(){ METRIC = key; refreshTabs(); render(); });
+      tabWrap.appendChild(pill);
     });
-}
 
-// ── 8. Animation (easeOutQuint) ─────────────────────────────────────────────
-function ease(t){return 1-Math.pow(1-t,5);}
-function anim(ts){
-    if(!animStart)animStart=ts;
-    animProg=Math.min(1,ease((ts-animStart)/ANIM_MS));
-    render(animProg);
-    if(animProg<1)animFrame=requestAnimationFrame(anim);
-}
-function startAnim(){
-    if(animFrame)cancelAnimationFrame(animFrame);
-    animStart=null;animProg=0;
-    animFrame=requestAnimationFrame(anim);
-}
-
-// ── 9. Hover tooltip ────────────────────────────────────────────────────────
-var anlWrap = null;
-function bindHover(){
-    anlWrap = document.getElementById('anl-wrap');
-    if(!anlWrap)return;
-    anlWrap.addEventListener('mousemove',function(e){
-        if(!DATA.length)return;
-        var rect=anlWrap.getBoundingClientRect();
-        var W=anlWrap.clientWidth,H=anlWrap.clientHeight;
-        var pad={t:16,b:28,l:40,r:12};
-        var mx=e.clientX-rect.left;
-        var idx=Math.max(0,Math.min(DATA.length-1,Math.round(((mx-pad.l)/(W-pad.l-pad.r))*(DATA.length-1))));
-        var d=DATA[idx];
-        var x=pad.l+(idx/(DATA.length-1))*(W-pad.l-pad.r);
-        var hl=document.getElementById('anl-hvline');
-        hl.setAttribute('x1',x);hl.setAttribute('x2',x);
-        hl.setAttribute('y1',pad.t);hl.setAttribute('y2',H-pad.b);
-        hl.setAttribute('opacity','1');
-        var tt=document.getElementById('anl-tt');
-        document.getElementById('anl-tt-d').textContent=new Date(d.date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-        document.getElementById('anl-tt-v').textContent=d.visitors.toLocaleString();
-        document.getElementById('anl-tt-l').textContent=d.leads.toLocaleString();
-        document.getElementById('anl-tt-r').textContent=d.roi.toFixed(2)+'x';
-        var tw=152;
-        var left=x+14; if(left+tw>W)left=x-tw-14;
-        tt.style.left=left+'px';tt.style.top='16px';tt.style.opacity='1';
-        tt.style.transform='translateY('+((e.clientY-rect.top-H/2)*0.025)+'px)';
+    // hover
+    var plot = document.getElementById('proj-plot');
+    plot.addEventListener('mousemove', function(e){
+      if (!GEO) return;
+      var rect = plot.getBoundingClientRect();
+      var mx = e.clientX - rect.left;
+      var i = Math.max(0, Math.min(GEO.n-1, Math.round(((mx-GEO.pad.l)/(GEO.W-GEO.pad.l-GEO.pad.r))*(GEO.n-1))));
+      var p = GEO.m.points[i], x = GEO.X(i);
+      var hv = document.getElementById('proj-hv');
+      hv.setAttribute('x1',x); hv.setAttribute('x2',x);
+      hv.setAttribute('y1',GEO.pad.t); hv.setAttribute('y2',GEO.H-GEO.pad.b);
+      hv.setAttribute('opacity','1');
+      document.getElementById('proj-tt-w').textContent = 'Week ' + (i+1);
+      document.getElementById('proj-tt-e').textContent = fmt(p.exp, GEO.m.unit);
+      document.getElementById('proj-tt-r').textContent = fmt(p.low, GEO.m.unit) + ' – ' + fmt(p.high, GEO.m.unit);
+      var tt = document.getElementById('proj-tt');
+      var left = x + 14; if (left + 150 > GEO.W) left = x - 150;
+      tt.style.left = left + 'px'; tt.style.top = '10px'; tt.style.opacity = '1';
     });
-    anlWrap.addEventListener('mouseleave',function(){
-        document.getElementById('anl-tt').style.opacity='0';
-        document.getElementById('anl-hvline').setAttribute('opacity','0');
+    plot.addEventListener('mouseleave', function(){
+      document.getElementById('proj-tt').style.opacity='0';
+      document.getElementById('proj-hv').setAttribute('opacity','0');
     });
-}
 
-// ── 10. Particles ───────────────────────────────────────────────────────────
-function initParticles(){
-    var canvas=document.getElementById('anl-particles');
-    var root2=document.getElementById('analytics-root');
-    if(!canvas||!root2)return;
-    var ctx=canvas.getContext('2d');
-    var parts=[];
-    function resize(){canvas.width=root2.clientWidth;canvas.height=root2.clientHeight;}
-    function mp(){return{x:Math.random()*canvas.width,y:Math.random()*canvas.height,r:Math.random()*1.1+0.3,vx:(Math.random()-.5)*.16,vy:(Math.random()-.5)*.16,a:Math.random()*.45+.1,col:['#8782BA','#70C9F2','#A2C84E','#FF6699'][Math.floor(Math.random()*4)]};}
-    resize();
-    parts=Array.from({length:32},mp);
-    function draw(){
-        ctx.clearRect(0,0,canvas.width,canvas.height);
-        parts.forEach(function(p){
-            ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-            ctx.fillStyle=p.col;ctx.globalAlpha=p.a;ctx.fill();
-            p.x+=p.vx;p.y+=p.vy;
-            if(p.x<0||p.x>canvas.width)p.vx*=-1;
-            if(p.y<0||p.y>canvas.height)p.vy*=-1;
-        });
-        ctx.globalAlpha=1;
-        requestAnimationFrame(draw);
-    }
-    draw();
-    window.addEventListener('resize',resize);
-}
+    render();
+  }
 
-// ── 11. Theme sync with dashboard ──────────────────────────────────────────
-function syncTheme(){
-    var root2=document.getElementById('analytics-root');
-    if(!root2)return;
-    var dark=(localStorage.getItem('six_theme')||'dark')==='dark';
-    isDark=dark;
-    root2.style.background=dark?'#0B0F1A':'#F4F6FB';
-    var title=document.getElementById('anl-title');
-    if(title)title.style.color=dark?'rgba(255,255,255,.85)':'rgba(15,20,40,.85)';
-    // Re-render so axis lines, labels and series recolor for the new theme
-    if(typeof render==='function' && DATA && DATA.length){ render(typeof animProg!=='undefined'?animProg:1); }
-}
-// Listen for dashboard theme changes
-document.addEventListener('six-theme-changed', syncTheme);
-
-// ── 12. Boot ─────────────────────────────────────────────────────────────────
-(async function(){
-    DATA = await fetchAnalytics(siteUrl);
-    bindHover();
-    initParticles();
-    startAnim();
-    window.addEventListener('resize',function(){render(animProg);});
-    // Data refresh every 30s — no re-animation (silently update)
-    setInterval(async function(){
-        if(!DATA.length)return;
-        var last=DATA[DATA.length-1];
-        var ld=new Date(last.date);ld.setDate(ld.getDate()+1);
-        DATA.push({
-            date:ld.toISOString().slice(0,10),
-            visitors:Math.max(100,last.visitors+Math.round((Math.random()-.3)*120+50)),
-            leads:Math.max(10,last.leads+Math.round((Math.random()-.3)*15+6)),
-            roi:Math.max(.5,parseFloat((last.roi+(Math.random()-.3)*.18+.05).toFixed(2)))
-        });
-        if(DATA.length>35)DATA.shift();
-        render(1); // render fully — no re-animation
-    },30000);
-})();
-
+  document.addEventListener('six-theme-changed', build);
+  window.addEventListener('resize', render);
+  window.addEventListener('load', render);
+  build();
 })();
 </script>
 
 
 
 
+
+<!-- ── DATA SOURCES: connect accounts to replace projections with live data ── -->
+<?php
+$ds_defs = array(
+    'ga4'  => array('label'=>'Google Analytics 4',      'meta'=>'six_ga4_property_id',    'metric'=>'Visitors',       'hint'=>'GA4 Property ID (e.g. 123456789)'),
+    'gads' => array('label'=>'Google Ads',              'meta'=>'six_gads_customer_id',   'metric'=>'Leads & spend',  'hint'=>'Customer ID (e.g. 123-456-7890)'),
+    'meta' => array('label'=>'Meta Ads',                'meta'=>'six_meta_ad_account_id', 'metric'=>'Social leads',   'hint'=>'Ad Account ID (e.g. act_1234567890)'),
+    'gbp'  => array('label'=>'Google Business Profile', 'meta'=>'six_gbp_location_id',    'metric'=>'Calls & local',  'hint'=>'Business name or location ID'),
+    'gsc'  => array('label'=>'Google Search Console',   'meta'=>'six_gsc_site',           'metric'=>'Organic traffic','hint'=>'Website domain (e.g. yoursite.com)'),
+);
+$ds_connected = 0;
+foreach ( $ds_defs as $d ) { if ( get_user_meta($user_id,$d['meta'],true) ) $ds_connected++; }
+$ds_total = count($ds_defs);
+$ds_pct   = $ds_total ? round(($ds_connected/$ds_total)*100) : 0;
+?>
+<div class="six-card" id="six-data-sources" style="margin-bottom:20px" data-total="<?php echo $ds_total; ?>">
+    <div class="six-card-header" style="align-items:flex-start">
+        <div>
+            <span class="six-card-title">Connect Your Data Sources</span>
+            <div style="font-size:11.5px;color:var(--text3);margin-top:3px">The more you connect, the sooner your projections become live, verified numbers.</div>
+        </div>
+        <div style="text-align:right;min-width:120px">
+            <div style="font-size:12px;color:var(--text3)"><span id="ds-count"><?php echo $ds_connected; ?></span>/<?php echo $ds_total; ?> connected</div>
+            <div style="height:7px;border-radius:5px;background:var(--border,rgba(255,255,255,.08));margin-top:6px;overflow:hidden">
+                <div id="ds-bar" style="height:100%;width:<?php echo $ds_pct; ?>%;border-radius:5px;background:linear-gradient(90deg,#83C5ED,#FF6699);transition:width .4s"></div>
+            </div>
+        </div>
+    </div>
+    <div class="six-card-body" style="display:flex;flex-direction:column;gap:10px">
+        <?php foreach ( $ds_defs as $key => $d ):
+            $val = get_user_meta($user_id, $d['meta'], true);
+            $is_conn = ! empty($val);
+        ?>
+        <div class="six-ds-row" data-source="<?php echo esc_attr($key); ?>" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:12px">
+            <div style="flex:1;min-width:0">
+                <div style="font-size:13.5px;font-weight:600;color:var(--text1)"><?php echo esc_html($d['label']); ?></div>
+                <div style="font-size:11px;color:var(--text3);margin-top:1px"><?php echo esc_html($d['metric']); ?></div>
+            </div>
+            <span class="six-ds-badge" style="font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:20px;<?php echo $is_conn ? 'background:rgba(86,211,100,.14);color:#1a7a2e' : 'background:var(--border,rgba(255,255,255,.06));color:var(--text3)'; ?>">
+                <?php echo $is_conn ? 'Connected' : 'Not connected'; ?>
+            </span>
+            <button type="button" class="six-btn six-btn-ghost six-btn-sm six-ds-toggle" style="font-size:12px"><?php echo $is_conn ? 'Update' : 'Connect'; ?></button>
+        </div>
+        <div class="six-ds-form" data-source="<?php echo esc_attr($key); ?>" style="display:none;gap:8px;padding:0 2px 4px">
+            <input class="six-input six-ds-input" type="text" value="<?php echo esc_attr($val); ?>" placeholder="<?php echo esc_attr($d['hint']); ?>" style="flex:1;font-size:12.5px">
+            <button type="button" class="six-btn six-btn-primary six-btn-sm six-ds-save" style="font-size:12px">Save</button>
+            <div class="six-ds-msg" style="font-size:11px;align-self:center"></div>
+        </div>
+        <?php endforeach; ?>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">We only store your account ID — never a password. Your advisor completes the secure access grant from their side.</div>
+    </div>
+</div>
+<script>
+(function(){
+    var card = document.getElementById('six-data-sources');
+    if (!card) return;
+    var total = parseInt(card.getAttribute('data-total'),10) || 5;
+    card.querySelectorAll('.six-ds-toggle').forEach(function(btn){
+        btn.addEventListener('click', function(){
+            var row = btn.closest('.six-ds-row');
+            var src = row.getAttribute('data-source');
+            var form = card.querySelector('.six-ds-form[data-source="'+src+'"]');
+            if (!form) return;
+            var open = form.style.display !== 'none' && form.style.display !== '';
+            form.style.display = open ? 'none' : 'flex';
+        });
+    });
+    card.querySelectorAll('.six-ds-save').forEach(function(btn){
+        btn.addEventListener('click', function(){
+            var form = btn.closest('.six-ds-form');
+            var src  = form.getAttribute('data-source');
+            var input= form.querySelector('.six-ds-input');
+            var msg  = form.querySelector('.six-ds-msg');
+            var val  = (input.value||'').trim();
+            if (!val){ msg.style.color='var(--danger,#dc2626)'; msg.textContent='Enter your ID.'; return; }
+            btn.disabled=true; msg.style.color='var(--text3)'; msg.textContent='Saving…';
+            post({action:'six_save_data_source', source:src, value:val}).then(function(res){
+                btn.disabled=false;
+                if(res && res.success){
+                    msg.style.color='#1a7a2e'; msg.textContent='Connected';
+                    var row = card.querySelector('.six-ds-row[data-source="'+src+'"]');
+                    if(row){
+                        var badge=row.querySelector('.six-ds-badge');
+                        badge.textContent='Connected';
+                        badge.style.background='rgba(86,211,100,.14)'; badge.style.color='#1a7a2e';
+                        row.querySelector('.six-ds-toggle').textContent='Update';
+                    }
+                    var d=res.data||{};
+                    if(typeof d.connected!=='undefined'){
+                        document.getElementById('ds-count').textContent=d.connected;
+                        document.getElementById('ds-bar').style.width=Math.round((d.connected/total)*100)+'%';
+                    }
+                    setTimeout(function(){ form.style.display='none'; msg.textContent=''; },1200);
+                } else {
+                    msg.style.color='var(--danger,#dc2626)'; msg.textContent=(res&&res.data&&res.data.message)||(res&&res.data)||'Could not save.';
+                }
+            }).catch(function(){ btn.disabled=false; msg.style.color='var(--danger,#dc2626)'; msg.textContent='Network error.'; });
+        });
+    });
+})();
+</script>
 
 <!-- Recommendations -->
 <?php
@@ -1897,7 +1920,25 @@ $next_billing=date('M 1, Y',strtotime('first day of next month'));
                 <input class="six-input" id="prof-location" value="<?php echo esc_attr($checkout->location??$checkout->business_address??''); ?>" placeholder="City, Province">
             </div>
             <div class="six-form-group"><label class="six-label">Monthly Budget</label>
-                <input class="six-input" id="prof-budget" type="number" min="0" value="<?php echo intval($checkout->mktg_budget??0); ?>" placeholder="0">
+                <?php
+                // Monthly budget can live in mktg_budget, the per-service budget
+                // columns, or the active service rows depending on how far the
+                // customer got. Prefer the Odoo helper (same fallback everywhere),
+                // then fall back locally so the field is never wrongly blank.
+                $prof_budget = 0;
+                if ( class_exists('Six_Odoo') && method_exists('Six_Odoo','effective_monthly_budget') ) {
+                    $prof_budget = intval( Six_Odoo::effective_monthly_budget( $user_id, $checkout ) );
+                }
+                if ( $prof_budget <= 0 ) {
+                    $prof_budget = intval($checkout->mktg_budget ?? 0);
+                    if ( $prof_budget <= 0 ) {
+                        $prof_budget = intval($checkout->ads_budget ?? 0) + intval($checkout->seo_budget ?? 0)
+                                     + intval($checkout->gbp_budget ?? 0) + intval($checkout->web_budget ?? 0);
+                    }
+                    if ( $prof_budget <= 0 ) $prof_budget = intval($total_budget);
+                }
+                ?>
+                <input class="six-input" id="prof-budget" type="number" min="0" value="<?php echo $prof_budget; ?>" placeholder="0">
             </div>
         </div>
     </div>

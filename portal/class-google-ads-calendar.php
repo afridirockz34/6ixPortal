@@ -524,15 +524,18 @@ class Six_Google_Calendar {
         $start      = sanitize_text_field( $args['start'] );
         $duration   = intval( $args['duration'] ?? 30 );
         $notes      = sanitize_textarea_field( $args['notes'] ?? '' );
+        $suppress   = ! empty( $args['suppress_notify'] );
         $token      = self::get_access_token( $advisor_id );
         $cal_id     = get_user_meta( $advisor_id, 'six_gcal_calendar_id', true ) ?: 'primary';
 
         $client  = get_userdata( $client_id );
         $advisor = get_userdata( $advisor_id );
         $end     = date( 'c', strtotime( $start ) + ( $duration * 60 ) );
+        $summary = sanitize_text_field( $args['title'] ?? '' )
+            ?: ( '6ix Developers — Strategy Meeting with ' . $client->display_name );
 
         $event = array(
-            'summary'     => '6ix Developers — Strategy Meeting with ' . $client->display_name,
+            'summary'     => $summary,
             'description' => $notes ?: 'Marketing strategy meeting booked via 6ix Developers Portal.',
             'start'       => array( 'dateTime' => $start, 'timeZone' => 'America/Toronto' ),
             'end'         => array( 'dateTime' => $end,   'timeZone' => 'America/Toronto' ),
@@ -543,14 +546,17 @@ class Six_Google_Calendar {
         );
 
         if ( ! $token ) {
-            // No calendar token — still notify and create Odoo task
-            Six_Notifications::create( array(
-                'user_id' => $advisor_id,
-                'type'    => 'meeting_booked',
-                'title'   => 'New Meeting Request',
-                'message' => $client->display_name . ' requested a meeting on ' . date( 'M j \a\t g:i A', strtotime( $start ) ),
-            ) );
-            return array( 'success' => true, 'event_id' => 'local', 'meet_link' => '' );
+            // No calendar token — still notify and create Odoo task (unless the
+            // caller is handling notifications itself).
+            if ( ! $suppress && class_exists( 'Six_Notifications' ) ) {
+                Six_Notifications::create( array(
+                    'user_id' => $advisor_id,
+                    'type'    => 'meeting_booked',
+                    'title'   => 'New Meeting Request',
+                    'message' => $client->display_name . ' requested a meeting on ' . date( 'M j \a\t g:i A', strtotime( $start ) ),
+                ) );
+            }
+            return array( 'success' => true, 'event_id' => '', 'meet_link' => '' );
         }
 
         $response = wp_remote_post(
@@ -576,21 +582,32 @@ class Six_Google_Calendar {
         $result = json_decode( wp_remote_retrieve_body( $response ), true );
 
         if ( ! empty( $result['id'] ) ) {
-            if ( class_exists( 'Six_Odoo' ) ) {
-                Six_Odoo::create_task( array(
-                    'title'        => $event['summary'],
-                    'description'  => "Booked: {$start}\nClient: {$client->display_name}\nNotes: {$notes}",
-                    'date'         => date( 'Y-m-d', strtotime( $start ) ),
-                    'client_email' => $client->user_email,
-                ) );
+            // Extract the Google Meet link — hangoutLink or conferenceData.
+            $meet_link = $result['hangoutLink'] ?? '';
+            if ( ! $meet_link ) {
+                foreach ( $result['conferenceData']['entryPoints'] ?? array() as $ep ) {
+                    if ( ( $ep['entryPointType'] ?? '' ) === 'video' ) { $meet_link = $ep['uri'] ?? ''; break; }
+                }
             }
-            Six_Notifications::create( array(
-                'user_id' => $advisor_id,
-                'type'    => 'meeting_booked',
-                'title'   => 'Meeting Booked',
-                'message' => $client->display_name . ' booked a meeting on ' . date( 'M j \a\t g:i A', strtotime( $start ) ),
-            ) );
-            return array( 'success' => true, 'event_id' => $result['id'], 'meet_link' => $result['hangoutLink'] ?? '' );
+            if ( ! $suppress ) {
+                if ( class_exists( 'Six_Odoo' ) ) {
+                    Six_Odoo::create_task( array(
+                        'title'        => $event['summary'],
+                        'description'  => "Booked: {$start}\nClient: {$client->display_name}\nNotes: {$notes}",
+                        'date'         => date( 'Y-m-d', strtotime( $start ) ),
+                        'client_email' => $client->user_email,
+                    ) );
+                }
+                if ( class_exists( 'Six_Notifications' ) ) {
+                    Six_Notifications::create( array(
+                        'user_id' => $advisor_id,
+                        'type'    => 'meeting_booked',
+                        'title'   => 'Meeting Booked',
+                        'message' => $client->display_name . ' booked a meeting on ' . date( 'M j \a\t g:i A', strtotime( $start ) ),
+                    ) );
+                }
+            }
+            return array( 'success' => true, 'event_id' => $result['id'], 'meet_link' => $meet_link );
         }
         return false;
     }

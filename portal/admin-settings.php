@@ -325,6 +325,35 @@ function six_admin_settings() {
                     </td>
                 </tr>
                 <tr>
+                    <th>Connection Test</th>
+                    <td>
+                        <button type="button" class="button" id="six-dfs-test">Test DataForSEO connection</button>
+                        <span id="six-dfs-test-result" style="margin-left:10px;font-weight:600"></span>
+                        <p class="description">Save your credentials first, then run a live check (account balance + a sample keyword lookup).</p>
+                        <script>
+                        (function(){
+                            var btn=document.getElementById('six-dfs-test'), out=document.getElementById('six-dfs-test-result');
+                            if(!btn) return;
+                            btn.addEventListener('click',function(){
+                                btn.disabled=true; out.style.color='#666'; out.textContent='Testing…';
+                                var fd=new FormData();
+                                fd.append('action','six_test_dataforseo');
+                                fd.append('nonce','<?php echo esc_js( wp_create_nonce('six_dfs_test') ); ?>');
+                                fetch(ajaxurl,{method:'POST',body:fd,credentials:'same-origin'})
+                                    .then(function(r){return r.json();})
+                                    .then(function(res){
+                                        btn.disabled=false;
+                                        var d=res&&res.data?res.data:{};
+                                        out.style.color=(res&&res.success&&d.stage==='ok')?'#155724':((res&&res.success)?'#856404':'#a00');
+                                        out.textContent=(d.message)||((res&&res.success)?'OK':'Test failed.');
+                                    })
+                                    .catch(function(){ btn.disabled=false; out.style.color='#a00'; out.textContent='Request failed.'; });
+                            });
+                        })();
+                        </script>
+                    </td>
+                </tr>
+                <tr>
                     <th>OAuth Client ID</th>
                     <td>
                         <input name="six_gads_client_id" value="<?php echo $s('six_gads_client_id'); ?>" class="regular-text" placeholder="xxxxxx.apps.googleusercontent.com">
@@ -992,4 +1021,23 @@ function six_maybe_test_ai() {
 
     echo '<p style="margin-top:20px"><a href="'.admin_url('admin.php?page=six-portal-settings').'" style="color:#83C5ED">← Back to Settings</a></p>';
     echo '</div>'; exit;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DataForSEO — live connection test (admin only, from the Integrations page)
+// ─────────────────────────────────────────────────────────────────────────────
+add_action( 'wp_ajax_six_test_dataforseo', 'six_ajax_test_dataforseo' );
+function six_ajax_test_dataforseo() {
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_send_json_error( array( 'message' => 'Not allowed.' ) );
+    }
+    check_ajax_referer( 'six_dfs_test', 'nonce' );
+    if ( ! class_exists( 'Six_EstimateEngine' ) || ! method_exists( 'Six_EstimateEngine', 'test_dataforseo' ) ) {
+        wp_send_json_error( array( 'message' => 'Estimate engine not loaded.' ) );
+    }
+    $res = Six_EstimateEngine::test_dataforseo();
+    if ( ! empty( $res['ok'] ) ) {
+        wp_send_json_success( $res );
+    }
+    wp_send_json_error( $res );
 }

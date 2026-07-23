@@ -340,6 +340,8 @@ function six_ajax_save_checkout_step() {
             'challenge'      => sanitize_text_field( $data['challenge']   ?? '' ),
             'mktg_budget'    => sanitize_text_field( $data['mktg_budget'] ?? '' ),
             'platforms'      => sanitize_text_field( $data['platforms']   ?? '' ),
+            'deal_value'     => preg_replace( '/[^0-9]/', '', $data['deal_value'] ?? '' ),
+            'close_rate'     => preg_replace( '/[^0-9]/', '', $data['close_rate'] ?? '' ),
             'monthly_revenue'    => sanitize_text_field( $data['revenue']     ?? $data['monthly_revenue'] ?? '' ),
             // New v5 fields
             'business_address'   => sanitize_text_field( $data['location']     ?? '' ),
@@ -513,6 +515,8 @@ function six_complete_onboarding() {
                                 ])) ),
             'platforms'       => sanitize_text_field( $d['platforms']    ?? '' ),
             'mktg_budget'     => sanitize_text_field( $d['mktg_budget']  ?? '' ),
+            'deal_value'      => preg_replace( '/[^0-9]/', '', $d['deal_value'] ?? '' ),
+            'close_rate'      => preg_replace( '/[^0-9]/', '', $d['close_rate'] ?? '' ),
             // Google Ads
             'ads_locations'   => sanitize_text_field( $d['ads_loc']      ?? '' ),
             'ads_loc_type'    => sanitize_text_field( $d['ads_loc_type'] ?? 'Include' ),
@@ -1448,6 +1452,21 @@ function six_onboarding_db_upgrade() {
         }
         update_option( 'six_onboarding_db_v8', 1 );
     }
+
+    // v9 migration — ROI inputs for the post-onboarding growth projection
+    if ( ! get_option('six_onboarding_db_v9') ) {
+        $cols9 = $wpdb->get_col( "SHOW COLUMNS FROM {$wpdb->prefix}six_checkout_progress", 0 );
+        $v9_cols = array(
+            'deal_value' => "VARCHAR(20) DEFAULT ''", // average customer/order value ($)
+            'close_rate' => "VARCHAR(10) DEFAULT ''", // % of leads that convert
+        );
+        foreach ( $v9_cols as $col => $def ) {
+            if ( ! in_array( $col, $cols9 ) ) {
+                $wpdb->query( "ALTER TABLE {$wpdb->prefix}six_checkout_progress ADD COLUMN {$col} {$def}" );
+            }
+        }
+        update_option( 'six_onboarding_db_v9', 1 );
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1777,6 +1796,13 @@ function six_schedule_onboarding_call() {
     global $wpdb;
     $table = $wpdb->prefix . 'six_checkout_progress';
 
+    // A requested call supersedes any earlier abandonment — clear the abandon
+    // state so the abandoned-checkout follow-up cron does not nag this lead.
+    delete_user_meta( $user_id, 'six_abandoned_at_step' );
+    delete_user_meta( $user_id, 'six_abandoned_score' );
+    delete_user_meta( $user_id, 'six_abandoned_at' );
+    update_user_meta( $user_id, 'six_call_requested_at', current_time('mysql') );
+
     // Save call scheduling to DB
     $wpdb->update(
         $table,
@@ -1823,43 +1849,32 @@ function six_schedule_onboarding_call() {
         }
     }
 
-    // Build Odoo activity note
-    $user        = get_userdata($user_id);
-    $portal_url  = home_url('/portal/?user_id=' . $user_id);
-    $activity_note = "Customer requested a consultation call.
-"
-        . "Date: {$call_date}
-"
-        . "Time: {$call_time}
-"
-        . ( $call_notes ? "Notes: {$call_notes}
-" : '' )
-        . "Services interested in: {$services}
-"
-        . "Profile: {$portal_url}";
-
-    if ( class_exists('Six_Growth_Engine') ) {
-        // Treat as abandon but with call note
-        Six_Growth_Engine::on_abandon( $user_id, 5, $score );
-    }
-
-    if ( class_exists('Six_Odoo') ) {
-        $lead_id = intval( get_user_meta($user_id, 'six_odoo_lead_id', true) );
-        if ( $lead_id ) {
-            // Create a To-Do activity on the call date
-            $due_date = $call_date; // already YYYY-MM-DD
-            Six_Odoo::create_activity(
-                $lead_id,
-                "Consultation Call — {$call_time}",
-                $activity_note,
-                'meeting',
-                0,
-                Six_Odoo::get_advisor_odoo_uid_public($user_id),
-                $due_date
-            );
-            // Post a note on the lead
-            Six_Odoo::post_note( $lead_id, $activity_note );
-        }
+    // A requested call is NOT an abandonment. Route it through the unified
+    // appointments system: it creates a Google Calendar event + Meet link (when
+    // the assigned advisor has connected their calendar), emails BOTH the
+    // customer and the advisor, notifies the advisor in-portal, and moves the
+    // Odoo lead to the "Call Requested" stage with an advisor task. Do NOT run
+    // the abandoned flow.
+    $meet_link = '';
+    if ( class_exists('Six_Appointments') ) {
+        $appt = Six_Appointments::create( array(
+            'client_id'   => $user_id,
+            'date'        => $call_date,
+            'time_window' => $call_time,
+            'notes'       => $call_notes,
+            'services'    => $services,
+            'score'       => $score,
+            'source'      => 'onboarding_call',
+            'title'       => '6ix Developers — Consultation Call',
+        ) );
+        $meet_link = $appt['meet_link'] ?? '';
+    } elseif ( class_exists('Six_Odoo') ) {
+        // Fallback if the appointments module is unavailable.
+        Six_Odoo::on_call_requested( $user_id, array(
+            'call_date' => $call_date, 'call_time' => $call_time,
+            'call_notes' => $call_notes, 'services' => $services,
+            'score' => $score, 'step' => 3,
+        ) );
     }
 
     error_log("6ix Schedule Call: user={$user_id} date={$call_date} time={$call_time}");
@@ -1867,5 +1882,6 @@ function six_schedule_onboarding_call() {
         'message'   => 'Call request saved.',
         'call_date' => $call_date,
         'call_time' => $call_time,
+        'meet_link' => $meet_link,
     ) );
 }
