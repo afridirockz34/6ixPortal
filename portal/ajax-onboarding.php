@@ -1777,6 +1777,13 @@ function six_schedule_onboarding_call() {
     global $wpdb;
     $table = $wpdb->prefix . 'six_checkout_progress';
 
+    // A requested call supersedes any earlier abandonment — clear the abandon
+    // state so the abandoned-checkout follow-up cron does not nag this lead.
+    delete_user_meta( $user_id, 'six_abandoned_at_step' );
+    delete_user_meta( $user_id, 'six_abandoned_score' );
+    delete_user_meta( $user_id, 'six_abandoned_at' );
+    update_user_meta( $user_id, 'six_call_requested_at', current_time('mysql') );
+
     // Save call scheduling to DB
     $wpdb->update(
         $table,
@@ -1823,43 +1830,19 @@ function six_schedule_onboarding_call() {
         }
     }
 
-    // Build Odoo activity note
-    $user        = get_userdata($user_id);
-    $portal_url  = home_url('/portal/?user_id=' . $user_id);
-    $activity_note = "Customer requested a consultation call.
-"
-        . "Date: {$call_date}
-"
-        . "Time: {$call_time}
-"
-        . ( $call_notes ? "Notes: {$call_notes}
-" : '' )
-        . "Services interested in: {$services}
-"
-        . "Profile: {$portal_url}";
-
-    if ( class_exists('Six_Growth_Engine') ) {
-        // Treat as abandon but with call note
-        Six_Growth_Engine::on_abandon( $user_id, 5, $score );
-    }
-
+    // A requested call is NOT an abandonment. Route the lead to the dedicated
+    // "Call Requested" pipeline stage (a middle stage, neither abandoned nor
+    // submitted) and generate an advisor task on the profile — mirroring how
+    // onboarding-submitted generates its task. Do NOT run the abandoned flow.
     if ( class_exists('Six_Odoo') ) {
-        $lead_id = intval( get_user_meta($user_id, 'six_odoo_lead_id', true) );
-        if ( $lead_id ) {
-            // Create a To-Do activity on the call date
-            $due_date = $call_date; // already YYYY-MM-DD
-            Six_Odoo::create_activity(
-                $lead_id,
-                "Consultation Call — {$call_time}",
-                $activity_note,
-                'meeting',
-                0,
-                Six_Odoo::get_advisor_odoo_uid_public($user_id),
-                $due_date
-            );
-            // Post a note on the lead
-            Six_Odoo::post_note( $lead_id, $activity_note );
-        }
+        Six_Odoo::on_call_requested( $user_id, array(
+            'call_date'  => $call_date,
+            'call_time'  => $call_time,
+            'call_notes' => $call_notes,
+            'services'   => $services,
+            'score'      => $score,
+            'step'       => 3,
+        ) );
     }
 
     error_log("6ix Schedule Call: user={$user_id} date={$call_date} time={$call_time}");

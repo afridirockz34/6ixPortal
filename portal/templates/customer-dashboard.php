@@ -1897,7 +1897,25 @@ $next_billing=date('M 1, Y',strtotime('first day of next month'));
                 <input class="six-input" id="prof-location" value="<?php echo esc_attr($checkout->location??$checkout->business_address??''); ?>" placeholder="City, Province">
             </div>
             <div class="six-form-group"><label class="six-label">Monthly Budget</label>
-                <input class="six-input" id="prof-budget" type="number" min="0" value="<?php echo intval($checkout->mktg_budget??0); ?>" placeholder="0">
+                <?php
+                // Monthly budget can live in mktg_budget, the per-service budget
+                // columns, or the active service rows depending on how far the
+                // customer got. Prefer the Odoo helper (same fallback everywhere),
+                // then fall back locally so the field is never wrongly blank.
+                $prof_budget = 0;
+                if ( class_exists('Six_Odoo') && method_exists('Six_Odoo','effective_monthly_budget') ) {
+                    $prof_budget = intval( Six_Odoo::effective_monthly_budget( $user_id, $checkout ) );
+                }
+                if ( $prof_budget <= 0 ) {
+                    $prof_budget = intval($checkout->mktg_budget ?? 0);
+                    if ( $prof_budget <= 0 ) {
+                        $prof_budget = intval($checkout->ads_budget ?? 0) + intval($checkout->seo_budget ?? 0)
+                                     + intval($checkout->gbp_budget ?? 0) + intval($checkout->web_budget ?? 0);
+                    }
+                    if ( $prof_budget <= 0 ) $prof_budget = intval($total_budget);
+                }
+                ?>
+                <input class="six-input" id="prof-budget" type="number" min="0" value="<?php echo $prof_budget; ?>" placeholder="0">
             </div>
         </div>
     </div>

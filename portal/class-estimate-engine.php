@@ -145,15 +145,22 @@ class Six_EstimateEngine {
         $dfs_loc     = $loc_map[$city] ?? 'Canada';
         $lang        = 'en';
 
-        $tasks = array();
-        foreach ( $keywords as $kw ) {
-            $tasks[] = array(
-                'keywords'      => array($kw),
-                'location_name' => $dfs_loc,
-                'language_name' => 'English',
-                'search_partners'=> false,
-            );
-        }
+        // Send ALL keywords in a single task — DataForSEO's search_volume/live
+        // endpoint accepts up to 1000 keywords per task. One task is cheaper and
+        // faster than one-task-per-keyword, and returns every keyword's data in
+        // a single result set.
+        $kw_clean = array_values( array_unique( array_filter( array_map( function( $k ) {
+            return trim( (string) $k );
+        }, $keywords ) ) ) );
+        if ( empty( $kw_clean ) ) return array();
+        $kw_clean = array_slice( $kw_clean, 0, 1000 );
+
+        $tasks = array( array(
+            'keywords'       => $kw_clean,
+            'location_name'  => $dfs_loc,
+            'language_name'  => 'English',
+            'search_partners'=> false,
+        ) );
 
         $resp = wp_remote_post(
             'https://api.dataforseo.com/v3/keywords_data/google_ads/search_volume/live',
@@ -218,6 +225,63 @@ class Six_EstimateEngine {
             'competition'=> $comp_label,
             'keywords'   => $rows,
             'source'     => 'DataForSEO',
+        );
+    }
+
+    /**
+     * Live connectivity/health test for the DataForSEO integration.
+     * Runs a real minimal query and returns a structured status the admin
+     * settings page can render. Never throws.
+     */
+    public static function test_dataforseo(): array {
+        $login    = get_option('six_dataforseo_login', '');
+        $password = get_option('six_dataforseo_password', '');
+        if ( ! $login || ! $password ) {
+            return array('ok'=>false,'stage'=>'config','message'=>'DataForSEO login/password are not set. Add them in the fields above and save.');
+        }
+
+        // 1) Cheap auth check via the account endpoint (also returns balance).
+        $resp = wp_remote_get(
+            'https://api.dataforseo.com/v3/appendix/user_data',
+            array(
+                'timeout' => 20,
+                'headers' => array(
+                    'Authorization' => 'Basic ' . base64_encode("{$login}:{$password}"),
+                    'Content-Type'  => 'application/json',
+                ),
+            )
+        );
+        if ( is_wp_error( $resp ) ) {
+            return array('ok'=>false,'stage'=>'network','message'=>'Network error: ' . $resp->get_error_message());
+        }
+        $code = wp_remote_retrieve_response_code( $resp );
+        $body = json_decode( wp_remote_retrieve_body( $resp ), true );
+        if ( $code === 401 ) {
+            return array('ok'=>false,'stage'=>'auth','message'=>'Authentication failed (401). The login email or password is incorrect.');
+        }
+        if ( $code !== 200 || ( $body['status_code'] ?? 0 ) !== 20000 ) {
+            return array('ok'=>false,'stage'=>'api','message'=>"API error — HTTP {$code}, status " . ( $body['status_code'] ?? '?' ) . ': ' . ( $body['status_message'] ?? 'unknown' ));
+        }
+
+        $money   = $body['tasks'][0]['result'][0]['money'] ?? array();
+        $balance = isset( $money['balance'] ) ? '$' . number_format( (float) $money['balance'], 2 ) : 'n/a';
+
+        // 2) Prove the search-volume endpoint actually returns keyword data.
+        $kw = self::dataforseo_cpc( array( 'emergency plumber' ), 'Toronto,Ontario,Canada' );
+        if ( empty( $kw ) ) {
+            return array(
+                'ok'      => true,
+                'stage'   => 'partial',
+                'balance' => $balance,
+                'message' => "Authenticated successfully (balance {$balance}), but the keyword search-volume test returned no data. Credentials are valid — the keyword endpoint may require a positive account balance.",
+            );
+        }
+        return array(
+            'ok'      => true,
+            'stage'   => 'ok',
+            'balance' => $balance,
+            'sample'  => $kw,
+            'message' => "Working. Account balance {$balance}. Live sample \"emergency plumber\" (Toronto): avg CPC \${$kw['avg_cpc']}, ~" . number_format( $kw['total_vol'] ) . " searches/mo, competition {$kw['competition']}.",
         );
     }
 

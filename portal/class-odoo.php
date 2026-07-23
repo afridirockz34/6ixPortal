@@ -311,7 +311,7 @@ class Six_Odoo {
         // Clear ALL possible stage name variants — old and new
         $all_stages = array(
             'New Lead', 'In Progress', 'Qualified',
-            'Abandoned', 'Customer', 'Onboarding Submitted', 'Onboarding Started',
+            'Abandoned', 'Call Requested', 'Customer', 'Onboarding Submitted', 'Onboarding Started',
             'Account Created', 'Services Selected', 'Questionnaire', 'Strategy Viewed',
         );
         foreach ( $all_stages as $s ) {
@@ -326,6 +326,7 @@ class Six_Odoo {
         $seq = array(
             'Onboarding Started'   => 5,
             'Abandoned'            => 10,
+            'Call Requested'       => 15, // middle: higher intent than Abandoned, not yet Submitted
             'Onboarding Submitted' => 20,
             'Customer'             => 30,
         );
@@ -447,27 +448,30 @@ class Six_Odoo {
         // Stage map — 4 pipeline stages
         // Onboarding Started → Abandoned | Onboarding Submitted → Customer
         $stage_names = array(
-            'new'           => 'Onboarding Started',   // just registered
-            'started'       => 'Onboarding Started',   // account created, in progress
-            'services'      => 'Onboarding Started',
-            'questionnaire' => 'Onboarding Started',
-            'strategy'      => 'Onboarding Started',
-            'in_progress'   => 'Onboarding Started',
-            'abandoned'     => 'Abandoned',
-            'qualified'     => 'Onboarding Started',
-            'submitted'     => 'Onboarding Submitted', // step 5 complete
-            'active'        => 'Customer',
+            'new'            => 'Onboarding Started',   // just registered
+            'started'        => 'Onboarding Started',   // account created, in progress
+            'services'       => 'Onboarding Started',
+            'questionnaire'  => 'Onboarding Started',
+            'strategy'       => 'Onboarding Started',
+            'in_progress'    => 'Onboarding Started',
+            'abandoned'      => 'Abandoned',
+            'call_requested' => 'Call Requested',       // customer asked for a consultation call
+            'qualified'      => 'Onboarding Started',
+            'submitted'      => 'Onboarding Submitted',  // step 5 complete
+            'active'         => 'Customer',
         );
         $stage_name = $stage_names[$status] ?? 'Onboarding Submitted';
         error_log('6ix Odoo: sync_lead status="' . $status . '" → stage="' . $stage_name . '"');
         $stage_id = self::get_stage_id($stage_name);
         error_log('6ix Odoo: sync_lead stage_id=' . var_export($stage_id, true));
 
-        // CRITICAL: Never downgrade stage from Abandoned unless explicitly completing.
-        // If lead already exists in Odoo and is at Abandoned stage,
-        // Stage protection: only block re-entry if lead is already Abandoned.
-        // Onboarding Started can freely move to Abandoned or Onboarding Submitted.
-        if ( $status !== 'abandoned' && $status !== 'active' && $status !== 'submitted' ) {
+        // Stage protection: don't let a low-intent sync pull a lead BACKWARD out
+        // of a "sticky" stage. Abandoned and Call Requested are sticky — once a
+        // lead reaches them, a routine progress/abandon sync must not overwrite
+        // the stage. Only explicit forward moves (active / submitted /
+        // call_requested) may advance the stage past a sticky one. In particular
+        // an 'abandoned' sync must NOT overwrite a 'Call Requested' lead.
+        if ( ! in_array( $status, array('active','submitted','call_requested'), true ) ) {
             $existing_lead_id = intval( get_user_meta($user_id, 'six_odoo_lead_id', true) );
             if ( $existing_lead_id ) {
                 $existing = self::execute('crm.lead','search_read',
@@ -478,13 +482,16 @@ class Six_Odoo {
                         ? intval($existing[0]['stage_id'][0])
                         : intval($existing[0]['stage_id']);
                     $abandoned_stage_id = intval( get_option('six_odoo_stage_abandoned', 0) );
-                    // If option is not set, look it up fresh
                     if ( ! $abandoned_stage_id ) {
                         $abandoned_stage_id = intval( self::get_stage_id('Abandoned') );
                     }
-                    if ( $abandoned_stage_id && $current_stage_id === $abandoned_stage_id ) {
-                        // Lead is Abandoned — don't change its stage, just update other fields
-                        error_log("6ix Odoo: sync_lead — lead {$existing_lead_id} is Abandoned, preserving stage");
+                    // Call Requested may not exist yet — use the cached option only
+                    // so we never force-create it during an unrelated sync.
+                    $call_req_stage_id = intval( get_option('six_odoo_stage_'.sanitize_key('Call Requested'), 0) );
+                    $sticky_ids = array_filter( array( $abandoned_stage_id, $call_req_stage_id ) );
+                    if ( $sticky_ids && in_array( $current_stage_id, $sticky_ids, true ) ) {
+                        // Lead is in a sticky stage — keep it, just update other fields
+                        error_log("6ix Odoo: sync_lead — lead {$existing_lead_id} in sticky stage {$current_stage_id}, preserving stage");
                         $stage_id = $current_stage_id; // keep same stage
                     }
                 }
@@ -492,7 +499,7 @@ class Six_Odoo {
         }
 
         $prob_map = array('new'=>10,'started'=>20,'in_progress'=>35,
-                          'abandoned'=>15,'qualified'=>65,'submitted'=>70,'active'=>100);
+                          'abandoned'=>15,'call_requested'=>50,'qualified'=>65,'submitted'=>70,'active'=>100);
 
         $partner_id = intval(get_user_meta($user_id,'six_odoo_partner_id',true));
         if (!$partner_id)
@@ -541,7 +548,8 @@ class Six_Odoo {
             $ld['x_services_selected']   = (string)$svcs;
             $ld['x_marketing_goal']      = (string)($co->goal ?? $data['goal'] ?? '');
             $ld['x_marketing_challenge'] = (string)($co->challenge ?? $data['challenge'] ?? '');
-            $ld['x_monthly_budget']      = (string)($co->mktg_budget ?? $data['mktg_budget'] ?? '');
+            $eff_budget                  = self::effective_monthly_budget($user_id, $co);
+            $ld['x_monthly_budget']      = $eff_budget > 0 ? (string)$eff_budget : (string)($co->mktg_budget ?? $data['mktg_budget'] ?? '');
             $ld['x_lead_score']          = intval($lead_score);
             $ld['x_lead_priority']       = $lead_score >= 70 ? 'Hot' : ($lead_score >= 40 ? 'Warm' : 'Cold');
             $ld['x_utm_source']          = (string)(get_user_meta($user_id,'six_utm_source',true) ?: '');
@@ -593,15 +601,133 @@ class Six_Odoo {
 
     private static function build_desc($user_id,$data,$co,$svcs,$lead_score=0) {
         $lines = array('Source: 6ix Developers Portal','Lead Score: '.$lead_score.'/100','');
-        $map = array('business_name'=>'Business','industry'=>'Industry','location'=>'Location',
-                     'employees'=>'Employees','monthly_revenue'=>'Revenue','goal'=>'Goal',
-                     'challenge'=>'Challenge','mktg_budget'=>'Budget','website'=>'Website');
-        if ($co) foreach ($map as $k=>$l) if (!empty($co->$k)) $lines[]=$l.': '.$co->$k;
-        if ($svcs) $lines[]='Services: '.$svcs;
-        if ($data['utm_source']??false) $lines[]='UTM Source: '.$data['utm_source'];
+        // Every non-empty onboarding field — advisors see the full picture in Odoo.
+        foreach ( self::context_fields($co) as $label=>$val ) $lines[] = $label.': '.$val;
+        if ($svcs) $lines[]='Services selected: '.$svcs;
+        if ($data['utm_source']??false)  $lines[]='UTM Source: '.$data['utm_source'];
         if ($data['device_type']??false) $lines[]='Device: '.$data['device_type'];
-        if (isset($data['step'])) $lines[]='Checkout Step: '.$data['step'].'/4';
+        if (isset($data['step']))        $lines[]='Checkout Step: '.$data['step'].'/4';
         return implode("\n",$lines);
+    }
+
+    /**
+     * Ordered [label => value] of every non-empty onboarding field on a checkout
+     * row. Single source of truth so leads and advisor tasks carry ALL captured
+     * data across every stage — not just a handful of columns.
+     */
+    private static function context_fields( $co ) {
+        if ( ! $co ) return array();
+        $map = array(
+            'business_name'    => 'Business',
+            'industry'         => 'Industry',
+            'location'         => 'Location',
+            'business_address' => 'Address',
+            'website'          => 'Website',
+            'years_in_business'=> 'Years in business',
+            'employees'        => 'Employees',
+            'monthly_revenue'  => 'Monthly revenue',
+            'phone'            => 'Phone',
+            'goal'             => 'Primary goal',
+            'challenge'        => 'Biggest challenge',
+            'platforms'        => 'Services / platforms',
+            'competitors'      => 'Competitors',
+            'mktg_budget'      => 'Total monthly budget',
+            // Google Ads
+            'gads_running'     => 'Currently running Google Ads',
+            'ads_locations'    => 'Google Ads - target locations',
+            'ads_loc_type'     => 'Google Ads - location type',
+            'ads_products'     => 'Google Ads - products/services',
+            'ads_keywords'     => 'Google Ads - keywords',
+            'ads_usp'          => 'Google Ads - USP',
+            'ads_promo'        => 'Google Ads - promotions',
+            'ads_schedule'     => 'Google Ads - schedule',
+            'ads_budget'       => 'Google Ads - budget',
+            'gads_customer_id' => 'Google Ads - Customer ID',
+            'gads_link_status' => 'Google Ads - link status',
+            // SEO
+            'seo_locations'    => 'SEO - target locations',
+            'seo_keywords'     => 'SEO - keywords',
+            'seo_pages'        => 'SEO - pages/services',
+            'seo_usp'          => 'SEO - USP',
+            'seo_gsc'          => 'SEO - Search Console access',
+            'seo_blog'         => 'SEO - blog/content',
+            'seo_competitors'  => 'SEO - competitors',
+            'seo_crm_tools'    => 'SEO - CRM/tools',
+            'seo_reviews'      => 'SEO - reviews',
+            'seo_extra_info'   => 'SEO - extra info',
+            'seo_budget'       => 'SEO - budget',
+            // Google Business Profile
+            'gbp_name'         => 'GBP - business name',
+            'gbp_category'     => 'GBP - category',
+            'gbp_services'     => 'GBP - services',
+            'gbp_hours'        => 'GBP - hours',
+            'gbp_rating'       => 'GBP - rating',
+            'gbp_budget'       => 'GBP - budget',
+            // Website
+            'web_goal'         => 'Website - goal',
+            'web_pages'        => 'Website - pages',
+            'web_style'        => 'Website - style',
+            'web_refs'         => 'Website - references',
+            'web_existing'     => 'Website - existing site',
+            'web_platform'     => 'Website - platform',
+            'web_timeline'     => 'Website - timeline',
+            'web_features'     => 'Website - features',
+            'web_budget'       => 'Website - budget',
+            // Misc
+            'crm_tools'        => 'CRM tools',
+            'reviews_awards'   => 'Reviews / awards',
+            'onboarding_notes' => 'Notes',
+        );
+        $budget_cols = array('ads_budget','seo_budget','gbp_budget','web_budget');
+        $out = array();
+        foreach ( $map as $col => $label ) {
+            $val = $co->$col ?? '';
+            if ( $val === '' || $val === null ) continue;
+            if ( in_array( $col, $budget_cols, true ) ) {
+                if ( intval($val) <= 0 ) continue;
+                $val = '$' . number_format( intval($val), 0 ) . '/mo';
+            }
+            $out[$label] = (string) $val;
+        }
+        return $out;
+    }
+
+    /**
+     * Plain-text dump of every captured onboarding field for advisor task notes.
+     */
+    private static function build_full_context_note( $user_id ) {
+        global $wpdb;
+        $co = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}six_checkout_progress WHERE user_id=%d", $user_id ) );
+        $fields = self::context_fields( $co );
+        if ( empty( $fields ) ) return "Onboarding details: (none captured yet)\n";
+        $lines = array( 'Onboarding details:' );
+        foreach ( $fields as $label => $val ) $lines[] = "- {$label}: {$val}";
+        return implode( "\n", $lines ) . "\n";
+    }
+
+    /**
+     * Best-available monthly budget for a user. Falls back from the stored total
+     * to the sum of per-service budget columns, then to active service budgets,
+     * so the figure is never blank when any budget data exists.
+     */
+    public static function effective_monthly_budget( $user_id, $co = null ) {
+        global $wpdb;
+        if ( ! $co ) {
+            $co = $wpdb->get_row( $wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}six_checkout_progress WHERE user_id=%d", $user_id ) );
+        }
+        $total = $co ? intval( $co->mktg_budget ?? 0 ) : 0;
+        if ( $total <= 0 && $co ) {
+            $total = intval($co->ads_budget ?? 0) + intval($co->seo_budget ?? 0)
+                   + intval($co->gbp_budget ?? 0) + intval($co->web_budget ?? 0);
+        }
+        if ( $total <= 0 ) {
+            $svc_sum = $wpdb->get_var( $wpdb->prepare(
+                "SELECT COALESCE(SUM(budget),0) FROM {$wpdb->prefix}six_client_services WHERE client_id=%d", $user_id ) );
+            $total = intval( $svc_sum );
+        }
+        return $total;
     }
 
     // ═════════════════════════════════════════════════════════════════════
@@ -1322,6 +1448,80 @@ Best,
         error_log( "6ix Odoo: Onboarding completed for user {$user_id} lead {$lead_id}" );
         return $lead_id;
     }
+
+    /**
+     * Customer requested a consultation call during onboarding.
+     * Moves the lead into the "Call Requested" pipeline stage — a MIDDLE stage,
+     * neither abandoned nor submitted — and generates an advisor task on the
+     * lead's profile, exactly like on_onboarding_completed does for submissions.
+     * Never runs the abandoned flow.
+     *
+     * @param int   $user_id
+     * @param array $args  call_date, call_time, call_notes, services, score, step
+     */
+    public static function on_call_requested( $user_id, $args = array() ) {
+        $user = get_userdata( $user_id );
+        if ( ! $user ) return false;
+
+        $call_date  = sanitize_text_field( $args['call_date']  ?? '' );
+        $call_time  = sanitize_text_field( $args['call_time']  ?? '' );
+        $call_notes = sanitize_text_field( $args['call_notes'] ?? '' );
+        $services   = sanitize_text_field( $args['services']   ?? '' );
+        $score      = intval( $args['score'] ?? 0 );
+        $step       = intval( $args['step']  ?? 0 );
+
+        self::create_or_update_contact( $user_id );
+
+        // 1. Move lead to Call Requested stage (sync_lead carries ALL questionnaire data)
+        $lead_id = self::sync_lead( array(
+            'user_id'  => $user_id,
+            'status'   => 'call_requested',
+            'score'    => $score,
+            'step'     => $step,
+            'services' => $services,
+        ) );
+        if ( ! $lead_id ) {
+            error_log( "6ix Odoo: on_call_requested — sync_lead failed for user {$user_id}" );
+            return false;
+        }
+
+        $advisor_uid = self::get_advisor_odoo_uid( $user_id );
+        $advisor_url = home_url( '/advisor-portal/?tab=clients&client=' . $user_id );
+
+        // 2. Rich advisor task — due on the requested call date, full context
+        $note = "Customer requested a consultation call.\n\n"
+            . "Requested date: " . ( $call_date ?: 'not specified' ) . "\n"
+            . "Requested time: " . ( $call_time ?: 'not specified' ) . "\n"
+            . ( $call_notes ? "Customer notes: {$call_notes}\n" : '' )
+            . "Services of interest: " . ( $services ?: 'not specified' ) . "\n\n"
+            . self::build_full_context_note( $user_id )
+            . "\nAction required:\nCall the customer at the requested time and continue onboarding.\n"
+            . "Advisor profile: {$advisor_url}";
+
+        // Due on the requested call date when provided, else today.
+        $days_due = 0;
+        if ( $call_date && ( $ts = strtotime( $call_date ) ) ) {
+            $days_due = max( 0, (int) ceil( ( $ts - time() ) / DAY_IN_SECONDS ) );
+        }
+        self::create_activity(
+            $lead_id,
+            'Consultation call requested' . ( $call_time ? " — {$call_time}" : '' ),
+            $note,
+            'Call',
+            $days_due,
+            $advisor_uid
+        );
+
+        // 3. Chatter note on the lead timeline
+        self::post_note( $lead_id,
+            "Call requested at " . current_time('mysql') . "\n"
+            . "Date: " . ( $call_date ?: '-' ) . "  Time: " . ( $call_time ?: '-' ) . "\n"
+            . "Services: " . ( $services ?: 'none' )
+        );
+
+        error_log( "6ix Odoo: Call requested for user {$user_id} lead {$lead_id} date={$call_date}" );
+        return $lead_id;
+    }
     public static function create_task( $data=array() ) {
         // Legacy callers: create an activity on the user's lead instead
         $user_id = intval($data['user_id'] ?? 0);
@@ -1360,7 +1560,7 @@ Best,
 
         // Status modifiers
         $status_mod = array(
-            'active'=>40,'submitted'=>30,'qualified'=>25,'in_progress'=>15,'started'=>10,'new'=>5,'abandoned'=>-10
+            'active'=>40,'submitted'=>30,'call_requested'=>30,'qualified'=>25,'in_progress'=>15,'started'=>10,'new'=>5,'abandoned'=>-10
         );
         $score += $status_mod[$status] ?? 0;
 
