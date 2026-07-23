@@ -694,6 +694,25 @@ $has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
                 Book Call
             </a>
         </div>
+        <!-- Upcoming call (from unified appointments) -->
+        <?php
+        $my_appts  = class_exists('Six_Appointments') ? ( Six_Appointments::get_upcoming_for_client($user_id, 60) ?: array() ) : array();
+        $next_appt = !empty($my_appts) ? $my_appts[0] : null;
+        if ($next_appt):
+            if (!empty($next_appt->start_datetime)) { $na_when = date('D, M j · g:i A', strtotime($next_appt->start_datetime)); }
+            else { $na_when = ($next_appt->time_window ?: 'Time to be confirmed'); }
+        ?>
+        <div style="background:rgba(131,197,237,.06);border:1px solid rgba(131,197,237,.2);border-radius:12px;padding:14px;margin-bottom:20px">
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);font-weight:700;margin-bottom:6px">Upcoming Call</div>
+            <div style="font-size:14px;font-weight:700;color:var(--text1)"><?php echo esc_html($na_when); ?></div>
+            <?php if(!empty($next_appt->notes)):?><div style="font-size:11px;color:var(--text3);margin-top:3px"><?php echo esc_html(mb_substr($next_appt->notes,0,80)); ?></div><?php endif;?>
+            <?php if(!empty($next_appt->meet_link)): ?>
+                <a href="<?php echo esc_url($next_appt->meet_link); ?>" target="_blank" class="six-btn six-btn-primary six-btn-sm" style="margin-top:10px;width:100%;justify-content:center">Join Google Meet</a>
+            <?php else: ?>
+                <div style="font-size:11px;color:var(--text3);margin-top:6px">Your advisor will send the Google Meet link before the call.</div>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
         <!-- Services list -->
         <div class="six-adv-services">
             <?php foreach($active_svcs as $s):

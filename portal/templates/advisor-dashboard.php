@@ -260,6 +260,20 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             $today_meetings = $slots ?: array();
         }
 
+        // Unified scheduled calls + call requests (works even without Google
+        // Calendar connected — this is the source of truth).
+        $appointments = class_exists('Six_Appointments')
+            ? ( Six_Appointments::get_upcoming_for_advisor($advisor_id, 30) ?: array() )
+            : array();
+        $appts_today   = 0;
+        $appts_pending = 0;   // call requests without a confirmed time / gcal event
+        foreach ($appointments as $ap) {
+            if (!empty($ap->start_datetime) && date('Y-m-d',strtotime($ap->start_datetime))===date('Y-m-d')) $appts_today++;
+            if (($ap->status ?? '')==='requested' || empty($ap->meet_link)) $appts_pending++;
+        }
+        // Meetings-today count: prefer live Google Calendar, fall back to the DB.
+        $meetings_today_ct = !empty($today_meetings) ? count($today_meetings) : $appts_today;
+
         // Upsell opportunities based on health + services
         $upsells = array();
         foreach ($clients_attention as $cl) {
@@ -308,6 +322,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         $p_crit = array_filter( (array)$clients_attention, function($c){ return ($c['health'] ?? 100) < 50; } );
         if ( count($p_crit) > 0 ) { $p_first = reset($p_crit); $priorities[] = array('t'=>count($p_crit).' client'.(count($p_crit)>1?'s':'').' at risk','d'=>'Low health scores — reach out before they churn','u'=>'?tab=clients&client='.intval($p_first['id']),'c'=>'var(--danger)','cta'=>'View'); }
         if ( ! empty($today_meetings) ) { $p_next=null; foreach($today_meetings as $m){ if(strtotime($m['start'])>time()){ $p_next=$m; break; } } if($p_next) $priorities[] = array('t'=>'Next call at '.date('g:i A',strtotime($p_next['start'])),'d'=>($p_next['title']??'Client meeting'),'u'=>'?tab=calendar','c'=>'var(--cyan)','cta'=>'Prep'); }
+        if ( $appts_pending > 0 ) $priorities[] = array('t'=>$appts_pending.' call request'.($appts_pending>1?'s':'').' to confirm','d'=>'Clients asked for a call — confirm a time and send the Meet link','u'=>'?tab=calendar','c'=>'#6366f1','cta'=>'Open');
         ?>
         <div class="six-card" style="margin-bottom:24px">
             <div class="six-card-header">
@@ -345,10 +360,11 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             </div>
             <div class="six-stat-card blue">
                 <div class="six-stat-label">Meetings Today</div>
-                <div class="six-stat-val"><?php echo count($today_meetings);?></div>
+                <div class="six-stat-val"><?php echo intval($meetings_today_ct);?></div>
                 <?php if(!empty($today_meetings)):
                     $next=null; foreach($today_meetings as $m){ if(strtotime($m['start'])>time()){$next=$m;break;} }
                     if($next): ?><div class="six-stat-trend" style="color:var(--cyan)">Next: <?php echo date('g:i A',strtotime($next['start']));?></div><?php endif;?>
+                <?php elseif($appts_pending>0):?><div class="six-stat-trend" style="color:#6366f1"><a href="?tab=calendar" style="color:#6366f1"><?php echo $appts_pending;?> to confirm →</a></div>
                 <?php elseif(!$gcal_token):?><div class="six-stat-trend" style="color:var(--warning)"><a href="?tab=calendar" style="color:var(--warning)">Connect Calendar</a></div><?php endif;?>
             </div>
             <div class="six-stat-card green">
@@ -480,6 +496,45 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                         <?php endforeach;?>
                     <?php endif;?>
                     </div>
+                </div>
+
+                <!-- Scheduled Calls & Requests (unified appointments) -->
+                <div class="six-card">
+                    <div class="six-card-header" style="border-bottom:1px solid var(--border);padding-bottom:12px">
+                        <span class="six-card-title">Scheduled Calls &amp; Requests</span>
+                        <?php if(!empty($appointments)):?><span class="six-badge" style="background:rgba(99,102,241,.15);color:#6366f1"><?php echo count($appointments);?></span><?php endif;?>
+                    </div>
+                    <div class="six-card-body" style="padding:16px 0 0">
+                    <?php if(empty($appointments)):?>
+                        <div style="padding:0 16px 16px;text-align:center;color:var(--text3);font-size:12px">No upcoming calls or requests. When a client books or requests a call, it appears here.</div>
+                    <?php else: foreach(array_slice($appointments,0,6) as $ap):
+                        $ap_user = get_userdata(intval($ap->client_id));
+                        $ap_name = $ap_user ? $ap_user->display_name : 'Client #'.intval($ap->client_id);
+                        $is_req  = ($ap->status ?? '')==='requested';
+                        if(!empty($ap->start_datetime)){
+                            $ap_ts=strtotime($ap->start_datetime);
+                            $ap_when=date('D, M j',$ap_ts).' · '.($ap->time_window ?: date('g:i A',$ap_ts));
+                        } else {
+                            $ap_when=($ap->time_window ?: 'Time TBD');
+                        }
+                    ?>
+                        <div style="display:flex;gap:12px;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.04);align-items:flex-start">
+                            <div style="flex:1;min-width:0">
+                                <div style="font-size:13px;font-weight:600;margin-bottom:2px"><?php echo esc_html($ap_name);?>
+                                    <span style="font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:20px;margin-left:6px;<?php echo $is_req?'background:rgba(99,102,241,.15);color:#6366f1':'background:rgba(86,211,100,.14);color:#1a7a2e';?>"><?php echo $is_req?'Requested':'Scheduled';?></span>
+                                </div>
+                                <div style="font-size:11px;color:var(--text3)"><?php echo esc_html($ap_when);?><?php if(!empty($ap->notes)):?> · <?php echo esc_html(mb_substr($ap->notes,0,50));?><?php endif;?></div>
+                                <div style="margin-top:4px;display:flex;gap:12px">
+                                    <?php if(!empty($ap->meet_link)):?><a href="<?php echo esc_url($ap->meet_link);?>" target="_blank" style="font-size:10px;color:var(--cyan);text-decoration:none">Join Meet →</a><?php endif;?>
+                                    <a href="?tab=clients&client=<?php echo intval($ap->client_id);?>" style="font-size:10px;color:var(--text3);text-decoration:none">Profile →</a>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; endif;?>
+                    </div>
+                    <?php if(!empty($appointments)):?>
+                    <div style="padding:12px 16px 4px"><a href="?tab=calendar" class="six-btn six-btn-ghost six-btn-sm" style="width:100%;justify-content:center">Open Calendar →</a></div>
+                    <?php endif;?>
                 </div>
 
                 <!-- Upsell Opportunities -->
@@ -2120,43 +2175,45 @@ function advCompleteOnboarding(clientId){
     <?php /* ════════════ APPROVALS ════════════ */ elseif($active_tab==='approvals'):?>
         <div class="six-page-header"><div><h1 class="six-page-title">Approvals</h1><p class="six-page-sub"><?php echo $total_pending;?> pending</p></div></div>
 
-        <!-- Call Requests -->
+        <!-- Scheduled Calls & Requests (unified appointments) -->
         <?php
-        $call_requests = $wpdb->get_results($wpdb->prepare(
-            "SELECT p.user_id, p.schedule_call_date, p.schedule_call_time, p.schedule_call_notes,
-                    p.business_name, u.display_name, u.user_email
-             FROM {$wpdb->prefix}six_checkout_progress p
-             INNER JOIN {$wpdb->prefix}users u ON p.user_id=u.ID
-             INNER JOIN {$wpdb->prefix}six_assignments a ON p.user_id=a.client_id
-             WHERE a.advisor_id=%d
-               AND p.schedule_call_date IS NOT NULL AND p.schedule_call_date != ''
-             ORDER BY p.schedule_call_date ASC LIMIT 20",
-            $advisor_id
-        ));
+        $cal_appts = class_exists('Six_Appointments')
+            ? ( Six_Appointments::get_upcoming_for_advisor($advisor_id, 60) ?: array() )
+            : array();
         ?>
-        <?php if(!empty($call_requests)):?>
+        <?php if(!empty($cal_appts)):?>
         <div class="six-card" style="margin-bottom:16px;border-color:rgba(99,102,241,.3)">
             <div class="six-card-header" style="background:rgba(99,102,241,.06)">
                 <span class="six-card-title" style="display:flex;align-items:center;gap:8px">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    Call Requests
+                    Scheduled Calls &amp; Requests
                 </span>
-                <span class="six-badge" style="background:rgba(99,102,241,.15);color:#6366f1"><?php echo count($call_requests);?></span>
+                <span class="six-badge" style="background:rgba(99,102,241,.15);color:#6366f1"><?php echo count($cal_appts);?></span>
             </div>
             <div class="six-card-body" style="padding:0">
-                <?php foreach($call_requests as $cr):?>
+                <?php foreach($cal_appts as $cr):
+                    $cr_user = get_userdata(intval($cr->client_id));
+                    $cr_name = $cr_user ? $cr_user->display_name : 'Client #'.intval($cr->client_id);
+                    $cr_biz  = $cr_user ? get_user_meta($cr_user->ID,'billing_company',true) : '';
+                    $cr_req  = ($cr->status ?? '')==='requested';
+                    if(!empty($cr->start_datetime)){
+                        $cr_ts=strtotime($cr->start_datetime);
+                        $cr_when=date('D, M j, Y',$cr_ts).' · '.($cr->time_window ?: date('g:i A',$cr_ts));
+                    } else { $cr_when=($cr->time_window ?: 'Time to confirm'); }
+                ?>
                 <div style="display:flex;align-items:center;gap:14px;padding:12px 18px;border-bottom:1px solid var(--border)">
-                    <div class="six-client-initials" style="flex-shrink:0"><?php echo strtoupper(substr($cr->display_name,0,1)); ?></div>
+                    <div class="six-client-initials" style="flex-shrink:0"><?php echo strtoupper(substr($cr_name,0,1)); ?></div>
                     <div style="flex:1;min-width:0">
-                        <div style="font-size:13px;font-weight:600"><?php echo esc_html($cr->display_name);?>
-                            <?php if($cr->business_name):?><span style="font-weight:400;color:var(--text3)"> &middot; <?php echo esc_html($cr->business_name);?></span><?php endif;?>
+                        <div style="font-size:13px;font-weight:600"><?php echo esc_html($cr_name);?>
+                            <span style="font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:20px;margin-left:6px;<?php echo $cr_req?'background:rgba(99,102,241,.15);color:#6366f1':'background:rgba(86,211,100,.14);color:#1a7a2e';?>"><?php echo $cr_req?'Requested':'Scheduled';?></span>
                         </div>
                         <div style="font-size:11px;color:var(--text3);margin-top:2px">
-                            <strong><?php echo esc_html($cr->schedule_call_date);?></strong> &middot; <?php echo esc_html($cr->schedule_call_time);?>
-                            <?php if($cr->schedule_call_notes):?> &middot; <?php echo esc_html(substr($cr->schedule_call_notes,0,80));?><?php endif;?>
+                            <strong><?php echo esc_html($cr_when);?></strong>
+                            <?php if(!empty($cr->notes)):?> &middot; <?php echo esc_html(mb_substr($cr->notes,0,80));?><?php endif;?>
                         </div>
                     </div>
-                    <a href="?tab=clients&client=<?php echo $cr->user_id;?>" class="six-btn six-btn-ghost six-btn-sm">View Profile</a>
+                    <?php if(!empty($cr->meet_link)):?><a href="<?php echo esc_url($cr->meet_link);?>" target="_blank" class="six-btn six-btn-ghost six-btn-sm" style="color:var(--cyan)">Join Meet</a><?php endif;?>
+                    <a href="?tab=clients&client=<?php echo intval($cr->client_id);?>" class="six-btn six-btn-ghost six-btn-sm">Profile</a>
                 </div>
                 <?php endforeach;?>
             </div>

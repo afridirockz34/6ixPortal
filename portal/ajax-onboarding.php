@@ -1849,18 +1849,31 @@ function six_schedule_onboarding_call() {
         }
     }
 
-    // A requested call is NOT an abandonment. Route the lead to the dedicated
-    // "Call Requested" pipeline stage (a middle stage, neither abandoned nor
-    // submitted) and generate an advisor task on the profile — mirroring how
-    // onboarding-submitted generates its task. Do NOT run the abandoned flow.
-    if ( class_exists('Six_Odoo') ) {
+    // A requested call is NOT an abandonment. Route it through the unified
+    // appointments system: it creates a Google Calendar event + Meet link (when
+    // the assigned advisor has connected their calendar), emails BOTH the
+    // customer and the advisor, notifies the advisor in-portal, and moves the
+    // Odoo lead to the "Call Requested" stage with an advisor task. Do NOT run
+    // the abandoned flow.
+    $meet_link = '';
+    if ( class_exists('Six_Appointments') ) {
+        $appt = Six_Appointments::create( array(
+            'client_id'   => $user_id,
+            'date'        => $call_date,
+            'time_window' => $call_time,
+            'notes'       => $call_notes,
+            'services'    => $services,
+            'score'       => $score,
+            'source'      => 'onboarding_call',
+            'title'       => '6ix Developers — Consultation Call',
+        ) );
+        $meet_link = $appt['meet_link'] ?? '';
+    } elseif ( class_exists('Six_Odoo') ) {
+        // Fallback if the appointments module is unavailable.
         Six_Odoo::on_call_requested( $user_id, array(
-            'call_date'  => $call_date,
-            'call_time'  => $call_time,
-            'call_notes' => $call_notes,
-            'services'   => $services,
-            'score'      => $score,
-            'step'       => 3,
+            'call_date' => $call_date, 'call_time' => $call_time,
+            'call_notes' => $call_notes, 'services' => $services,
+            'score' => $score, 'step' => 3,
         ) );
     }
 
@@ -1869,5 +1882,6 @@ function six_schedule_onboarding_call() {
         'message'   => 'Call request saved.',
         'call_date' => $call_date,
         'call_time' => $call_time,
+        'meet_link' => $meet_link,
     ) );
 }

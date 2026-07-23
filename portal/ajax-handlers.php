@@ -590,20 +590,22 @@ add_action( 'wp_ajax_six_upload_report', function() {
 
 add_action( 'wp_ajax_six_book_meeting', function() {
     check_ajax_referer( 'six_nonce', 'nonce' );
-    global $wpdb;
-    $client_id  = get_current_user_id();
-    $advisor_id = intval( $wpdb->get_var( $wpdb->prepare(
-        "SELECT advisor_id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d", $client_id
-    ) ) );
-    if ( ! $advisor_id ) wp_send_json_error( 'No advisor assigned' );
-    $result = Six_Google_Calendar::book_meeting( array(
-        'client_id'  => $client_id, 'advisor_id' => $advisor_id,
-        'start'      => sanitize_text_field( $_POST['start']    ?? '' ),
-        'duration'   => intval( $_POST['duration']              ?? 30 ),
-        'notes'      => sanitize_textarea_field( $_POST['notes'] ?? '' ),
+    $client_id = get_current_user_id();
+    if ( ! $client_id ) wp_send_json_error( 'Not logged in.' );
+    if ( ! class_exists( 'Six_Appointments' ) ) wp_send_json_error( 'Booking unavailable.' );
+
+    // Unified path: persists the appointment, creates a Google Calendar event +
+    // Meet link (when the advisor has connected their calendar), and emails BOTH
+    // the customer and the advisor.
+    $result = Six_Appointments::create( array(
+        'client_id' => $client_id,
+        'start'     => sanitize_text_field( $_POST['start'] ?? '' ),
+        'duration'  => intval( $_POST['duration'] ?? 30 ),
+        'notes'     => sanitize_textarea_field( $_POST['notes'] ?? '' ),
+        'source'    => 'booking',
     ) );
-    if ( $result ) wp_send_json_success( $result );
-    else wp_send_json_error( 'Could not book meeting' );
+    if ( ! empty( $result['success'] ) ) wp_send_json_success( $result );
+    wp_send_json_error( $result['error'] ?? 'Could not book meeting.' );
 } );
 
 // ─────────────────────────────────────────────────────────────────────────────
