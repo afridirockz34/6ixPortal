@@ -30,7 +30,7 @@ class Six_Appointments {
             client_id bigint(20) NOT NULL,
             advisor_id bigint(20) DEFAULT 0,
             title varchar(255) DEFAULT '',
-            start_datetime datetime NULL,
+            start_datetime datetime DEFAULT NULL,
             time_window varchar(40) DEFAULT '',
             duration int(6) DEFAULT 30,
             notes text,

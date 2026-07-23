@@ -1258,7 +1258,7 @@ add_action( 'wp_ajax_six_save_client_datasource', function() {
     $client_id = intval($_POST['client_id']??0);
     $key       = sanitize_key($_POST['key']??'');
     $value     = sanitize_text_field($_POST['value']??'');
-    $allowed   = array('six_ga4_property_id','six_meta_pixel_id');
+    $allowed   = array('six_ga4_property_id','six_meta_pixel_id','six_gbp_location_id','six_gsc_site');
     if(!$client_id||!in_array($key,$allowed)) wp_send_json_error('Not allowed.');
     update_user_meta($client_id,$key,$value);
     wp_send_json_success();

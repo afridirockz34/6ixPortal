@@ -681,6 +681,8 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         // API connection data per client
         $c_gads    = get_user_meta($view_client_id,'six_gads_customer_id_display',true)?:get_user_meta($view_client_id,'six_gads_customer_id',true);
         $c_ga4_id  = get_user_meta($view_client_id,'six_ga4_property_id',true);
+        $c_gbp_loc = get_user_meta($view_client_id,'six_gbp_location_id',true);
+        $c_gsc_site= get_user_meta($view_client_id,'six_gsc_site',true);
         $c_meta_account = get_user_meta($view_client_id,'six_meta_ad_account_id',true);
         $c_meta_business = get_user_meta($view_client_id,'six_meta_business_id',true);
         $c_meta_pixel = get_user_meta($view_client_id,'six_meta_pixel_id',true);
@@ -1332,8 +1334,53 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             </div>
         </div>
 
-        
+        <!-- Google Business Profile -->
+        <div style="background:var(--dark2);border:1px solid rgba(251,188,5,0.2);border-radius:14px;overflow:hidden">
+            <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;gap:8px">
+                <span style="font-size:13px;font-weight:700">Google Business Profile</span>
+                <?php if($c_gbp_loc): ?><span style="font-size:10px;background:rgba(86,211,100,0.1);color:var(--success);padding:2px 8px;border-radius:10px;font-weight:700">● Connected</span><?php endif; ?>
+            </div>
+            <div style="padding:14px 18px">
+                <div style="margin-bottom:10px">
+                    <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Business name / Location ID</div>
+                    <input class="six-input" id="gbp-location-id" value="<?php echo esc_attr($c_gbp_loc); ?>" placeholder="Provided by the client" style="font-size:12px">
+                </div>
+                <button class="six-btn six-btn-primary six-btn-sm six-ds-adv-save" data-key="six_gbp_location_id" data-input="gbp-location-id" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Save</button>
+                <div class="six-ds-adv-result" style="margin-top:8px;font-size:12px"></div>
+            </div>
+        </div>
+
+        <!-- Google Search Console -->
+        <div style="background:var(--dark2);border:1px solid rgba(66,133,244,0.2);border-radius:14px;overflow:hidden">
+            <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;gap:8px">
+                <span style="font-size:13px;font-weight:700">Google Search Console</span>
+                <?php if($c_gsc_site): ?><span style="font-size:10px;background:rgba(86,211,100,0.1);color:var(--success);padding:2px 8px;border-radius:10px;font-weight:700">● Connected</span><?php endif; ?>
+            </div>
+            <div style="padding:14px 18px">
+                <div style="margin-bottom:10px">
+                    <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Verified site / domain</div>
+                    <input class="six-input" id="gsc-site" value="<?php echo esc_attr($c_gsc_site); ?>" placeholder="yoursite.com" style="font-size:12px;font-family:monospace">
+                </div>
+                <button class="six-btn six-btn-primary six-btn-sm six-ds-adv-save" data-key="six_gsc_site" data-input="gsc-site" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Save</button>
+                <div class="six-ds-adv-result" style="margin-top:8px;font-size:12px"></div>
+            </div>
+        </div>
+
     </div>
+    <script>
+    (function(){
+        document.querySelectorAll('.six-ds-adv-save').forEach(function(btn){
+            btn.addEventListener('click',function(){
+                var key=btn.dataset.key, inp=document.getElementById(btn.dataset.input), out=btn.parentNode.querySelector('.six-ds-adv-result');
+                btn.disabled=true; if(out){out.style.color='var(--text3)';out.textContent='Saving…';}
+                post({action:'six_save_client_datasource',client_id:btn.dataset.client,key:key,value:(inp&&inp.value||'').trim()}).then(function(res){
+                    btn.disabled=false;
+                    if(out){ out.style.color=(res&&res.success)?'var(--success)':'var(--danger)'; out.textContent=(res&&res.success)?'Saved':((res&&res.data)||'Could not save'); }
+                }).catch(function(){ btn.disabled=false; if(out){out.style.color='var(--danger)';out.textContent='Network error';} });
+            });
+        });
+    })();
+    </script>
 
     <!-- ═══════════════════════ CTAB: ACTIVITY ═══════════════════════ -->
     <?php elseif($ctab==='activity'): ?>
@@ -1468,6 +1515,8 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             adv_qrow('Phone',            $c_checkout->phone ?? get_user_meta($view_client_id,'billing_phone',true));
             adv_qrow('Employees', $c_employees);
             adv_qrow('Monthly Revenue', $c_revenue);
+            adv_qrow('Avg Customer Value', ($c_checkout->deal_value ?? '') !== '' ? '$'.number_format(intval($c_checkout->deal_value)) : '');
+            adv_qrow('Lead Close Rate', ($c_checkout->close_rate ?? '') !== '' ? intval($c_checkout->close_rate).'%' : '');
             adv_qrow('Marketing Goals', $c_goal ? str_replace(',', ', ', $c_goal) : '');
             adv_qrow('Competitors', $c_comp_str, true);
             adv_qrow('CRM / Tools', $c_crm);
