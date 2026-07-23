@@ -1558,53 +1558,133 @@ function six_advisor_complete_onboarding() {
     $budget        = intval( $_POST['budget']          ?? 0 );
     $payment_note  = sanitize_text_field( $_POST['payment_method']  ?? '' );
     $notes         = sanitize_textarea_field( $_POST['notes']       ?? '' );
+    $send_login    = ! empty( $_POST['send_login'] ) && $_POST['send_login'] !== '0';
 
     if ( ! $client_id ) { wp_send_json_error('No client ID'); return; }
+    $client = get_userdata( $client_id );
+    if ( ! $client ) { wp_send_json_error('Client account not found'); return; }
 
     global $wpdb;
 
-    // 1. Update checkout_progress
+    // 1. Update checkout_progress + completion flags (mirror the customer flow)
     $wpdb->update(
         $wpdb->prefix . 'six_checkout_progress',
         array(
-            'platforms'    => $services,
-            'mktg_budget'  => $budget,
-            'step'         => 5,
+            'platforms'   => $services,
+            'mktg_budget' => $budget,
+            'step'        => 5,
+            'score'       => 100,
+            'completed'   => 1,
+            'updated_at'  => current_time('mysql'),
         ),
         array('user_id' => $client_id)
     );
-
-    // 2. Mark as completed in user meta
     update_user_meta($client_id, 'six_checkout_completed', 1);
     update_user_meta($client_id, 'six_checkout_step', 5);
+    update_user_meta($client_id, 'six_checkout_score', 100);
 
-    // 3. Move Odoo lead to Onboarding Submitted
+    // 2. Create the selected service records so they appear in both dashboards.
+    $svc_names = array(
+        'google-ads'      => 'Google Ads',
+        'seo'             => 'SEO',
+        'social-media'    => 'Social Media Marketing',
+        'brand-dev'       => 'Brand Development',
+        'website'         => 'Website Development',
+        'google-business' => 'Google Business Profile',
+    );
+    $svc_slugs = array_filter( array_map( 'trim', explode( ',', $services ) ) );
+    $per_svc   = count($svc_slugs) ? intval( round( $budget / count($svc_slugs) ) ) : 0;
+    foreach ( $svc_slugs as $slug ) {
+        $exists = $wpdb->get_var( $wpdb->prepare(
+            "SELECT id FROM {$wpdb->prefix}six_client_services WHERE client_id=%d AND service_slug=%s",
+            $client_id, $slug ) );
+        if ( $exists ) {
+            // Activate an existing (pending) row.
+            $wpdb->update( "{$wpdb->prefix}six_client_services",
+                array( 'status' => 'active', 'budget' => $per_svc ),
+                array( 'id' => $exists ) );
+        } else {
+            $wpdb->insert( "{$wpdb->prefix}six_client_services", array(
+                'client_id'    => $client_id,
+                'service_slug' => $slug,
+                'service_name' => $svc_names[$slug] ?? ucwords( str_replace('-',' ',$slug) ),
+                'status'       => 'active',
+                'budget'       => $per_svc,
+            ) );
+        }
+    }
+
+    // 3. Generate fresh login credentials and email them to the customer.
+    //    Call requesters often never set a password, so we set a new one and
+    //    send it, guaranteeing they can log in.
+    $new_password = '';
+    if ( $send_login ) {
+        $new_password = wp_generate_password( 12, false );
+        wp_set_password( $new_password, $client_id ); // note: also clears sessions
+        $login_url = home_url( '/portal/' );
+        $svc_list  = array();
+        foreach ( $svc_slugs as $slug ) $svc_list[] = $svc_names[$slug] ?? $slug;
+        wp_mail(
+            $client->user_email,
+            'Your 6ix Developers account is ready',
+            '<div style="font-family:Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;color:#1a1a2e">'
+            . '<h2 style="color:#0f1428">Welcome to 6ix Developers</h2>'
+            . '<p>Hi ' . esc_html( $client->first_name ?: $client->display_name ) . ',</p>'
+            . '<p>Your account has been set up and your onboarding is complete. You can now log in to your client dashboard to track your growth, message your advisor, and manage your services.</p>'
+            . '<table style="font-size:14px;line-height:1.9;margin:10px 0;background:#f6f8fc;border-radius:8px;padding:6px 14px">'
+            . '<tr><td style="color:#666;padding-right:14px">Email</td><td><strong>' . esc_html( $client->user_email ) . '</strong></td></tr>'
+            . '<tr><td style="color:#666;padding-right:14px">Password</td><td><strong>' . esc_html( $new_password ) . '</strong></td></tr>'
+            . '</table>'
+            . ( $svc_list ? '<p style="font-size:13px;color:#555">Services: ' . esc_html( implode( ', ', $svc_list ) ) . '</p>' : '' )
+            . '<p style="margin:18px 0"><a href="' . esc_url( $login_url ) . '" style="display:inline-block;background:#FF6699;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:8px">Log in to your dashboard</a></p>'
+            . '<p style="font-size:12px;color:#888">For your security, change your password after your first login from Profile settings.</p>'
+            . '<p style="font-size:12px;color:#999">— 6ix Developers</p></div>',
+            array( 'Content-Type: text/html; charset=UTF-8' )
+        );
+        delete_user_meta( $client_id, 'six_temp_password' );
+    }
+
+    // 4. Move Odoo lead to Onboarding Submitted (out of Call Requested).
     if ( class_exists('Six_Odoo') ) {
         Six_Odoo::on_onboarding_completed(
             $client_id,
             $services,
             $budget,
-            false // no card collected via portal
+            $payment_note && $payment_note !== '0'
         );
 
-        // Add advisor note
         $lead_id = intval(get_user_meta($client_id, 'six_odoo_lead_id', true));
-        if ($lead_id && $notes) {
-            $advisor    = get_userdata(get_current_user_id());
-            $adv_name   = $advisor ? $advisor->display_name : 'Advisor';
+        if ($lead_id) {
+            $advisor  = get_userdata(get_current_user_id());
+            $adv_name = $advisor ? $advisor->display_name : 'Advisor';
             Six_Odoo::post_note(
                 $lead_id,
-                "Onboarding completed by advisor ({$adv_name}).
-"
-                . ( $payment_note ? "Payment: {$payment_note}
-" : '' )
+                "Onboarding completed by advisor ({$adv_name}).\n"
+                . ( $payment_note ? "Payment: {$payment_note}\n" : '' )
+                . ( $send_login ? "Login credentials emailed to customer.\n" : '' )
                 . ( $notes ? "Notes: {$notes}" : '' )
             );
         }
     }
 
-    error_log("6ix Advisor: completed onboarding for client={$client_id} by advisor=" . get_current_user_id());
-    wp_send_json_success(array('message' => 'Onboarding completed.'));
+    // 5. Notify the customer in-portal too.
+    if ( class_exists('Six_Notifications') ) {
+        Six_Notifications::create( array(
+            'user_id'    => $client_id,
+            'type'       => 'onboarding_completed',
+            'title'      => 'Your account is ready',
+            'message'    => 'Your onboarding is complete and your services are active. Welcome aboard!',
+            'action_url' => home_url('/portal/'),
+        ) );
+    }
+
+    error_log("6ix Advisor: completed onboarding for client={$client_id} by advisor=" . get_current_user_id() . " login_sent=" . ($send_login?'yes':'no'));
+    wp_send_json_success(array(
+        'message'      => 'Onboarding completed.' . ( $send_login ? ' Login details emailed to the customer.' : '' ),
+        'login_sent'   => $send_login,
+        'password'     => $send_login ? $new_password : '', // shown to advisor as a fallback
+        'client_email' => $client->user_email,
+    ));
 }
 
 

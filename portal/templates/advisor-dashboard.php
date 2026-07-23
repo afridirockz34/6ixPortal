@@ -1773,11 +1773,16 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 placeholder="Notes about how onboarding was completed…"></textarea>
         </div>
 
-        <div id="adv-ob-complete-msg" style="display:none;font-size:12px;color:var(--success);margin-bottom:10px"></div>
+        <label style="display:flex;align-items:flex-start;gap:8px;font-size:12.5px;cursor:pointer;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--dark3);margin-bottom:12px">
+            <input type="checkbox" id="adv-ob-send-login" checked style="width:14px;height:14px;margin-top:2px;accent-color:var(--pink)">
+            <span>Email the customer their login credentials<br><span style="font-size:11px;color:var(--text3)">Sets a new password and emails <?php echo esc_html($view_client->user_email ?? ''); ?> a welcome message with their email, password, and login link.</span></span>
+        </label>
+
+        <div id="adv-ob-complete-msg" style="display:none;font-size:12.5px;color:var(--success);margin-bottom:10px;padding:10px 12px;background:rgba(86,211,100,.08);border:1px solid rgba(86,211,100,.25);border-radius:8px"></div>
 
         <button class="six-btn six-btn-primary" style="font-size:13px;width:100%"
             onclick="advCompleteOnboarding(<?php echo $view_client_id; ?>)">
-            Mark Onboarding as Completed
+            Complete Onboarding &amp; Send Login
         </button>
     </div>
     <?php endif; ?>
@@ -1862,8 +1867,9 @@ function advCompleteOnboarding(clientId){
         var budget   = document.getElementById('adv-ob-budget').value;
         var payment  = document.getElementById('adv-ob-payment').value;
         var notes    = document.getElementById('adv-ob-notes').value;
+        var sendLogin= document.getElementById('adv-ob-send-login')&&document.getElementById('adv-ob-send-login').checked?'1':'0';
         if(!services){alert('Please select at least one service.');return;}
-        btn.textContent='Saving…';btn.disabled=true;
+        btn.textContent='Completing…';btn.disabled=true;
         fetch(AJAX,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
             body:new URLSearchParams({
                 action:'six_advisor_complete_onboarding',
@@ -1874,13 +1880,20 @@ function advCompleteOnboarding(clientId){
                 payment_method:payment,
                 card_info:(document.getElementById('adv-ob-card-info')||{}).value||'',
                 notes:notes,
+                send_login:sendLogin,
             })
         }).then(r=>r.json()).then(d=>{
-            btn.textContent='Mark Onboarding as Completed';btn.disabled=false;
+            btn.textContent='Complete Onboarding & Send Login';btn.disabled=false;
             if(d.success){
-                document.getElementById('adv-ob-complete-msg').style.display='block';
-                document.getElementById('adv-ob-complete-msg').textContent='Onboarding marked complete. Page will refresh…';
-                setTimeout(()=>location.reload(),1500);
+                var box=document.getElementById('adv-ob-complete-msg');
+                box.style.display='block';
+                var html='✓ '+(d.data&&d.data.message?d.data.message:'Onboarding completed.');
+                if(d.data&&d.data.login_sent&&d.data.password){
+                    html+='<br><span style="color:var(--text2)">Temporary password (share if the email doesn\'t arrive): <strong style="font-family:monospace;color:var(--text1)">'+d.data.password+'</strong></span>';
+                }
+                html+='<br><span style="color:var(--text3);font-size:11px">Refreshing…</span>';
+                box.innerHTML=html;
+                setTimeout(()=>location.reload(),d.data&&d.data.login_sent?4500:1600);
             } else {
                 alert(d.data||'Error completing onboarding');
             }
