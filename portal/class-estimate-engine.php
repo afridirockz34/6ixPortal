@@ -97,6 +97,16 @@ class Six_EstimateEngine {
         // Tag whether real keyword data was used
         $plan['data_backed'] = ! empty($kw);
 
+        // Cache the real market keyword economics so the post-onboarding growth
+        // projection can ground itself (avg CPC + volume) without a live API call
+        // on every dashboard load.
+        if ( ! empty($kw['avg_cpc']) ) {
+            update_user_meta( $user_id, 'six_market_avg_cpc',   floatval($kw['avg_cpc']) );
+            update_user_meta( $user_id, 'six_market_total_vol', intval($kw['total_vol'] ?? 0) );
+            update_user_meta( $user_id, 'six_market_kw_source', sanitize_text_field($kw['source'] ?? 'DataForSEO') );
+            update_user_meta( $user_id, 'six_market_cpc_at',    current_time('mysql') );
+        }
+
         // Save to DB
         $wpdb->update(
             "{$wpdb->prefix}six_checkout_progress",

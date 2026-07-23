@@ -735,6 +735,25 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
         <div class="ob-chip" data-v="retention">Customer Retention</div>
       </div>
     </div>
+
+    <!-- ROI inputs: power an honest revenue/ROI projection after onboarding -->
+    <div class="ob-g2">
+      <div class="ob-fg"><label class="ob-lbl">Average customer value <span style="font-weight:400;font-size:11px">(one sale / job, in $)</span></label>
+        <input class="ob-inp" id="q-deal-value" type="number" min="0" inputmode="numeric" placeholder="e.g. 1200">
+      </div>
+      <div class="ob-fg"><label class="ob-lbl">Lead close rate <span style="font-weight:400;font-size:11px">(% of leads that buy)</span></label>
+        <select class="ob-inp" id="q-close-rate">
+          <option value="">Not sure</option>
+          <option value="10">Around 10%</option>
+          <option value="20">Around 20%</option>
+          <option value="30">Around 30%</option>
+          <option value="40">Around 40%</option>
+          <option value="50">50% or more</option>
+        </select>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--ob-muted,#8a8a9a);margin:-4px 0 6px">Used to project your revenue and ROI. An estimate is fine — your advisor refines it later.</div>
+
     <div class="ob-btnrow">
       <button class="ob-btn ob-ghost" onclick="OB.goStep(2)">&larr; Back</button>
       <button class="ob-btn ob-primary" style="flex:1" onclick="OB.doStep3a()">Next &rarr;</button>
@@ -1400,12 +1419,14 @@ window.OB={
     S.q=Object.assign(S.q,{
       bizname:biz,website:v('q-web-url'),address:v('q-addr'),
       industry:v('q-ind'),years:v('q-yrs'),goals:chips('q-goals').join(','),
+      deal_value:v('q-deal-value'),close_rate:v('q-close-rate'),
     });
     // Save business basics to DB immediately
     if(S.userId){
       var sd={first:S.q.first||'',last:S.q.last||'',phone:S.q.phone||'',
         bizname:S.q.bizname||'',website:S.q.website||'',industry:S.q.industry||'',
         location:S.q.address||'',years:S.q.years||'',goal:S.q.goals||'',
+        deal_value:S.q.deal_value||'',close_rate:S.q.close_rate||'',
         competitors:[S.q.comp1,S.q.comp2,S.q.comp3].filter(Boolean).join(','),
         platforms:S.svcs.join(',')};
       post({action:'six_save_checkout_step',step:1,data:JSON.stringify(sd),user_id:S.userId}).catch(function(){});
@@ -1522,6 +1543,7 @@ window.OB={
       first:q.first||'',last:q.last||'',phone:q.phone||'',
       bizname:q.bizname||'',website:q.website||'',industry:q.industry||'',
       location:q.address||'',goal:q.goals||'',
+      deal_value:q.deal_value||'',close_rate:q.close_rate||'',
       competitors:[q.comp1,q.comp2,q.comp3].filter(Boolean).join(','),
       mktg_budget:tot.toString(),platforms:S.svcs.join(','),
       // Google Ads
@@ -1563,6 +1585,7 @@ window.OB={
       first:q.first||'',last:q.last||'',phone:q.phone||'',
       bizname:q.bizname||'',website:q.website||'',industry:q.industry||'',
       location:q.address||'',goal:q.goals||'',years:q.years||'',
+      deal_value:q.deal_value||'',close_rate:q.close_rate||'',
       competitors:[q.comp1,q.comp2,q.comp3].filter(Boolean).join(','),
       mktg_budget:tot.toString(),platforms:S.svcs.join(','),
       // Google Ads
@@ -1614,6 +1637,8 @@ window.OB={
         bizname:   S.q.bizname||'',
         industry:  S.q.industry||'',
         location:  S.q.address||'',
+        deal_value:S.q.deal_value||'',
+        close_rate:S.q.close_rate||'',
         platforms: S.svcs.join(','),
         ads_loc:   S.q.ads_loc||'',
         ads_kw:    S.q.ads_kw||'',
@@ -1817,6 +1842,7 @@ window.OB={
       var flds={
         'q-biz':q.bizname,'q-web-url':q.website,'q-addr':q.address,
         'q-ind':q.industry,'q-yrs':q.years,
+        'q-deal-value':q.deal_value||'','q-close-rate':q.close_rate||'',
         'q-comp1':q.comp1||'','q-comp2':q.comp2||'','q-comp3':q.comp3||'',
         'q-ads-loc':q.ads_loc||'','q-ads-prod':q.ads_prod||'',
         'q-ads-usp':q.ads_usp||'','q-ads-promo':q.ads_promo||'','q-ads-sched':q.ads_sched||'',

@@ -632,6 +632,8 @@ class Six_Odoo {
             'platforms'        => 'Services / platforms',
             'competitors'      => 'Competitors',
             'mktg_budget'      => 'Total monthly budget',
+            'deal_value'       => 'Avg customer value ($)',
+            'close_rate'       => 'Lead close rate (%)',
             // Google Ads
             'gads_running'     => 'Currently running Google Ads',
             'ads_locations'    => 'Google Ads - target locations',
