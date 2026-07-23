@@ -801,6 +801,22 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
     <!-- ═══════════════════════ CTAB: OVERVIEW ═══════════════════════ -->
     <?php if($ctab==='overview'): ?>
 
+    <!-- Onboarding incomplete → prompt advisor to complete it (call requesters etc.) -->
+    <?php
+    $ov_completed  = intval( get_user_meta($view_client_id, 'six_checkout_completed', true) );
+    $ov_sched_date = $c_checkout->schedule_call_date ?? '';
+    if ( ! $ov_completed ):
+    ?>
+    <div style="background:linear-gradient(135deg,rgba(245,158,11,0.1),rgba(255,102,153,0.06));border:1.5px solid rgba(245,158,11,0.35);border-radius:14px;padding:18px 20px;margin-bottom:20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <div style="width:10px;height:10px;border-radius:50%;background:#f59e0b;flex-shrink:0"></div>
+        <div style="flex:1;min-width:220px">
+            <div style="font-size:14px;font-weight:700;color:var(--text1)">Onboarding not completed<?php if($ov_sched_date): ?> · call requested for <?php echo esc_html($ov_sched_date); ?><?php endif; ?></div>
+            <div style="font-size:12px;color:var(--text3);margin-top:3px">Set up this client's services and send their login credentials from the Profile tab.</div>
+        </div>
+        <a href="<?php echo $base_url; ?>&ctab=profile#complete-onboarding" class="six-btn six-btn-primary" style="font-size:13px;white-space:nowrap">Complete Onboarding →</a>
+    </div>
+    <?php endif; ?>
+
     <!-- AI Plan summary card (from onboarding) -->
     <?php if($c_ai_data): ?>
     <div style="background:linear-gradient(135deg,rgba(255,102,153,0.08),rgba(131,197,237,0.06));border:1px solid rgba(255,102,153,0.2);border-radius:14px;padding:20px;margin-bottom:20px;position:relative;overflow:hidden">
@@ -1703,7 +1719,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
     $ob_sched_time = $c_checkout->schedule_call_time ?? '';
     ?>
     <?php if( ! $ob_completed ): ?>
-    <div style="background:var(--dark2);border:1.5px solid var(--warning-border,#f59e0b40);border-radius:14px;padding:20px;margin-bottom:16px">
+    <div id="complete-onboarding" style="background:var(--dark2);border:1.5px solid var(--warning-border,#f59e0b40);border-radius:14px;padding:20px;margin-bottom:16px;scroll-margin-top:80px">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
             <div style="width:8px;height:8px;border-radius:50%;background:#f59e0b;flex-shrink:0"></div>
             <div style="font-size:13px;font-weight:700;color:var(--text1)">Onboarding Incomplete</div>

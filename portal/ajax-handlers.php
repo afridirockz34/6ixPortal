@@ -292,11 +292,18 @@ function six_approve_service(){
     $svc = $wpdb->get_row($wpdb->prepare(
         "SELECT * FROM {$wpdb->prefix}six_client_services WHERE id=%d", $svc_id));
     if(!$svc) wp_send_json_error('Service not found');
-    $wpdb->update(
+    // NOTE: this table has approved_by/approved_at columns, NOT advisor_id.
+    // Writing a non-existent column makes the whole update fail (status never
+    // changes) — the reason "Approve" appeared to do nothing.
+    $updated = $wpdb->update(
         "{$wpdb->prefix}six_client_services",
-        array('status'=>'active','advisor_id'=>get_current_user_id()),
+        array('status'=>'active','approved_by'=>get_current_user_id(),'approved_at'=>current_time('mysql')),
         array('id'=>$svc_id)
     );
+    if ( $updated === false ) {
+        wp_send_json_error('Database error: '.$wpdb->last_error);
+        return;
+    }
     // Move Odoo lead to Customer stage
     if ($client_id && class_exists('Six_Odoo')) {
         $lead_id = intval(get_user_meta($client_id,'six_odoo_lead_id',true));
