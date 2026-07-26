@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 class Six_AI_Strategist {
 
-    const DB_VERSION = 2;
+    const DB_VERSION = 3;
     const MAX_TOOL_LOOPS = 6;
 
     // Deep, multi-step reasoning modes → Opus. Quick tasks → Sonnet.
@@ -74,6 +74,26 @@ class Six_AI_Strategist {
             uses int(11) DEFAULT 0,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
+            KEY industry (industry)
+        ) $charset" );
+        dbDelta( "CREATE TABLE {$wpdb->prefix}six_ai_outcomes (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            client_id bigint(20) NOT NULL,
+            playbook_id bigint(20) DEFAULT 0,
+            recommendation_id bigint(20) DEFAULT 0,
+            industry varchar(120) DEFAULT '',
+            service varchar(60) DEFAULT '',
+            title varchar(255) DEFAULT '',
+            baseline_json longtext,
+            baseline_at datetime DEFAULT NULL,
+            result_json longtext,
+            result_at datetime DEFAULT NULL,
+            lift_json longtext,
+            status varchar(20) DEFAULT 'tracking',
+            created_by bigint(20) DEFAULT 0,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY client_id (client_id),
             KEY industry (industry)
         ) $charset" );
         update_option( 'six_ai_db_v', self::DB_VERSION );
@@ -210,6 +230,13 @@ class Six_AI_Strategist {
                     'days'=>array('type'=>'integer','description'=>'Lookback window in days (default 28)'),
                 ) ),
             ),
+            array(
+                'name' => 'proven_outcomes',
+                'description' => "Get 6ix's OWN historical results from measured outcomes for similar clients (by industry). Returns average measured lift in conversions/clicks/traffic. Cite these to back projections with real agency track record.",
+                'input_schema' => array( 'type'=>'object', 'properties'=>array(
+                    'industry'=>array('type'=>'string','description'=>'Industry to match, e.g. "dental". Optional; defaults to this client\'s industry.'),
+                ) ),
+            ),
         );
     }
 
@@ -248,6 +275,14 @@ class Six_AI_Strategist {
                 $site = get_user_meta( $client_id, 'six_gsc_site', true );
                 if ( ! $site ) return array( 'error' => 'No Search Console site connected for this client.' );
                 return Six_Analytics::gsc_summary( $site, $input['days'] ?? 28 );
+            case 'proven_outcomes':
+                $ind = trim( (string) ( $input['industry'] ?? '' ) );
+                if ( $ind === '' ) {
+                    global $wpdb;
+                    $ind = (string) $wpdb->get_var( $wpdb->prepare(
+                        "SELECT industry FROM {$wpdb->prefix}six_checkout_progress WHERE user_id=%d", $client_id ) );
+                }
+                return self::proven_outcomes( $ind );
         }
         return array( 'error' => 'Unknown tool: ' . $name );
     }
@@ -287,18 +322,24 @@ class Six_AI_Strategist {
         $rows = array();
         if ( $industry ) {
             $rows = $wpdb->get_results( $wpdb->prepare(
-                "SELECT title, content FROM {$wpdb->prefix}six_ai_playbooks
+                "SELECT id, title, content FROM {$wpdb->prefix}six_ai_playbooks
                  WHERE industry LIKE %s ORDER BY uses DESC, created_at DESC LIMIT %d",
                 '%' . $wpdb->esc_like( $industry ) . '%', $limit ) );
         }
         if ( count( $rows ) < $limit ) {
             $more = $wpdb->get_results( $wpdb->prepare(
-                "SELECT title, content FROM {$wpdb->prefix}six_ai_playbooks ORDER BY uses DESC, created_at DESC LIMIT %d", $limit ) );
+                "SELECT id, title, content FROM {$wpdb->prefix}six_ai_playbooks ORDER BY uses DESC, created_at DESC LIMIT %d", $limit ) );
             $rows = array_merge( $rows, (array) $more );
         }
         // De-dup by title
         $seen = array(); $out = array();
         foreach ( $rows as $r ) { if ( isset($seen[$r->title]) ) continue; $seen[$r->title]=1; $out[] = $r; if ( count($out) >= $limit ) break; }
+        // Count how often a playbook actually informs an answer (ranking signal).
+        foreach ( $out as $r ) {
+            if ( ! empty( $r->id ) ) {
+                $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}six_ai_playbooks SET uses=uses+1 WHERE id=%d", $r->id ) );
+            }
+        }
         return $out;
     }
 
@@ -446,6 +487,135 @@ class Six_AI_Strategist {
             'thread_id'  => $thread_id,
             'message_id' => $message_id,
         );
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // OUTCOME TRACKING — tie strategies to measurable results over time.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Compact snapshot of a client's real performance for outcome comparison.
+     * Pulls Google Ads / GA4 / GSC when connected, plus advisor KPIs.
+     */
+    public static function snapshot_metrics( $client_id ) {
+        $snap = array();
+
+        if ( class_exists( 'Six_Google_Ads' ) && get_user_meta( $client_id, 'six_gads_customer_id', true ) ) {
+            $m = Six_Google_Ads::get_campaign_metrics_for_client( $client_id );
+            if ( is_array( $m ) && ! empty( $m ) ) {
+                $snap['gads'] = array(
+                    'clicks'      => intval( $m['clicks'] ?? 0 ),
+                    'conversions' => round( floatval( $m['conversions'] ?? 0 ), 1 ),
+                    'cost'        => round( floatval( $m['cost'] ?? 0 ), 2 ),
+                    'impressions' => intval( $m['impressions'] ?? 0 ),
+                );
+            }
+        }
+        if ( class_exists( 'Six_Analytics' ) ) {
+            $prop = get_user_meta( $client_id, 'six_ga4_property_id', true ) ?: get_option( 'six_ga4_property_id', '' );
+            if ( $prop ) {
+                $ga = Six_Analytics::ga4_summary( $prop, 30 );
+                if ( empty( $ga['error'] ) && ! empty( $ga['totals'] ) ) $snap['ga4'] = $ga['totals'];
+            }
+            $site = get_user_meta( $client_id, 'six_gsc_site', true );
+            if ( $site ) {
+                $g = Six_Analytics::gsc_summary( $site, 28 );
+                if ( empty( $g['error'] ) && ! empty( $g['totals'] ) ) $snap['gsc'] = $g['totals'];
+            }
+        }
+        return $snap;
+    }
+
+    /** Percent-change lift between two snapshots for shared numeric fields. */
+    private static function compute_lift( $base, $result ) {
+        $lift = array();
+        foreach ( $result as $group => $vals ) {
+            if ( ! is_array( $vals ) || empty( $base[ $group ] ) || ! is_array( $base[ $group ] ) ) continue;
+            foreach ( $vals as $k => $v ) {
+                if ( ! is_numeric( $v ) ) continue;
+                $b = $base[ $group ][ $k ] ?? null;
+                if ( ! is_numeric( $b ) || $b == 0 ) continue;
+                $lift[ "{$group}.{$k}" ] = round( ( ( $v - $b ) / $b ) * 100, 1 );
+            }
+        }
+        return $lift;
+    }
+
+    /** Start tracking an outcome with a baseline snapshot. */
+    public static function start_outcome( $args ) {
+        self::maybe_create_tables();
+        global $wpdb;
+        $client_id = intval( $args['client_id'] ?? 0 );
+        if ( ! $client_id ) return 0;
+        $industry = (string) $wpdb->get_var( $wpdb->prepare(
+            "SELECT industry FROM {$wpdb->prefix}six_checkout_progress WHERE user_id=%d", $client_id ) );
+        $baseline = self::snapshot_metrics( $client_id );
+        $wpdb->insert( "{$wpdb->prefix}six_ai_outcomes", array(
+            'client_id'         => $client_id,
+            'playbook_id'       => intval( $args['playbook_id'] ?? 0 ),
+            'recommendation_id' => intval( $args['recommendation_id'] ?? 0 ),
+            'industry'          => $industry,
+            'service'           => sanitize_key( $args['service'] ?? '' ),
+            'title'             => sanitize_text_field( $args['title'] ?? 'Strategy' ),
+            'baseline_json'     => wp_json_encode( $baseline ),
+            'baseline_at'       => current_time( 'mysql' ),
+            'status'            => 'tracking',
+            'created_by'        => get_current_user_id(),
+            'created_at'        => current_time( 'mysql' ),
+        ) );
+        return intval( $wpdb->insert_id );
+    }
+
+    /** Re-measure a tracked outcome and compute lift. */
+    public static function measure_outcome( $outcome_id ) {
+        self::maybe_create_tables();
+        global $wpdb;
+        $row = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}six_ai_outcomes WHERE id=%d", intval( $outcome_id ) ) );
+        if ( ! $row ) return array( 'error' => 'Outcome not found.' );
+        $base   = json_decode( $row->baseline_json ?: '{}', true ) ?: array();
+        $result = self::snapshot_metrics( intval( $row->client_id ) );
+        $lift   = self::compute_lift( $base, $result );
+        $wpdb->update( "{$wpdb->prefix}six_ai_outcomes", array(
+            'result_json' => wp_json_encode( $result ),
+            'result_at'   => current_time( 'mysql' ),
+            'lift_json'   => wp_json_encode( $lift ),
+            'status'      => 'measured',
+        ), array( 'id' => intval( $outcome_id ) ) );
+        return array( 'success' => true, 'lift' => $lift, 'result' => $result );
+    }
+
+    /** Aggregate measured lift across similar (industry) clients. */
+    public static function proven_outcomes( $industry = '', $limit = 100 ) {
+        self::maybe_create_tables();
+        global $wpdb;
+        $industry = trim( (string) $industry );
+        if ( $industry ) {
+            $rows = $wpdb->get_results( $wpdb->prepare(
+                "SELECT lift_json FROM {$wpdb->prefix}six_ai_outcomes
+                 WHERE status='measured' AND industry LIKE %s ORDER BY result_at DESC LIMIT %d",
+                '%' . $wpdb->esc_like( $industry ) . '%', $limit ) );
+        } else {
+            $rows = $wpdb->get_results( $wpdb->prepare(
+                "SELECT lift_json FROM {$wpdb->prefix}six_ai_outcomes
+                 WHERE status='measured' ORDER BY result_at DESC LIMIT %d", $limit ) );
+        }
+        if ( ! $rows ) {
+            return array( 'industry' => $industry ?: 'all', 'measured_clients' => 0,
+                'note' => 'No measured outcomes on record yet for this segment.' );
+        }
+        $acc = array();
+        foreach ( $rows as $r ) {
+            foreach ( (array) ( json_decode( $r->lift_json ?: '{}', true ) ?: array() ) as $k => $v ) {
+                if ( ! is_numeric( $v ) ) continue;
+                $acc[ $k ][] = floatval( $v );
+            }
+        }
+        $avg = array();
+        foreach ( $acc as $k => $vals ) {
+            $avg[ $k ] = array( 'avg_lift_pct' => round( array_sum( $vals ) / count( $vals ), 1 ), 'n' => count( $vals ) );
+        }
+        return array( 'industry' => $industry ?: 'all', 'measured_clients' => count( $rows ), 'avg_lift' => $avg );
     }
 }
 

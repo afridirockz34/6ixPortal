@@ -117,9 +117,11 @@ add_action( 'wp_ajax_six_ai_push_reco', function () {
     $title      = sanitize_text_field( $_POST['title'] ?? 'Strategy recommendation' );
     if ( ! $client_id || ! $message_id ) wp_send_json_error( 'Missing data.' );
 
-    $content = $wpdb->get_var( $wpdb->prepare(
-        "SELECT content FROM {$wpdb->prefix}six_ai_messages WHERE id=%d", $message_id ) );
-    if ( $content === null ) wp_send_json_error( 'Message not found.' );
+    $row = $wpdb->get_row( $wpdb->prepare(
+        "SELECT m.content, t.mode FROM {$wpdb->prefix}six_ai_messages m
+         JOIN {$wpdb->prefix}six_ai_threads t ON m.thread_id=t.id WHERE m.id=%d", $message_id ) );
+    if ( ! $row ) wp_send_json_error( 'Message not found.' );
+    $content = $row->content;
 
     // Advisor-vetted → source advisor_ai so it surfaces in the customer's
     // "from your advisor" recommendations.
@@ -134,6 +136,7 @@ add_action( 'wp_ajax_six_ai_push_reco', function () {
         'status'       => 'active',
         'created_at'   => current_time( 'mysql' ),
     ) );
+    $reco_id = intval( $wpdb->insert_id );
     if ( class_exists( 'Six_Notifications' ) ) {
         Six_Notifications::create( array(
             'user_id' => $client_id, 'type' => 'recommendation',
@@ -142,5 +145,88 @@ add_action( 'wp_ajax_six_ai_push_reco', function () {
             'action_url' => home_url( '/portal/' ),
         ) );
     }
-    wp_send_json_success( array( 'id' => intval( $wpdb->insert_id ), 'message' => 'Shared with the customer.' ) );
+    // Start tracking the outcome: snapshot the client's current metrics as a
+    // baseline so we can measure the lift this strategy drives later.
+    $outcome_id = 0;
+    if ( class_exists( 'Six_AI_Strategist' ) ) {
+        $outcome_id = Six_AI_Strategist::start_outcome( array(
+            'client_id'         => $client_id,
+            'recommendation_id' => $reco_id,
+            'service'           => $row->mode,
+            'title'             => $title,
+        ) );
+    }
+    wp_send_json_success( array( 'id' => $reco_id, 'outcome_id' => $outcome_id, 'message' => 'Shared with the customer — outcome tracking started.' ) );
+} );
+
+// ── Playbook library: list ──────────────────────────────────────────────────
+add_action( 'wp_ajax_six_ai_playbooks_list', function () {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! six_ai_is_advisor() ) wp_send_json_error( 'Permission denied.' );
+    if ( class_exists( 'Six_AI_Strategist' ) ) Six_AI_Strategist::maybe_create_tables();
+    global $wpdb;
+    $rows = $wpdb->get_results(
+        "SELECT id, title, industry, service, goal_tags, content, uses, created_at
+         FROM {$wpdb->prefix}six_ai_playbooks ORDER BY uses DESC, created_at DESC LIMIT 200" );
+    wp_send_json_success( array( 'playbooks' => $rows ?: array() ) );
+} );
+
+// ── Playbook library: update ────────────────────────────────────────────────
+add_action( 'wp_ajax_six_ai_playbook_update', function () {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! six_ai_is_advisor() ) wp_send_json_error( 'Permission denied.' );
+    global $wpdb;
+    $id = intval( $_POST['id'] ?? 0 );
+    if ( ! $id ) wp_send_json_error( 'Missing playbook.' );
+    $wpdb->update( "{$wpdb->prefix}six_ai_playbooks", array(
+        'title'     => sanitize_text_field( $_POST['title'] ?? '' ),
+        'industry'  => sanitize_text_field( $_POST['industry'] ?? '' ),
+        'service'   => sanitize_text_field( $_POST['service'] ?? '' ),
+        'goal_tags' => sanitize_text_field( $_POST['goal_tags'] ?? '' ),
+        'content'   => wp_kses_post( wp_unslash( $_POST['content'] ?? '' ) ),
+    ), array( 'id' => $id ) );
+    wp_send_json_success( array( 'id' => $id ) );
+} );
+
+// ── Playbook library: delete ────────────────────────────────────────────────
+add_action( 'wp_ajax_six_ai_playbook_delete', function () {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! six_ai_is_advisor() ) wp_send_json_error( 'Permission denied.' );
+    global $wpdb;
+    $id = intval( $_POST['id'] ?? 0 );
+    if ( ! $id ) wp_send_json_error( 'Missing playbook.' );
+    $wpdb->delete( "{$wpdb->prefix}six_ai_playbooks", array( 'id' => $id ) );
+    wp_send_json_success( array( 'id' => $id ) );
+} );
+
+// ── Outcomes: list ──────────────────────────────────────────────────────────
+add_action( 'wp_ajax_six_ai_outcomes_list', function () {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! six_ai_is_advisor() ) wp_send_json_error( 'Permission denied.' );
+    if ( class_exists( 'Six_AI_Strategist' ) ) Six_AI_Strategist::maybe_create_tables();
+    global $wpdb;
+    $rows = $wpdb->get_results(
+        "SELECT o.id, o.client_id, o.industry, o.service, o.title, o.status,
+                o.baseline_at, o.result_at, o.lift_json
+         FROM {$wpdb->prefix}six_ai_outcomes o ORDER BY o.created_at DESC LIMIT 100" );
+    foreach ( (array) $rows as $r ) {
+        $u = get_userdata( intval( $r->client_id ) );
+        $r->client_name = $u ? $u->display_name : ( 'Client #' . $r->client_id );
+    }
+    // Global proven-outcomes summary
+    $summary = class_exists( 'Six_AI_Strategist' ) ? Six_AI_Strategist::proven_outcomes( '' ) : array();
+    wp_send_json_success( array( 'outcomes' => $rows ?: array(), 'summary' => $summary ) );
+} );
+
+// ── Outcomes: measure now ───────────────────────────────────────────────────
+add_action( 'wp_ajax_six_ai_measure_outcome', function () {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! six_ai_is_advisor() ) wp_send_json_error( 'Permission denied.' );
+    if ( ! class_exists( 'Six_AI_Strategist' ) ) wp_send_json_error( 'Unavailable.' );
+    $id = intval( $_POST['outcome_id'] ?? 0 );
+    if ( ! $id ) wp_send_json_error( 'Missing outcome.' );
+    @set_time_limit( 120 );
+    $res = Six_AI_Strategist::measure_outcome( $id );
+    if ( ! empty( $res['error'] ) ) wp_send_json_error( $res['error'] );
+    wp_send_json_success( $res );
 } );

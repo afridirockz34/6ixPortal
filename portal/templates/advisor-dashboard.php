@@ -217,6 +217,9 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 <span class="six-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span> Calendar
                 <?php if(!get_user_meta($advisor_id,'six_gcal_refresh_token',true)):?><span style="font-size:9px;color:var(--warning);margin-left:auto">Connect</span><?php endif;?>
             </a>
+            <a href="?tab=playbooks" class="six-nav-item <?php echo $active_tab==='playbooks'?'active':'';?>">
+                <span class="six-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span> AI Playbooks
+            </a>
         </div>
         <div class="six-sidebar-bottom">
             <a href="<?php echo esc_url(wp_logout_url(home_url('/get-started/'))); ?>" class="six-nav-item" style="color:var(--text3);margin-bottom:10px"><span class="six-nav-icon">↩</span> Log Out</a>
@@ -2843,6 +2846,148 @@ function advCompleteOnboarding(clientId){
 
         <?php endif; // end total_tracked ?>
 
+    <?php /* ════════════ AI PLAYBOOKS & OUTCOMES ════════════ */ elseif($active_tab==='playbooks'): ?>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+        <div>
+            <h1 class="six-page-title" style="margin:0">AI Playbooks &amp; Outcomes</h1>
+            <p class="six-page-sub" style="margin:4px 0 0">Your reusable winning strategies and their measured results — the memory that makes the AI Strategist sharper over time.</p>
+        </div>
+    </div>
+
+    <!-- Proven outcomes summary -->
+    <div class="six-card" style="margin-bottom:20px">
+        <div class="six-card-header"><span class="six-card-title">Measured Results (all clients)</span></div>
+        <div class="six-card-body" id="oc-summary" style="font-size:13px;color:var(--text3)">Loading…</div>
+    </div>
+
+    <!-- Playbook library -->
+    <div class="six-card" style="margin-bottom:20px">
+        <div class="six-card-header">
+            <span class="six-card-title">Playbook Library</span>
+            <span id="pb-count" class="six-badge" style="background:rgba(255,102,153,.15);color:var(--pink)">0</span>
+        </div>
+        <div class="six-card-body" id="pb-list" style="display:flex;flex-direction:column;gap:12px">
+            <div style="color:var(--text3);font-size:13px">Loading…</div>
+        </div>
+    </div>
+
+    <!-- Tracked outcomes -->
+    <div class="six-card">
+        <div class="six-card-header">
+            <span class="six-card-title">Tracked Outcomes</span>
+            <span style="font-size:11px;color:var(--text3)">Baselines are captured when you share a strategy with a customer</span>
+        </div>
+        <div class="six-card-body" id="oc-list" style="padding:0">
+            <div style="color:var(--text3);font-size:13px;padding:16px">Loading…</div>
+        </div>
+    </div>
+
+    <script>
+    (function(){
+        var root=document.getElementById('pb-list');
+        if(!root) return;
+        function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+        function liftChips(liftJson){
+            var lift; try{ lift=JSON.parse(liftJson||'{}'); }catch(e){ lift={}; }
+            var keys=Object.keys(lift||{}); if(!keys.length) return '<span style="color:var(--text3)">—</span>';
+            var label={'gads.conversions':'Ads conv.','gads.clicks':'Ads clicks','ga4.conversions':'GA4 conv.','ga4.sessions':'Sessions','gsc.clicks':'Organic clicks','gsc.impressions':'Impressions'};
+            return keys.slice(0,4).map(function(k){
+                var v=lift[k], up=v>=0;
+                return '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;margin-right:5px;background:'+(up?'rgba(86,211,100,.14)':'rgba(220,38,38,.12)')+';color:'+(up?'#1a7a2e':'#b91c1c')+'">'+(label[k]||k)+' '+(up?'+':'')+v+'%</span>';
+            }).join('');
+        }
+
+        function loadPlaybooks(){
+            post({action:'six_ai_playbooks_list'}).then(function(r){
+                root.innerHTML='';
+                var pbs=(r&&r.success&&r.data.playbooks)||[];
+                document.getElementById('pb-count').textContent=pbs.length;
+                if(!pbs.length){ root.innerHTML='<div style="color:var(--text3);font-size:13px">No playbooks yet. In a client’s AI Strategy chat, click <strong>Save as playbook</strong> on a strong answer to build your library.</div>'; return; }
+                pbs.forEach(function(p){
+                    var d=document.createElement('div');
+                    d.style.cssText='border:1px solid var(--border);border-radius:12px;padding:14px 16px';
+                    d.innerHTML=
+                        '<div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap">'
+                        +'<div style="flex:1;min-width:0">'
+                          +'<div style="font-size:14px;font-weight:700;color:var(--text1)">'+esc(p.title)+'</div>'
+                          +'<div style="font-size:11px;color:var(--text3);margin-top:2px">'+esc(p.industry||'any industry')+' · '+esc(p.service||'general')+' · used '+p.uses+'×</div>'
+                        +'</div>'
+                        +'<button class="six-btn six-btn-ghost six-btn-sm pb-edit" style="font-size:11px;color:var(--cyan)">Edit</button>'
+                        +'<button class="six-btn six-btn-ghost six-btn-sm pb-del" style="font-size:11px;color:var(--danger)">Delete</button>'
+                        +'</div>'
+                        +'<div class="pb-body" style="font-size:12.5px;color:var(--text2);line-height:1.6;margin-top:8px;white-space:pre-wrap;max-height:120px;overflow:hidden">'+esc((p.content||'').slice(0,600))+'</div>'
+                        +'<div class="pb-editform" style="display:none;margin-top:10px">'
+                          +'<div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin-bottom:8px">'
+                            +'<input class="six-input pb-f-title" value="'+esc(p.title)+'" placeholder="Title" style="font-size:12px">'
+                            +'<input class="six-input pb-f-ind" value="'+esc(p.industry)+'" placeholder="Industry" style="font-size:12px">'
+                            +'<input class="six-input pb-f-svc" value="'+esc(p.service)+'" placeholder="Service/mode" style="font-size:12px">'
+                          +'</div>'
+                          +'<textarea class="six-input pb-f-content" rows="6" style="font-size:12px;width:100%;resize:vertical">'+esc(p.content)+'</textarea>'
+                          +'<div style="margin-top:8px;display:flex;gap:8px"><button class="six-btn six-btn-primary six-btn-sm pb-save" style="font-size:11px">Save</button><button class="six-btn six-btn-ghost six-btn-sm pb-cancel" style="font-size:11px">Cancel</button><span class="pb-msg" style="font-size:11px;align-self:center;color:var(--text3)"></span></div>'
+                        +'</div>';
+                    d.querySelector('.pb-edit').addEventListener('click',function(){ d.querySelector('.pb-editform').style.display='block'; d.querySelector('.pb-body').style.display='none'; });
+                    d.querySelector('.pb-cancel').addEventListener('click',function(){ d.querySelector('.pb-editform').style.display='none'; d.querySelector('.pb-body').style.display='block'; });
+                    d.querySelector('.pb-del').addEventListener('click',function(){ if(!confirm('Delete this playbook?'))return; post({action:'six_ai_playbook_delete',id:p.id}).then(function(){ d.remove(); }); });
+                    d.querySelector('.pb-save').addEventListener('click',function(){
+                        var msg=d.querySelector('.pb-msg'); msg.textContent='Saving…';
+                        post({action:'six_ai_playbook_update',id:p.id,
+                            title:d.querySelector('.pb-f-title').value,
+                            industry:d.querySelector('.pb-f-ind').value,
+                            service:d.querySelector('.pb-f-svc').value,
+                            content:d.querySelector('.pb-f-content').value
+                        }).then(function(r){ msg.textContent=(r&&r.success)?'Saved':'Error'; if(r&&r.success) setTimeout(loadPlaybooks,600); });
+                    });
+                    root.appendChild(d);
+                });
+            });
+        }
+
+        function summarize(sum){
+            var el=document.getElementById('oc-summary');
+            if(!sum||!sum.measured_clients){ el.innerHTML='No measured outcomes yet. Share strategies with customers, then click <strong>Measure</strong> after a few weeks to build your track record.'; return; }
+            var avg=sum.avg_lift||{}; var keys=Object.keys(avg);
+            var label={'gads.conversions':'Google Ads conversions','gads.clicks':'Google Ads clicks','ga4.conversions':'GA4 conversions','ga4.sessions':'Website sessions','gsc.clicks':'Organic clicks','gsc.impressions':'Search impressions'};
+            var html='<div style="margin-bottom:8px">Across <strong>'+sum.measured_clients+'</strong> measured client'+(sum.measured_clients>1?'s':'')+':</div><div style="display:flex;flex-wrap:wrap;gap:8px">';
+            keys.forEach(function(k){ var v=avg[k].avg_lift_pct, up=v>=0;
+                html+='<span style="font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;background:'+(up?'rgba(86,211,100,.14)':'rgba(220,38,38,.12)')+';color:'+(up?'#1a7a2e':'#b91c1c')+'">'+(label[k]||k)+': '+(up?'+':'')+v+'% avg</span>';
+            });
+            html+='</div>';
+            el.innerHTML=html;
+        }
+
+        function loadOutcomes(){
+            post({action:'six_ai_outcomes_list'}).then(function(r){
+                var list=document.getElementById('oc-list');
+                var ocs=(r&&r.success&&r.data.outcomes)||[];
+                summarize(r&&r.data&&r.data.summary);
+                if(!ocs.length){ list.innerHTML='<div style="color:var(--text3);font-size:13px;padding:16px">No tracked outcomes yet.</div>'; return; }
+                list.innerHTML='';
+                ocs.forEach(function(o){
+                    var row=document.createElement('div');
+                    row.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap';
+                    var measured=o.status==='measured';
+                    row.innerHTML=
+                        '<div style="flex:1;min-width:180px">'
+                          +'<div style="font-size:13px;font-weight:600;color:var(--text1)">'+esc(o.client_name)+' · '+esc(o.title)+'</div>'
+                          +'<div style="font-size:11px;color:var(--text3);margin-top:2px">'+esc(o.industry||'—')+' · baseline '+esc((o.baseline_at||'').slice(0,10))+(measured?' · measured '+esc((o.result_at||'').slice(0,10)):'')+'</div>'
+                        +'</div>'
+                        +'<div style="flex:1;min-width:160px">'+(measured?liftChips(o.lift_json):'<span style="font-size:11px;color:var(--text3)">Tracking — not yet measured</span>')+'</div>'
+                        +'<button class="six-btn six-btn-primary six-btn-sm oc-measure" style="font-size:11px">'+(measured?'Re-measure':'Measure')+'</button>';
+                    row.querySelector('.oc-measure').addEventListener('click',function(){
+                        var b=this; b.textContent='Measuring…'; b.disabled=true;
+                        post({action:'six_ai_measure_outcome',outcome_id:o.id}).then(function(r){ b.disabled=false; b.textContent='Re-measure'; if(r&&r.success){ loadOutcomes(); } else { b.textContent='Retry'; alert((r&&r.data)||'Could not measure — check that the client’s accounts are connected.'); } });
+                    });
+                    list.appendChild(row);
+                });
+            });
+        }
+
+        function init(){ loadPlaybooks(); loadOutcomes(); }
+        if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+    })();
+    </script>
     <?php endif;?>
     </main>
 </div>
