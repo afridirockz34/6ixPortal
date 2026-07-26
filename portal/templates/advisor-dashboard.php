@@ -217,6 +217,9 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 <span class="six-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span> Calendar
                 <?php if(!get_user_meta($advisor_id,'six_gcal_refresh_token',true)):?><span style="font-size:9px;color:var(--warning);margin-left:auto">Connect</span><?php endif;?>
             </a>
+            <a href="?tab=playbooks" class="six-nav-item <?php echo $active_tab==='playbooks'?'active':'';?>">
+                <span class="six-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span> AI Playbooks
+            </a>
         </div>
         <div class="six-sidebar-bottom">
             <a href="<?php echo esc_url(wp_logout_url(home_url('/get-started/'))); ?>" class="six-nav-item" style="color:var(--text3);margin-bottom:10px"><span class="six-nav-icon">↩</span> Log Out</a>
@@ -1116,84 +1119,228 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
     <!-- ═══════════════════════ CTAB: AI STRATEGY ═══════════════════════ -->
     <?php elseif($ctab==='ai'): ?>
 
-    <!-- AI Generator -->
-    <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px">
-        <div style="padding:16px 18px;border-bottom:1px solid rgba(255,255,255,0.05)">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-                <span style="font-size:13px;font-weight:700"> AI Strategy Generator</span>
-                <span style="font-size:10px;background:rgba(255,102,153,0.1);color:var(--pink);padding:2px 8px;border-radius:10px"><?php echo esc_html($c_biz); ?></span>
-            </div>
-            <?php
-            $c_metrics_ctx=''; foreach((array)$c_metrics as $m) $c_metrics_ctx.=$m->label.':'.$m->current_value.'; ';
-            $ai_context = 'Client: ' . $c_biz
-                . ', Industry: ' . ($c_industry ?: 'unknown')
-                . ', Goal: ' . ($c_goal ?: 'grow business')
-                . ', Challenge: ' . ($c_challenge ?: 'unknown')
-                . ', Active Services: ' . ($c_active_svc_names ?: 'none')
-                . ($c_total_budget ? ', Budget: $' . number_format($c_total_budget) . '/mo' : '')
-                . ', Metrics: ' . ($c_metrics_ctx ?: 'none')
-                . ', Competitors: ' . ($c_comp_str ?: 'unknown')
-                . ', Website: ' . ($c_website ?: 'unknown')
-                . '. Available services to upsell: ' . ($c_missing_svcs ?: 'none') . '.';
-            $strategy_types = array(
-                'seo_strategy'    => array('label'=>' SEO Optimization','prompt'=>"You are a 6ix Developers SEO strategist. {$ai_context} Write a specific 3-point SEO strategy for this client. Each point: what to do, expected traffic impact (%), timeframe. Start directly — no intro. Use → bullets."),
-                'gads_strategy'   => array('label'=>' Google Ads Optimization','prompt'=>"You are a 6ix Developers Google Ads specialist. {$ai_context} Write a 3-point Google Ads optimization plan. Each point: tactic, expected ROAS or CPA improvement, timeframe. Numbers required. Use → bullets."),
-                'gbp_strategy'    => array('label'=>'Google Business Profile','prompt'=>"You are a 6ix Developers local SEO specialist. {$ai_context} Write a 3-point Google Business Profile optimisation plan. Each point: specific action, expected local search impact, timeframe. Use → bullets."),
-                'web_strategy'    => array('label'=>'Website Growth','prompt'=>"You are a 6ix Developers web strategist. {$ai_context} Write a 3-point website conversion improvement plan. Each point: specific change, expected conversion lift (%), implementation time. Use → bullets."),
-                'quick_wins'      => array('label'=>' Quick Wins','prompt'=>"You are a 6ix Developers growth advisor. {$ai_context} Give 3 quick wins this client can achieve THIS month. Each win: specific action (1 sentence), the 6ix service that enables it, measurable 30-day result. Use → bullets."),
-                'competitor_alert'=> array('label'=>' Competitor Alerts','prompt'=>"You are a 6ix Developers competitive intelligence advisor. {$ai_context} Identify 3 specific competitor threats and what this client must do NOW. Each: the threat, what competitor is doing, the counter-move using a 6ix service. Use → bullets."),
-                'roi_opportunity' => array('label'=>' ROI Opportunities','prompt'=>"You are a 6ix Developers ROI strategist. {$ai_context} Identify 3 high-ROI opportunities being missed. Each: the opportunity, realistic ROI projection with numbers, 6ix service that captures it. Use → bullets."),
-                'service_gaps'    => array('label'=>' Service Gaps','prompt'=>"You are a 6ix Developers account strategist. {$ai_context} Identify the 3 most critical missing services and their revenue impact. Each: missing service, what revenue/growth it would unlock (with numbers), urgency level. Use → bullets."),
-                'budget_optimize' => array('label'=>' Budget Optimization','prompt'=>"You are a 6ix Developers budget strategist. {$ai_context} Give 3 specific budget reallocation recommendations. Each: current vs recommended allocation, expected performance improvement (%), rationale. Use → bullets."));
-            ?>
-            <div style="display:flex;flex-wrap:wrap;gap:6px">
-                <?php foreach($strategy_types as $type_key => $type_def): ?>
-                <button class="six-btn six-btn-ghost six-btn-sm six-ai-suggest-btn"
-                        data-type="<?php echo esc_attr($type_key); ?>"
-                        data-client="<?php echo $view_client_id; ?>"
-                        data-prompt="<?php echo esc_attr($type_def['prompt']); ?>"
-                        style="font-size:11px;padding:6px 12px">
-                    <?php echo esc_html($type_def['label']); ?>
-                </button>
-                <?php endforeach; ?>
+    <!-- ═══ AI STRATEGIST WORKSPACE ═══════════════════════════════════════ -->
+    <div class="six-card" id="ai-strat" data-client="<?php echo intval($view_client_id); ?>" style="margin-bottom:20px;overflow:hidden">
+        <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span style="font-size:14px;font-weight:800;color:var(--text1)">AI Strategist</span>
+            <span style="font-size:10px;background:rgba(255,102,153,0.12);color:var(--pink);padding:2px 8px;border-radius:10px"><?php echo esc_html($c_biz ?: ($view_client->display_name ?? 'Client')); ?></span>
+            <span style="font-size:10.5px;color:var(--text3)">Grounded in this client's data + live DataForSEO</span>
+            <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+                <select id="ai-thread-select" class="six-input" style="font-size:11.5px;padding:6px 8px;max-width:180px"><option value="0">New conversation</option></select>
+                <button class="six-btn six-btn-ghost six-btn-sm" id="ai-new-thread" style="font-size:11px">+ New</button>
             </div>
         </div>
 
-        <!-- Output area -->
-        <div style="padding:16px 18px">
-            <div id="ai-suggest-output" style="display:none;margin-bottom:14px">
-                <div id="ai-suggest-text" style="font-size:13px;color:var(--text2);line-height:1.8;background:var(--dark4);border-radius:10px;padding:14px;min-height:80px;margin-bottom:12px;border-left:3px solid var(--pink)"></div>
-                <div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:8px;align-items:end">
-                    <div>
-                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Title</div>
-                        <input class="six-input" id="ai-suggest-title" style="font-size:12px" placeholder="Recommendation title…">
-                    </div>
-                    <div>
-                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Priority</div>
-                        <select class="six-input" id="ai-suggest-priority" style="font-size:12px">
-                            <option value="high"> High</option>
-                            <option value="medium" selected> Medium</option>
-                            <option value="low"> Low</option>
-                        </select>
-                    </div>
-                    <div style="align-self:end">
-                        <button class="six-btn six-btn-primary six-btn-sm" id="ai-suggest-send"
-                                data-client="<?php echo $view_client_id; ?>"
-                                style="font-size:11px;padding:8px 14px">Send to Client</button>
-                    </div>
-                    <div style="align-self:end">
-                        <button class="six-btn six-btn-ghost six-btn-sm" id="ai-suggest-clear" style="font-size:11px">Clear</button>
-                    </div>
-                </div>
-            </div>
-            <div id="ai-suggest-loading" style="display:none"><div class="six-ai-loading"><span class="six-ai-spinner"></span> <span style="font-size:12px;color:var(--text3)">Generating strategy…</span></div></div>
-            <div id="ai-suggest-placeholder" style="text-align:center;padding:24px;color:var(--text3)">
-                <div style="font-size:24px;margin-bottom:8px"></div>
-                <div style="font-size:13px;font-weight:600;margin-bottom:4px">Select a strategy type above</div>
-                <div style="font-size:12px">AI will generate a personalised strategy based on <?php echo esc_html($c_biz); ?>'s data</div>
+        <!-- Mode quick actions -->
+        <div style="padding:12px 18px 6px;display:flex;flex-wrap:wrap;gap:6px">
+            <?php
+            $ai_modes = array(
+                'keywords'    => 'Keyword Research',
+                'gads_audit'  => 'Google Ads Audit',
+                'seo_audit'   => 'SEO Audit',
+                'strategy'    => '90-Day Strategy',
+                'performance' => 'Performance Review',
+            );
+            foreach ( $ai_modes as $mk => $ml ): ?>
+            <button class="six-btn six-btn-ghost six-btn-sm ai-mode-btn" data-mode="<?php echo esc_attr($mk); ?>" style="font-size:11px;padding:6px 12px"><?php echo esc_html($ml); ?></button>
+            <?php endforeach; ?>
+        </div>
+
+        <!-- Transcript -->
+        <div id="ai-chat-log" style="padding:14px 18px;max-height:520px;overflow-y:auto;display:flex;flex-direction:column;gap:14px">
+            <div id="ai-chat-empty" style="text-align:center;padding:26px 10px;color:var(--text3)">
+                <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:4px">Ask anything, or pick a mode above</div>
+                <div style="font-size:12px;line-height:1.6">The strategist pulls real keyword, SERP and on-page data to analyse Google Ads &amp; SEO, research keywords, and build strategy for this client.</div>
             </div>
         </div>
+
+        <!-- Input -->
+        <div style="padding:12px 18px 16px;border-top:1px solid var(--border)">
+            <div style="display:flex;gap:8px;align-items:flex-end">
+                <textarea id="ai-input" rows="2" placeholder="e.g. What keywords should we target for Google Ads, and what's the budget outlook?" style="flex:1;border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;background:var(--dark3);color:var(--text1);resize:vertical;font-family:inherit"></textarea>
+                <button class="six-btn six-btn-primary" id="ai-send" style="font-size:13px;padding:11px 18px;white-space:nowrap">Send</button>
+            </div>
+            <div style="font-size:10.5px;color:var(--text3);margin-top:6px">Outputs are for the advisor. Use “Share with customer” on any answer to send it to the client’s dashboard.</div>
+        </div>
     </div>
+
+    <script>
+    (function(){
+        var root = document.getElementById('ai-strat');
+        if(!root || root.dataset.bound) return;
+        root.dataset.bound = '1';
+        var clientId = parseInt(root.dataset.client,10);
+        var log = document.getElementById('ai-chat-log');
+        var input = document.getElementById('ai-input');
+        var sendBtn = document.getElementById('ai-send');
+        var threadSel = document.getElementById('ai-thread-select');
+        var state = { threadId:0, mode:'chat', busy:false };
+
+        function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        // Minimal markdown → HTML (headings, bold, bullets, numbered, line breaks)
+        function md(t){
+            var lines = esc(t).split('\n'), out=[], inUl=false, inOl=false;
+            function closeLists(){ if(inUl){out.push('</ul>');inUl=false;} if(inOl){out.push('</ol>');inOl=false;} }
+            for(var i=0;i<lines.length;i++){
+                var l=lines[i];
+                l=l.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/`(.+?)`/g,'<code>$1</code>');
+                if(/^\s*#{1,4}\s+/.test(l)){ closeLists(); out.push('<div style="font-weight:700;color:var(--text1);margin:10px 0 4px">'+l.replace(/^\s*#{1,4}\s+/,'')+'</div>'); continue; }
+                if(/^\s*[-*•]\s+/.test(l)){ if(!inUl){closeLists();out.push('<ul style="margin:4px 0 4px 18px;padding:0">');inUl=true;} out.push('<li style="margin:2px 0">'+l.replace(/^\s*[-*•]\s+/,'')+'</li>'); continue; }
+                if(/^\s*\d+[.)]\s+/.test(l)){ if(!inOl){closeLists();out.push('<ol style="margin:4px 0 4px 20px;padding:0">');inOl=true;} out.push('<li style="margin:2px 0">'+l.replace(/^\s*\d+[.)]\s+/,'')+'</li>'); continue; }
+                closeLists();
+                if(l.trim()==='') out.push('<div style="height:6px"></div>'); else out.push('<div>'+l+'</div>');
+            }
+            closeLists();
+            return out.join('');
+        }
+
+        function hideEmpty(){ var e=document.getElementById('ai-chat-empty'); if(e) e.style.display='none'; }
+
+        function addUser(text){
+            hideEmpty();
+            var d=document.createElement('div');
+            d.style.cssText='align-self:flex-end;max-width:82%;background:var(--pink);color:#fff;border-radius:12px 12px 3px 12px;padding:10px 13px;font-size:13px;line-height:1.5;white-space:pre-wrap';
+            d.textContent=text;
+            log.appendChild(d); log.scrollTop=log.scrollHeight;
+        }
+        function addTyping(){
+            hideEmpty();
+            var d=document.createElement('div'); d.id='ai-typing';
+            d.style.cssText='align-self:flex-start;color:var(--text3);font-size:12px;padding:8px 4px';
+            d.innerHTML='<span class="six-ai-spinner"></span> Analysing — pulling live data…';
+            log.appendChild(d); log.scrollTop=log.scrollHeight;
+        }
+        function rmTyping(){ var t=document.getElementById('ai-typing'); if(t) t.remove(); }
+
+        function addAssistant(html, meta){
+            hideEmpty();
+            var wrap=document.createElement('div');
+            wrap.style.cssText='align-self:flex-start;max-width:92%;background:var(--dark3);border:1px solid var(--border);border-radius:12px 12px 12px 3px;padding:12px 14px';
+            var body=document.createElement('div');
+            body.style.cssText='font-size:13px;color:var(--text1);line-height:1.6';
+            body.innerHTML=html;
+            wrap.appendChild(body);
+            if(meta && meta.tools && meta.tools.length){
+                var t=document.createElement('div');
+                t.style.cssText='font-size:10px;color:var(--text3);margin-top:8px';
+                t.textContent='Data pulled: '+meta.tools.join(', ');
+                wrap.appendChild(t);
+            }
+            if(meta && meta.messageId){
+                var bar=document.createElement('div');
+                bar.style.cssText='display:flex;gap:6px;margin-top:10px;flex-wrap:wrap';
+                bar.innerHTML=
+                    '<button class="six-btn six-btn-ghost six-btn-sm ai-act" data-act="up" style="font-size:11px">👍</button>'+
+                    '<button class="six-btn six-btn-ghost six-btn-sm ai-act" data-act="down" style="font-size:11px">👎</button>'+
+                    '<button class="six-btn six-btn-ghost six-btn-sm ai-act" data-act="copy" style="font-size:11px">Copy</button>'+
+                    '<button class="six-btn six-btn-ghost six-btn-sm ai-act" data-act="playbook" style="font-size:11px">Save as playbook</button>'+
+                    '<button class="six-btn six-btn-primary six-btn-sm ai-act" data-act="push" style="font-size:11px">Share with customer</button>'+
+                    '<span class="ai-act-msg" style="font-size:11px;color:var(--text3);align-self:center"></span>';
+                bar.querySelectorAll('.ai-act').forEach(function(b){
+                    b.addEventListener('click',function(){ doAction(b.dataset.act, meta.messageId, bar.querySelector('.ai-act-msg'), body.innerText); });
+                });
+                wrap.appendChild(bar);
+            }
+            log.appendChild(wrap); log.scrollTop=log.scrollHeight;
+        }
+
+        function doAction(act, messageId, msgEl, plainText){
+            if(act==='up'){
+                post({action:'six_ai_rate',message_id:messageId,rating:1}).then(function(){ if(msgEl)msgEl.textContent='Marked helpful'; });
+            } else if(act==='down'){
+                var why=prompt('What was off about this answer? (optional — helps the strategist improve)','');
+                if(why===null) return;
+                post({action:'six_ai_rate',message_id:messageId,rating:-1,note:why}).then(function(){ if(msgEl)msgEl.textContent='Thanks — noted for improvement'; });
+            } else if(act==='copy'){
+                var t=plainText||'';
+                if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(function(){ if(msgEl)msgEl.textContent='Copied'; },function(){ if(msgEl)msgEl.textContent='Copy failed'; }); }
+                else { try{ var ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); if(msgEl)msgEl.textContent='Copied'; }catch(e){ if(msgEl)msgEl.textContent='Copy failed'; } }
+            } else if(act==='playbook'){
+                if(msgEl)msgEl.textContent='Saving…';
+                post({action:'six_ai_save_playbook',message_id:messageId}).then(function(r){ if(msgEl)msgEl.textContent=(r&&r.success)?'Saved to playbook library':'Could not save'; });
+            } else if(act==='push'){
+                var title=prompt('Title for the customer (shown in their dashboard):','Strategy from your advisor');
+                if(title===null) return;
+                if(msgEl)msgEl.textContent='Sharing…';
+                post({action:'six_ai_push_reco',client_id:clientId,message_id:messageId,title:title}).then(function(r){ if(msgEl)msgEl.textContent=(r&&r.success)?'Shared with customer ✓':'Could not share'; });
+            }
+        }
+
+        function send(text){
+            if(state.busy) return;
+            text=(text||input.value||'').trim();
+            if(!text) return;
+            state.busy=true; sendBtn.disabled=true; input.value='';
+            addUser(text); addTyping();
+            post({action:'six_ai_send',client_id:clientId,thread_id:state.threadId,mode:state.mode,message:text}).then(function(res){
+                rmTyping(); state.busy=false; sendBtn.disabled=false;
+                if(res&&res.success){
+                    state.threadId=res.data.thread_id||state.threadId;
+                    addAssistant(md(res.data.reply||''),{tools:res.data.tools_used||[],messageId:res.data.message_id});
+                    refreshThreads();
+                } else {
+                    addAssistant('<span style="color:var(--danger)">'+esc((res&&res.data)||'The strategist failed. Check the Anthropic/DataForSEO keys in settings.')+'</span>',{});
+                }
+            }).catch(function(){ rmTyping(); state.busy=false; sendBtn.disabled=false; addAssistant('<span style="color:var(--danger)">Network error — please try again.</span>',{}); });
+        }
+
+        var starters={
+            keywords:'Do professional keyword research for this client: pull real search volumes and expansion ideas, cluster by intent, and recommend a prioritised target keyword list with rationale.',
+            gads_audit:'Run a full Google Ads audit and opportunity analysis for this client using real keyword and CPC data. Cover demand, budget outlook, structure, negatives, and expected outcomes.',
+            seo_audit:'Run an SEO analysis for this client: on-page signals, the keywords they and competitors rank for, content and technical gaps, prioritised by impact.',
+            strategy:'Build a complete 90-day digital marketing strategy for this client, grounded in real data, with monthly milestones, channel mix, budget allocation, KPIs and expected results.',
+            performance:'Review this client’s current performance and connected accounts, and recommend concrete next actions and optimisations.'
+        };
+        root.querySelectorAll('.ai-mode-btn').forEach(function(b){
+            b.addEventListener('click',function(){
+                state.mode=b.dataset.mode;
+                root.querySelectorAll('.ai-mode-btn').forEach(function(x){ x.style.background=''; x.style.color=''; });
+                b.style.background='linear-gradient(135deg,#FF6699,#83C5ED)'; b.style.color='#fff';
+                send(starters[b.dataset.mode]||'');
+            });
+        });
+
+        sendBtn.addEventListener('click',function(){ state.mode='chat'; send(); });
+        input.addEventListener('keydown',function(e){ if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){ state.mode='chat'; send(); } });
+
+        document.getElementById('ai-new-thread').addEventListener('click',function(){
+            state.threadId=0; threadSel.value='0';
+            log.innerHTML='<div id="ai-chat-empty" style="text-align:center;padding:26px 10px;color:var(--text3)"><div style="font-size:13px;font-weight:600;color:var(--text2)">New conversation started</div></div>';
+        });
+
+        threadSel.addEventListener('change',function(){
+            var tid=parseInt(this.value,10);
+            state.threadId=tid;
+            if(!tid){ document.getElementById('ai-new-thread').click(); return; }
+            log.innerHTML='<div style="color:var(--text3);font-size:12px;padding:10px">Loading…</div>';
+            post({action:'six_ai_thread_load',thread_id:tid}).then(function(r){
+                log.innerHTML='';
+                if(r&&r.success&&r.data.messages){
+                    r.data.messages.forEach(function(m){
+                        if(m.role==='user') addUser(m.content);
+                        else addAssistant(md(m.content),{tools:(m.tools_used||'').split(',').filter(Boolean),messageId:parseInt(m.id,10)});
+                    });
+                }
+            });
+        });
+
+        function refreshThreads(){
+            post({action:'six_ai_threads',client_id:clientId}).then(function(r){
+                if(!(r&&r.success)) return;
+                var cur=state.threadId;
+                threadSel.innerHTML='<option value="0">New conversation</option>';
+                (r.data.threads||[]).forEach(function(t){
+                    var o=document.createElement('option'); o.value=t.id; o.textContent=(t.title||'Conversation').slice(0,40);
+                    if(parseInt(t.id,10)===cur) o.selected=true;
+                    threadSel.appendChild(o);
+                });
+            });
+        }
+        // post()/AJAX/NONCE are defined later in the page; defer the initial
+        // load until the DOM is ready so they exist.
+        if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',refreshThreads); else refreshThreads();
+    })();
+    </script>
 
     <!-- Active recommendations with edit/delete -->
     <?php if(!empty($c_ai_pending)): ?>
@@ -2699,6 +2846,148 @@ function advCompleteOnboarding(clientId){
 
         <?php endif; // end total_tracked ?>
 
+    <?php /* ════════════ AI PLAYBOOKS & OUTCOMES ════════════ */ elseif($active_tab==='playbooks'): ?>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+        <div>
+            <h1 class="six-page-title" style="margin:0">AI Playbooks &amp; Outcomes</h1>
+            <p class="six-page-sub" style="margin:4px 0 0">Your reusable winning strategies and their measured results — the memory that makes the AI Strategist sharper over time.</p>
+        </div>
+    </div>
+
+    <!-- Proven outcomes summary -->
+    <div class="six-card" style="margin-bottom:20px">
+        <div class="six-card-header"><span class="six-card-title">Measured Results (all clients)</span></div>
+        <div class="six-card-body" id="oc-summary" style="font-size:13px;color:var(--text3)">Loading…</div>
+    </div>
+
+    <!-- Playbook library -->
+    <div class="six-card" style="margin-bottom:20px">
+        <div class="six-card-header">
+            <span class="six-card-title">Playbook Library</span>
+            <span id="pb-count" class="six-badge" style="background:rgba(255,102,153,.15);color:var(--pink)">0</span>
+        </div>
+        <div class="six-card-body" id="pb-list" style="display:flex;flex-direction:column;gap:12px">
+            <div style="color:var(--text3);font-size:13px">Loading…</div>
+        </div>
+    </div>
+
+    <!-- Tracked outcomes -->
+    <div class="six-card">
+        <div class="six-card-header">
+            <span class="six-card-title">Tracked Outcomes</span>
+            <span style="font-size:11px;color:var(--text3)">Baselines are captured when you share a strategy with a customer</span>
+        </div>
+        <div class="six-card-body" id="oc-list" style="padding:0">
+            <div style="color:var(--text3);font-size:13px;padding:16px">Loading…</div>
+        </div>
+    </div>
+
+    <script>
+    (function(){
+        var root=document.getElementById('pb-list');
+        if(!root) return;
+        function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+        function liftChips(liftJson){
+            var lift; try{ lift=JSON.parse(liftJson||'{}'); }catch(e){ lift={}; }
+            var keys=Object.keys(lift||{}); if(!keys.length) return '<span style="color:var(--text3)">—</span>';
+            var label={'gads.conversions':'Ads conv.','gads.clicks':'Ads clicks','ga4.conversions':'GA4 conv.','ga4.sessions':'Sessions','gsc.clicks':'Organic clicks','gsc.impressions':'Impressions'};
+            return keys.slice(0,4).map(function(k){
+                var v=lift[k], up=v>=0;
+                return '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;margin-right:5px;background:'+(up?'rgba(86,211,100,.14)':'rgba(220,38,38,.12)')+';color:'+(up?'#1a7a2e':'#b91c1c')+'">'+(label[k]||k)+' '+(up?'+':'')+v+'%</span>';
+            }).join('');
+        }
+
+        function loadPlaybooks(){
+            post({action:'six_ai_playbooks_list'}).then(function(r){
+                root.innerHTML='';
+                var pbs=(r&&r.success&&r.data.playbooks)||[];
+                document.getElementById('pb-count').textContent=pbs.length;
+                if(!pbs.length){ root.innerHTML='<div style="color:var(--text3);font-size:13px">No playbooks yet. In a client’s AI Strategy chat, click <strong>Save as playbook</strong> on a strong answer to build your library.</div>'; return; }
+                pbs.forEach(function(p){
+                    var d=document.createElement('div');
+                    d.style.cssText='border:1px solid var(--border);border-radius:12px;padding:14px 16px';
+                    d.innerHTML=
+                        '<div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap">'
+                        +'<div style="flex:1;min-width:0">'
+                          +'<div style="font-size:14px;font-weight:700;color:var(--text1)">'+esc(p.title)+'</div>'
+                          +'<div style="font-size:11px;color:var(--text3);margin-top:2px">'+esc(p.industry||'any industry')+' · '+esc(p.service||'general')+' · used '+p.uses+'×</div>'
+                        +'</div>'
+                        +'<button class="six-btn six-btn-ghost six-btn-sm pb-edit" style="font-size:11px;color:var(--cyan)">Edit</button>'
+                        +'<button class="six-btn six-btn-ghost six-btn-sm pb-del" style="font-size:11px;color:var(--danger)">Delete</button>'
+                        +'</div>'
+                        +'<div class="pb-body" style="font-size:12.5px;color:var(--text2);line-height:1.6;margin-top:8px;white-space:pre-wrap;max-height:120px;overflow:hidden">'+esc((p.content||'').slice(0,600))+'</div>'
+                        +'<div class="pb-editform" style="display:none;margin-top:10px">'
+                          +'<div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin-bottom:8px">'
+                            +'<input class="six-input pb-f-title" value="'+esc(p.title)+'" placeholder="Title" style="font-size:12px">'
+                            +'<input class="six-input pb-f-ind" value="'+esc(p.industry)+'" placeholder="Industry" style="font-size:12px">'
+                            +'<input class="six-input pb-f-svc" value="'+esc(p.service)+'" placeholder="Service/mode" style="font-size:12px">'
+                          +'</div>'
+                          +'<textarea class="six-input pb-f-content" rows="6" style="font-size:12px;width:100%;resize:vertical">'+esc(p.content)+'</textarea>'
+                          +'<div style="margin-top:8px;display:flex;gap:8px"><button class="six-btn six-btn-primary six-btn-sm pb-save" style="font-size:11px">Save</button><button class="six-btn six-btn-ghost six-btn-sm pb-cancel" style="font-size:11px">Cancel</button><span class="pb-msg" style="font-size:11px;align-self:center;color:var(--text3)"></span></div>'
+                        +'</div>';
+                    d.querySelector('.pb-edit').addEventListener('click',function(){ d.querySelector('.pb-editform').style.display='block'; d.querySelector('.pb-body').style.display='none'; });
+                    d.querySelector('.pb-cancel').addEventListener('click',function(){ d.querySelector('.pb-editform').style.display='none'; d.querySelector('.pb-body').style.display='block'; });
+                    d.querySelector('.pb-del').addEventListener('click',function(){ if(!confirm('Delete this playbook?'))return; post({action:'six_ai_playbook_delete',id:p.id}).then(function(){ d.remove(); }); });
+                    d.querySelector('.pb-save').addEventListener('click',function(){
+                        var msg=d.querySelector('.pb-msg'); msg.textContent='Saving…';
+                        post({action:'six_ai_playbook_update',id:p.id,
+                            title:d.querySelector('.pb-f-title').value,
+                            industry:d.querySelector('.pb-f-ind').value,
+                            service:d.querySelector('.pb-f-svc').value,
+                            content:d.querySelector('.pb-f-content').value
+                        }).then(function(r){ msg.textContent=(r&&r.success)?'Saved':'Error'; if(r&&r.success) setTimeout(loadPlaybooks,600); });
+                    });
+                    root.appendChild(d);
+                });
+            });
+        }
+
+        function summarize(sum){
+            var el=document.getElementById('oc-summary');
+            if(!sum||!sum.measured_clients){ el.innerHTML='No measured outcomes yet. Share strategies with customers, then click <strong>Measure</strong> after a few weeks to build your track record.'; return; }
+            var avg=sum.avg_lift||{}; var keys=Object.keys(avg);
+            var label={'gads.conversions':'Google Ads conversions','gads.clicks':'Google Ads clicks','ga4.conversions':'GA4 conversions','ga4.sessions':'Website sessions','gsc.clicks':'Organic clicks','gsc.impressions':'Search impressions'};
+            var html='<div style="margin-bottom:8px">Across <strong>'+sum.measured_clients+'</strong> measured client'+(sum.measured_clients>1?'s':'')+':</div><div style="display:flex;flex-wrap:wrap;gap:8px">';
+            keys.forEach(function(k){ var v=avg[k].avg_lift_pct, up=v>=0;
+                html+='<span style="font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;background:'+(up?'rgba(86,211,100,.14)':'rgba(220,38,38,.12)')+';color:'+(up?'#1a7a2e':'#b91c1c')+'">'+(label[k]||k)+': '+(up?'+':'')+v+'% avg</span>';
+            });
+            html+='</div>';
+            el.innerHTML=html;
+        }
+
+        function loadOutcomes(){
+            post({action:'six_ai_outcomes_list'}).then(function(r){
+                var list=document.getElementById('oc-list');
+                var ocs=(r&&r.success&&r.data.outcomes)||[];
+                summarize(r&&r.data&&r.data.summary);
+                if(!ocs.length){ list.innerHTML='<div style="color:var(--text3);font-size:13px;padding:16px">No tracked outcomes yet.</div>'; return; }
+                list.innerHTML='';
+                ocs.forEach(function(o){
+                    var row=document.createElement('div');
+                    row.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap';
+                    var measured=o.status==='measured';
+                    row.innerHTML=
+                        '<div style="flex:1;min-width:180px">'
+                          +'<div style="font-size:13px;font-weight:600;color:var(--text1)">'+esc(o.client_name)+' · '+esc(o.title)+'</div>'
+                          +'<div style="font-size:11px;color:var(--text3);margin-top:2px">'+esc(o.industry||'—')+' · baseline '+esc((o.baseline_at||'').slice(0,10))+(measured?' · measured '+esc((o.result_at||'').slice(0,10)):'')+'</div>'
+                        +'</div>'
+                        +'<div style="flex:1;min-width:160px">'+(measured?liftChips(o.lift_json):'<span style="font-size:11px;color:var(--text3)">Tracking — not yet measured</span>')+'</div>'
+                        +'<button class="six-btn six-btn-primary six-btn-sm oc-measure" style="font-size:11px">'+(measured?'Re-measure':'Measure')+'</button>';
+                    row.querySelector('.oc-measure').addEventListener('click',function(){
+                        var b=this; b.textContent='Measuring…'; b.disabled=true;
+                        post({action:'six_ai_measure_outcome',outcome_id:o.id}).then(function(r){ b.disabled=false; b.textContent='Re-measure'; if(r&&r.success){ loadOutcomes(); } else { b.textContent='Retry'; alert((r&&r.data)||'Could not measure — check that the client’s accounts are connected.'); } });
+                    });
+                    list.appendChild(row);
+                });
+            });
+        }
+
+        function init(){ loadPlaybooks(); loadOutcomes(); }
+        if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+    })();
+    </script>
     <?php endif;?>
     </main>
 </div>
