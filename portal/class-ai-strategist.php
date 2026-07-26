@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 class Six_AI_Strategist {
 
-    const DB_VERSION = 1;
+    const DB_VERSION = 2;
     const MAX_TOOL_LOOPS = 6;
 
     // Deep, multi-step reasoning modes → Opus. Quick tasks → Sonnet.
@@ -56,6 +56,7 @@ class Six_AI_Strategist {
             content longtext,
             tools_used varchar(255) DEFAULT '',
             rating tinyint(4) DEFAULT 0,
+            rating_note varchar(500) DEFAULT '',
             tokens int(11) DEFAULT 0,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
@@ -190,6 +191,25 @@ class Six_AI_Strategist {
                 'description' => "Get the client's connected accounts, active services/budgets and any advisor-tracked KPI metrics on file.",
                 'input_schema' => array( 'type'=>'object', 'properties'=>new stdClass() ),
             ),
+            array(
+                'name' => 'google_ads_performance',
+                'description' => "Pull the client's LIVE Google Ads performance (last 30 days): spend, clicks, impressions, conversions, CPC, CPA and per-campaign breakdown. Use before making Google Ads optimisation claims.",
+                'input_schema' => array( 'type'=>'object', 'properties'=>new stdClass() ),
+            ),
+            array(
+                'name' => 'ga4_analytics',
+                'description' => "Pull the client's LIVE GA4 website analytics: sessions, users, pageviews, conversions and traffic by channel. Use to understand where traffic and conversions actually come from.",
+                'input_schema' => array( 'type'=>'object', 'properties'=>array(
+                    'days'=>array('type'=>'integer','description'=>'Lookback window in days (default 30)'),
+                ) ),
+            ),
+            array(
+                'name' => 'search_console',
+                'description' => "Pull the client's LIVE Google Search Console data: total clicks/impressions/CTR/average position and top search queries. Use for organic/SEO performance analysis.",
+                'input_schema' => array( 'type'=>'object', 'properties'=>array(
+                    'days'=>array('type'=>'integer','description'=>'Lookback window in days (default 28)'),
+                ) ),
+            ),
         );
     }
 
@@ -212,6 +232,22 @@ class Six_AI_Strategist {
                 return Six_DataForSEO::onpage( $input['url'] ?? '' );
             case 'client_performance':
                 return self::performance_snapshot( $client_id );
+            case 'google_ads_performance':
+                if ( ! class_exists( 'Six_Google_Ads' ) ) return array( 'error' => 'Google Ads integration unavailable.' );
+                $m = Six_Google_Ads::get_campaign_metrics_for_client( $client_id );
+                if ( $m === false ) return array( 'error' => Six_Google_Ads::get_last_error() ?: 'Google Ads data unavailable.' );
+                if ( empty( $m ) ) return array( 'note' => 'Google Ads connected but no active-campaign data in the last 30 days.' );
+                return $m;
+            case 'ga4_analytics':
+                if ( ! class_exists( 'Six_Analytics' ) ) return array( 'error' => 'Analytics integration unavailable.' );
+                $prop = get_user_meta( $client_id, 'six_ga4_property_id', true ) ?: get_option( 'six_ga4_property_id', '' );
+                if ( ! $prop ) return array( 'error' => 'No GA4 property ID connected for this client.' );
+                return Six_Analytics::ga4_summary( $prop, $input['days'] ?? 30 );
+            case 'search_console':
+                if ( ! class_exists( 'Six_Analytics' ) ) return array( 'error' => 'Analytics integration unavailable.' );
+                $site = get_user_meta( $client_id, 'six_gsc_site', true );
+                if ( ! $site ) return array( 'error' => 'No Search Console site connected for this client.' );
+                return Six_Analytics::gsc_summary( $site, $input['days'] ?? 28 );
         }
         return array( 'error' => 'Unknown tool: ' . $name );
     }
@@ -233,6 +269,12 @@ class Six_AI_Strategist {
             "SELECT label,current_value,previous_value,service_slug FROM {$wpdb->prefix}six_metrics WHERE client_id=%d", $client_id ) );
         foreach ( (array) $metrics as $m ) $out['kpis'][] = array( 'label'=>$m->label,'current'=>$m->current_value,'previous'=>$m->previous_value,'service'=>$m->service_slug );
         if ( ! $out['kpis'] ) $out['kpis_note'] = 'No KPI metrics recorded yet; rely on onboarding context and live keyword data.';
+        // Tell the agent which LIVE data tools will work for this client.
+        $live = array();
+        if ( get_user_meta( $client_id, 'six_gads_customer_id', true ) ) $live[] = 'google_ads_performance';
+        if ( get_user_meta( $client_id, 'six_ga4_property_id', true ) || get_option( 'six_ga4_property_id', '' ) ) $live[] = 'ga4_analytics';
+        if ( get_user_meta( $client_id, 'six_gsc_site', true ) ) $live[] = 'search_console';
+        $out['available_live_tools'] = $live ?: array( 'none — recommend the advisor connect Google Ads / GA4 / Search Console' );
         return $out;
     }
 

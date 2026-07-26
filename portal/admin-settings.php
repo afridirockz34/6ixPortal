@@ -95,6 +95,12 @@ function six_admin_settings() {
                 update_option( $f, sanitize_text_field( $_POST[$f] ) );
             }
         }
+        // Multiline / structured options must NOT go through sanitize_text_field
+        // (it would collapse the service-account JSON's private key). Admin-only
+        // + nonce-verified, so store raw after unslashing.
+        foreach ( array( 'six_ga4_service_account_json' ) as $tf ) {
+            if ( isset( $_POST[ $tf ] ) ) update_option( $tf, trim( wp_unslash( $_POST[ $tf ] ) ) );
+        }
         echo '<div class="notice notice-success is-dismissible"><p>✓ Settings saved.</p></div>';
     }
 

@@ -1229,6 +1229,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 bar.innerHTML=
                     '<button class="six-btn six-btn-ghost six-btn-sm ai-act" data-act="up" style="font-size:11px">👍</button>'+
                     '<button class="six-btn six-btn-ghost six-btn-sm ai-act" data-act="down" style="font-size:11px">👎</button>'+
+                    '<button class="six-btn six-btn-ghost six-btn-sm ai-act" data-act="copy" style="font-size:11px">Copy</button>'+
                     '<button class="six-btn six-btn-ghost six-btn-sm ai-act" data-act="playbook" style="font-size:11px">Save as playbook</button>'+
                     '<button class="six-btn six-btn-primary six-btn-sm ai-act" data-act="push" style="font-size:11px">Share with customer</button>'+
                     '<span class="ai-act-msg" style="font-size:11px;color:var(--text3);align-self:center"></span>';
@@ -1241,8 +1242,16 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         }
 
         function doAction(act, messageId, msgEl, plainText){
-            if(act==='up'||act==='down'){
-                post({action:'six_ai_rate',message_id:messageId,rating:act==='up'?1:-1}).then(function(){ if(msgEl)msgEl.textContent=act==='up'?'Marked helpful':'Noted'; });
+            if(act==='up'){
+                post({action:'six_ai_rate',message_id:messageId,rating:1}).then(function(){ if(msgEl)msgEl.textContent='Marked helpful'; });
+            } else if(act==='down'){
+                var why=prompt('What was off about this answer? (optional — helps the strategist improve)','');
+                if(why===null) return;
+                post({action:'six_ai_rate',message_id:messageId,rating:-1,note:why}).then(function(){ if(msgEl)msgEl.textContent='Thanks — noted for improvement'; });
+            } else if(act==='copy'){
+                var t=plainText||'';
+                if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(function(){ if(msgEl)msgEl.textContent='Copied'; },function(){ if(msgEl)msgEl.textContent='Copy failed'; }); }
+                else { try{ var ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); if(msgEl)msgEl.textContent='Copied'; }catch(e){ if(msgEl)msgEl.textContent='Copy failed'; } }
             } else if(act==='playbook'){
                 if(msgEl)msgEl.textContent='Saving…';
                 post({action:'six_ai_save_playbook',message_id:messageId}).then(function(r){ if(msgEl)msgEl.textContent=(r&&r.success)?'Saved to playbook library':'Could not save'; });

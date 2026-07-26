@@ -66,8 +66,11 @@ add_action( 'wp_ajax_six_ai_rate', function () {
     $message_id = intval( $_POST['message_id'] ?? 0 );
     $rating     = intval( $_POST['rating'] ?? 0 ); // 1 up, -1 down, 0 clear
     $rating     = max( -1, min( 1, $rating ) );
+    $note       = sanitize_text_field( $_POST['note'] ?? '' );
     if ( ! $message_id ) wp_send_json_error( 'Missing message.' );
-    $wpdb->update( "{$wpdb->prefix}six_ai_messages", array( 'rating' => $rating ), array( 'id' => $message_id ) );
+    $data = array( 'rating' => $rating );
+    if ( $note !== '' || $rating === 0 ) $data['rating_note'] = mb_substr( $note, 0, 500 );
+    $wpdb->update( "{$wpdb->prefix}six_ai_messages", $data, array( 'id' => $message_id ) );
     wp_send_json_success( array( 'rating' => $rating ) );
 } );
 
