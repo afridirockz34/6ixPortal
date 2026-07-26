@@ -38,6 +38,9 @@ $optional_files = array(
     'class-stripe.php',
     'class-google-ads-calendar.php',
     'class-appointments.php',   // unified calls/meetings store (after calendar + odoo)
+    'class-dataforseo.php',     // DataForSEO client (keywords/labs/serp/onpage)
+    'class-ai-strategist.php',  // advisor AI strategy agent (needs dataforseo + odoo)
+    'ajax-ai-strategist.php',   // AI strategist AJAX endpoints
     'ajax-handlers.php',
     'admin-settings.php',
     'social-login.php',        // Nextend Social Login (Google) integration

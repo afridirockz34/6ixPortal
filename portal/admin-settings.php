@@ -81,6 +81,7 @@ function six_admin_settings() {
         'six_dataforseo_login', 'six_dataforseo_password',
         'six_gads_client_id', 'six_gads_client_secret', 'six_gads_refresh_token',
         'six_anthropic_api_key', 'six_google_analytics_property_id', 'six_google_analytics_key',
+        'six_ai_model_deep', 'six_ai_model_fast',
         'six_ga4_property_id', 'six_meta_app_id', 'six_meta_ad_account_id',
         'six_ga4_property_id', 'six_meta_app_id', 'six_meta_ad_account_id',
         // Twilio SMS
@@ -397,7 +398,21 @@ function six_admin_settings() {
                     <th>Anthropic API Key</th>
                     <td>
                         <input name="six_anthropic_api_key" type="password" value="<?php echo $s('six_anthropic_api_key',true); ?>" class="regular-text" placeholder="sk-ant-...">
-                        <p class="description">Used server-side only. Never exposed to the browser.</p>
+                        <p class="description">Used server-side only. Never exposed to the browser. Powers the AI Strategist and growth plans.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th>AI Strategist — Deep model</th>
+                    <td>
+                        <input name="six_ai_model_deep" value="<?php echo $s('six_ai_model_deep'); ?>" class="regular-text" placeholder="claude-opus-5">
+                        <p class="description">Used for audits &amp; full strategy (deep reasoning). Default <code>claude-opus-5</code>. If your key can't access it, set an available model here.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th>AI Strategist — Fast model</th>
+                    <td>
+                        <input name="six_ai_model_fast" value="<?php echo $s('six_ai_model_fast'); ?>" class="regular-text" placeholder="claude-sonnet-5">
+                        <p class="description">Used for quick keyword/ad-copy tasks. Default <code>claude-sonnet-5</code>.</p>
                     </td>
                 </tr>
             </table>

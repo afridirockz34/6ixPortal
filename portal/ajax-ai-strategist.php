@@ -1,0 +1,143 @@
+<?php
+/**
+ * AJAX handlers for the advisor AI Strategist workspace.
+ * All advisor/admin-gated.
+ */
+if ( ! defined( 'ABSPATH' ) ) exit;
+
+function six_ai_is_advisor() {
+    return ( class_exists( 'Six_Roles' ) && Six_Roles::is_advisor() )
+        || current_user_can( 'manage_options' )
+        || current_user_can( 'six_advisor' );
+}
+
+// ── Send a message (runs the agent) ─────────────────────────────────────────
+add_action( 'wp_ajax_six_ai_send', function () {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! six_ai_is_advisor() ) wp_send_json_error( 'Permission denied.' );
+    if ( ! class_exists( 'Six_AI_Strategist' ) ) wp_send_json_error( 'AI strategist unavailable.' );
+
+    $client_id = intval( $_POST['client_id'] ?? 0 );
+    $thread_id = intval( $_POST['thread_id'] ?? 0 );
+    $mode      = sanitize_key( $_POST['mode'] ?? 'chat' );
+    $message   = wp_kses_post( wp_unslash( $_POST['message'] ?? '' ) );
+    if ( ! $client_id ) wp_send_json_error( 'Missing client.' );
+    if ( trim( $message ) === '' ) wp_send_json_error( 'Message is empty.' );
+
+    // Give the agent room to run its tool loop.
+    @set_time_limit( 180 );
+
+    $res = Six_AI_Strategist::run( $client_id, $thread_id, get_current_user_id(), $message, $mode );
+    if ( empty( $res['success'] ) ) wp_send_json_error( $res['error'] ?? 'The strategist failed.' );
+    wp_send_json_success( $res );
+} );
+
+// ── List threads for a client ───────────────────────────────────────────────
+add_action( 'wp_ajax_six_ai_threads', function () {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! six_ai_is_advisor() ) wp_send_json_error( 'Permission denied.' );
+    global $wpdb;
+    $client_id = intval( $_POST['client_id'] ?? 0 );
+    if ( ! $client_id ) wp_send_json_error( 'Missing client.' );
+    $rows = $wpdb->get_results( $wpdb->prepare(
+        "SELECT id, title, mode, updated_at FROM {$wpdb->prefix}six_ai_threads
+         WHERE client_id=%d ORDER BY updated_at DESC LIMIT 40", $client_id ) );
+    wp_send_json_success( array( 'threads' => $rows ?: array() ) );
+} );
+
+// ── Load a thread's messages ────────────────────────────────────────────────
+add_action( 'wp_ajax_six_ai_thread_load', function () {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! six_ai_is_advisor() ) wp_send_json_error( 'Permission denied.' );
+    global $wpdb;
+    $thread_id = intval( $_POST['thread_id'] ?? 0 );
+    if ( ! $thread_id ) wp_send_json_error( 'Missing thread.' );
+    $rows = $wpdb->get_results( $wpdb->prepare(
+        "SELECT id, role, content, tools_used, rating FROM {$wpdb->prefix}six_ai_messages
+         WHERE thread_id=%d ORDER BY id ASC", $thread_id ) );
+    wp_send_json_success( array( 'messages' => $rows ?: array() ) );
+} );
+
+// ── Rate a message (feedback capture) ───────────────────────────────────────
+add_action( 'wp_ajax_six_ai_rate', function () {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! six_ai_is_advisor() ) wp_send_json_error( 'Permission denied.' );
+    global $wpdb;
+    $message_id = intval( $_POST['message_id'] ?? 0 );
+    $rating     = intval( $_POST['rating'] ?? 0 ); // 1 up, -1 down, 0 clear
+    $rating     = max( -1, min( 1, $rating ) );
+    if ( ! $message_id ) wp_send_json_error( 'Missing message.' );
+    $wpdb->update( "{$wpdb->prefix}six_ai_messages", array( 'rating' => $rating ), array( 'id' => $message_id ) );
+    wp_send_json_success( array( 'rating' => $rating ) );
+} );
+
+// ── Save an assistant message as a reusable playbook ────────────────────────
+add_action( 'wp_ajax_six_ai_save_playbook', function () {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! six_ai_is_advisor() ) wp_send_json_error( 'Permission denied.' );
+    if ( ! class_exists( 'Six_AI_Strategist' ) ) { Six_AI_Strategist::maybe_create_tables(); }
+    global $wpdb;
+    $message_id = intval( $_POST['message_id'] ?? 0 );
+    $title      = sanitize_text_field( $_POST['title'] ?? '' );
+    if ( ! $message_id ) wp_send_json_error( 'Missing message.' );
+
+    $msg = $wpdb->get_row( $wpdb->prepare(
+        "SELECT m.content, t.client_id, t.mode
+         FROM {$wpdb->prefix}six_ai_messages m
+         JOIN {$wpdb->prefix}six_ai_threads t ON m.thread_id=t.id
+         WHERE m.id=%d", $message_id ) );
+    if ( ! $msg ) wp_send_json_error( 'Message not found.' );
+
+    $co = $wpdb->get_row( $wpdb->prepare(
+        "SELECT industry, platforms, goal FROM {$wpdb->prefix}six_checkout_progress WHERE user_id=%d", intval( $msg->client_id ) ) );
+    if ( ! $title ) $title = trim( mb_substr( wp_strip_all_tags( $msg->content ), 0, 70 ) );
+
+    $wpdb->insert( "{$wpdb->prefix}six_ai_playbooks", array(
+        'title'       => $title ?: 'Strategy playbook',
+        'industry'    => $co->industry ?? '',
+        'service'     => $msg->mode,
+        'goal_tags'   => $co->goal ?? '',
+        'content'     => wp_kses_post( $msg->content ),
+        'created_by'  => get_current_user_id(),
+        'created_at'  => current_time( 'mysql' ),
+    ) );
+    wp_send_json_success( array( 'id' => intval( $wpdb->insert_id ), 'message' => 'Saved to the playbook library.' ) );
+} );
+
+// ── Push an assistant output to the customer as a recommendation ────────────
+add_action( 'wp_ajax_six_ai_push_reco', function () {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! six_ai_is_advisor() ) wp_send_json_error( 'Permission denied.' );
+    global $wpdb;
+    $client_id  = intval( $_POST['client_id'] ?? 0 );
+    $message_id = intval( $_POST['message_id'] ?? 0 );
+    $title      = sanitize_text_field( $_POST['title'] ?? 'Strategy recommendation' );
+    if ( ! $client_id || ! $message_id ) wp_send_json_error( 'Missing data.' );
+
+    $content = $wpdb->get_var( $wpdb->prepare(
+        "SELECT content FROM {$wpdb->prefix}six_ai_messages WHERE id=%d", $message_id ) );
+    if ( $content === null ) wp_send_json_error( 'Message not found.' );
+
+    // Advisor-vetted → source advisor_ai so it surfaces in the customer's
+    // "from your advisor" recommendations.
+    $wpdb->insert( $wpdb->prefix . 'six_recommendations', array(
+        'client_id'    => $client_id,
+        'advisor_id'   => get_current_user_id(),
+        'title'        => $title,
+        'description'  => wp_kses_post( $content ),
+        'action_label' => 'View strategy',
+        'action_type'  => 'info',
+        'source'       => 'advisor_ai',
+        'status'       => 'active',
+        'created_at'   => current_time( 'mysql' ),
+    ) );
+    if ( class_exists( 'Six_Notifications' ) ) {
+        Six_Notifications::create( array(
+            'user_id' => $client_id, 'type' => 'recommendation',
+            'title'   => 'New strategy from your advisor',
+            'message' => $title,
+            'action_url' => home_url( '/portal/' ),
+        ) );
+    }
+    wp_send_json_success( array( 'id' => intval( $wpdb->insert_id ), 'message' => 'Shared with the customer.' ) );
+} );
