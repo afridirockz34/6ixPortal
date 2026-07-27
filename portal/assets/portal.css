@@ -4,7 +4,7 @@
    ============================================================ */
 
 /* ── FONTS ───────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Mulish:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Onest:wght@400;500;600;700;800&display=swap');
 
 /* ── VARIABLES ───────────────────────────────────────────── */
 /* ── LIGHT MODE (default) ──────────────────────────────────────── */
@@ -31,10 +31,10 @@
   --text2:   #3D4759;   /* body */
   --text3:   #5E6B7B;   /* muted — still clearly legible */
 
-  /* Fonts */
-  --font-head: 'Montserrat', sans-serif;
-  --font-body: 'Mulish', sans-serif;
-  --font-num:  'Inter', sans-serif;   /* numbers — tabular, crisp */
+  /* Fonts — editorial pairing: Bricolage Grotesque display + Onest text */
+  --font-head: 'Bricolage Grotesque', 'Onest', sans-serif;
+  --font-body: 'Onest', sans-serif;
+  --font-num:  'Onest', sans-serif;   /* tabular via font-variant-numeric */
 
   --radius:  12px;
   --shadow:  0 1px 4px rgba(15,25,35,0.08), 0 4px 16px rgba(15,25,35,0.04);
@@ -1133,8 +1133,6 @@ textarea.six-input {
 /* ── NUMBER DISPLAY FONT — apply to all big number displays ── */
 .six-stat-val,
 .six-readiness-score,
-[style*="font-family:'Montserrat'"][style*="font-weight:800"],
-[style*="font-family:'Montserrat'"][style*="font-weight:900"],
 [style*="font-size:28px"],
 [style*="font-size:26px"],
 [style*="font-size:22px"],
@@ -2297,14 +2295,14 @@ textarea.six-input {
     font-size: 11px;
     font-weight: 700;
     color: var(--cyan);
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-num);
   }
 
   /* Health % on the right */
   .six-client-card-health {
     font-size: 14px;
     font-weight: 800;
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-num);
     flex-shrink: 0;
     min-width: 36px;
     text-align: right;
