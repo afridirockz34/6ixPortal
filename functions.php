@@ -65,10 +65,10 @@ function six_enqueue_assets() {
     $current_slug = get_post_field( 'post_name', get_the_ID() );
     if ( ! in_array( $current_slug, $portal_slugs, true ) ) return;
 
-    // Fonts — Syne + DM Sans + Inter (for number displays)
+    // Fonts — Bricolage Grotesque (display) + Onest (text/numbers)
     wp_enqueue_style(
         'six-fonts',
-        'https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=Inter:wght@400;500;600;700;800;900&display=swap',
+        'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Onest:wght@400;500;600;700;800&display=swap',
         array(),
         null
     );
@@ -349,7 +349,7 @@ function six_serve_onboarding_page() {
 <title>Get Started — <?php bloginfo('name'); ?></title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Onest:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="<?php echo esc_url($css_url . '?v=' . $css_ver); ?>">
 <script src="https://js.stripe.com/v3/"></script>
 </head>

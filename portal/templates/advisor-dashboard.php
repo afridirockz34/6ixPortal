@@ -551,7 +551,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                     <?php else:?>
                         <div style="font-size:11px;color:var(--text3);margin-bottom:12px">Based on campaign performance signals:</div>
                         <?php foreach($upsells as $u):?>
-                        <div style="padding:10px 12px;background:var(--dark4);border-radius:8px;margin-bottom:8px;border-left:3px solid var(--cyan)">
+                        <div style="padding:10px 12px;background:var(--dark4);border-radius:10px;margin-bottom:8px">
                             <div style="font-size:12px;font-weight:600;margin-bottom:3px"><?php echo esc_html($u['client']);?> → <?php echo esc_html($u['service']);?></div>
                             <div style="font-size:11px;color:<?php echo $u['color'];?>">↑ <?php echo esc_html($u['reason']);?></div>
                         </div>
@@ -839,7 +839,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 array('label'=>'Est. Monthly ROI','val'=>$c_ai_data['monthly_roi']??'—',   'color'=>'var(--pink)'));
             foreach($ai_stats as $stat): ?>
             <div style="background:var(--dark3);border-radius:10px;padding:12px;text-align:center">
-                <div style="font-family:'Montserrat',sans-serif;font-size:16px;font-weight:700;color:<?php echo $stat['color']; ?>"><?php echo esc_html($stat['val']); ?></div>
+                <div style="font-family:var(--font-head);font-size:16px;font-weight:700;color:<?php echo $stat['color']; ?>"><?php echo esc_html($stat['val']); ?></div>
                 <div style="font-size:10px;color:var(--text3);margin-top:3px"><?php echo esc_html($stat['label']); ?></div>
             </div>
             <?php endforeach; ?>
@@ -872,7 +872,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         <div style="background:var(--dark2);border:1px solid <?php echo $sd2['color']; ?>20;border-radius:12px;padding:14px;position:relative;overflow:hidden">
             <div style="position:absolute;top:0;left:0;right:0;height:2px;background:<?php echo $sd2['color']; ?>"></div>
             <div style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px"><?php echo esc_html($met->label); ?></div>
-            <div style="font-size:22px;font-weight:800;font-family:'Montserrat',sans-serif;color:var(--text1);line-height:1;margin-bottom:6px"><?php echo esc_html($met->current_value); ?></div>
+            <div style="font-size:22px;font-weight:800;font-family:var(--font-head);color:var(--text1);line-height:1;margin-bottom:6px"><?php echo esc_html($met->current_value); ?></div>
             <?php if($tr!==null): ?>
             <div style="font-size:10px;font-weight:700;color:<?php echo $tr>=0?'var(--success)':'var(--danger)'; ?>"><?php echo $tr>=0?'↑':'↓'; ?><?php echo abs($tr); ?>% vs prev</div>
             <?php else: ?>
@@ -1065,7 +1065,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 ?>
                 <div style="background:var(--dark3);border-radius:10px;padding:12px;position:relative">
                     <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin-bottom:6px"><?php echo esc_html($met->label); ?></div>
-                    <div style="font-size:20px;font-weight:800;font-family:'Montserrat',sans-serif;margin-bottom:6px;line-height:1"><?php echo esc_html($met->current_value); ?></div>
+                    <div style="font-size:20px;font-weight:800;font-family:var(--font-head);margin-bottom:6px;line-height:1"><?php echo esc_html($met->current_value); ?></div>
                     <?php if($t_n>0): ?>
                     <div style="height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;margin-bottom:4px">
                         <div style="height:100%;width:<?php echo $pct; ?>%;background:<?php echo $mc; ?>;border-radius:2px"></div>
@@ -1121,13 +1121,18 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
 
     <!-- ═══ AI STRATEGIST WORKSPACE ═══════════════════════════════════════ -->
     <div class="six-card" id="ai-strat" data-client="<?php echo intval($view_client_id); ?>" style="margin-bottom:20px;overflow:hidden">
+        <style>
+        #ai-strat :focus-visible{outline:2px solid var(--cyan);outline-offset:2px;border-radius:8px}
+        .ai-inline-form{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px;width:100%}
+        .ai-inline-form input{flex:1;min-width:160px;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12.5px;background:var(--dark3);color:var(--text1)}
+        </style>
         <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <span style="font-size:14px;font-weight:800;color:var(--text1)">AI Strategist</span>
             <span style="font-size:10px;background:rgba(255,102,153,0.12);color:var(--pink);padding:2px 8px;border-radius:10px"><?php echo esc_html($c_biz ?: ($view_client->display_name ?? 'Client')); ?></span>
             <span style="font-size:10.5px;color:var(--text3)">Grounded in this client's data + live DataForSEO</span>
             <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
-                <select id="ai-thread-select" class="six-input" style="font-size:11.5px;padding:6px 8px;max-width:180px"><option value="0">New conversation</option></select>
-                <button class="six-btn six-btn-ghost six-btn-sm" id="ai-new-thread" style="font-size:11px">+ New</button>
+                <select id="ai-thread-select" class="six-input" aria-label="Load a past conversation" style="font-size:11.5px;padding:6px 8px;max-width:180px"><option value="0">New conversation</option></select>
+                <button class="six-btn six-btn-ghost six-btn-sm" id="ai-new-thread" aria-label="Start a new conversation" style="font-size:11px">+ New</button>
             </div>
         </div>
 
@@ -1147,7 +1152,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         </div>
 
         <!-- Transcript -->
-        <div id="ai-chat-log" style="padding:14px 18px;max-height:520px;overflow-y:auto;display:flex;flex-direction:column;gap:14px">
+        <div id="ai-chat-log" role="log" aria-live="polite" aria-relevant="additions text" aria-label="Conversation with the AI Strategist" style="padding:14px 18px;max-height:520px;overflow-y:auto;display:flex;flex-direction:column;gap:14px">
             <div id="ai-chat-empty" style="text-align:center;padding:26px 10px;color:var(--text3)">
                 <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:4px">Ask anything, or pick a mode above</div>
                 <div style="font-size:12px;line-height:1.6">The strategist pulls real keyword, SERP and on-page data to analyse Google Ads &amp; SEO, research keywords, and build strategy for this client.</div>
@@ -1157,10 +1162,11 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         <!-- Input -->
         <div style="padding:12px 18px 16px;border-top:1px solid var(--border)">
             <div style="display:flex;gap:8px;align-items:flex-end">
-                <textarea id="ai-input" rows="2" placeholder="e.g. What keywords should we target for Google Ads, and what's the budget outlook?" style="flex:1;border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;background:var(--dark3);color:var(--text1);resize:vertical;font-family:inherit"></textarea>
+                <label for="ai-input" class="six-sr-only" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0">Message the AI Strategist</label>
+                <textarea id="ai-input" rows="2" maxlength="4000" aria-describedby="ai-input-note" placeholder="e.g. What keywords should we target for Google Ads, and what's the budget outlook?" style="flex:1;min-width:0;border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;background:var(--dark3);color:var(--text1);resize:vertical;font-family:inherit"></textarea>
                 <button class="six-btn six-btn-primary" id="ai-send" style="font-size:13px;padding:11px 18px;white-space:nowrap">Send</button>
             </div>
-            <div style="font-size:10.5px;color:var(--text3);margin-top:6px">Outputs are for the advisor. Use “Share with customer” on any answer to send it to the client’s dashboard.</div>
+            <div id="ai-input-note" style="font-size:11px;color:var(--text2);margin-top:6px">Press Ctrl/⌘ + Enter to send. Answers are for you — use “Share with customer” on any answer to send it to the client’s dashboard.</div>
         </div>
     </div>
 
@@ -1230,12 +1236,12 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 var bar=document.createElement('div');
                 bar.style.cssText='display:flex;gap:6px;margin-top:10px;flex-wrap:wrap';
                 bar.innerHTML=
-                    '<button class="six-btn six-btn-ghost six-btn-sm ai-act" data-act="up" style="font-size:11px">👍</button>'+
-                    '<button class="six-btn six-btn-ghost six-btn-sm ai-act" data-act="down" style="font-size:11px">👎</button>'+
-                    '<button class="six-btn six-btn-ghost six-btn-sm ai-act" data-act="copy" style="font-size:11px">Copy</button>'+
-                    '<button class="six-btn six-btn-ghost six-btn-sm ai-act" data-act="playbook" style="font-size:11px">Save as playbook</button>'+
-                    '<button class="six-btn six-btn-primary six-btn-sm ai-act" data-act="push" style="font-size:11px">Share with customer</button>'+
-                    '<span class="ai-act-msg" style="font-size:11px;color:var(--text3);align-self:center"></span>';
+                    '<button class="six-btn six-btn-ghost six-btn-sm ai-act" data-act="up" aria-label="Mark this answer helpful" title="Helpful" style="font-size:11px;min-height:36px">👍</button>'+
+                    '<button class="six-btn six-btn-ghost six-btn-sm ai-act" data-act="down" aria-label="Mark this answer not helpful" title="Not helpful" style="font-size:11px;min-height:36px">👎</button>'+
+                    '<button class="six-btn six-btn-ghost six-btn-sm ai-act" data-act="copy" aria-label="Copy this answer to the clipboard" style="font-size:11px;min-height:36px">Copy</button>'+
+                    '<button class="six-btn six-btn-ghost six-btn-sm ai-act" data-act="playbook" aria-label="Save this answer to the playbook library" style="font-size:11px;min-height:36px">Save as playbook</button>'+
+                    '<button class="six-btn six-btn-primary six-btn-sm ai-act" data-act="push" aria-label="Share this answer with the customer" style="font-size:11px;min-height:36px">Share with customer</button>'+
+                    '<span class="ai-act-msg" role="status" aria-live="polite" style="font-size:11px;color:var(--text2);align-self:center"></span>';
                 bar.querySelectorAll('.ai-act').forEach(function(b){
                     b.addEventListener('click',function(){ doAction(b.dataset.act, meta.messageId, bar.querySelector('.ai-act-msg'), body.innerText); });
                 });
@@ -1244,13 +1250,33 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             log.appendChild(wrap); log.scrollTop=log.scrollHeight;
         }
 
+        // Inline, labeled mini-form (replaces native prompt() — no modal, keyboard-friendly)
+        function inlineForm(bar, opts){
+            if(!bar) return;
+            var old=bar.querySelector('.ai-inline-form'); if(old) old.remove();
+            var f=document.createElement('div'); f.className='ai-inline-form';
+            var id='aif-'+Math.random().toString(36).slice(2,8);
+            f.innerHTML='<label for="'+id+'" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">'+esc(opts.label)+'</label>'+
+                '<input id="'+id+'" type="text" maxlength="120" placeholder="'+esc(opts.label)+'" value="'+esc(opts.value||'')+'">'+
+                '<button type="button" class="six-btn six-btn-primary six-btn-sm aif-ok" style="font-size:11px;min-height:36px">'+esc(opts.confirmLabel||'Save')+'</button>'+
+                '<button type="button" class="six-btn six-btn-ghost six-btn-sm aif-cancel" style="font-size:11px;min-height:36px">Cancel</button>';
+            bar.appendChild(f);
+            var inp=f.querySelector('input'); inp.focus(); if(opts.value) inp.select();
+            function close(){ f.remove(); }
+            f.querySelector('.aif-cancel').addEventListener('click',close);
+            f.querySelector('.aif-ok').addEventListener('click',function(){ var v=inp.value.trim(); if(opts.required&&!v){ inp.focus(); return; } close(); opts.onConfirm(v); });
+            inp.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); f.querySelector('.aif-ok').click(); } else if(e.key==='Escape'){ close(); } });
+        }
+
         function doAction(act, messageId, msgEl, plainText){
+            var bar = msgEl ? msgEl.parentNode : null;
             if(act==='up'){
                 post({action:'six_ai_rate',message_id:messageId,rating:1}).then(function(){ if(msgEl)msgEl.textContent='Marked helpful'; });
             } else if(act==='down'){
-                var why=prompt('What was off about this answer? (optional — helps the strategist improve)','');
-                if(why===null) return;
-                post({action:'six_ai_rate',message_id:messageId,rating:-1,note:why}).then(function(){ if(msgEl)msgEl.textContent='Thanks — noted for improvement'; });
+                inlineForm(bar,{label:'What was off? (optional — helps the strategist improve)',confirmLabel:'Send feedback',onConfirm:function(v){
+                    if(msgEl)msgEl.textContent='Saving…';
+                    post({action:'six_ai_rate',message_id:messageId,rating:-1,note:v}).then(function(){ if(msgEl)msgEl.textContent='Thanks — noted for improvement'; });
+                }});
             } else if(act==='copy'){
                 var t=plainText||'';
                 if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(function(){ if(msgEl)msgEl.textContent='Copied'; },function(){ if(msgEl)msgEl.textContent='Copy failed'; }); }
@@ -1259,21 +1285,26 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 if(msgEl)msgEl.textContent='Saving…';
                 post({action:'six_ai_save_playbook',message_id:messageId}).then(function(r){ if(msgEl)msgEl.textContent=(r&&r.success)?'Saved to playbook library':'Could not save'; });
             } else if(act==='push'){
-                var title=prompt('Title for the customer (shown in their dashboard):','Strategy from your advisor');
-                if(title===null) return;
-                if(msgEl)msgEl.textContent='Sharing…';
-                post({action:'six_ai_push_reco',client_id:clientId,message_id:messageId,title:title}).then(function(r){ if(msgEl)msgEl.textContent=(r&&r.success)?'Shared with customer ✓':'Could not share'; });
+                inlineForm(bar,{label:'Title shown to the customer',value:'Strategy from your advisor',confirmLabel:'Share',required:true,onConfirm:function(v){
+                    if(msgEl)msgEl.textContent='Sharing…';
+                    post({action:'six_ai_push_reco',client_id:clientId,message_id:messageId,title:v}).then(function(r){ if(msgEl)msgEl.textContent=(r&&r.success)?'Shared with customer ✓':'Could not share'; });
+                }});
             }
         }
 
+        function setBusy(b){
+            state.busy=b; sendBtn.disabled=b;
+            sendBtn.textContent=b?'Sending…':'Send';
+            log.setAttribute('aria-busy', b?'true':'false');
+        }
         function send(text){
             if(state.busy) return;
             text=(text||input.value||'').trim();
             if(!text) return;
-            state.busy=true; sendBtn.disabled=true; input.value='';
+            setBusy(true); input.value='';
             addUser(text); addTyping();
             post({action:'six_ai_send',client_id:clientId,thread_id:state.threadId,mode:state.mode,message:text}).then(function(res){
-                rmTyping(); state.busy=false; sendBtn.disabled=false;
+                rmTyping(); setBusy(false);
                 if(res&&res.success){
                     state.threadId=res.data.thread_id||state.threadId;
                     addAssistant(md(res.data.reply||''),{tools:res.data.tools_used||[],messageId:res.data.message_id});
@@ -1281,7 +1312,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 } else {
                     addAssistant('<span style="color:var(--danger)">'+esc((res&&res.data)||'The strategist failed. Check the Anthropic/DataForSEO keys in settings.')+'</span>',{});
                 }
-            }).catch(function(){ rmTyping(); state.busy=false; sendBtn.disabled=false; addAssistant('<span style="color:var(--danger)">Network error — please try again.</span>',{}); });
+            }).catch(function(){ rmTyping(); setBusy(false); addAssistant('<span style="color:var(--danger)">Network error — please try again.</span>',{}); });
         }
 
         var starters={
@@ -2612,7 +2643,7 @@ function advCompleteOnboarding(clientId){
         <!-- Connect screen -->
         <div style="max-width:480px;margin:60px auto;text-align:center">
             <div style="width:80px;height:80px;border-radius:50%;background:var(--dark3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 24px"></div>
-            <h2 style="font-family:'Montserrat',sans-serif;font-size:22px;font-weight:700;margin-bottom:12px">Connect Google Calendar</h2>
+            <h2 style="font-family:var(--font-head);font-size:22px;font-weight:700;margin-bottom:12px">Connect Google Calendar</h2>
             <p style="font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:32px">
                 Sign in with Google to see your upcoming meetings, client calls, and availability directly in your advisor dashboard.
             </p>
@@ -2661,7 +2692,7 @@ function advCompleteOnboarding(clientId){
                         $dur      = $end_ts ? round(($end_ts-$start_ts)/60) : 0;
                         $is_now   = $start_ts<=time() && $end_ts>=time();
                     ?>
-                    <div style="display:flex;gap:16px;padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.04);<?php echo $is_now?'background:rgba(255,102,153,0.04);border-left:3px solid var(--pink)':'';?>">
+                    <div style="display:flex;gap:16px;padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.04);<?php echo $is_now?'background:rgba(255,102,153,0.06)':'';?>">
                         <div style="min-width:58px;text-align:right;padding-top:2px">
                             <div style="font-size:13px;font-weight:700;color:<?php echo $is_now?'var(--pink)':'var(--text1)';?>"><?php echo date('g:i',$start_ts);?></div>
                             <div style="font-size:10px;color:var(--text3)"><?php echo date('A',$start_ts);?></div>
@@ -2706,11 +2737,11 @@ function advCompleteOnboarding(clientId){
                         ?>
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
                             <div style="text-align:center;padding:12px;background:var(--dark4);border-radius:8px">
-                                <div style="font-size:24px;font-weight:800;font-family:'Montserrat',sans-serif;color:var(--pink)"><?php echo count($today_ev);?></div>
+                                <div style="font-size:24px;font-weight:800;font-family:var(--font-head);color:var(--pink)"><?php echo count($today_ev);?></div>
                                 <div style="font-size:10px;color:var(--text3);margin-top:2px">Today</div>
                             </div>
                             <div style="text-align:center;padding:12px;background:var(--dark4);border-radius:8px">
-                                <div style="font-size:24px;font-weight:800;font-family:'Montserrat',sans-serif;color:var(--cyan)"><?php echo count($this_week);?></div>
+                                <div style="font-size:24px;font-weight:800;font-family:var(--font-head);color:var(--cyan)"><?php echo count($this_week);?></div>
                                 <div style="font-size:10px;color:var(--text3);margin-top:2px">This Week</div>
                             </div>
                         </div>
