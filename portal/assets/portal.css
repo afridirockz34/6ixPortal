@@ -124,10 +124,7 @@
   font-family: var(--font-head);
   font-size: 17px;
   font-weight: 800;
-  background: linear-gradient(135deg, var(--pink), var(--cyan));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--pink);
   margin-right: 4px;
   white-space: nowrap;
   text-decoration: none;

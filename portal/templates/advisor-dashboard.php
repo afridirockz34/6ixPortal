@@ -551,7 +551,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                     <?php else:?>
                         <div style="font-size:11px;color:var(--text3);margin-bottom:12px">Based on campaign performance signals:</div>
                         <?php foreach($upsells as $u):?>
-                        <div style="padding:10px 12px;background:var(--dark4);border-radius:8px;margin-bottom:8px;border-left:3px solid var(--cyan)">
+                        <div style="padding:10px 12px;background:var(--dark4);border-radius:10px;margin-bottom:8px">
                             <div style="font-size:12px;font-weight:600;margin-bottom:3px"><?php echo esc_html($u['client']);?> → <?php echo esc_html($u['service']);?></div>
                             <div style="font-size:11px;color:<?php echo $u['color'];?>">↑ <?php echo esc_html($u['reason']);?></div>
                         </div>
@@ -2692,7 +2692,7 @@ function advCompleteOnboarding(clientId){
                         $dur      = $end_ts ? round(($end_ts-$start_ts)/60) : 0;
                         $is_now   = $start_ts<=time() && $end_ts>=time();
                     ?>
-                    <div style="display:flex;gap:16px;padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.04);<?php echo $is_now?'background:rgba(255,102,153,0.04);border-left:3px solid var(--pink)':'';?>">
+                    <div style="display:flex;gap:16px;padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.04);<?php echo $is_now?'background:rgba(255,102,153,0.06)':'';?>">
                         <div style="min-width:58px;text-align:right;padding-top:2px">
                             <div style="font-size:13px;font-weight:700;color:<?php echo $is_now?'var(--pink)':'var(--text1)';?>"><?php echo date('g:i',$start_ts);?></div>
                             <div style="font-size:10px;color:var(--text3)"><?php echo date('A',$start_ts);?></div>

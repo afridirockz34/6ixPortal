@@ -762,7 +762,7 @@ $has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
 .six-kc-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--text3)}
 .six-kc-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .six-kc-val{font-family:var(--font-num,'Inter',sans-serif);font-size:22px;font-weight:700;color:var(--text1);line-height:1;letter-spacing:-.5px;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
-.six-roi-val{font-family:var(--font-num,'Inter',sans-serif);font-size:22px;font-variant-numeric:tabular-nums;background:linear-gradient(135deg,#FF6699,#a855f7,#83C5ED);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.six-roi-val{font-family:var(--font-num,'Inter',sans-serif);font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;color:#FF6699}
 .six-kc-trend{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px}
 .six-kc-trend.up{background:rgba(86,211,100,.12);color:#1a7a2e}
 .six-kc-trend.dn{background:rgba(220,38,38,.1);color:#b91c1c}
@@ -772,7 +772,7 @@ $has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
 /* Dark mode overrides — only what the vars don't cover */
 [data-theme="dark"] .six-kc-trend.up{background:rgba(86,211,100,.12);color:#56D364}
 [data-theme="dark"] .six-kc-trend.dn{background:rgba(255,107,107,.12);color:#FF6B6B}
-[data-theme="dark"] .six-roi-val{background:linear-gradient(135deg,#FF6699,#a855f7,#83C5ED);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+[data-theme="dark"] .six-roi-val{color:#FF7DA8}
 
 /* Hero row */
 .six-hero-row{display:grid;grid-template-columns:1fr 320px;gap:16px;margin-bottom:20px;align-items:stretch}
@@ -1285,7 +1285,7 @@ $opp_types=array(
         </div>
         <div id="opp-content-<?php echo $opp['id']; ?>" data-prompt="<?php echo esc_attr($opp['prompt']); ?>" data-type="<?php echo esc_attr($opp['key']); ?>" style="margin-bottom:14px;min-height:60px">
             <?php if($has_content): ?>
-            <div style="font-size:13px;color:var(--text1);line-height:1.75;padding:12px;background:var(--dark4);border-radius:8px;border-left:3px solid <?php echo $opp['color']; ?>"><?php echo esc_html($clean); ?></div>
+            <div style="font-size:13px;color:var(--text1);line-height:1.75;padding:12px 14px;background:var(--dark4);border-radius:10px"><?php echo esc_html($clean); ?></div>
             <?php else: ?>
             <div class="six-opp-teaser" style="font-size:12px;color:var(--text3);line-height:1.7;padding:4px 0">Select <strong>See Insight</strong> to generate your personalised analysis.</div>
             <div class="six-ai-loading" style="display:none;margin-top:8px"><span class="six-ai-spinner"></span> <span style="font-size:12px;color:var(--text3)">Analysing…</span></div>
@@ -1685,7 +1685,7 @@ $conv = class_exists('Six_Messaging') ? Six_Messaging::get_conversation($user_id
             <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--pink),#a855f7);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;margin:0 auto 16px;color:white"><?php echo esc_html(six_get_initials($advisor->display_name)); ?></div>
             <div style="font-size:20px;font-weight:800;font-family:'Montserrat',sans-serif;margin-bottom:4px"><?php echo esc_html($advisor->display_name); ?></div>
             <div style="font-size:13px;color:var(--pink);font-weight:600;margin-bottom:16px">Senior Marketing Advisor · 6ix Developers</div>
-            <div style="background:var(--dark4);border-radius:10px;padding:14px;margin-bottom:18px;text-align:left;border-left:3px solid var(--pink)">
+            <div style="background:var(--dark4);border-radius:12px;padding:15px 16px;margin-bottom:18px;text-align:left">
                 <div style="font-size:12px;color:var(--text2);line-height:1.75"><?php
                     $first_name=$user->first_name?:$user->display_name;
                     echo esc_html("Hi {$first_name} — I'm personally committed to growing {$ai_business}. I review your campaigns regularly and you can reach me anytime. Your success is my priority, and I'm here every step of the way.");

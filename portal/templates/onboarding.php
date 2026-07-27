@@ -34,8 +34,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .ob-side{background:linear-gradient(160deg,#F0F2F5 0%,#fff 100%);border-right:1px solid var(--bdr);
   padding:48px 40px;display:flex;flex-direction:column;justify-content:space-between;
   position:sticky;top:0;height:100vh;overflow:hidden;}
-.ob-logo{font-family:'Montserrat',sans-serif;font-size:22px;font-weight:800;
-  background:linear-gradient(135deg,var(--pk),var(--cy));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.ob-logo{font-family:'Montserrat',sans-serif;font-size:22px;font-weight:800;color:var(--pk);}
 .ob-side-content{flex:1;display:flex;flex-direction:column;justify-content:center;}
 .ob-side-hl{font-family:'Montserrat',sans-serif;font-size:26px;font-weight:800;line-height:1.2;margin-bottom:14px;}
 .ob-side-hl span{color:var(--pk);}
@@ -104,7 +103,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .ob-div-txt{font-size:11px;color:var(--t3);white-space:nowrap;font-weight:500;}
 
 /* Found hint */
-.ob-hint{font-size:12px;color:var(--t3);padding:9px 13px;background:var(--d3);border-radius:8px;border-left:3px solid var(--cy);margin-top:10px;}
+.ob-hint{font-size:12px;color:var(--t3);padding:9px 13px;background:var(--d3);border-radius:8px;margin-top:10px;}
 
 /* Chips */
 .ob-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;}
@@ -267,9 +266,9 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .ob-perf-l{font-size:10px;color:var(--t3);margin-top:3px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;}
 /* Strategy */
 .ob-strat-q{font-size:14px;color:var(--t1);line-height:1.75;font-style:italic;padding:16px 18px;
-  border-left:3px solid var(--pk);background:var(--pk-soft);border-radius:0 10px 10px 0;margin-bottom:0;}
+  background:var(--pk-soft);border-radius:10px;margin-bottom:0;}
 .ob-ai-sug{padding:14px 16px;background:var(--cy-soft);border:1px solid rgba(60,143,181,.15);
-  border-left:3px solid var(--cy);border-radius:var(--r);margin-bottom:10px;font-size:13px;color:var(--t2);line-height:1.6;}
+  border-radius:var(--r);margin-bottom:10px;font-size:13px;color:var(--t2);line-height:1.6;}
 /* Content card */
 .ob-card{background:var(--d2);border:1px solid var(--bdr);border-radius:14px;overflow:hidden;margin-bottom:14px;box-shadow:var(--sh);}
 .ob-card-hd{padding:12px 16px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:8px;}
@@ -494,7 +493,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
         <?php echo wp_json_encode(get_user_meta($u->ID,'billing_phone',true)?:'');?>);
     });</script>
     <?php else:?>
-    <div style="font-family:'Montserrat',sans-serif;font-size:20px;font-weight:800;background:linear-gradient(135deg,var(--t1),var(--cy));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:32px">6ix Developers</div>
+    <div style="font-family:'Montserrat',sans-serif;font-size:20px;font-weight:800;color:var(--t1);margin-bottom:32px">6ix Developers</div>
     <div class="ob-eye">Welcome</div>
     <h1 class="ob-ttl">Let's get started.</h1>
     <p class="ob-dsc">Enter your email — we'll log you in or set up your account automatically.</p>
