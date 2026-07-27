@@ -3040,17 +3040,17 @@ function advCompleteOnboarding(clientId){
 </div>
 
 <script>
-// Global vars accessible by all script blocks
+// Global vars + helpers accessible by all script blocks (AI chat, playbooks,
+// outcomes and messaging each run in their own IIFE and share post() from here).
 var AJAX = '<?php echo esc_js($ajax_url);?>';
 var NONCE = '<?php echo esc_js($nonce);?>';
 var INI = '<?php echo esc_js($initials);?>';
+function post(data){ return fetch(AJAX,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(Object.assign({nonce:NONCE},data))}).then(function(r){ return r.json(); }); }
 </script>
 <script>
 (function(){
 'use strict';
-// AJAX, NONCE, INI defined globally above
-
-function post(data){ return fetch(AJAX,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(Object.assign({nonce:NONCE},data))}).then(r=>r.json()); }
+// AJAX, NONCE, INI and post() defined globally above.
 
 // ── Messaging ───────────────────────────────────────────────────────────────
 var msgSend = document.getElementById('six-msg-send');
