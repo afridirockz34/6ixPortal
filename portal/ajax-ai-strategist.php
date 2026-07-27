@@ -78,7 +78,7 @@ add_action( 'wp_ajax_six_ai_rate', function () {
 add_action( 'wp_ajax_six_ai_save_playbook', function () {
     check_ajax_referer( 'six_nonce', 'nonce' );
     if ( ! six_ai_is_advisor() ) wp_send_json_error( 'Permission denied.' );
-    if ( ! class_exists( 'Six_AI_Strategist' ) ) { Six_AI_Strategist::maybe_create_tables(); }
+    if ( class_exists( 'Six_AI_Strategist' ) ) { Six_AI_Strategist::maybe_create_tables(); }
     global $wpdb;
     $message_id = intval( $_POST['message_id'] ?? 0 );
     $title      = sanitize_text_field( $_POST['title'] ?? '' );
@@ -163,12 +163,19 @@ add_action( 'wp_ajax_six_ai_push_reco', function () {
 add_action( 'wp_ajax_six_ai_playbooks_list', function () {
     check_ajax_referer( 'six_nonce', 'nonce' );
     if ( ! six_ai_is_advisor() ) wp_send_json_error( 'Permission denied.' );
-    if ( class_exists( 'Six_AI_Strategist' ) ) Six_AI_Strategist::maybe_create_tables();
-    global $wpdb;
-    $rows = $wpdb->get_results(
-        "SELECT id, title, industry, service, goal_tags, content, uses, created_at
-         FROM {$wpdb->prefix}six_ai_playbooks ORDER BY uses DESC, created_at DESC LIMIT 200" );
-    wp_send_json_success( array( 'playbooks' => $rows ?: array() ) );
+    try {
+        if ( ! class_exists( 'Six_AI_Strategist' ) ) wp_send_json_error( 'AI strategist not loaded.' );
+        Six_AI_Strategist::maybe_create_tables();
+        global $wpdb;
+        $rows = $wpdb->get_results(
+            "SELECT id, title, industry, service, goal_tags, content, uses, created_at
+             FROM {$wpdb->prefix}six_ai_playbooks ORDER BY uses DESC, created_at DESC LIMIT 200" );
+        if ( $wpdb->last_error ) wp_send_json_error( 'Database: ' . $wpdb->last_error );
+        wp_send_json_success( array( 'playbooks' => $rows ?: array() ) );
+    } catch ( \Throwable $e ) {
+        error_log( '6ix AI playbooks_list: ' . $e->getMessage() );
+        wp_send_json_error( 'Could not load playbooks: ' . $e->getMessage() );
+    }
 } );
 
 // ── Playbook library: update ────────────────────────────────────────────────
@@ -203,19 +210,25 @@ add_action( 'wp_ajax_six_ai_playbook_delete', function () {
 add_action( 'wp_ajax_six_ai_outcomes_list', function () {
     check_ajax_referer( 'six_nonce', 'nonce' );
     if ( ! six_ai_is_advisor() ) wp_send_json_error( 'Permission denied.' );
-    if ( class_exists( 'Six_AI_Strategist' ) ) Six_AI_Strategist::maybe_create_tables();
-    global $wpdb;
-    $rows = $wpdb->get_results(
-        "SELECT o.id, o.client_id, o.industry, o.service, o.title, o.status,
-                o.baseline_at, o.result_at, o.lift_json
-         FROM {$wpdb->prefix}six_ai_outcomes o ORDER BY o.created_at DESC LIMIT 100" );
-    foreach ( (array) $rows as $r ) {
-        $u = get_userdata( intval( $r->client_id ) );
-        $r->client_name = $u ? $u->display_name : ( 'Client #' . $r->client_id );
+    try {
+        if ( ! class_exists( 'Six_AI_Strategist' ) ) wp_send_json_error( 'AI strategist not loaded.' );
+        Six_AI_Strategist::maybe_create_tables();
+        global $wpdb;
+        $rows = $wpdb->get_results(
+            "SELECT o.id, o.client_id, o.industry, o.service, o.title, o.status,
+                    o.baseline_at, o.result_at, o.lift_json
+             FROM {$wpdb->prefix}six_ai_outcomes o ORDER BY o.created_at DESC LIMIT 100" );
+        if ( $wpdb->last_error ) wp_send_json_error( 'Database: ' . $wpdb->last_error );
+        foreach ( (array) $rows as $r ) {
+            $u = get_userdata( intval( $r->client_id ) );
+            $r->client_name = $u ? $u->display_name : ( 'Client #' . $r->client_id );
+        }
+        $summary = Six_AI_Strategist::proven_outcomes( '' );
+        wp_send_json_success( array( 'outcomes' => $rows ?: array(), 'summary' => $summary ) );
+    } catch ( \Throwable $e ) {
+        error_log( '6ix AI outcomes_list: ' . $e->getMessage() );
+        wp_send_json_error( 'Could not load outcomes: ' . $e->getMessage() );
     }
-    // Global proven-outcomes summary
-    $summary = class_exists( 'Six_AI_Strategist' ) ? Six_AI_Strategist::proven_outcomes( '' ) : array();
-    wp_send_json_success( array( 'outcomes' => $rows ?: array(), 'summary' => $summary ) );
 } );
 
 // ── Outcomes: measure now ───────────────────────────────────────────────────

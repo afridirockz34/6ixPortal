@@ -1303,16 +1303,27 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             if(!text) return;
             setBusy(true); input.value='';
             addUser(text); addTyping();
+            var done=false;
+            var timer=setTimeout(function(){
+                if(done) return; done=true;
+                rmTyping(); setBusy(false);
+                addAssistant('<span style="color:var(--danger)">This took too long and timed out. Heavy modes (Strategy/Audit) pull a lot of live data — try again, use a lighter question, or check the Anthropic &amp; DataForSEO keys in <strong>6ix Portal → Integrations</strong>.</span>',{});
+            }, 175000);
             post({action:'six_ai_send',client_id:clientId,thread_id:state.threadId,mode:state.mode,message:text}).then(function(res){
+                if(done) return; done=true; clearTimeout(timer);
                 rmTyping(); setBusy(false);
                 if(res&&res.success){
                     state.threadId=res.data.thread_id||state.threadId;
                     addAssistant(md(res.data.reply||''),{tools:res.data.tools_used||[],messageId:res.data.message_id});
                     refreshThreads();
                 } else {
-                    addAssistant('<span style="color:var(--danger)">'+esc((res&&res.data)||'The strategist failed. Check the Anthropic/DataForSEO keys in settings.')+'</span>',{});
+                    addAssistant('<span style="color:var(--danger)">'+esc((res&&res.data&&(res.data.message||res.data))||'The strategist failed. Check the Anthropic key in 6ix Portal → Integrations.')+'</span>',{});
                 }
-            }).catch(function(){ rmTyping(); setBusy(false); addAssistant('<span style="color:var(--danger)">Network error — please try again.</span>',{}); });
+            }).catch(function(){
+                if(done) return; done=true; clearTimeout(timer);
+                rmTyping(); setBusy(false);
+                addAssistant('<span style="color:var(--danger)">The request failed (network or server error). If it keeps happening, confirm the Anthropic key is set in 6ix Portal → Integrations.</span>',{});
+            });
         }
 
         var starters={
@@ -2930,10 +2941,15 @@ function advCompleteOnboarding(clientId){
             }).join('');
         }
 
+        function loadErr(el,label,r){
+            var msg=(r&&r.data&&(r.data.message||r.data))||'Request failed';
+            el.innerHTML='<div style="color:var(--danger,#dc2626);font-size:12.5px;padding:4px 0">Couldn’t load '+label+': '+esc(String(msg))+'. Try refreshing.</div>';
+        }
         function loadPlaybooks(){
             post({action:'six_ai_playbooks_list'}).then(function(r){
+                if(!(r&&r.success)){ loadErr(root,'playbooks',r); document.getElementById('pb-count').textContent='0'; return; }
                 root.innerHTML='';
-                var pbs=(r&&r.success&&r.data.playbooks)||[];
+                var pbs=(r.data.playbooks)||[];
                 document.getElementById('pb-count').textContent=pbs.length;
                 if(!pbs.length){ root.innerHTML='<div style="color:var(--text3);font-size:13px">No playbooks yet. In a client’s AI Strategy chat, click <strong>Save as playbook</strong> on a strong answer to build your library.</div>'; return; }
                 pbs.forEach(function(p){
@@ -2972,7 +2988,7 @@ function advCompleteOnboarding(clientId){
                     });
                     root.appendChild(d);
                 });
-            });
+            }).catch(function(){ loadErr(root,'playbooks',null); document.getElementById('pb-count').textContent='0'; });
         }
 
         function summarize(sum){
@@ -3012,7 +3028,7 @@ function advCompleteOnboarding(clientId){
                     });
                     list.appendChild(row);
                 });
-            });
+            }).catch(function(){ document.getElementById('oc-list').innerHTML='<div style="color:var(--danger,#dc2626);font-size:12.5px;padding:16px">Couldn’t load outcomes — the server returned an error. Try refreshing.</div>'; });
         }
 
         function init(){ loadPlaybooks(); loadOutcomes(); }
