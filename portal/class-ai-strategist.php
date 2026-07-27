@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class Six_AI_Strategist {
 
     const DB_VERSION = 3;
-    const MAX_TOOL_LOOPS = 6;
+    const MAX_TOOL_LOOPS = 4;
 
     // Deep, multi-step reasoning modes → Opus. Quick tasks → Sonnet.
     private static $deep_modes = array( 'strategy', 'gads_audit', 'seo_audit', 'performance', 'chat' );
@@ -373,11 +373,11 @@ class Six_AI_Strategist {
     }
 
     // ── Anthropic call ─────────────────────────────────────────────────────
-    private static function call_anthropic( $model, $system, $tools, $messages ) {
+    private static function call_anthropic( $model, $system, $tools, $messages, $allow_fallback = true ) {
         $api_key = get_option( 'six_anthropic_api_key', '' );
-        if ( ! $api_key ) return array( 'error' => 'Anthropic API key not set (six_anthropic_api_key).' );
+        if ( ! $api_key ) return array( 'error' => 'Anthropic API key not set. Add it in 6ix Portal → Integrations.' );
         $resp = wp_remote_post( 'https://api.anthropic.com/v1/messages', array(
-            'timeout' => 120,
+            'timeout' => 60,
             'headers' => array(
                 'x-api-key' => $api_key, 'Content-Type' => 'application/json', 'anthropic-version' => '2023-06-01',
             ),
@@ -385,12 +385,31 @@ class Six_AI_Strategist {
                 'model' => $model, 'max_tokens' => 4096, 'system' => $system, 'tools' => $tools, 'messages' => $messages,
             ) ),
         ) );
-        if ( is_wp_error( $resp ) ) return array( 'error' => 'Network error: ' . $resp->get_error_message() );
+        if ( is_wp_error( $resp ) ) {
+            $e = $resp->get_error_message();
+            // A cURL timeout on a heavy model — retry once on the faster model.
+            if ( $allow_fallback && stripos( $e, 'timed out' ) !== false ) {
+                $fast = get_option( 'six_ai_model_fast', 'claude-sonnet-5' );
+                if ( $fast !== $model ) return self::call_anthropic( $fast, $system, $tools, $messages, false );
+            }
+            return array( 'error' => 'Network error contacting Claude: ' . $e );
+        }
         $code = wp_remote_retrieve_response_code( $resp );
-        $body = json_decode( wp_remote_retrieve_body( $resp ), true );
+        $raw  = wp_remote_retrieve_body( $resp );
+        $body = json_decode( $raw, true );
         if ( $code !== 200 ) {
-            $msg = $body['error']['message'] ?? substr( wp_remote_retrieve_body( $resp ), 0, 300 );
-            return array( 'error' => "Claude HTTP {$code}: {$msg}" );
+            $msg  = $body['error']['message'] ?? substr( $raw, 0, 300 );
+            $type = $body['error']['type'] ?? '';
+            // Model not available on this key → fall back to the fast model once.
+            $model_issue = $code === 404 || stripos( $msg, 'model' ) !== false || $type === 'not_found_error';
+            if ( $allow_fallback && $model_issue ) {
+                $fast = get_option( 'six_ai_model_fast', 'claude-sonnet-5' );
+                if ( $fast !== $model ) {
+                    error_log( "6ix AI: model '{$model}' failed ({$msg}); falling back to '{$fast}'" );
+                    return self::call_anthropic( $fast, $system, $tools, $messages, false );
+                }
+            }
+            return array( 'error' => "Claude API error (HTTP {$code}): {$msg}" );
         }
         return $body;
     }
@@ -401,6 +420,15 @@ class Six_AI_Strategist {
      * @return array success, reply, tools_used, thread_id, message_id, error
      */
     public static function run( $client_id, $thread_id, $advisor_id, $user_message, $mode = 'chat' ) {
+        try {
+            return self::run_inner( $client_id, $thread_id, $advisor_id, $user_message, $mode );
+        } catch ( \Throwable $e ) {
+            error_log( '6ix AI Strategist run() fatal: ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine() );
+            return array( 'success' => false, 'error' => 'Strategist error: ' . $e->getMessage(), 'thread_id' => intval( $thread_id ) );
+        }
+    }
+
+    private static function run_inner( $client_id, $thread_id, $advisor_id, $user_message, $mode = 'chat' ) {
         self::maybe_create_tables();
         global $wpdb;
 
