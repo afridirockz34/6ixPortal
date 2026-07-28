@@ -476,8 +476,19 @@ class Six_AI_Strategist {
             $stop    = $body['stop_reason'] ?? '';
 
             if ( $stop === 'tool_use' ) {
-                // Append assistant turn (verbatim content) then run each tool.
-                $messages[] = array( 'role'=>'assistant', 'content'=>$content );
+                // Append assistant turn then run each tool. json_decode() gave us
+                // associative arrays, so a tool_use input of {} became an empty PHP
+                // array that would re-encode as [] and trip Anthropic's
+                // "input should be an object" 400. Force every tool_use input back
+                // to an object before echoing the turn.
+                $echo = $content;
+                foreach ( $echo as &$b ) {
+                    if ( ( $b['type'] ?? '' ) === 'tool_use' ) {
+                        $b['input'] = (object) ( $b['input'] ?? array() );
+                    }
+                }
+                unset( $b );
+                $messages[] = array( 'role'=>'assistant', 'content'=>$echo );
                 $tool_results = array();
                 foreach ( $content as $block ) {
                     if ( ( $block['type'] ?? '' ) !== 'tool_use' ) continue;
