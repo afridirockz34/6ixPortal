@@ -1357,6 +1357,73 @@ add_action( 'wp_ajax_six_save_client_datasources', function() {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// DELETE A CUSTOMER — purge from the portal + database, keep Odoo untouched
+// ─────────────────────────────────────────────────────────────────────────────
+add_action( 'wp_ajax_six_delete_client', function() {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! Six_Roles::is_advisor() && ! current_user_can('manage_options') ) {
+        wp_send_json_error( array( 'message' => 'Permission denied.' ) );
+    }
+    $client_id = intval( $_POST['client_id'] ?? 0 );
+    if ( ! $client_id )                          wp_send_json_error( array( 'message' => 'No customer specified.' ) );
+    if ( $client_id === get_current_user_id() )  wp_send_json_error( array( 'message' => 'You cannot delete your own account.' ) );
+
+    $user = get_userdata( $client_id );
+    if ( ! $user )                               wp_send_json_error( array( 'message' => 'Customer not found (already deleted?).' ) );
+
+    // Safety: only customer accounts may be deleted here — never an advisor,
+    // sales user or administrator.
+    if ( class_exists( 'Six_Roles' ) && ! Six_Roles::is_customer( $client_id ) ) {
+        wp_send_json_error( array( 'message' => 'Only customer accounts can be deleted from here.' ) );
+    }
+    // Confirmation must match the account name (defence in depth alongside the UI).
+    $confirm  = trim( sanitize_text_field( wp_unslash( $_POST['confirm_name'] ?? '' ) ) );
+    if ( $confirm === '' || strcasecmp( $confirm, trim( $user->display_name ) ) !== 0 ) {
+        wp_send_json_error( array( 'message' => 'Confirmation name did not match.' ) );
+    }
+
+    global $wpdb;
+    $p = $wpdb->prefix;
+
+    // AI chat messages hang off the client's threads — delete them first.
+    $wpdb->query( $wpdb->prepare(
+        "DELETE FROM {$p}six_ai_messages WHERE thread_id IN ( SELECT id FROM {$p}six_ai_threads WHERE client_id = %d )",
+        $client_id
+    ) );
+    // Tables keyed directly by the client. six_ai_playbooks is agency-wide and is
+    // intentionally NOT touched.
+    $by_client = array(
+        'six_ai_threads', 'six_ai_outcomes', 'six_appointments', 'six_assignments',
+        'six_client_services', 'six_client_kpis', 'six_metrics', 'six_recommendations',
+        'six_reports',
+    );
+    foreach ( $by_client as $t ) {
+        $wpdb->query( $wpdb->prepare( "DELETE FROM {$p}{$t} WHERE client_id = %d", $client_id ) );
+    }
+    // Tables keyed by user_id.
+    foreach ( array( 'six_checkout_progress', 'six_notifications' ) as $t ) {
+        $wpdb->query( $wpdb->prepare( "DELETE FROM {$p}{$t} WHERE user_id = %d", $client_id ) );
+    }
+    // Direct messages in either direction.
+    $wpdb->query( $wpdb->prepare(
+        "DELETE FROM {$p}six_messages WHERE sender_id = %d OR receiver_id = %d", $client_id, $client_id
+    ) );
+
+    // Finally remove the WordPress user itself — this also drops ALL of their
+    // usermeta (data-source IDs, budget requests, onboarding meta, etc.).
+    require_once ABSPATH . 'wp-admin/includes/user.php';
+    $deleted = wp_delete_user( $client_id );
+    if ( ! $deleted ) {
+        wp_send_json_error( array( 'message' => 'Portal data was removed, but the user account could not be fully deleted. Contact an administrator.' ) );
+    }
+
+    wp_send_json_success( array(
+        'message'  => 'Customer removed from the portal. Their Odoo record was kept.',
+        'redirect' => home_url( '/advisor-portal/?tab=clients' ),
+    ) );
+} );
+
+// ─────────────────────────────────────────────────────────────────────────────
 // SYNC CLIENT TO ODOO ON DEMAND
 // ─────────────────────────────────────────────────────────────────────────────
 add_action( 'wp_ajax_six_sync_odoo_client', function() {
