@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class Six_AI_Strategist {
 
     const DB_VERSION = 3;
-    const MAX_TOOL_LOOPS = 4;
+    const MAX_TOOL_LOOPS = 6;
 
     // Deep, multi-step reasoning modes → Opus. Quick tasks → Sonnet.
     private static $deep_modes = array( 'strategy', 'gads_audit', 'seo_audit', 'performance', 'chat' );
@@ -396,7 +396,8 @@ class Six_AI_Strategist {
               . "Your job: deliver rigorous, specific, data-backed analysis and strategy for the client below. "
               . "Use the available tools to pull REAL keyword, SERP, on-page and performance data before making numeric claims — never invent volumes or CPCs. "
               . "Be concise but complete. Use clear headings and bullet points. Give concrete numbers, prioritised recommendations, and the reasoning behind them. "
-              . "When you lack a data point, say so and either pull it with a tool or state the assumption.\n\n"
+              . "When you lack a data point, say so and either pull it with a tool or state the assumption.\n"
+              . "TOOL BUDGET: you have a limited number of tool rounds. Call several tools in parallel in one turn when you can, gather only the data the question actually needs, then STOP calling tools and write your full answer. Do not keep pulling more data once you can already answer.\n\n"
               . "TASK FOCUS: {$brief}\n\n"
               . "=== CLIENT CONTEXT ===\n" . self::client_context( $client_id ) . "\n";
 
@@ -419,9 +420,12 @@ class Six_AI_Strategist {
             'headers' => array(
                 'x-api-key' => $api_key, 'Content-Type' => 'application/json', 'anthropic-version' => '2023-06-01',
             ),
-            'body' => wp_json_encode( array(
-                'model' => $model, 'max_tokens' => 4096, 'system' => $system, 'tools' => $tools, 'messages' => $messages,
-            ) ),
+            'body' => wp_json_encode( array_filter( array(
+                'model' => $model, 'max_tokens' => 4096, 'system' => $system,
+                // Omit tools entirely on the final synthesis pass so the model is
+                // forced to answer instead of calling yet another tool.
+                'tools' => ! empty( $tools ) ? $tools : null, 'messages' => $messages,
+            ), function ( $v ) { return $v !== null; } ) ),
         ) );
         if ( is_wp_error( $resp ) ) {
             $e = $resp->get_error_message();
@@ -547,6 +551,20 @@ class Six_AI_Strategist {
                 if ( ( $block['type'] ?? '' ) === 'text' ) $final_text .= $block['text'];
             }
             break;
+        }
+
+        // If the loop ran out while the model was still calling tools, make one
+        // final pass WITHOUT tools so it must synthesise an answer from
+        // everything gathered rather than returning the "ran out of steps" stub.
+        if ( $final_text === '' && $tools_used ) {
+            $messages[] = array( 'role'=>'user', 'content'=>
+                'You have gathered enough data. Do not call any more tools. Using everything above, give the advisor your complete, specific answer now.' );
+            $body = self::call_anthropic( $model, $system, array(), $messages );
+            if ( ! isset( $body['error'] ) ) {
+                foreach ( (array) ( $body['content'] ?? array() ) as $block ) {
+                    if ( ( $block['type'] ?? '' ) === 'text' ) $final_text .= $block['text'];
+                }
+            }
         }
 
         if ( $final_text === '' ) $final_text = 'The strategist could not complete the analysis in the allotted steps. Please refine the request or try again.';
