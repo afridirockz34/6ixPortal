@@ -1601,7 +1601,10 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                         <input class="six-input" id="meta-pixel-id" value="<?php echo esc_attr($c_meta_pixel); ?>" placeholder="1234567890" style="font-size:12px;font-family:monospace">
                     </div>
                 </div>
-                <button class="six-btn six-btn-primary six-btn-sm" id="save-meta-ids" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Save Meta IDs</button>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button class="six-btn six-btn-primary six-btn-sm" id="save-meta-ids" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Save Meta IDs</button>
+                    <?php if($c_meta_account): ?><button class="six-btn six-btn-ghost six-btn-sm six-ds-test" data-source="meta" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Test connection</button><?php endif; ?>
+                </div>
                 <div id="meta-result" style="margin-top:8px;font-size:12px"></div>
             </div>
         </div>
@@ -3020,7 +3023,7 @@ function advCompleteOnboarding(clientId){
         function liftChips(liftJson){
             var lift; try{ lift=JSON.parse(liftJson||'{}'); }catch(e){ lift={}; }
             var keys=Object.keys(lift||{}); if(!keys.length) return '<span style="color:var(--text3)">—</span>';
-            var label={'gads.conversions':'Ads conv.','gads.clicks':'Ads clicks','ga4.conversions':'GA4 conv.','ga4.sessions':'Sessions','gsc.clicks':'Organic clicks','gsc.impressions':'Impressions'};
+            var label={'gads.conversions':'Ads conv.','gads.clicks':'Ads clicks','ga4.conversions':'GA4 conv.','ga4.sessions':'Sessions','gsc.clicks':'Organic clicks','gsc.impressions':'Impressions','meta.leads':'Meta leads','meta.purchases':'Meta purch.','meta.clicks':'Meta clicks','meta.spend':'Meta spend'};
             return keys.slice(0,4).map(function(k){
                 var v=lift[k], up=v>=0;
                 return '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;margin-right:5px;background:'+(up?'rgba(86,211,100,.14)':'rgba(220,38,38,.12)')+';color:'+(up?'#1a7a2e':'#b91c1c')+'">'+(label[k]||k)+' '+(up?'+':'')+v+'%</span>';
@@ -3081,7 +3084,7 @@ function advCompleteOnboarding(clientId){
             var el=document.getElementById('oc-summary');
             if(!sum||!sum.measured_clients){ el.innerHTML='No measured outcomes yet. Share strategies with customers, then click <strong>Measure</strong> after a few weeks to build your track record.'; return; }
             var avg=sum.avg_lift||{}; var keys=Object.keys(avg);
-            var label={'gads.conversions':'Google Ads conversions','gads.clicks':'Google Ads clicks','ga4.conversions':'GA4 conversions','ga4.sessions':'Website sessions','gsc.clicks':'Organic clicks','gsc.impressions':'Search impressions'};
+            var label={'gads.conversions':'Google Ads conversions','gads.clicks':'Google Ads clicks','ga4.conversions':'GA4 conversions','ga4.sessions':'Website sessions','gsc.clicks':'Organic clicks','gsc.impressions':'Search impressions','meta.leads':'Meta leads','meta.purchases':'Meta purchases','meta.clicks':'Meta clicks','meta.spend':'Meta spend'};
             var html='<div style="margin-bottom:8px">Across <strong>'+sum.measured_clients+'</strong> measured client'+(sum.measured_clients>1?'s':'')+':</div><div style="display:flex;flex-wrap:wrap;gap:8px">';
             keys.forEach(function(k){ var v=avg[k].avg_lift_pct, up=v>=0;
                 html+='<span style="font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;background:'+(up?'rgba(86,211,100,.14)':'rgba(220,38,38,.12)')+';color:'+(up?'#1a7a2e':'#b91c1c')+'">'+(label[k]||k)+': '+(up?'+':'')+v+'% avg</span>';

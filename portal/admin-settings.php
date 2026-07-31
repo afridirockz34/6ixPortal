@@ -104,6 +104,13 @@ function six_admin_settings() {
         foreach ( array( 'six_ga4_service_account_json' ) as $tf ) {
             if ( isset( $_POST[ $tf ] ) ) update_option( $tf, trim( wp_unslash( $_POST[ $tf ] ) ) );
         }
+        // Write-only secrets: only save when a new value is typed, so submitting
+        // the form with the field left blank keeps the existing token.
+        foreach ( array( 'six_meta_access_token' ) as $sf ) {
+            if ( isset( $_POST[ $sf ] ) && trim( (string) $_POST[ $sf ] ) !== '' ) {
+                update_option( $sf, sanitize_text_field( wp_unslash( $_POST[ $sf ] ) ) );
+            }
+        }
         echo '<div class="notice notice-success is-dismissible"><p>✓ Settings saved.</p></div>';
     }
 

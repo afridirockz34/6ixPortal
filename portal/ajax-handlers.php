@@ -1163,7 +1163,8 @@ add_action( 'wp_ajax_six_test_meta', function() {
     $account_id = get_option('six_meta_ad_account_id','');
     if ( ! $token )      wp_send_json_error('No access token set.');
     if ( ! $account_id ) wp_send_json_error('No Ad Account ID set.');
-    $resp = wp_remote_get("https://graph.facebook.com/v20.0/{$account_id}?fields=name,account_status,currency,spend_cap&access_token={$token}");
+    $gver = class_exists('Six_Meta') ? Six_Meta::API_VERSION : 'v23.0';
+    $resp = wp_remote_get("https://graph.facebook.com/{$gver}/{$account_id}?fields=name,account_status,currency,spend_cap&access_token={$token}");
     if ( is_wp_error($resp) ) wp_send_json_error('Network error: '.$resp->get_error_message());
     $data = json_decode(wp_remote_retrieve_body($resp), true);
     if ( isset($data['error']) ) wp_send_json_error('Meta error: '.$data['error']['message']);
@@ -1316,6 +1317,16 @@ add_action( 'wp_ajax_six_test_client_datasource', function() {
         if ( $m === false ) wp_send_json_error( Six_Google_Ads::get_last_error() ?: 'Google Ads data unavailable.' );
         if ( empty($m) ) wp_send_json_success( array('message'=>'Google Ads connected — no active-campaign data in the last 30 days.') );
         wp_send_json_success( array('message'=>'Google Ads connected — live campaign metrics retrieved.') );
+    }
+    if ( $source === 'meta' ) {
+        if ( ! class_exists('Six_Meta') ) wp_send_json_error('Meta integration unavailable.');
+        if ( ! Six_Meta::configured() ) wp_send_json_error('No Meta System User token set. Add it in 6ix Portal → Integrations.');
+        $acct = get_user_meta($client_id,'six_meta_ad_account_id',true);
+        if ( ! $acct ) wp_send_json_error('No Meta ad account ID saved for this client.');
+        $r = Six_Meta::account_insights( $acct, 30 );
+        if ( isset($r['error']) ) wp_send_json_error( $r['error'] );
+        $t = $r['totals'] ?? array();
+        wp_send_json_success( array('message'=>'Meta Ads connected — $'.number_format($t['spend']??0,2).' spend, '.number_format($t['leads']??0).' leads in the last 30 days.') );
     }
     if ( $source === 'dataforseo' ) {
         if ( ! class_exists('Six_AI_Strategist') || ! class_exists('Six_DataForSEO') ) wp_send_json_error('DataForSEO integration unavailable.');

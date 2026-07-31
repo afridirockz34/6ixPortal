@@ -40,6 +40,7 @@ $optional_files = array(
     'class-appointments.php',   // unified calls/meetings store (after calendar + odoo)
     'class-dataforseo.php',     // DataForSEO client (keywords/labs/serp/onpage)
     'class-analytics.php',      // GA4 + Search Console client (service account)
+    'class-meta.php',           // Meta (Facebook/Instagram) Ads insights client
     'class-ai-strategist.php',  // advisor AI strategy agent (needs dataforseo + odoo)
     'ajax-ai-strategist.php',   // AI strategist AJAX endpoints
     'ajax-handlers.php',
