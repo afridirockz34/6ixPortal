@@ -150,15 +150,15 @@ function six_admin_settings() {
     $has_meta   = get_option('six_meta_access_token') && get_option('six_meta_ad_account_id');
     ?>
     <style>
-        .six-int-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px;margin:18px 0 24px;align-items:start}
-        .six-int-card{background:#fff;border:1px solid #dcdcde;border-radius:10px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+        .six-int-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px;margin:18px 0 24px;align-items:stretch}
+        .six-int-card{background:#fff;border:1px solid #dcdcde;border-radius:10px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.04);display:flex;flex-direction:column;height:100%}
         .six-int-card.wide{grid-column:1/-1}
         .six-int-head{display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid #f0f0f1;background:#f6f7f7;font-size:14px;font-weight:600;color:#1d2327}
         .six-int-head .dot{width:11px;height:11px;border-radius:50%;flex:none}
         .six-int-badge{margin-left:auto;font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;white-space:nowrap}
         .six-int-badge.ok{background:#d4edda;color:#155724}
         .six-int-badge.no{background:#eef0f1;color:#787c82}
-        .six-int-body{padding:15px 16px;display:flex;flex-direction:column;gap:12px}
+        .six-int-body{padding:15px 16px;display:flex;flex-direction:column;gap:12px;flex:1 1 auto}
         .six-int-body .hint{font-size:12px;color:#646970;line-height:1.5;margin:-2px 0 2px}
         .six-fld label{display:block;font-size:12px;font-weight:600;color:#1d2327;margin-bottom:4px}
         .six-fld input[type=text],.six-fld input[type=password],.six-fld textarea{width:100%;max-width:100%}
