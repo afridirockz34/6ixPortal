@@ -106,7 +106,7 @@ function six_admin_settings() {
         }
         // Write-only secrets: only save when a new value is typed, so submitting
         // the form with the field left blank keeps the existing token.
-        foreach ( array( 'six_meta_access_token' ) as $sf ) {
+        foreach ( array( 'six_meta_access_token', 'six_meta_app_secret' ) as $sf ) {
             if ( isset( $_POST[ $sf ] ) && trim( (string) $_POST[ $sf ] ) !== '' ) {
                 update_option( $sf, sanitize_text_field( wp_unslash( $_POST[ $sf ] ) ) );
             }
@@ -132,370 +132,222 @@ function six_admin_settings() {
 
     // Stage IDs status
     $stages_set = get_option('six_odoo_stage_new') && get_option('six_odoo_stage_submitted');
+
+    // Small helper: green "Connected" / grey "Not set" badge from a boolean.
+    $badge = function( $ok, $on = 'Connected', $off = 'Not set' ) {
+        return $ok
+            ? '<span class="six-int-badge ok">● ' . esc_html( $on ) . '</span>'
+            : '<span class="six-int-badge no">○ ' . esc_html( $off ) . '</span>';
+    };
+    // Configured flags per integration.
+    $has_twilio = get_option('six_twilio_account_sid') && get_option('six_twilio_auth_token') && get_option('six_twilio_from_number');
+    $has_stripe = (bool) get_option('six_stripe_secret_key');
+    $has_gads   = get_option('six_gads_developer_token') && get_option('six_gads_manager_id') && get_option('six_gads_refresh_token');
+    $has_dfs    = get_option('six_dataforseo_login') && get_option('six_dataforseo_password');
+    $has_gcal   = get_option('six_google_client_id') && get_option('six_google_client_secret');
+    $has_ai     = (bool) get_option('six_anthropic_api_key');
+    $has_ga4    = get_option('six_ga4_property_id') && get_option('six_ga4_service_account_json');
+    $has_meta   = get_option('six_meta_access_token') && get_option('six_meta_ad_account_id');
     ?>
+    <style>
+        .six-int-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px;margin:18px 0 24px;align-items:start}
+        .six-int-card{background:#fff;border:1px solid #dcdcde;border-radius:10px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+        .six-int-card.wide{grid-column:1/-1}
+        .six-int-head{display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid #f0f0f1;background:#f6f7f7;font-size:14px;font-weight:600;color:#1d2327}
+        .six-int-head .dot{width:11px;height:11px;border-radius:50%;flex:none}
+        .six-int-badge{margin-left:auto;font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;white-space:nowrap}
+        .six-int-badge.ok{background:#d4edda;color:#155724}
+        .six-int-badge.no{background:#eef0f1;color:#787c82}
+        .six-int-body{padding:15px 16px;display:flex;flex-direction:column;gap:12px}
+        .six-int-body .hint{font-size:12px;color:#646970;line-height:1.5;margin:-2px 0 2px}
+        .six-fld label{display:block;font-size:12px;font-weight:600;color:#1d2327;margin-bottom:4px}
+        .six-fld input[type=text],.six-fld input[type=password],.six-fld textarea{width:100%;max-width:100%}
+        .six-fld .desc{font-size:11px;color:#787c82;margin-top:4px;line-height:1.5}
+        .six-int-body .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+        .six-int-body .grid2 .six-fld{margin:0}
+        .six-int-sub{font-size:12px;font-weight:700;color:#1d2327;text-transform:uppercase;letter-spacing:.4px;margin:4px 0 -2px}
+        .six-int-test{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px}
+        .six-savebar{position:sticky;bottom:0;background:#fff;border-top:1px solid #dcdcde;padding:12px 0;margin-top:8px;z-index:5}
+        @media(max-width:782px){.six-int-body .grid2{grid-template-columns:1fr}}
+    </style>
     <div class="wrap">
         <h1>6ix Portal — Integration Settings</h1>
+        <p style="color:#646970;font-size:13px;max-width:760px">Each card below is one integration. Fill in the fields, then <strong>Save All Settings</strong> at the bottom. Password fields marked “leave blank to keep existing” are write-only for security. Per-client IDs (Google Ads customer ID, GA4 property, Meta ad account) are set by advisors on each client’s Data Sources tab — the credentials here authorise all of them.</p>
 
         <form method="post">
             <?php wp_nonce_field( 'six_settings' ); ?>
 
-            <!-- ═══ ODOO ═══════════════════════════════════════════════ -->
-            <h2 style="border-bottom:3px solid #FF6699;padding-bottom:8px;margin-top:30px">
-                 Odoo CRM <?php echo $odoo_badge; ?>
-            </h2>
+            <div class="six-int-grid">
 
-            <?php if ( !$odoo_ok && get_option('six_odoo_url') ) : ?>
-            <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:12px 16px;margin-bottom:16px;font-size:13px">
-                <strong> Connection failed.</strong> Common causes:
-                <ul style="margin:6px 0 0 18px;line-height:1.8">
-                    <li>URL must have <strong>no trailing slash</strong> — e.g. <code>https://yourcompany.odoo.com</code></li>
-                    <li>API Key must be generated in Odoo → Settings → Technical → <strong>API Keys</strong> (not your login password)</li>
-                    <li>Username must be your <strong>Odoo login email</strong></li>
-                    <li>On Odoo.com SaaS: make sure Technical menu is enabled in Settings</li>
-                </ul>
+            <!-- ═══ ODOO CRM ═══════════════════════════════════════════ -->
+            <div class="six-int-card wide">
+                <div class="six-int-head"><span class="dot" style="background:#FF6699"></span> Odoo CRM <?php echo $badge($odoo_ok); ?></div>
+                <div class="six-int-body">
+                    <?php if ( !$odoo_ok && get_option('six_odoo_url') ) : ?>
+                    <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:10px 14px;font-size:12px;line-height:1.6">
+                        <strong>Connection failed.</strong> URL must have <strong>no trailing slash</strong> (e.g. <code>https://acme.odoo.com</code>); the API Key is generated in Odoo → Settings → Technical → <strong>API Keys</strong> (not your password); Username is your Odoo login email.
+                    </div>
+                    <?php endif; ?>
+                    <div class="grid2">
+                        <div class="six-fld"><label>Instance URL</label><input type="text" name="six_odoo_url" value="<?php echo $s('six_odoo_url'); ?>" placeholder="https://acme.odoo.com"><div class="desc">No trailing slash.</div></div>
+                        <div class="six-fld"><label>Database Name</label><input type="text" name="six_odoo_db" value="<?php echo $s('six_odoo_db'); ?>" placeholder="acme"><div class="desc">Usually your Odoo.com subdomain.</div></div>
+                        <div class="six-fld"><label>Login Email</label><input type="text" name="six_odoo_username" value="<?php echo $s('six_odoo_username'); ?>" placeholder="admin@yourcompany.com"></div>
+                        <div class="six-fld"><label>API Key</label><input type="password" name="six_odoo_api_key" value="<?php echo $s('six_odoo_api_key',true); ?>" placeholder="Odoo API key"><div class="desc">Settings → Technical → API Keys → New. Not your password.</div></div>
+                    </div>
+                    <?php if ( $odoo_ok ) : ?>
+                    <div style="background:#d4edda;border:1px solid #c3e6cb;border-radius:6px;padding:10px 14px;font-size:12px">
+                        <strong>Connected!</strong>
+                        <?php if ( !$stages_set ) : ?>
+                            Run the one-time setup to create custom fields and pipeline stages:
+                            <a href="<?php echo admin_url('?six_odoo_setup=1'); ?>" class="button button-small" style="margin-left:8px">Run Odoo Setup →</a>
+                        <?php else : ?>
+                            Pipeline stages configured — integration fully active.
+                        <?php endif; ?>
+                    </div>
+                    <?php endif; ?>
+                    <div class="six-int-sub">CRM Pipeline Stages <?php echo $stages_set ? $badge(true,'Configured') : $badge(false,'','Not set — run setup'); ?></div>
+                    <div class="hint">Auto-populated by Odoo Setup, or enter manually — the stage ID is in the URL when you open a stage in Odoo CRM → Configuration → Stages.</div>
+                    <div class="grid2">
+                        <div class="six-fld"><label>New Lead — Stage ID</label><input type="text" name="six_odoo_stage_new" value="<?php echo $s('six_odoo_stage_new'); ?>" placeholder="e.g. 1"><div class="desc">Current: <?php echo get_option('six_odoo_stage_new','<em>not set</em>'); ?></div></div>
+                        <div class="six-fld"><label>Onboarding In Progress — Stage ID</label><input type="text" name="six_odoo_stage_inprogress" value="<?php echo $s('six_odoo_stage_inprogress'); ?>" placeholder="e.g. 2"><div class="desc">Current: <?php echo get_option('six_odoo_stage_inprogress','<em>not set</em>'); ?></div></div>
+                        <div class="six-fld"><label>Onboarding Submitted — Stage ID</label><input type="text" name="six_odoo_stage_submitted" value="<?php echo $s('six_odoo_stage_submitted'); ?>" placeholder="e.g. 3"><div class="desc">Current: <?php echo get_option('six_odoo_stage_submitted','<em>not set</em>'); ?></div></div>
+                        <div class="six-fld"><label>Active Client — Stage ID</label><input type="text" name="six_odoo_stage_active" value="<?php echo $s('six_odoo_stage_active'); ?>" placeholder="e.g. 4"><div class="desc">Current: <?php echo get_option('six_odoo_stage_active','<em>not set</em>'); ?></div></div>
+                        <div class="six-fld"><label>Tasks Project ID</label><input type="text" name="six_odoo_project_id" value="<?php echo $s('six_odoo_project_id'); ?>" placeholder="e.g. 1"><div class="desc">Current: <?php echo get_option('six_odoo_project_id','<em>not set</em>'); ?></div></div>
+                    </div>
+                </div>
             </div>
-            <?php endif; ?>
 
-            <table class="form-table">
-                <tr>
-                    <th>Odoo Instance URL</th>
-                    <td>
-                        <input name="six_odoo_url" value="<?php echo $s('six_odoo_url'); ?>" class="regular-text" placeholder="https://yourcompany.odoo.com">
-                        <p class="description">No trailing slash. Example: <code>https://acme.odoo.com</code></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th>Database Name</th>
-                    <td>
-                        <input name="six_odoo_db" value="<?php echo $s('six_odoo_db'); ?>" class="regular-text" placeholder="acme">
-                        <p class="description">Found in Odoo → Settings → Technical → Database. On Odoo.com this is usually your subdomain.</p>
-                    </td>
-                </tr>
-                <tr>
-                    <th>Login Email</th>
-                    <td>
-                        <input name="six_odoo_username" value="<?php echo $s('six_odoo_username'); ?>" class="regular-text" placeholder="admin@yourcompany.com">
-                    </td>
-                </tr>
-                <tr>
-                    <th>API Key</th>
-                    <td>
-                        <input name="six_odoo_api_key" type="password" value="<?php echo $s('six_odoo_api_key',true); ?>" class="regular-text" placeholder="Paste your Odoo API key here">
-                        <p class="description">
-                            Generate in Odoo: <strong>Settings → Technical → API Keys → New</strong><br>
-                             This is NOT your login password — it's a separate API key.
-                        </p>
-                    </td>
-                </tr>
-            </table>
-
-            <?php if ( $odoo_ok ) : ?>
-            <div style="background:#d4edda;border:1px solid #c3e6cb;border-radius:6px;padding:12px 16px;margin:10px 0 20px;font-size:13px">
-                 <strong>Connected!</strong>
-                <?php if ( !$stages_set ) : ?>
-                    Now run the one-time setup to create custom fields and pipeline stages:
-                    <a href="<?php echo admin_url('?six_odoo_setup=1'); ?>" class="button button-primary" style="margin-left:10px">Run Odoo Setup →</a>
-                <?php else : ?>
-                    All pipeline stages are configured. Odoo integration is fully active.
-                <?php endif; ?>
+            <!-- ═══ ANTHROPIC AI ═══════════════════════════════════════ -->
+            <div class="six-int-card">
+                <div class="six-int-head"><span class="dot" style="background:#a855f7"></span> AI Intelligence — Anthropic <?php echo $badge($has_ai); ?></div>
+                <div class="six-int-body">
+                    <div class="hint">Powers the AI Strategist, growth plans and competitor intelligence. Key from <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>.</div>
+                    <div class="six-fld"><label>Anthropic API Key</label><input type="password" name="six_anthropic_api_key" value="<?php echo $s('six_anthropic_api_key',true); ?>" placeholder="sk-ant-..."><div class="desc">Server-side only, never exposed to the browser.</div></div>
+                    <div class="six-fld"><label>Deep model (audits &amp; strategy)</label><input type="text" name="six_ai_model_deep" value="<?php echo $s('six_ai_model_deep'); ?>" placeholder="claude-opus-5"><div class="desc">Default <code>claude-opus-5</code>.</div></div>
+                    <div class="six-fld"><label>Fast model (quick tasks)</label><input type="text" name="six_ai_model_fast" value="<?php echo $s('six_ai_model_fast'); ?>" placeholder="claude-sonnet-5"><div class="desc">Default <code>claude-sonnet-5</code>.</div></div>
+                </div>
             </div>
-            <?php endif; ?>
 
-            <!-- Stage IDs — set automatically by setup, but editable manually -->
-            <h3 style="margin-top:20px">CRM Pipeline Stages
-                <?php if ($stages_set): ?>
-                    <span style="background:#d4edda;color:#155724;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600"> Configured</span>
-                <?php else: ?>
-                    <span style="background:#f8d7da;color:#721c24;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600"> Not set — run setup</span>
-                <?php endif; ?>
-            </h3>
-            <p style="color:#666;font-size:13px;margin-bottom:10px">
-                These are auto-populated when you run the Odoo Setup. You can also enter them manually if your stages already exist in Odoo.
-                Find the ID by opening a stage in Odoo CRM → Configuration → Stages — the ID is in the URL (<code>?id=5</code>).
-            </p>
-            <table class="form-table">
-                <tr>
-                    <th>New Lead — Stage ID</th>
-                    <td>
-                        <input name="six_odoo_stage_new" value="<?php echo $s('six_odoo_stage_new'); ?>" class="small-text" placeholder="e.g. 1">
-                        <span style="color:#666;font-size:12px;margin-left:8px">Current: <?php echo get_option('six_odoo_stage_new','<em>not set</em>'); ?></span>
-                    </td>
-                </tr>
-                <tr>
-                    <th>Onboarding In Progress — Stage ID</th>
-                    <td>
-                        <input name="six_odoo_stage_inprogress" value="<?php echo $s('six_odoo_stage_inprogress'); ?>" class="small-text" placeholder="e.g. 2">
-                        <span style="color:#666;font-size:12px;margin-left:8px">Current: <?php echo get_option('six_odoo_stage_inprogress','<em>not set</em>'); ?></span>
-                    </td>
-                </tr>
-                <tr>
-                    <th>Onboarding Submitted — Stage ID</th>
-                    <td>
-                        <input name="six_odoo_stage_submitted" value="<?php echo $s('six_odoo_stage_submitted'); ?>" class="small-text" placeholder="e.g. 3">
-                        <span style="color:#666;font-size:12px;margin-left:8px">Current: <?php echo get_option('six_odoo_stage_submitted','<em>not set</em>'); ?></span>
-                    </td>
-                </tr>
-                <tr>
-                    <th>Active Client — Stage ID</th>
-                    <td>
-                        <input name="six_odoo_stage_active" value="<?php echo $s('six_odoo_stage_active'); ?>" class="small-text" placeholder="e.g. 4">
-                        <span style="color:#666;font-size:12px;margin-left:8px">Current: <?php echo get_option('six_odoo_stage_active','<em>not set</em>'); ?></span>
-                    </td>
-                </tr>
-                <tr>
-                    <th>Tasks Project ID</th>
-                    <td>
-                        <input name="six_odoo_project_id" value="<?php echo $s('six_odoo_project_id'); ?>" class="small-text" placeholder="e.g. 1">
-                        <span style="color:#666;font-size:12px;margin-left:8px">Current: <?php echo get_option('six_odoo_project_id','<em>not set</em>'); ?></span>
-                        <p class="description">Auto-set by setup. Or find it in Odoo → Project → your project → URL ?id=X</p>
-                    </td>
-                </tr>
-            </table>
+            <!-- ═══ GOOGLE ADS (MCC) ═══════════════════════════════════ -->
+            <div class="six-int-card">
+                <div class="six-int-head"><span class="dot" style="background:#4285F4"></span> Google Ads — Manager (MCC) <?php echo $badge($has_gads); ?></div>
+                <div class="six-int-body">
+                    <div class="hint">One-time agency setup. Advisors then only enter a Customer ID per client on their Data Sources tab.</div>
+                    <div class="six-fld"><label>Developer Token</label><input type="password" name="six_gads_developer_token" value="<?php echo $s('six_gads_developer_token',true); ?>"><div class="desc">From the <a href="https://ads.google.com/aw/apicenter" target="_blank">Google Ads API Center</a>.</div></div>
+                    <div class="grid2">
+                        <div class="six-fld"><label>Manager Account ID (MCC)</label><input type="text" name="six_gads_manager_id" value="<?php echo $s('six_gads_manager_id'); ?>" placeholder="123-456-7890"></div>
+                        <div class="six-fld"><label>Keyword Planner Account ID</label><input type="text" name="six_gads_kw_planner_account_id" value="<?php echo $s('six_gads_kw_planner_account_id'); ?>" placeholder="906-224-1852"><div class="desc">A client account under the MCC with active billing.</div></div>
+                    </div>
+                    <div class="six-fld"><label>OAuth Client ID</label><input type="text" name="six_gads_client_id" value="<?php echo $s('six_gads_client_id'); ?>" placeholder="xxxxxx.apps.googleusercontent.com"><div class="desc"><a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console</a> → OAuth 2.0 Client IDs.</div></div>
+                    <div class="grid2">
+                        <div class="six-fld"><label>OAuth Client Secret</label><input type="password" name="six_gads_client_secret" value="<?php echo $s('six_gads_client_secret',true); ?>"></div>
+                        <div class="six-fld"><label>MCC Refresh Token</label><input type="password" name="six_gads_refresh_token" value="<?php echo $s('six_gads_refresh_token',true); ?>"><div class="desc">Does not expire unless revoked.</div></div>
+                    </div>
+                </div>
+            </div>
 
-            <!-- ═══ TWILIO SMS ════════════════════════════════════════ -->
-            </table>
-            <h2 style="margin-top:28px">Twilio SMS</h2>
-            <p style="color:#666;font-size:13px;margin-bottom:12px">
-                Sent automatically on abandoned checkout. Get credentials at
-                <a href="https://console.twilio.com" target="_blank">console.twilio.com</a>.
-            </p>
-            <table class="form-table">
-                <tr><th scope="row">Account SID</th><td>
-                    <input name="six_twilio_account_sid" value="<?php echo $s('six_twilio_account_sid'); ?>" class="regular-text" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
-                    <p class="description">Twilio Console → Account Info → Account SID</p>
-                </td></tr>
-                <tr><th scope="row">Auth Token</th><td>
-                    <input name="six_twilio_auth_token" type="password" value="<?php echo $s('six_twilio_auth_token',true); ?>" class="regular-text" placeholder="Your auth token">
-                    <p class="description">Twilio Console → Account Info → Auth Token (keep secret)</p>
-                </td></tr>
-                <tr><th scope="row">From Number</th><td>
-                    <input name="six_twilio_from_number" value="<?php echo $s('six_twilio_from_number'); ?>" class="regular-text" placeholder="+14155550000">
-                    <p class="description">Your Twilio phone number in E.164 format (SMS-capable)</p>
-                </td></tr>
-                <?php if(get_option('six_twilio_account_sid')&&get_option('six_twilio_auth_token')&&get_option('six_twilio_from_number')): ?>
-                <tr><th></th><td><span style="color:#155724;background:#d4edda;padding:4px 10px;border-radius:4px;font-weight:600"> Twilio credentials set</span></td></tr>
-                <?php endif; ?>
-            </table>
-            <hr>
+            <!-- ═══ DATAFORSEO ═════════════════════════════════════════ -->
+            <div class="six-int-card">
+                <div class="six-int-head"><span class="dot" style="background:#00b894"></span> DataForSEO — Keyword &amp; SEO Data <?php echo $badge($has_dfs); ?></div>
+                <div class="six-int-body">
+                    <div class="hint">Real CPC, search volume, rankings and on-page data. Free trial at <a href="https://dataforseo.com" target="_blank">dataforseo.com</a>.</div>
+                    <div class="six-fld"><label>Login (account email)</label><input type="text" name="six_dataforseo_login" value="<?php echo $s('six_dataforseo_login'); ?>" placeholder="your@email.com"></div>
+                    <div class="six-fld"><label>API Password</label><input type="password" name="six_dataforseo_password" value="<?php echo $s('six_dataforseo_password', true); ?>" placeholder="••••••••"><div class="desc">The API password from DataForSEO → API Access — not your website login.</div></div>
+                    <div class="six-int-test">
+                        <button type="button" class="button" id="six-dfs-test">Test connection</button>
+                        <span id="six-dfs-test-result" style="font-weight:600"></span>
+                    </div>
+                    <div class="desc">Save credentials first, then run a live check (balance + sample lookup).</div>
+                    <script>
+                    (function(){
+                        var btn=document.getElementById('six-dfs-test'), out=document.getElementById('six-dfs-test-result');
+                        if(!btn) return;
+                        btn.addEventListener('click',function(){
+                            btn.disabled=true; out.style.color='#666'; out.textContent='Testing…';
+                            var fd=new FormData();
+                            fd.append('action','six_test_dataforseo');
+                            fd.append('nonce','<?php echo esc_js( wp_create_nonce('six_dfs_test') ); ?>');
+                            fetch(ajaxurl,{method:'POST',body:fd,credentials:'same-origin'})
+                                .then(function(r){return r.json();})
+                                .then(function(res){
+                                    btn.disabled=false;
+                                    var d=res&&res.data?res.data:{};
+                                    out.style.color=(res&&res.success&&d.stage==='ok')?'#155724':((res&&res.success)?'#856404':'#a00');
+                                    out.textContent=(d.message)||((res&&res.success)?'OK':'Test failed.');
+                                })
+                                .catch(function(){ btn.disabled=false; out.style.color='#a00'; out.textContent='Request failed.'; });
+                        });
+                    })();
+                    </script>
+                </div>
+            </div>
+
+            <!-- ═══ GOOGLE ANALYTICS 4 ═════════════════════════════════ -->
+            <div class="six-int-card">
+                <div class="six-int-head"><span class="dot" style="background:#E8710A"></span> Google Analytics 4 <?php echo $badge($has_ga4); ?></div>
+                <div class="six-int-body">
+                    <div class="hint">Agency service account. Per-client GA4 property IDs are set on the Data Sources tab.</div>
+                    <div class="six-fld"><label>Default GA4 Property ID</label><input type="text" name="six_ga4_property_id" value="<?php echo esc_attr(get_option('six_ga4_property_id','')); ?>" placeholder="123456789"><div class="desc">9-digit number from GA4 Admin → Property Settings (no G- prefix).</div></div>
+                    <div class="six-fld"><label>Service Account JSON</label><textarea name="six_ga4_service_account_json" rows="5" class="large-text" placeholder='{"type":"service_account", ...}'><?php echo esc_textarea(get_option('six_ga4_service_account_json','')); ?></textarea><div class="desc">Full JSON of your Google Cloud service-account key. <a href="https://developers.google.com/analytics/devguides/reporting/data/v1/quickstart-client-libraries" target="_blank">Setup guide →</a></div></div>
+                    <div class="six-int-test">
+                        <button type="button" class="button" id="six-test-ga4">Test connection</button>
+                        <span id="six-ga4-result" style="font-size:13px"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ META ADS ═══════════════════════════════════════════ -->
+            <div class="six-int-card">
+                <div class="six-int-head"><span class="dot" style="background:#1877F2"></span> Meta Ads (Facebook / Instagram) <?php echo $badge($has_meta); ?></div>
+                <div class="six-int-body">
+                    <div class="hint">Agency System User token reads every client ad account under your Business Manager. Per-client ad account IDs are set on the Data Sources tab.</div>
+                    <div class="six-fld"><label>System User Access Token</label><input type="password" name="six_meta_access_token" placeholder="EAAxxxxxxx… — leave blank to keep existing"><div class="desc"><?php echo get_option('six_meta_access_token') ? '✓ Saved (hidden)' : 'Not set'; ?> — token with <code>ads_read</code> from <a href="https://business.facebook.com/settings/system-users" target="_blank">Business Manager → System Users</a>.</div></div>
+                    <div class="grid2">
+                        <div class="six-fld"><label>App ID</label><input type="text" name="six_meta_app_id" value="<?php echo esc_attr(get_option('six_meta_app_id','')); ?>" placeholder="1234567890"><div class="desc"><a href="https://developers.facebook.com/apps" target="_blank">Meta for Developers</a> → App → Settings.</div></div>
+                        <div class="six-fld"><label>App Secret</label><input type="password" name="six_meta_app_secret" placeholder="Leave blank to keep existing"><div class="desc"><?php echo get_option('six_meta_app_secret') ? '✓ Saved (hidden)' : 'Not set'; ?></div></div>
+                    </div>
+                    <div class="six-fld"><label>Default Ad Account ID</label><input type="text" name="six_meta_ad_account_id" value="<?php echo esc_attr(get_option('six_meta_ad_account_id','')); ?>" placeholder="act_1234567890"><div class="desc">Format act_XXXXXXXX — found in the Ads Manager URL.</div></div>
+                    <div class="six-int-test">
+                        <button type="button" class="button" id="six-test-meta">Test connection</button>
+                        <span id="six-meta-result" style="font-size:13px"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ GOOGLE CALENDAR ════════════════════════════════════ -->
+            <div class="six-int-card">
+                <div class="six-int-head"><span class="dot" style="background:#3C6478"></span> Google Calendar (Meet links) <?php echo $badge($has_gcal); ?></div>
+                <div class="six-int-body">
+                    <div class="hint">Agency OAuth for booking calls and generating Google Meet links.</div>
+                    <div class="six-fld"><label>OAuth Client ID</label><input type="text" name="six_google_client_id" value="<?php echo $s('six_google_client_id'); ?>"></div>
+                    <div class="six-fld"><label>OAuth Client Secret</label><input type="password" name="six_google_client_secret" value="<?php echo $s('six_google_client_secret',true); ?>"></div>
+                </div>
+            </div>
 
             <!-- ═══ STRIPE ═════════════════════════════════════════════ -->
-            <h2 style="border-bottom:3px solid #83C5ED;padding-bottom:8px;margin-top:30px"> Stripe</h2>
-            <table class="form-table">
-                <tr>
-                    <th>Publishable Key</th>
-                    <td><input name="six_stripe_publishable_key" value="<?php echo $s('six_stripe_publishable_key'); ?>" class="regular-text" placeholder="pk_live_..."></td>
-                </tr>
-                <tr>
-                    <th>Secret Key</th>
-                    <td>
-                        <input name="six_stripe_secret_key" type="password" value="<?php echo $s('six_stripe_secret_key',true); ?>" class="regular-text" placeholder="sk_live_...">
-                        <p class="description">Never share this. Used server-side only.</p>
-                    </td>
-                </tr>
-                <tr>
-                    <th>Webhook Secret</th>
-                    <td>
-                        <input name="six_stripe_webhook_secret" type="password" value="<?php echo $s('six_stripe_webhook_secret',true); ?>" class="regular-text" placeholder="whsec_...">
-                        <p class="description">Webhook URL: <code><?php echo esc_html( home_url('/wp-json/six/v1/stripe-webhook') ); ?></code></p>
-                    </td>
-                </tr>
-            </table>
+            <div class="six-int-card">
+                <div class="six-int-head"><span class="dot" style="background:#635BFF"></span> Stripe (Payments) <?php echo $badge($has_stripe); ?></div>
+                <div class="six-int-body">
+                    <div class="six-fld"><label>Publishable Key</label><input type="text" name="six_stripe_publishable_key" value="<?php echo $s('six_stripe_publishable_key'); ?>" placeholder="pk_live_..."></div>
+                    <div class="six-fld"><label>Secret Key</label><input type="password" name="six_stripe_secret_key" value="<?php echo $s('six_stripe_secret_key',true); ?>" placeholder="sk_live_..."><div class="desc">Server-side only — never shared.</div></div>
+                    <div class="six-fld"><label>Webhook Secret</label><input type="password" name="six_stripe_webhook_secret" value="<?php echo $s('six_stripe_webhook_secret',true); ?>" placeholder="whsec_..."><div class="desc">Webhook URL: <code><?php echo esc_html( home_url('/wp-json/six/v1/stripe-webhook') ); ?></code></div></div>
+                </div>
+            </div>
 
-            <!-- ═══ GOOGLE ADS (MCC) ════════════════════════════════════ -->
-            <h2 style="border-bottom:3px solid #4285F4;padding-bottom:8px;margin-top:30px"> Google Ads — Manager Account (MCC)</h2>
-            <p style="color:#666;font-size:13px;margin-bottom:10px">
-                One-time setup. After this, advisors only need to enter a Customer ID per client.
-                You already have a refresh token — paste it here.
-            </p>
-            <table class="form-table">
-                <tr>
-                    <th>Developer Token</th>
-                    <td>
-                        <input name="six_gads_developer_token" type="password" value="<?php echo $s('six_gads_developer_token',true); ?>" class="regular-text">
-                        <p class="description">From <a href="https://ads.google.com/aw/apicenter" target="_blank">Google Ads API Center</a></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th>Manager Account ID (MCC)</th>
-                    <td>
-                        <input name="six_gads_manager_id" value="<?php echo $s('six_gads_manager_id'); ?>" class="regular-text" placeholder="123-456-7890">
-                    </td>
-                </tr>
-                <tr>
-                    <th>Keyword Planner Account ID</th>
-                    <td>
-                        <input name="six_gads_kw_planner_account_id" value="<?php echo $s('six_gads_kw_planner_account_id'); ?>" class="regular-text" placeholder="906-224-1852">
-                        <p class="description">A client account under your MCC used for Keyword Planner data. Requires active campaigns with billing to return CPC data.</p>
-                    </td>
-                </tr>
-                <tr><td colspan="2"><hr style="margin:8px 0"><strong>DataForSEO — Keyword CPC Data</strong><br><small style="color:#666">Used for real CPC and search volume when Google Ads Keyword Planner is unavailable. Free trial at <a href="https://dataforseo.com" target="_blank">dataforseo.com</a> — ~$0.002 per keyword.</small></td></tr>
-                <tr>
-                    <th>DataForSEO Login (Email)</th>
-                    <td>
-                        <input name="six_dataforseo_login" value="<?php echo $s('six_dataforseo_login'); ?>" class="regular-text" placeholder="your@email.com">
-                    </td>
-                </tr>
-                <tr>
-                    <th>DataForSEO Password</th>
-                    <td>
-                        <input name="six_dataforseo_password" type="password" value="<?php echo $s('six_dataforseo_password', true); ?>" class="regular-text" placeholder="••••••••">
-                    </td>
-                </tr>
-                <tr>
-                    <th>Connection Test</th>
-                    <td>
-                        <button type="button" class="button" id="six-dfs-test">Test DataForSEO connection</button>
-                        <span id="six-dfs-test-result" style="margin-left:10px;font-weight:600"></span>
-                        <p class="description">Save your credentials first, then run a live check (account balance + a sample keyword lookup).</p>
-                        <script>
-                        (function(){
-                            var btn=document.getElementById('six-dfs-test'), out=document.getElementById('six-dfs-test-result');
-                            if(!btn) return;
-                            btn.addEventListener('click',function(){
-                                btn.disabled=true; out.style.color='#666'; out.textContent='Testing…';
-                                var fd=new FormData();
-                                fd.append('action','six_test_dataforseo');
-                                fd.append('nonce','<?php echo esc_js( wp_create_nonce('six_dfs_test') ); ?>');
-                                fetch(ajaxurl,{method:'POST',body:fd,credentials:'same-origin'})
-                                    .then(function(r){return r.json();})
-                                    .then(function(res){
-                                        btn.disabled=false;
-                                        var d=res&&res.data?res.data:{};
-                                        out.style.color=(res&&res.success&&d.stage==='ok')?'#155724':((res&&res.success)?'#856404':'#a00');
-                                        out.textContent=(d.message)||((res&&res.success)?'OK':'Test failed.');
-                                    })
-                                    .catch(function(){ btn.disabled=false; out.style.color='#a00'; out.textContent='Request failed.'; });
-                            });
-                        })();
-                        </script>
-                    </td>
-                </tr>
-                <tr>
-                    <th>OAuth Client ID</th>
-                    <td>
-                        <input name="six_gads_client_id" value="<?php echo $s('six_gads_client_id'); ?>" class="regular-text" placeholder="xxxxxx.apps.googleusercontent.com">
-                        <p class="description">From <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console</a> → OAuth 2.0 Client IDs</p>
-                    </td>
-                </tr>
-                <tr>
-                    <th>OAuth Client Secret</th>
-                    <td><input name="six_gads_client_secret" type="password" value="<?php echo $s('six_gads_client_secret',true); ?>" class="regular-text"></td>
-                </tr>
-                <tr>
-                    <th>MCC Refresh Token</th>
-                    <td>
-                        <input name="six_gads_refresh_token" type="password" value="<?php echo $s('six_gads_refresh_token',true); ?>" class="regular-text">
-                        <p class="description">You already generated this ✓ — paste it here. Does not expire unless revoked.</p>
-                    </td>
-                </tr>
-            </table>
+            <!-- ═══ TWILIO SMS ═════════════════════════════════════════ -->
+            <div class="six-int-card">
+                <div class="six-int-head"><span class="dot" style="background:#F22F46"></span> Twilio SMS <?php echo $badge($has_twilio); ?></div>
+                <div class="six-int-body">
+                    <div class="hint">Sent automatically on abandoned checkout. Credentials at <a href="https://console.twilio.com" target="_blank">console.twilio.com</a>.</div>
+                    <div class="six-fld"><label>Account SID</label><input type="text" name="six_twilio_account_sid" value="<?php echo $s('six_twilio_account_sid'); ?>" placeholder="ACxxxxxxxx..."></div>
+                    <div class="grid2">
+                        <div class="six-fld"><label>Auth Token</label><input type="password" name="six_twilio_auth_token" value="<?php echo $s('six_twilio_auth_token',true); ?>" placeholder="Auth token"></div>
+                        <div class="six-fld"><label>From Number</label><input type="text" name="six_twilio_from_number" value="<?php echo $s('six_twilio_from_number'); ?>" placeholder="+14155550000"><div class="desc">E.164 format, SMS-capable.</div></div>
+                    </div>
+                </div>
+            </div>
 
-            <!-- ═══ GOOGLE CALENDAR ══════════════════════════════════════ -->
-            <h2 style="border-bottom:3px solid #3C6478;padding-bottom:8px;margin-top:30px"> Google Calendar (Agency OAuth)</h2>
-            <table class="form-table">
-                <tr>
-                    <th>OAuth Client ID</th>
-                    <td><input name="six_google_client_id" value="<?php echo $s('six_google_client_id'); ?>" class="regular-text"></td>
-                </tr>
-                <tr>
-                    <th>OAuth Client Secret</th>
-                    <td><input name="six_google_client_secret" type="password" value="<?php echo $s('six_google_client_secret',true); ?>" class="regular-text"></td>
-                </tr>
-            </table>
-
-            <!-- ═══ AI / ANTHROPIC ════════════════════════════════════ -->
-            <h2 style="border-bottom:3px solid #a855f7;padding-bottom:8px;margin-top:30px"> AI Intelligence (Anthropic)</h2>
-            <p style="color:#666;font-size:13px;margin-bottom:10px">
-                Powers the AI Insights, Growth Opportunities, and Competitor Intelligence tabs in the customer portal.
-                Get your API key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>.
-            </p>
-            <table class="form-table">
-                <tr>
-                    <th>Anthropic API Key</th>
-                    <td>
-                        <input name="six_anthropic_api_key" type="password" value="<?php echo $s('six_anthropic_api_key',true); ?>" class="regular-text" placeholder="sk-ant-...">
-                        <p class="description">Used server-side only. Never exposed to the browser. Powers the AI Strategist and growth plans.</p>
-                    </td>
-                </tr>
-                <tr>
-                    <th>AI Strategist — Deep model</th>
-                    <td>
-                        <input name="six_ai_model_deep" value="<?php echo $s('six_ai_model_deep'); ?>" class="regular-text" placeholder="claude-opus-5">
-                        <p class="description">Used for audits &amp; full strategy (deep reasoning). Default <code>claude-opus-5</code>. If your key can't access it, set an available model here.</p>
-                    </td>
-                </tr>
-                <tr>
-                    <th>AI Strategist — Fast model</th>
-                    <td>
-                        <input name="six_ai_model_fast" value="<?php echo $s('six_ai_model_fast'); ?>" class="regular-text" placeholder="claude-sonnet-5">
-                        <p class="description">Used for quick keyword/ad-copy tasks. Default <code>claude-sonnet-5</code>.</p>
-                    </td>
-                </tr>
-            </table>
-
-            <h2 class="title" style="margin-top:24px;color:#4285F4"> Google Analytics 4 (GA4)</h2>
-            <table class="form-table">
-                <tr>
-                    <th>GA4 Property ID</th>
-                    <td>
-                        <input type="text" name="six_ga4_property_id" value="<?php echo esc_attr(get_option('six_ga4_property_id','')); ?>" class="regular-text" placeholder="123456789">
-                        <p class="description">9-digit number from GA4 Admin → Property Settings (no G- prefix).</p>
-                    </td>
-                </tr>
-                <tr>
-                    <th>GA4 Service Account JSON</th>
-                    <td>
-                        <textarea name="six_ga4_service_account_json" rows="5" class="large-text" placeholder='{"type":"service_account","project_id":"...","private_key_id":"...","private_key":"-----BEGIN RSA...","client_email":"...@....iam.gserviceaccount.com"}'><?php echo esc_textarea(get_option('six_ga4_service_account_json','')); ?></textarea>
-                        <p class="description">Paste the full JSON of your Google Cloud Service Account key. <a href="https://developers.google.com/analytics/devguides/reporting/data/v1/quickstart-client-libraries" target="_blank">Setup guide →</a></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th>Test GA4</th>
-                    <td>
-                        <button type="button" class="button" id="six-test-ga4">Test GA4 Connection</button>
-                        <span id="six-ga4-result" style="margin-left:12px;font-size:13px"></span>
-                    </td>
-                </tr>
-            </table>
-
-            <h2 class="title" style="margin-top:24px;color:#1877F2"> Meta Ads (Facebook / Instagram)</h2>
-            <table class="form-table">
-                <tr>
-                    <th>Meta App ID</th>
-                    <td>
-                        <input type="text" name="six_meta_app_id" value="<?php echo esc_attr(get_option('six_meta_app_id','')); ?>" class="regular-text" placeholder="1234567890">
-                        <p class="description">From <a href="https://developers.facebook.com/apps" target="_blank">Meta for Developers</a> → App → Settings → Basic.</p>
-                    </td>
-                </tr>
-                <tr>
-                    <th>Meta App Secret</th>
-                    <td>
-                        <input type="password" name="six_meta_app_secret" class="regular-text" placeholder="Leave blank to keep existing">
-                        <p class="description"><?php echo get_option('six_meta_app_secret') ? '✓ Saved (hidden)' : 'Not set'; ?></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th>Meta System User Access Token</th>
-                    <td>
-                        <input type="password" name="six_meta_access_token" class="large-text" placeholder="EAAxxxxxxx... — Leave blank to keep existing">
-                        <p class="description"><?php echo get_option('six_meta_access_token') ? '✓ Saved (hidden)' : 'Not set'; ?> — System User token from <a href="https://business.facebook.com/settings/system-users" target="_blank">Meta Business Manager</a>.</p>
-                    </td>
-                </tr>
-                <tr>
-                    <th>Meta Ad Account ID</th>
-                    <td>
-                        <input type="text" name="six_meta_ad_account_id" value="<?php echo esc_attr(get_option('six_meta_ad_account_id','')); ?>" class="regular-text" placeholder="act_1234567890">
-                        <p class="description">Format: act_XXXXXXXX. Found in Meta Ads Manager URL.</p>
-                    </td>
-                </tr>
-                <tr>
-                    <th>Test Meta</th>
-                    <td>
-                        <button type="button" class="button" id="six-test-meta">Test Meta Connection</button>
-                        <span id="six-meta-result" style="margin-left:12px;font-size:13px"></span>
-                    </td>
-                </tr>
-            </table>
+            </div><!-- /.six-int-grid -->
 
             <script>
             document.getElementById('six-test-ga4').addEventListener('click',function(){
@@ -504,7 +356,7 @@ function six_admin_settings() {
                 fetch(ajaxurl,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
                     body:new URLSearchParams({action:'six_test_ga4',_ajax_nonce:'<?php echo wp_create_nonce("six_test_ga4"); ?>',property_id:document.querySelector('[name="six_ga4_property_id"]').value})})
                 .then(function(res){return res.json();})
-                .then(function(d){r.innerHTML=d.success?'<span style="color:#56D364">✓ '+d.data+'</span>':'<span style="color:#FF6B6B"> '+(d.data||'Failed')+'</span>';});
+                .then(function(d){r.innerHTML=d.success?'<span style="color:#0a7a2f">✓ '+d.data+'</span>':'<span style="color:#a00">'+(d.data||'Failed')+'</span>';});
             });
             document.getElementById('six-test-meta').addEventListener('click',function(){
                 var r=document.getElementById('six-meta-result');
@@ -512,11 +364,13 @@ function six_admin_settings() {
                 fetch(ajaxurl,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
                     body:new URLSearchParams({action:'six_test_meta',_ajax_nonce:'<?php echo wp_create_nonce("six_test_meta"); ?>'})})
                 .then(function(res){return res.json();})
-                .then(function(d){r.innerHTML=d.success?'<span style="color:#56D364">✓ '+d.data+'</span>':'<span style="color:#FF6B6B"> '+(d.data||'Failed')+'</span>';});
+                .then(function(d){r.innerHTML=d.success?'<span style="color:#0a7a2f">✓ '+d.data+'</span>':'<span style="color:#a00">'+(d.data||'Failed')+'</span>';});
             });
             </script>
 
-            <?php submit_button( 'Save All Settings', 'primary large', 'six_save_settings' ); ?>
+            <div class="six-savebar">
+                <?php submit_button( 'Save All Settings', 'primary large', 'six_save_settings', false ); ?>
+            </div>
         </form>
     </div>
     <?php
