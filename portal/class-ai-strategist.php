@@ -222,6 +222,13 @@ class Six_AI_Strategist {
                 'input_schema' => array( 'type'=>'object', 'properties'=>new stdClass() ),
             ),
             array(
+                'name' => 'meta_ads_performance',
+                'description' => "Pull the client's LIVE Meta (Facebook/Instagram) Ads performance: spend, impressions, clicks, CTR, CPC, CPM, leads, purchases and ROAS, with a per-campaign breakdown. Use before making social-advertising or budget-allocation claims for Meta.",
+                'input_schema' => array( 'type'=>'object', 'properties'=>array(
+                    'days'=>array('type'=>'integer','description'=>'Lookback window in days (default 30)'),
+                ) ),
+            ),
+            array(
                 'name' => 'ga4_analytics',
                 'description' => "Pull the client's LIVE GA4 website analytics: sessions, users, pageviews, conversions and traffic by channel. Use to understand where traffic and conversions actually come from.",
                 'input_schema' => array( 'type'=>'object', 'properties'=>array(
@@ -303,6 +310,11 @@ class Six_AI_Strategist {
                 if ( $m === false ) return array( 'error' => Six_Google_Ads::get_last_error() ?: 'Google Ads data unavailable.' );
                 if ( empty( $m ) ) return array( 'note' => 'Google Ads connected but no active-campaign data in the last 30 days.' );
                 return $m;
+            case 'meta_ads_performance':
+                if ( ! class_exists( 'Six_Meta' ) ) return array( 'error' => 'Meta integration unavailable.' );
+                if ( ! Six_Meta::configured() ) return array( 'error' => 'Meta System User token not set. Add it in 6ix Portal → Integrations.' );
+                if ( ! get_user_meta( $client_id, 'six_meta_ad_account_id', true ) ) return array( 'error' => 'No Meta ad account connected for this client. Add it in the Data Sources tab.' );
+                return Six_Meta::client_report( $client_id, $input['days'] ?? 30 );
             case 'ga4_analytics':
                 if ( ! class_exists( 'Six_Analytics' ) ) return array( 'error' => 'Analytics integration unavailable.' );
                 $prop = get_user_meta( $client_id, 'six_ga4_property_id', true ) ?: get_option( 'six_ga4_property_id', '' );
@@ -345,6 +357,7 @@ class Six_AI_Strategist {
         // Tell the agent which LIVE data tools will work for this client.
         $live = array();
         if ( get_user_meta( $client_id, 'six_gads_customer_id', true ) ) $live[] = 'google_ads_performance';
+        if ( class_exists( 'Six_Meta' ) && Six_Meta::configured() && get_user_meta( $client_id, 'six_meta_ad_account_id', true ) ) $live[] = 'meta_ads_performance';
         if ( get_user_meta( $client_id, 'six_ga4_property_id', true ) || get_option( 'six_ga4_property_id', '' ) ) $live[] = 'ga4_analytics';
         if ( get_user_meta( $client_id, 'six_gsc_site', true ) ) $live[] = 'search_console';
         $out['available_live_tools'] = $live ?: array( 'none — recommend the advisor connect Google Ads / GA4 / Search Console' );
@@ -604,6 +617,22 @@ class Six_AI_Strategist {
                     'cost'        => round( floatval( $m['cost'] ?? 0 ), 2 ),
                     'impressions' => intval( $m['impressions'] ?? 0 ),
                 );
+            }
+        }
+        if ( class_exists( 'Six_Meta' ) && Six_Meta::configured() ) {
+            $macct = get_user_meta( $client_id, 'six_meta_ad_account_id', true );
+            if ( $macct ) {
+                $mi = Six_Meta::account_insights( $macct, 30 );
+                if ( empty( $mi['error'] ) && ! empty( $mi['totals'] ) ) {
+                    $t = $mi['totals'];
+                    $snap['meta'] = array(
+                        'spend'       => $t['spend'],
+                        'clicks'      => $t['clicks'],
+                        'impressions' => $t['impressions'],
+                        'leads'       => $t['leads'],
+                        'purchases'   => $t['purchases'],
+                    );
+                }
             }
         }
         if ( class_exists( 'Six_Analytics' ) ) {

@@ -324,8 +324,8 @@ class Six_EstimateEngine {
             'login-customer-id' => preg_replace('/[^0-9]/', '', $mcc_id),
         );
 
-        // Google Ads REST API v20 uses snake_case field names
-        // Google Ads REST v20 — all camelCase, keywordSeed.keywords is array of strings
+        // Google Ads REST API — camelCase field names; keywordSeed.keywords is
+        // an array of strings. API version comes from Six_Google_Ads::API_VERSION.
         $body = array(
             'keywordSeed'              => array( 'keywords' => $keywords ),
             'keywordPlanNetwork'       => 'GOOGLE_SEARCH',
@@ -349,8 +349,9 @@ class Six_EstimateEngine {
         $kw_acct = preg_replace('/[^0-9]/', '', $raw_kw_acct ?: $mcc_id);
         error_log("6ix Estimate: using customer_id=[{$kw_acct}] mcc=[{$mcc_id}] (set six_gads_kw_planner_account_id to a client account for metrics)");
 
+        $gads_ver = class_exists('Six_Google_Ads') ? Six_Google_Ads::API_VERSION : 'v24';
         $resp = wp_remote_post(
-            "https://googleads.googleapis.com/v20/customers/{$kw_acct}:generateKeywordIdeas",
+            "https://googleads.googleapis.com/{$gads_ver}/customers/{$kw_acct}:generateKeywordIdeas",
             array( 'timeout'=>20, 'headers'=>$headers, 'body'=>wp_json_encode($body) )
         );
 

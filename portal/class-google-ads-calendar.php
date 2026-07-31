@@ -12,6 +12,10 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 class Six_Google_Ads {
 
+    // Google Ads REST API version. Google sunsets versions abruptly (~12-month
+    // lifespan) — when a version is deprecated, bump this single constant.
+    const API_VERSION = 'v24';
+
     private static $last_error = '';
 
     public static function get_last_error() {
@@ -144,7 +148,7 @@ class Six_Google_Ads {
         }
 
         $response = wp_remote_post(
-            "https://googleads.googleapis.com/v20/customers/{$customer_id}/googleAds:search",
+            'https://googleads.googleapis.com/' . self::API_VERSION . "/customers/{$customer_id}/googleAds:search",
             array(
                 'timeout' => 20,
                 'headers' => $headers,
