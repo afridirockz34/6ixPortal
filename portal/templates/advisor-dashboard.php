@@ -2116,6 +2116,36 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         <div id="adv-svc-msg-<?php echo $view_client_id;?>" style="font-size:12px;margin-top:6px"></div>
     </div>
 
+    <!-- ── Danger zone: delete customer ─────────────────────────────────── -->
+    <div style="background:var(--dark2);border:1.5px solid rgba(220,38,38,0.35);border-radius:14px;padding:20px;margin-top:16px">
+        <div style="font-size:12px;font-weight:700;color:var(--danger,#dc2626);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Danger zone</div>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap">
+            <div style="max-width:560px">
+                <div style="font-size:13px;font-weight:600;color:var(--text1)">Delete this customer</div>
+                <div style="font-size:12px;color:var(--text3);margin-top:4px;line-height:1.6">Permanently removes <strong><?php echo esc_html($view_client->display_name); ?></strong>'s account and all portal data — onboarding, services, KPIs, metrics, recommendations, AI strategy history, appointments, reports and messages. Their record in <strong>Odoo is kept</strong>. This cannot be undone.</div>
+            </div>
+            <button class="six-btn six-btn-sm" id="six-delete-client-btn"
+                data-client="<?php echo $view_client_id; ?>"
+                data-name="<?php echo esc_attr($view_client->display_name); ?>"
+                style="font-size:12px;background:rgba(220,38,38,0.12);color:var(--danger,#dc2626);border:1px solid rgba(220,38,38,0.4);white-space:nowrap">Delete customer</button>
+        </div>
+    </div>
+
+    <!-- Delete confirmation modal -->
+    <div id="six-del-modal" role="dialog" aria-modal="true" aria-labelledby="six-del-title" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;padding:20px">
+        <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;max-width:440px;width:100%;padding:22px">
+            <div id="six-del-title" style="font-size:15px;font-weight:700;color:var(--text1);margin-bottom:8px">Delete customer?</div>
+            <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:14px">This permanently deletes <strong id="six-del-name"></strong> and all of their portal data. Their Odoo record is not affected. <strong style="color:var(--danger,#dc2626)">This cannot be undone.</strong></div>
+            <div style="font-size:12px;color:var(--text3);margin-bottom:6px">Type the customer's name to confirm:</div>
+            <input class="six-input" id="six-del-confirm" autocomplete="off" style="font-size:13px;width:100%;margin-bottom:8px">
+            <div id="six-del-msg" style="font-size:12px;min-height:16px;margin-bottom:10px"></div>
+            <div style="display:flex;gap:8px;justify-content:flex-end">
+                <button class="six-btn six-btn-ghost six-btn-sm" id="six-del-cancel" style="font-size:12px">Cancel</button>
+                <button class="six-btn six-btn-sm" id="six-del-confirm-btn" disabled style="font-size:12px;background:var(--danger,#dc2626);color:#fff;opacity:0.5">Delete permanently</button>
+            </div>
+        </div>
+    </div>
+
     <script>
     function advSearchClients(q){
     q=q.toLowerCase().trim();
@@ -2193,6 +2223,39 @@ function advCompleteOnboarding(clientId){
             }
         });
     }
+
+    // ── Delete customer (with typed confirmation) ─────────────────────────
+    (function(){
+        var openBtn=document.getElementById('six-delete-client-btn');
+        if(!openBtn) return;
+        var modal=document.getElementById('six-del-modal');
+        var input=document.getElementById('six-del-confirm');
+        var okBtn=document.getElementById('six-del-confirm-btn');
+        var msg=document.getElementById('six-del-msg');
+        var expected='', clientId=0;
+        function close(){ modal.style.display='none'; input.value=''; msg.textContent=''; okBtn.disabled=true; okBtn.style.opacity='0.5'; okBtn.textContent='Delete permanently'; }
+        openBtn.addEventListener('click',function(){
+            expected=openBtn.dataset.name||''; clientId=openBtn.dataset.client;
+            document.getElementById('six-del-name').textContent=expected;
+            input.placeholder=expected;
+            modal.style.display='flex'; setTimeout(function(){input.focus();},50);
+        });
+        document.getElementById('six-del-cancel').addEventListener('click',close);
+        modal.addEventListener('click',function(e){ if(e.target===modal) close(); });
+        document.addEventListener('keydown',function(e){ if(e.key==='Escape'&&modal.style.display==='flex') close(); });
+        input.addEventListener('input',function(){
+            var match=expected!=='' && input.value.trim().toLowerCase()===expected.trim().toLowerCase();
+            okBtn.disabled=!match; okBtn.style.opacity=match?'1':'0.5';
+        });
+        okBtn.addEventListener('click',function(){
+            if(okBtn.disabled) return;
+            okBtn.disabled=true; okBtn.textContent='Deleting…'; msg.style.color='var(--text3)'; msg.textContent='Removing all data…';
+            post({action:'six_delete_client',client_id:clientId,confirm_name:input.value.trim()}).then(function(r){
+                if(r&&r.success){ msg.style.color='var(--success)'; msg.textContent='Deleted. Redirecting…'; setTimeout(function(){ location.href=(r.data&&r.data.redirect)||'?tab=clients'; },900); }
+                else { okBtn.disabled=false; okBtn.textContent='Delete permanently'; msg.style.color='var(--danger)'; msg.textContent=(r&&r.data&&(r.data.message||r.data))||'Could not delete.'; }
+            }).catch(function(){ okBtn.disabled=false; okBtn.textContent='Delete permanently'; msg.style.color='var(--danger)'; msg.textContent='Network error.'; });
+        });
+    })();
     </script>
     <!-- ═══════════════════════ CTAB: REPORTS ═══════════════════════ -->
     <?php elseif($ctab==='reports'): ?>
