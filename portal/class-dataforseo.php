@@ -39,6 +39,9 @@ class Six_DataForSEO {
 
         $code = wp_remote_retrieve_response_code( $resp );
         $data = json_decode( wp_remote_retrieve_body( $resp ), true );
+        if ( $code === 401 ) {
+            return array( 'error' => 'DataForSEO auth failed (HTTP 401). The login/password combination was rejected. In 6ix Portal → Integrations, set the login to your DataForSEO account email and the password to your API password from the DataForSEO dashboard (API Access → API password) — this is not your website login. Re-save with no leading/trailing spaces.' );
+        }
         if ( $code !== 200 || ( $data['status_code'] ?? 0 ) !== 20000 ) {
             return array( 'error' => "DataForSEO error (HTTP {$code}, status " . ( $data['status_code'] ?? '?' ) . '): ' . ( $data['status_message'] ?? 'unknown' ) );
         }

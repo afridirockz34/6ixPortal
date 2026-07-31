@@ -92,7 +92,10 @@ function six_admin_settings() {
         $mask = str_repeat( '•', 12 );
         foreach ( $all_fields as $f ) {
             if ( isset( $_POST[$f] ) && $_POST[$f] !== $mask ) {
-                update_option( $f, sanitize_text_field( $_POST[$f] ) );
+                // Unslash before sanitising: WordPress adds slashes to $_POST, and
+                // API secrets can contain quotes/backslashes. Without this a
+                // password like a"b would be stored as a\"b and fail auth (401).
+                update_option( $f, sanitize_text_field( wp_unslash( $_POST[$f] ) ) );
             }
         }
         // Multiline / structured options must NOT go through sanitize_text_field
