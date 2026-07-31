@@ -689,6 +689,8 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         $c_meta_account = get_user_meta($view_client_id,'six_meta_ad_account_id',true);
         $c_meta_business = get_user_meta($view_client_id,'six_meta_business_id',true);
         $c_meta_pixel = get_user_meta($view_client_id,'six_meta_pixel_id',true);
+        $c_domain  = class_exists('Six_AI_Strategist') ? Six_AI_Strategist::client_domain($view_client_id) : (get_user_meta($view_client_id,'six_client_domain',true) ?: '');
+        $c_tloc    = class_exists('Six_AI_Strategist') ? Six_AI_Strategist::target_location($view_client_id) : (get_user_meta($view_client_id,'six_target_location',true) ?: '');
         $c_sync    = get_user_meta($view_client_id,'six_gads_last_sync',true);
         $health    = class_exists('Six_Health_Score')?Six_Health_Score::calculate($view_client_id):0;
         // Activity/requests from budget change requests
@@ -1466,7 +1468,68 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
     <!-- ═══════════════════════ CTAB: DATA SOURCES ═══════════════════════ -->
     <?php elseif($ctab==='datasources'): ?>
 
+    <?php
+        // Connection completeness — one number so the advisor knows what's live.
+        $ds_sources = array(
+            'Website / domain'        => (bool) $c_domain,
+            'Google Ads'              => (bool) $c_gads,
+            'Google Analytics 4'      => (bool) $c_ga4_id,
+            'Search Console'          => (bool) $c_gsc_site,
+            'Meta Ads'                => (bool) $c_meta_account,
+            'Google Business Profile' => (bool) $c_gbp_loc,
+        );
+        $ds_done  = count(array_filter($ds_sources));
+        $ds_total = count($ds_sources);
+        $ds_pct   = $ds_total ? round($ds_done / $ds_total * 100) : 0;
+    ?>
+    <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:16px 18px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+            <div>
+                <div style="font-size:14px;font-weight:700;color:var(--text1)">Connect this client's accounts</div>
+                <div style="font-size:12px;color:var(--text3);margin-top:2px">Add each ID once — the AI Strategist, SEO tools and live analytics all read from here automatically.</div>
+            </div>
+            <div style="font-size:13px;font-weight:700;color:<?php echo $ds_done===$ds_total?'var(--success)':'var(--text2)'; ?>;white-space:nowrap"><?php echo $ds_done; ?> of <?php echo $ds_total; ?> connected</div>
+        </div>
+        <div style="height:8px;background:rgba(255,255,255,0.06);border-radius:6px;overflow:hidden">
+            <div style="height:100%;width:<?php echo $ds_pct; ?>%;background:linear-gradient(90deg,#FF6699,#83C5ED);border-radius:6px"></div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">
+            <?php foreach($ds_sources as $lbl=>$ok): ?>
+            <span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:<?php echo $ok?'rgba(86,211,100,0.12)':'rgba(255,255,255,0.05)'; ?>;color:<?php echo $ok?'var(--success)':'var(--text3)'; ?>"><?php echo $ok?'●':'○'; ?> <?php echo esc_html($lbl); ?></span>
+            <?php endforeach; ?>
+        </div>
+    </div>
+
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+        <!-- Website / Domain + Target market (powers SEO + keyword tools) -->
+        <div style="background:var(--dark2);border:1px solid rgba(131,197,237,0.25);border-radius:14px;overflow:hidden;grid-column:1 / -1">
+            <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;gap:8px">
+                <span style="font-size:13px;font-weight:700">Website &amp; target market</span>
+                <?php if($c_domain): ?><span style="font-size:10px;background:rgba(86,211,100,0.1);color:var(--success);padding:2px 8px;border-radius:10px;font-weight:700">● Set</span><?php endif; ?>
+                <span style="font-size:10px;color:var(--text3);margin-left:auto">Powers SEO analysis, competitor &amp; on-page tools, keyword research</span>
+            </div>
+            <div style="padding:14px 18px">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px">
+                    <div>
+                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Website / domain</div>
+                        <input class="six-input" id="ds-domain" value="<?php echo esc_attr($c_domain); ?>" placeholder="clientsite.com" style="font-size:12px;font-family:monospace">
+                        <div style="font-size:10px;color:var(--text3);margin-top:3px">Bare domain — scheme and www are removed automatically.</div>
+                    </div>
+                    <div>
+                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Default target market</div>
+                        <input class="six-input" id="ds-tloc" value="<?php echo esc_attr($c_tloc); ?>" placeholder="Toronto, Ontario, Canada" style="font-size:12px">
+                        <div style="font-size:10px;color:var(--text3);margin-top:3px">Location keyword research defaults to (falls back to United States).</div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button class="six-btn six-btn-primary six-btn-sm six-ds-adv-save" data-key="six_client_domain" data-input="ds-domain" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Save domain</button>
+                    <button class="six-btn six-btn-ghost six-btn-sm six-ds-adv-save" data-key="six_target_location" data-input="ds-tloc" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Save market</button>
+                    <?php if($c_domain): ?><button class="six-btn six-btn-ghost six-btn-sm six-ds-test" data-source="dataforseo" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Test SEO data</button><?php endif; ?>
+                </div>
+                <div class="six-ds-adv-result" style="margin-top:8px;font-size:12px"></div>
+            </div>
+        </div>
 
         <!-- Google Ads -->
         <div style="background:var(--dark2);border:1px solid rgba(66,133,244,0.2);border-radius:14px;overflow:hidden">
@@ -1486,6 +1549,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 <div style="display:flex;gap:8px;flex-wrap:wrap">
                     <button class="six-btn six-btn-primary six-btn-sm" id="save-gads-cid" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Save & Connect</button>
                     <?php if($c_gads): ?>
+                    <button class="six-btn six-btn-ghost six-btn-sm six-ds-test" data-source="gads" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Test connection</button>
                     <button class="six-btn six-btn-ghost six-btn-sm" id="sync-gads-now" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">↻ Sync Now</button>
                     <?php if($c_sync): ?><span style="font-size:11px;color:var(--text3);align-self:center">Last: <?php echo human_time_diff(strtotime($c_sync),time()); ?> ago</span><?php endif; ?>
                     <?php endif; ?>
@@ -1507,7 +1571,10 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                     <input class="six-input" id="ga4-property-id" value="<?php echo esc_attr($c_ga4_id); ?>" placeholder="123456789" style="font-size:12px;font-family:monospace">
                     <div style="font-size:10px;color:var(--text3);margin-top:3px">9-digit number from GA4 Admin → Property Settings</div>
                 </div>
-                <button class="six-btn six-btn-primary six-btn-sm" id="save-ga4-id" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Save Property ID</button>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button class="six-btn six-btn-primary six-btn-sm" id="save-ga4-id" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Save Property ID</button>
+                    <?php if($c_ga4_id): ?><button class="six-btn six-btn-ghost six-btn-sm six-ds-test" data-source="ga4" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Test connection</button><?php endif; ?>
+                </div>
                 <div id="ga4-result" style="margin-top:8px;font-size:12px"></div>
             </div>
         </div>
@@ -1566,7 +1633,10 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                     <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Verified site / domain</div>
                     <input class="six-input" id="gsc-site" value="<?php echo esc_attr($c_gsc_site); ?>" placeholder="yoursite.com" style="font-size:12px;font-family:monospace">
                 </div>
-                <button class="six-btn six-btn-primary six-btn-sm six-ds-adv-save" data-key="six_gsc_site" data-input="gsc-site" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Save</button>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button class="six-btn six-btn-primary six-btn-sm six-ds-adv-save" data-key="six_gsc_site" data-input="gsc-site" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Save</button>
+                    <?php if($c_gsc_site): ?><button class="six-btn six-btn-ghost six-btn-sm six-ds-test" data-source="gsc" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Test connection</button><?php endif; ?>
+                </div>
                 <div class="six-ds-adv-result" style="margin-top:8px;font-size:12px"></div>
             </div>
         </div>
@@ -1574,14 +1644,30 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
     </div>
     <script>
     (function(){
+        function resultEl(btn){
+            // Nearest result box within this card.
+            var card=btn.closest('div[style*="border-radius:14px"]')||btn.parentNode;
+            return card.querySelector('.six-ds-adv-result')||btn.parentNode.querySelector('.six-ds-adv-result');
+        }
         document.querySelectorAll('.six-ds-adv-save').forEach(function(btn){
             btn.addEventListener('click',function(){
-                var key=btn.dataset.key, inp=document.getElementById(btn.dataset.input), out=btn.parentNode.querySelector('.six-ds-adv-result');
+                var key=btn.dataset.key, inp=document.getElementById(btn.dataset.input), out=resultEl(btn);
                 btn.disabled=true; if(out){out.style.color='var(--text3)';out.textContent='Saving…';}
                 post({action:'six_save_client_datasource',client_id:btn.dataset.client,key:key,value:(inp&&inp.value||'').trim()}).then(function(res){
                     btn.disabled=false;
                     if(out){ out.style.color=(res&&res.success)?'var(--success)':'var(--danger)'; out.textContent=(res&&res.success)?'Saved':((res&&res.data)||'Could not save'); }
                 }).catch(function(){ btn.disabled=false; if(out){out.style.color='var(--danger)';out.textContent='Network error';} });
+            });
+        });
+        document.querySelectorAll('.six-ds-test').forEach(function(btn){
+            btn.addEventListener('click',function(){
+                var out=resultEl(btn)||document.getElementById(btn.dataset.source+'-result');
+                var label=btn.textContent; btn.disabled=true; btn.textContent='Testing…';
+                if(out){out.style.color='var(--text3)';out.textContent='Checking live connection…';}
+                post({action:'six_test_client_datasource',client_id:btn.dataset.client,source:btn.dataset.source}).then(function(res){
+                    btn.disabled=false; btn.textContent=label;
+                    if(out){ out.style.color=(res&&res.success)?'var(--success)':'var(--danger)'; out.textContent=(res&&((res.data&&res.data.message)||res.data))||'Test failed'; }
+                }).catch(function(){ btn.disabled=false; btn.textContent=label; if(out){out.style.color='var(--danger)';out.textContent='Network error';} });
             });
         });
     })();

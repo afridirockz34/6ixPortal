@@ -130,6 +130,11 @@ class Six_AI_Strategist {
                 if ( $v !== '' && $v !== null && $v !== '0' ) $L[] = "{$lbl}: {$v}";
             }
         }
+        // Domain + target market that the SEO/keyword tools default to.
+        $domain = self::client_domain( $client_id );
+        $tloc   = self::target_location( $client_id );
+        if ( $domain ) $L[] = 'Primary domain (SEO/on-page/competitor tools default to this): ' . $domain;
+        if ( $tloc )   $L[] = 'Default target market for keyword research: ' . $tloc;
         // Connected data sources
         $ds = array();
         if ( get_user_meta( $client_id, 'six_gads_customer_id', true ) )   $ds[] = 'Google Ads';
@@ -240,8 +245,36 @@ class Six_AI_Strategist {
         );
     }
 
+    /** The client's website domain: advisor override, else onboarding website. */
+    public static function client_domain( $client_id ) {
+        $d = trim( (string) get_user_meta( $client_id, 'six_client_domain', true ) );
+        if ( $d === '' ) {
+            global $wpdb;
+            $d = (string) $wpdb->get_var( $wpdb->prepare(
+                "SELECT website FROM {$wpdb->prefix}six_checkout_progress WHERE user_id=%d", $client_id ) );
+        }
+        $d = preg_replace( '#^https?://#i', '', trim( $d ) );        // strip scheme
+        $d = preg_replace( '#^www\.#i', '', $d );                     // strip www.
+        return rtrim( preg_replace( '#/.*$#', '', $d ), '/' );        // host only
+    }
+
+    /** The client's default target market for keyword/SERP research. */
+    public static function target_location( $client_id ) {
+        $l = trim( (string) get_user_meta( $client_id, 'six_target_location', true ) );
+        if ( $l === '' ) {
+            global $wpdb;
+            $l = (string) $wpdb->get_var( $wpdb->prepare(
+                "SELECT location FROM {$wpdb->prefix}six_checkout_progress WHERE user_id=%d", $client_id ) );
+        }
+        return trim( $l );
+    }
+
     private static function dispatch_tool( $name, $input, $client_id ) {
-        $loc = $input['location'] ?? '';
+        // Fall back to the client's saved domain/location so the SEO and keyword
+        // tools "just work" once the advisor fills the Data Sources tab, even if
+        // the model omits them.
+        $loc    = trim( (string) ( $input['location'] ?? '' ) ) ?: self::target_location( $client_id );
+        $domain = trim( (string) ( $input['domain'] ?? '' ) )   ?: self::client_domain( $client_id );
         switch ( $name ) {
             case 'keyword_metrics':
                 return Six_DataForSEO::keyword_overview( $input['keywords'] ?? array(), $loc );
@@ -250,13 +283,18 @@ class Six_AI_Strategist {
             case 'keyword_difficulty':
                 return Six_DataForSEO::keyword_difficulty( $input['keywords'] ?? array(), $loc );
             case 'ranked_keywords':
-                return Six_DataForSEO::ranked_keywords( $input['domain'] ?? '', $loc, $input['limit'] ?? 50 );
+                if ( ! $domain ) return array( 'error' => 'No domain to analyse. Add the client\'s Website in the Data Sources tab, or specify a domain.' );
+                return Six_DataForSEO::ranked_keywords( $domain, $loc, $input['limit'] ?? 50 );
             case 'competitor_domains':
-                return Six_DataForSEO::competitors( $input['domain'] ?? '', $loc );
+                if ( ! $domain ) return array( 'error' => 'No domain to analyse. Add the client\'s Website in the Data Sources tab, or specify a domain.' );
+                return Six_DataForSEO::competitors( $domain, $loc );
             case 'live_serp':
                 return Six_DataForSEO::serp( $input['keyword'] ?? '', $loc );
             case 'onpage_audit':
-                return Six_DataForSEO::onpage( $input['url'] ?? '' );
+                $url = trim( (string) ( $input['url'] ?? '' ) );
+                if ( $url === '' && $domain ) $url = 'https://' . $domain;
+                if ( $url === '' ) return array( 'error' => 'No URL to audit. Add the client\'s Website in the Data Sources tab, or specify a URL.' );
+                return Six_DataForSEO::onpage( $url );
             case 'client_performance':
                 return self::performance_snapshot( $client_id );
             case 'google_ads_performance':

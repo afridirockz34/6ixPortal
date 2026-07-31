@@ -1264,11 +1264,68 @@ add_action( 'wp_ajax_six_save_client_datasource', function() {
     }
     $client_id = intval($_POST['client_id']??0);
     $key       = sanitize_key($_POST['key']??'');
-    $value     = sanitize_text_field($_POST['value']??'');
-    $allowed   = array('six_ga4_property_id','six_meta_pixel_id','six_gbp_location_id','six_gsc_site');
+    $value     = sanitize_text_field( wp_unslash( $_POST['value']??'' ) );
+    $allowed   = array(
+        'six_ga4_property_id','six_meta_pixel_id','six_gbp_location_id','six_gsc_site',
+        'six_client_domain','six_target_location',
+    );
     if(!$client_id||!in_array($key,$allowed)) wp_send_json_error('Not allowed.');
+    // Normalise a domain to a bare host so the SEO tools accept it.
+    if ( $key === 'six_client_domain' && $value !== '' ) {
+        $value = preg_replace('#^https?://#i','',$value);
+        $value = preg_replace('#^www\.#i','',$value);
+        $value = rtrim( preg_replace('#/.*$#','',$value), '/' );
+    }
     update_user_meta($client_id,$key,$value);
     wp_send_json_success();
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TEST A CLIENT DATA SOURCE — live fetch so the advisor sees it actually works
+// ─────────────────────────────────────────────────────────────────────────────
+add_action( 'wp_ajax_six_test_client_datasource', function() {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! Six_Roles::is_advisor() && ! current_user_can('manage_options') ) {
+        wp_send_json_error('Permission denied.');
+    }
+    $client_id = intval($_POST['client_id']??0);
+    $source    = sanitize_key($_POST['source']??'');
+    if(!$client_id) wp_send_json_error('No client.');
+
+    if ( $source === 'ga4' ) {
+        if ( ! class_exists('Six_Analytics') ) wp_send_json_error('Analytics integration unavailable.');
+        $prop = get_user_meta($client_id,'six_ga4_property_id',true) ?: get_option('six_ga4_property_id','');
+        if ( ! $prop ) wp_send_json_error('No GA4 property ID saved for this client.');
+        $r = Six_Analytics::ga4_summary( $prop, 30 );
+        if ( isset($r['error']) ) wp_send_json_error( $r['error'] );
+        $s = intval($r['sessions'] ?? $r['totals']['sessions'] ?? 0);
+        wp_send_json_success( array('message'=>'GA4 connected — '.number_format($s).' sessions in the last 30 days.') );
+    }
+    if ( $source === 'gsc' ) {
+        if ( ! class_exists('Six_Analytics') ) wp_send_json_error('Analytics integration unavailable.');
+        $site = get_user_meta($client_id,'six_gsc_site',true);
+        if ( ! $site ) wp_send_json_error('No Search Console site saved for this client.');
+        $r = Six_Analytics::gsc_summary( $site, 28 );
+        if ( isset($r['error']) ) wp_send_json_error( $r['error'] );
+        $c = intval($r['clicks'] ?? $r['totals']['clicks'] ?? 0);
+        wp_send_json_success( array('message'=>'Search Console connected — '.number_format($c).' clicks in the last 28 days.') );
+    }
+    if ( $source === 'gads' ) {
+        if ( ! class_exists('Six_Google_Ads') ) wp_send_json_error('Google Ads integration unavailable.');
+        $m = Six_Google_Ads::get_campaign_metrics_for_client( $client_id );
+        if ( $m === false ) wp_send_json_error( Six_Google_Ads::get_last_error() ?: 'Google Ads data unavailable.' );
+        if ( empty($m) ) wp_send_json_success( array('message'=>'Google Ads connected — no active-campaign data in the last 30 days.') );
+        wp_send_json_success( array('message'=>'Google Ads connected — live campaign metrics retrieved.') );
+    }
+    if ( $source === 'dataforseo' ) {
+        if ( ! class_exists('Six_AI_Strategist') || ! class_exists('Six_DataForSEO') ) wp_send_json_error('DataForSEO integration unavailable.');
+        $domain = Six_AI_Strategist::client_domain( $client_id );
+        if ( ! $domain ) wp_send_json_error('No website/domain saved for this client.');
+        $r = Six_DataForSEO::ranked_keywords( $domain, Six_AI_Strategist::target_location($client_id), 1 );
+        if ( isset($r['error']) ) wp_send_json_error( $r['error'] );
+        wp_send_json_success( array('message'=>'DataForSEO reachable for '.$domain.'.') );
+    }
+    wp_send_json_error('Unknown source.');
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
