@@ -1159,17 +1159,28 @@ add_action( 'wp_ajax_six_test_ga4', function() {
 add_action( 'wp_ajax_six_test_meta', function() {
     if ( ! check_ajax_referer( 'six_test_meta', '_ajax_nonce', false ) ) wp_send_json_error('Nonce failed');
     if ( ! current_user_can('manage_options') ) wp_send_json_error('Permission denied');
-    $token      = get_option('six_meta_access_token','');
-    $account_id = get_option('six_meta_ad_account_id','');
-    if ( ! $token )      wp_send_json_error('No access token set.');
-    if ( ! $account_id ) wp_send_json_error('No Ad Account ID set.');
+    $token   = get_option('six_meta_access_token','');
+    $raw_acct = get_option('six_meta_ad_account_id','');
+    if ( ! $token )    wp_send_json_error('No access token set.');
+    if ( ! $raw_acct ) wp_send_json_error('No Ad Account ID set.');
+    // An ad account must be addressed as act_<digits>. A bare numeric ID is read
+    // by Graph as a generic object and fails with "does not exist / missing
+    // permissions". Normalise it (also strips act_ dupes and separators).
+    $account_id = class_exists('Six_Meta') ? Six_Meta::acct( $raw_acct ) : ( 'act_' . preg_replace('/[^0-9]/','',$raw_acct) );
+    if ( ! $account_id || $account_id === 'act_' ) wp_send_json_error('Ad Account ID has no digits. Use the numeric ID from Ads Manager (e.g. act_1234567890 or 1234567890).');
     $gver = class_exists('Six_Meta') ? Six_Meta::API_VERSION : 'v23.0';
-    $resp = wp_remote_get("https://graph.facebook.com/{$gver}/{$account_id}?fields=name,account_status,currency,spend_cap&access_token={$token}");
+    $resp = wp_remote_get("https://graph.facebook.com/{$gver}/{$account_id}?fields=name,account_status,currency&access_token=".rawurlencode($token));
     if ( is_wp_error($resp) ) wp_send_json_error('Network error: '.$resp->get_error_message());
     $data = json_decode(wp_remote_retrieve_body($resp), true);
-    if ( isset($data['error']) ) wp_send_json_error('Meta error: '.$data['error']['message']);
+    if ( isset($data['error']) ) {
+        $m = $data['error']['message'] ?? 'error';
+        if ( stripos($m,'does not exist')!==false || stripos($m,'missing permission')!==false ) {
+            $m .= ' — check that this is the Ad Account ID (not the Business or App ID), that the account is added to your Business Manager, and that the System User token has the ads_read permission and access to this account.';
+        }
+        wp_send_json_error('Meta error ('.$account_id.'): '.$m);
+    }
     $name = $data['name'] ?? $account_id;
-    wp_send_json_success("Connected! Account: {$name} · Status: ".($data['account_status']==1?'Active':'Inactive'));
+    wp_send_json_success("Connected! Account: {$name} ({$account_id}) · Status: ".(($data['account_status']??0)==1?'Active':'Inactive'));
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
