@@ -13,7 +13,7 @@ if ( is_user_logged_in() ) {
 ?>
 <style>
 :root{
-  --pk:#E8547A;--pk-soft:#FDE8EF;--cy:#3C8FB5;--cy-soft:#E8F4FB;
+  --pk:#FF6699;--pk-soft:#FDE8EF;--cy:#3C8FB5;--cy-soft:#E8F4FB;
   --blue:#3C6478;--d1:#F5F6F8;--d2:#FFFFFF;--d3:#F0F2F5;--d4:#E8EBF0;
   --bdr:#E2E6ED;--t1:#0F1923;--t2:#3B4656;--t3:#5B6675;
   --ok:#1B9E52;--warn:#C17B1A;--err:#D93B3B;
@@ -317,7 +317,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 #ob-card-el{background:var(--d4);border:1px solid var(--bdr);border-radius:10px;padding:14px 16px;}
 /* ── Step 4: 60-Day Plan — Apple-calibre design ─────────────────── */
 /* Hero card */
-.ob-plan-hero{background:linear-gradient(145deg,#E8547A 0%,#b5294e 100%);border-radius:20px;padding:28px 24px 24px;margin-bottom:16px;color:#fff;position:relative;overflow:hidden}
+.ob-plan-hero{background:linear-gradient(145deg,#FF6699 0%,#b5294e 100%);border-radius:20px;padding:28px 24px 24px;margin-bottom:16px;color:#fff;position:relative;overflow:hidden}
 .ob-plan-hero::before{content:'';position:absolute;top:-60px;right:-60px;width:240px;height:240px;border-radius:50%;background:rgba(255,255,255,.07);pointer-events:none}
 .ob-plan-hero::after{content:'';position:absolute;bottom:-50px;left:-30px;width:160px;height:160px;border-radius:50%;background:rgba(0,0,0,.06);pointer-events:none}
 .ob-plan-hero-label{font-size:9px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;opacity:.65;margin-bottom:10px;display:flex;align-items:center;gap:8px}
@@ -451,7 +451,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 <svg width="0" height="0" style="position:absolute">
   <defs>
     <linearGradient id="sg" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#E8547A"/>
+      <stop offset="0%" style="stop-color:#FF6699"/>
       <stop offset="100%" style="stop-color:#3C8FB5"/>
     </linearGradient>
   </defs>
@@ -1696,7 +1696,7 @@ window.OB={
 
     var kpis=plan.kpis||[];
     var roadmap=plan.roadmap||[];
-    var phaseColors=['#4285F4','#1B9E52','#E8547A','#9C27B0'];
+    var phaseColors=['#4285F4','#1B9E52','#FF6699','#9C27B0'];
     var backed=plan.data_backed;
 
     // ── Hero card ─────────────────────────────────────────────────────────
@@ -2041,7 +2041,7 @@ window.OB={
     OB._stripe = Stripe(S.sk);
     var els = OB._stripe.elements({
       appearance:{theme:'stripe',variables:{
-        colorPrimary:'#E8547A',colorBackground:'#F0F2F5',
+        colorPrimary:'#FF6699',colorBackground:'#F0F2F5',
         colorText:'#0F1923',borderRadius:'10px'
       }}
     });

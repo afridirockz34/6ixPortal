@@ -10,13 +10,14 @@
 .six-mk *::after { box-sizing: border-box; }
 
 .six-mk {
-  --mk-pink:   #E8547A;
-  --mk-purple: #A855F7;
-  --mk-blue:   #3C8FB5;
-  --mk-cyan:   #83C5ED;
+  --mk-pink:   #FF6699;   /* brand pink */
+  --mk-purple: #8781BA;   /* brand purple */
+  --mk-blue:   #6ACAFD;   /* brand blue */
+  --mk-cyan:   #6ACAFD;   /* brand blue */
+  --mk-lime:   #C8DA5D;   /* brand lime accent */
   --mk-navy:   #031523;
-  --mk-grad:   linear-gradient(120deg, #E8547A 0%, #A855F7 50%, #3C8FB5 100%);
-  --mk-grad-soft: linear-gradient(120deg, rgba(232,84,122,.14) 0%, rgba(168,85,247,.14) 50%, rgba(60,143,181,.14) 100%);
+  --mk-grad:   linear-gradient(120deg, #FF6699 0%, #8781BA 50%, #6ACAFD 100%);
+  --mk-grad-soft: linear-gradient(120deg, rgba(255,102,153,.14) 0%, rgba(135,129,186,.14) 50%, rgba(106,202,253,.14) 100%);
 
   /* Light surface palette (default) */
   --mk-bg:      #F8F9FC;
@@ -61,9 +62,9 @@
 .six-mk .mk-glow { position: relative; overflow: hidden; }
 .six-mk .mk-glow::before {
   content: ''; position: absolute; inset: -20% -10% auto -10%; height: 520px;
-  background: radial-gradient(60% 60% at 20% 0%, rgba(232,84,122,.10), transparent 60%),
+  background: radial-gradient(60% 60% at 20% 0%, rgba(255,102,153,.10), transparent 60%),
               radial-gradient(50% 50% at 85% 10%, rgba(60,143,181,.10), transparent 60%),
-              radial-gradient(40% 60% at 55% 0%, rgba(168,85,247,.08), transparent 60%);
+              radial-gradient(40% 60% at 55% 0%, rgba(135,129,186,.08), transparent 60%);
   pointer-events: none; z-index: 0;
 }
 .six-mk .mk-section > .mk-wrap { position: relative; z-index: 1; }
@@ -108,8 +109,8 @@
 .six-mk .mk-btn-primary,
 .six-mk .mk-btn-primary:hover,
 .six-mk .mk-btn-primary:focus { background: var(--mk-pink); color: #fff; border: 0; }
-.six-mk .mk-btn-primary { box-shadow: 0 8px 22px rgba(232,84,122,.30); }
-.six-mk .mk-btn-primary:hover { transform: translateY(-2px); background: #f0658a; box-shadow: 0 12px 30px rgba(232,84,122,.42); }
+.six-mk .mk-btn-primary { box-shadow: 0 8px 22px rgba(255,102,153,.30); }
+.six-mk .mk-btn-primary:hover { transform: translateY(-2px); background: #f0658a; box-shadow: 0 12px 30px rgba(255,102,153,.42); }
 /* Ghost/light buttons: readable text stays; tint fill on hover (never white-on-transparent) */
 .six-mk .mk-btn-ghost { background: transparent; color: var(--mk-t1); border-color: var(--mk-border2); }
 .six-mk .mk-btn-ghost:hover { background: var(--mk-grad-soft); border-color: var(--mk-purple); color: var(--mk-t1); }
@@ -189,15 +190,15 @@
 .mk-login-or::before, .mk-login-or::after { content: ''; flex: 1; height: 1px; background: rgba(15,25,40,.12); }
 .mk-login-lbl { display: block; font-size: .82rem; font-weight: 700; color: #3D4757; margin: 0 0 6px; }
 .mk-login-input { width: 100%; padding: 12px 14px; border: 1px solid rgba(15,25,40,.17); border-radius: 11px; font-size: 1rem; font-family: inherit; color: #101826; transition: border-color .15s, box-shadow .15s; margin-bottom: 14px; }
-.mk-login-input:focus { outline: 0; border-color: #A855F7; box-shadow: 0 0 0 3px rgba(168,85,247,.16); }
+.mk-login-input:focus { outline: 0; border-color: #8781BA; box-shadow: 0 0 0 3px rgba(135,129,186,.16); }
 .mk-login-input[readonly] { background: #F6F7FA; color: #627080; }
 .mk-login-pwwrap { position: relative; }
-.mk-login-forgot { display: inline-block; font-size: .8rem; font-weight: 600; color: #A855F7; margin: -6px 0 12px; }
+.mk-login-forgot { display: inline-block; font-size: .8rem; font-weight: 600; color: #8781BA; margin: -6px 0 12px; }
 .mk-login-err { display: none; color: #d13a5e; font-size: .86rem; margin: 0 0 12px; }
 .mk-login-err.mk-on { display: block; }
 .mk-login-submit { width: 100%; }
 .mk-login-foot { text-align: center; font-size: .88rem; color: #627080; margin: 18px 0 0; }
-.mk-login-foot a { color: #A855F7; font-weight: 700; }
+.mk-login-foot a { color: #8781BA; font-weight: 700; }
 
 /* ── Hero — AI/tech first impression ────────────────────── */
 .six-mk .mk-hero {
@@ -208,8 +209,8 @@
 }
 .six-mk .mk-hero::before { /* grid mesh */
   content: ''; position: absolute; inset: 0; z-index: 0; opacity: .5;
-  background-image: linear-gradient(rgba(131,197,237,.10) 1px, transparent 1px),
-                    linear-gradient(90deg, rgba(131,197,237,.10) 1px, transparent 1px);
+  background-image: linear-gradient(rgba(106,202,253,.10) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(106,202,253,.10) 1px, transparent 1px);
   background-size: 46px 46px; mask-image: radial-gradient(120% 90% at 70% 0%, #000 30%, transparent 75%);
 }
 /* Aurora lights — bold, slow, seamless drift on the top-right + bottom-left
@@ -299,13 +300,13 @@
 /* ── Portal CTA band ────────────────────────────────────── */
 .six-mk .mk-portal-band {
   position: relative; overflow: hidden; border-radius: 24px;
-  background: linear-gradient(120deg, rgba(232,84,122,.14), rgba(168,85,247,.14), rgba(60,143,181,.14));
+  background: linear-gradient(120deg, rgba(255,102,153,.14), rgba(135,129,186,.14), rgba(60,143,181,.14));
   border: 1px solid var(--mk-border2); padding: 46px;
 }
 .six-mk .mk-portal-band::before {
   content: ''; position: absolute; inset: 0; z-index: 0;
-  background: radial-gradient(50% 120% at 100% 0%, rgba(168,85,247,.18), transparent 60%),
-              radial-gradient(50% 120% at 0% 100%, rgba(232,84,122,.16), transparent 60%);
+  background: radial-gradient(50% 120% at 100% 0%, rgba(135,129,186,.18), transparent 60%),
+              radial-gradient(50% 120% at 0% 100%, rgba(255,102,153,.16), transparent 60%);
 }
 .six-mk .mk-portal-band > * { position: relative; z-index: 1; }
 .six-mk .mk-portal-band h2 { font-size: clamp(1.7rem, 3vw, 2.4rem); max-width: 640px; }
@@ -456,7 +457,7 @@
 .six-mk .mk-field input:focus,
 .six-mk .mk-field select:focus,
 .six-mk .mk-field textarea:focus { outline: none; border-color: var(--mk-pink); background: var(--mk-surface, #fff);
-	box-shadow: 0 0 0 4px rgba(232,84,122,.12); }
+	box-shadow: 0 0 0 4px rgba(255,102,153,.12); }
 .six-mk .mk-field select { appearance: none; -webkit-appearance: none; cursor: pointer;
 	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23E8547A' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
 	background-repeat: no-repeat; background-position: right 14px center; padding-right: 38px; }
@@ -492,12 +493,12 @@
 /* ── Gradient icon chip (feature cards) ─────────────────── */
 .six-mk .mk-ic {
   width: 52px; height: 52px; border-radius: 15px; display: inline-flex; align-items: center; justify-content: center;
-  background: linear-gradient(135deg, rgba(232,84,122,.16), rgba(168,85,247,.14));
-  border: 1px solid rgba(232,84,122,.22); margin-bottom: 16px; flex-shrink: 0;
+  background: linear-gradient(135deg, rgba(255,102,153,.16), rgba(135,129,186,.14));
+  border: 1px solid rgba(255,102,153,.22); margin-bottom: 16px; flex-shrink: 0;
   position: relative; transition: transform .2s ease, box-shadow .2s ease;
 }
 .six-mk .mk-ic svg { width: 24px; height: 24px; color: var(--mk-pink); position: relative; z-index: 1; }
-.six-mk .mk-card:hover .mk-ic { transform: translateY(-2px) rotate(-3deg); box-shadow: 0 10px 22px rgba(232,84,122,.22); }
+.six-mk .mk-card:hover .mk-ic { transform: translateY(-2px) rotate(-3deg); box-shadow: 0 10px 22px rgba(255,102,153,.22); }
 
 /* ── Feature stack (alternating narrative blocks) ───────── */
 .six-mk .mk-features { display: flex; flex-direction: column; gap: 20px; }
@@ -522,7 +523,7 @@
 .six-mk .mk-steps li::before {
   counter-increment: mkstep; content: counter(mkstep);
   width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
-  font-family: var(--mk-num); font-weight: 800; color: #fff; background: var(--mk-grad); box-shadow: 0 6px 18px rgba(168,85,247,.24);
+  font-family: var(--mk-num); font-weight: 800; color: #fff; background: var(--mk-grad); box-shadow: 0 6px 18px rgba(135,129,186,.24);
 }
 .six-mk .mk-steps li strong { display: block; color: var(--mk-t1); font-family: var(--mk-head); font-size: 1.02rem; margin-bottom: 2px; }
 .six-mk .mk-steps li p { margin: 0; color: var(--mk-t2); font-size: .95rem; }
@@ -548,16 +549,16 @@
 /* ── Team cards (real roster, redesigned) ────────────────── */
 .six-mk .mk-team-card { background: var(--mk-surface); border: 1px solid var(--mk-border); border-radius: 16px;
 	padding: 22px 16px; text-align: center; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
-.six-mk .mk-team-card:hover { transform: translateY(-4px); border-color: rgba(232,84,122,.35); box-shadow: 0 16px 34px rgba(232,84,122,.14); }
+.six-mk .mk-team-card:hover { transform: translateY(-4px); border-color: rgba(255,102,153,.35); box-shadow: 0 16px 34px rgba(255,102,153,.14); }
 .six-mk .mk-team-avatar { width: 66px; height: 66px; border-radius: 50%; margin: 0 auto 12px; display: flex;
 	align-items: center; justify-content: center; font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.25rem;
 	color: #fff; overflow: hidden; }
 .six-mk .mk-team-avatar img { width: 100%; height: 100%; object-fit: cover; }
-/* Tonal variations of the brand colour #e85479 */
-.six-mk .mk-team-avatar--a { background: linear-gradient(135deg, #e85479, #f0658a); }
-.six-mk .mk-team-avatar--b { background: linear-gradient(135deg, #e85479, #a855f7); }
+/* Tonal variations of the brand colour #FF6699 */
+.six-mk .mk-team-avatar--a { background: linear-gradient(135deg, #FF6699, #f0658a); }
+.six-mk .mk-team-avatar--b { background: linear-gradient(135deg, #FF6699, #8781BA); }
 .six-mk .mk-team-avatar--c { background: linear-gradient(135deg, #f0658a, #ff9a6b); }
-.six-mk .mk-team-avatar--d { background: linear-gradient(135deg, #d6437a, #7b5cc0); }
+.six-mk .mk-team-avatar--d { background: linear-gradient(135deg, #d6437a, #8781BA); }
 .six-mk .mk-team-name { font-family: var(--mk-head); font-weight: 700; color: var(--mk-t1); font-size: 1rem; }
 .six-mk .mk-team-role { font-size: .8rem; color: var(--mk-t2); margin-top: 3px; line-height: 1.35; }
 
@@ -565,7 +566,7 @@
 .six-mk .mk-principle-card { position: relative; padding-top: 30px; }
 .six-mk .mk-principle-num { position: absolute; top: -16px; left: 26px; width: 40px; height: 40px; border-radius: 12px;
 	background: var(--mk-grad); color: #fff; display: flex; align-items: center; justify-content: center;
-	font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.15rem; box-shadow: 0 8px 20px rgba(232,84,122,.3); }
+	font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.15rem; box-shadow: 0 8px 20px rgba(255,102,153,.3); }
 
 /* ── Contact info cards ─────────────────────────────────── */
 .six-mk .mk-contact-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 18px; }
@@ -658,7 +659,7 @@
 @media (prefers-reduced-motion: reduce) { .six-mk .mk-reveal { opacity: 1 !important; transform: none !important; transition: none !important; } }
 
 /* Soft brand-tinted lift on hover (no top-border line). */
-.six-mk .mk-card:hover { box-shadow: 0 18px 44px rgba(232,84,122,.14); border-color: rgba(232,84,122,.28); }
+.six-mk .mk-card:hover { box-shadow: 0 18px 44px rgba(255,102,153,.14); border-color: rgba(255,102,153,.28); }
 
 /* ── Designed feature cards (gradient, balanced masonry) ──
    Cards keep their natural height and stack like the original site. JS
@@ -672,16 +673,16 @@
   break-inside: avoid; -webkit-column-break-inside: avoid; page-break-inside: avoid;
   display: block; width: 100%; margin: 0 0 24px; padding: 28px 30px; border-radius: 20px;
   color: #fff; position: relative; overflow: hidden;
-  box-shadow: 0 20px 44px rgba(232,84,122,.20);
+  box-shadow: 0 20px 44px rgba(255,102,153,.20);
   transition: transform .22s ease, box-shadow .22s ease;
 }
 .six-mk .mk-feature-grid.mk-fg-js .mk-feature-card { margin: 0; }
-.six-mk .mk-feature-card:hover { transform: translateY(-5px); box-shadow: 0 26px 56px rgba(232,84,122,.30); }
+.six-mk .mk-feature-card:hover { transform: translateY(-5px); box-shadow: 0 26px 56px rgba(255,102,153,.30); }
 /* Tonal gradient variants so cards feel intentional, not identical */
-.six-mk .mk-feature-card--0 { background: linear-gradient(135deg, #e85479 0%, #b95a9a 55%, #6ea6d8 100%); }
-.six-mk .mk-feature-card--1 { background: linear-gradient(135deg, #e85479 0%, #a855f7 100%); }
-.six-mk .mk-feature-card--2 { background: linear-gradient(135deg, #ef6a86 0%, #e85479 45%, #7d5cc4 100%); }
-.six-mk .mk-feature-card--3 { background: linear-gradient(135deg, #e85479 0%, #6ea6d8 100%); }
+.six-mk .mk-feature-card--0 { background: linear-gradient(135deg, #FF6699 0%, #b95a9a 55%, #6ACAFD 100%); }
+.six-mk .mk-feature-card--1 { background: linear-gradient(135deg, #FF6699 0%, #8781BA 100%); }
+.six-mk .mk-feature-card--2 { background: linear-gradient(135deg, #ef6a86 0%, #FF6699 45%, #8781BA 100%); }
+.six-mk .mk-feature-card--3 { background: linear-gradient(135deg, #FF6699 0%, #6ACAFD 100%); }
 /* subtle AI sheen */
 .six-mk .mk-feature-card::before {
   content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .5;
@@ -700,23 +701,23 @@
 /* Benefit / results cards: number-free but distinct — brand icon chip sits in
    a tinted well, heading in ink, generous rhythm. */
 .six-mk .mk-benefit { background:
-    linear-gradient(180deg, rgba(232,84,122,.04), transparent 40%), var(--mk-surface); }
+    linear-gradient(180deg, rgba(255,102,153,.04), transparent 40%), var(--mk-surface); }
 
 /* Narrative feature sections: a soft brand rule under the eyebrow for rhythm */
 .six-mk .mk-narrative h2 { position: relative; }
 
 /* Section glow: make the brand hue a touch more present on .mk-glow sections */
 .six-mk .mk-glow::before {
-  background: radial-gradient(55% 55% at 18% 0%, rgba(232,84,122,.14), transparent 62%),
-              radial-gradient(48% 52% at 86% 8%, rgba(168,85,247,.10), transparent 62%),
+  background: radial-gradient(55% 55% at 18% 0%, rgba(255,102,153,.14), transparent 62%),
+              radial-gradient(48% 52% at 86% 8%, rgba(135,129,186,.10), transparent 62%),
               radial-gradient(42% 60% at 55% 0%, rgba(60,143,181,.07), transparent 62%);
 }
 /* A faint AI-grid texture on glow sections — very subtle, data-inspired */
 .six-mk .mk-glow::after {
   content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: .5;
   background-image:
-    linear-gradient(rgba(232,84,122,.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(232,84,122,.045) 1px, transparent 1px);
+    linear-gradient(rgba(255,102,153,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,102,153,.045) 1px, transparent 1px);
   background-size: 46px 46px;
   -webkit-mask: radial-gradient(70% 55% at 50% 40%, #000, transparent 75%);
           mask: radial-gradient(70% 55% at 50% 40%, #000, transparent 75%);

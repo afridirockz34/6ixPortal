@@ -224,7 +224,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         <div class="six-sidebar-bottom">
             <a href="<?php echo esc_url(wp_logout_url(home_url('/get-started/'))); ?>" class="six-nav-item" style="color:var(--text3);margin-bottom:10px"><span class="six-nav-icon">↩</span> Log Out</a>
             <div class="six-advisor-card">
-                <div class="six-advisor-avatar" style="background:linear-gradient(135deg,var(--pink),#a855f7)"><?php echo esc_html($initials);?></div>
+                <div class="six-advisor-avatar" style="background:linear-gradient(135deg,var(--pink),#8781BA)"><?php echo esc_html($initials);?></div>
                 <div class="six-advisor-info">
                     <div class="six-advisor-name"><?php echo esc_html($advisor->display_name);?></div>
                     <div class="six-advisor-role">Account Manager</div>
@@ -321,7 +321,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         $p_um = intval( $unread_msg ?? 0 );
         if ( $p_um > 0 ) $priorities[] = array('t'=>$p_um.' unread message'.($p_um>1?'s':''),'d'=>'Clients are waiting to hear back from you','u'=>'?tab=clients','c'=>'var(--pink)','cta'=>'Open');
         $p_ai = intval( $total_intel_pending ?? 0 );
-        if ( $p_ai > 0 ) $priorities[] = array('t'=>$p_ai.' AI recommendation'.($p_ai>1?'s':'').' to review','d'=>'Approve or decline growth opportunities for your clients','u'=>'?tab=intelligence','c'=>'#a855f7','cta'=>'Review');
+        if ( $p_ai > 0 ) $priorities[] = array('t'=>$p_ai.' AI recommendation'.($p_ai>1?'s':'').' to review','d'=>'Approve or decline growth opportunities for your clients','u'=>'?tab=intelligence','c'=>'#8781BA','cta'=>'Review');
         $p_crit = array_filter( (array)$clients_attention, function($c){ return ($c['health'] ?? 100) < 50; } );
         if ( count($p_crit) > 0 ) { $p_first = reset($p_crit); $priorities[] = array('t'=>count($p_crit).' client'.(count($p_crit)>1?'s':'').' at risk','d'=>'Low health scores — reach out before they churn','u'=>'?tab=clients&client='.intval($p_first['id']),'c'=>'var(--danger)','cta'=>'View'); }
         if ( ! empty($today_meetings) ) { $p_next=null; foreach($today_meetings as $m){ if(strtotime($m['start'])>time()){ $p_next=$m; break; } } if($p_next) $priorities[] = array('t'=>'Next call at '.date('g:i A',strtotime($p_next['start'])),'d'=>($p_next['title']??'Client meeting'),'u'=>'?tab=calendar','c'=>'var(--cyan)','cta'=>'Prep'); }
@@ -377,9 +377,9 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 <div class="six-stat-trend" style="color:var(--danger)">↓ <?php echo $attention_ct;?> critical</div>
                 <?php else:?><div class="six-stat-trend up">↑ Healthy</div><?php endif;?>
             </div>
-            <div class="six-stat-card" style="border-color:rgba(168,85,247,0.3)">
+            <div class="six-stat-card" style="border-color:rgba(135,129,186,0.3)">
                 <div class="six-stat-label">AI Requests</div>
-                <div class="six-stat-val" style="color:#a855f7"><?php echo intval($total_intel_pending);?></div>
+                <div class="six-stat-val" style="color:#8781BA"><?php echo intval($total_intel_pending);?></div>
                 <?php if(intval($total_intel_pending)>0):?>
                 <div class="six-stat-trend" style="color:var(--warning)"><a href="?tab=intelligence" style="color:var(--warning)">Review →</a></div>
                 <?php else:?><div class="six-stat-trend" style="color:var(--text3)"><?php echo intval($total_intel_approved);?> approved total</div><?php endif;?>
@@ -708,7 +708,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             'google-ads'      => array('name'=>'Google Ads',              'icon'=>'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="3"/><path d="M7 15V9m5 6V7m5 8V5" stroke-width="2"/></svg>', 'color'=>'#4285F4'),
             'seo'             => array('name'=>'SEO',                     'icon'=>'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>', 'color'=>'#56D364'),
             'google-business' => array('name'=>'Google Business Profile', 'icon'=>'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>', 'color'=>'#FBBC05'),
-            'website'         => array('name'=>'Website Development',     'icon'=>'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>', 'color'=>'#a855f7'));
+            'website'         => array('name'=>'Website Development',     'icon'=>'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>', 'color'=>'#8781BA'));
 
         // Determine account status
         $acct_status = count($c_active_svcs_arr)>0 ? 'Active' : (count($c_pending_svcs)>0 ? 'Onboarding' : ($health<40 ? 'At Risk' : 'Active'));
@@ -824,7 +824,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
 
     <!-- AI Plan summary card (from onboarding) -->
     <?php if($c_ai_data): ?>
-    <div style="background:linear-gradient(135deg,rgba(255,102,153,0.08),rgba(131,197,237,0.06));border:1px solid rgba(255,102,153,0.2);border-radius:14px;padding:20px;margin-bottom:20px;position:relative;overflow:hidden">
+    <div style="background:linear-gradient(135deg,rgba(255,102,153,0.08),rgba(106,202,253,0.06));border:1px solid rgba(255,102,153,0.2);border-radius:14px;padding:20px;margin-bottom:20px;position:relative;overflow:hidden">
         <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--pink),var(--cyan))"></div>
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px">
             <div>
@@ -987,8 +987,8 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                     data-kpi="<?php echo esc_attr($key); ?>"
                     data-client="<?php echo esc_attr($view_client_id); ?>">
                 <button onclick="sixSaveKpi(this)" data-kpi="<?php echo esc_attr($key); ?>" data-client="<?php echo esc_attr($view_client_id); ?>"
-                    style="padding:8px 14px;background:rgba(131,197,237,.1);border:1px solid rgba(131,197,237,.2);border-radius:8px;color:#83C5ED;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0;transition:all .2s"
-                    onmouseover="this.style.background='rgba(131,197,237,.2)'" onmouseout="this.style.background='rgba(131,197,237,.1)'"
+                    style="padding:8px 14px;background:rgba(106,202,253,.1);border:1px solid rgba(106,202,253,.2);border-radius:8px;color:#6ACAFD;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0;transition:all .2s"
+                    onmouseover="this.style.background='rgba(106,202,253,.2)'" onmouseout="this.style.background='rgba(106,202,253,.1)'"
                 >Save</button>
             </div>
             <div style="font-size:10px;color:var(--text3);margin-top:4px"><?php echo esc_html($f['hint']); ?></div>
@@ -1339,7 +1339,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             b.addEventListener('click',function(){
                 state.mode=b.dataset.mode;
                 root.querySelectorAll('.ai-mode-btn').forEach(function(x){ x.style.background=''; x.style.color=''; });
-                b.style.background='linear-gradient(135deg,#FF6699,#83C5ED)'; b.style.color='#fff';
+                b.style.background='linear-gradient(135deg,#FF6699,#6ACAFD)'; b.style.color='#fff';
                 send(starters[b.dataset.mode]||'');
             });
         });
@@ -1491,7 +1491,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             <div style="font-size:13px;font-weight:700;color:<?php echo $ds_done===$ds_total?'var(--success)':'var(--text2)'; ?>;white-space:nowrap"><?php echo $ds_done; ?> of <?php echo $ds_total; ?> connected</div>
         </div>
         <div style="height:8px;background:rgba(255,255,255,0.06);border-radius:6px;overflow:hidden">
-            <div style="height:100%;width:<?php echo $ds_pct; ?>%;background:linear-gradient(90deg,#FF6699,#83C5ED);border-radius:6px"></div>
+            <div style="height:100%;width:<?php echo $ds_pct; ?>%;background:linear-gradient(90deg,#FF6699,#6ACAFD);border-radius:6px"></div>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">
             <?php foreach($ds_sources as $lbl=>$ok): ?>
@@ -1503,7 +1503,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
 
         <!-- Website / Domain + Target market (powers SEO + keyword tools) -->
-        <div style="background:var(--dark2);border:1px solid rgba(131,197,237,0.25);border-radius:14px;overflow:hidden;grid-column:1 / -1">
+        <div style="background:var(--dark2);border:1px solid rgba(106,202,253,0.25);border-radius:14px;overflow:hidden;grid-column:1 / -1">
             <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;gap:8px">
                 <span style="font-size:13px;font-weight:700">Website &amp; target market</span>
                 <?php if($c_domain): ?><span style="font-size:10px;background:rgba(86,211,100,0.1);color:var(--success);padding:2px 8px;border-radius:10px;font-weight:700">● Set</span><?php endif; ?>
@@ -2488,7 +2488,7 @@ function advCompleteOnboarding(clientId){
                     <?php if(empty($conv)):?><div style="text-align:center;padding:30px;color:var(--text3)">No messages yet — say hello!</div><?php else:?>
                     <?php foreach($conv as $msg):$is_mine=intval($msg->sender_id)===$advisor_id;?>
                     <div class="six-msg <?php echo $is_mine?'mine':'';?>">
-                        <div class="six-msg-avatar" style="background:<?php echo $is_mine?'linear-gradient(135deg,var(--pink),#a855f7)':'linear-gradient(135deg,var(--blue),var(--cyan))';?>"><?php echo esc_html(six_get_initials($msg->sender_name));?></div>
+                        <div class="six-msg-avatar" style="background:<?php echo $is_mine?'linear-gradient(135deg,var(--pink),#8781BA)':'linear-gradient(135deg,var(--blue),var(--cyan))';?>"><?php echo esc_html(six_get_initials($msg->sender_name));?></div>
                         <div><div class="six-msg-bubble"><?php echo esc_html($msg->message);?></div><div class="six-msg-time"><?php echo human_time_diff(strtotime($msg->created_at),time()).' ago';?></div></div>
                     </div>
                     <?php endforeach;?><?php endif;?>
@@ -3215,7 +3215,7 @@ if(msgSend && msgIn){
             if(res.success){
                 var t=document.getElementById('six-msg-thread');
                 var d=document.createElement('div'); d.className='six-msg mine';
-                d.innerHTML='<div class="six-msg-avatar" style="background:linear-gradient(135deg,var(--pink),#a855f7)">'+INI+'</div><div><div class="six-msg-bubble">'+msg.replace(/</g,'&lt;')+'</div><div class="six-msg-time">just now</div></div>';
+                d.innerHTML='<div class="six-msg-avatar" style="background:linear-gradient(135deg,var(--pink),#8781BA)">'+INI+'</div><div><div class="six-msg-bubble">'+msg.replace(/</g,'&lt;')+'</div><div class="six-msg-time">just now</div></div>';
                 t.appendChild(d); t.scrollTop=t.scrollHeight; msgIn.value='';
             }
         });

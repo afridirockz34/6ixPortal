@@ -10,7 +10,7 @@
 /* ── LIGHT MODE (default) ──────────────────────────────────────── */
 :root {
   /* Brand */
-  --pink:    #E8547A;
+  --pink:    #FF6699;
   --pink-soft: #FDE8EF;
   --cyan:    #3C8FB5;
   --cyan-soft: #E8F4FB;
@@ -40,17 +40,27 @@
   --shadow:  0 1px 4px rgba(15,25,35,0.08), 0 4px 16px rgba(15,25,35,0.04);
   --shadow-md: 0 4px 24px rgba(15,25,35,0.1);
 
-  /* Gradient accent */
-  --grad-brand: linear-gradient(135deg, #E8547A 0%, #3C8FB5 100%);
-  --grad-subtle: linear-gradient(135deg, rgba(232,84,122,0.06) 0%, rgba(60,143,181,0.06) 100%);
+  /* Brand palette — the four official 6ix colours. Used for gradients,
+     decorative fills and accents. Text-accent tokens above stay slightly
+     deeper for legibility on light backgrounds. */
+  --brand-pink:   #FF6699;
+  --brand-blue:   #6ACAFD;
+  --brand-lime:   #C8DA5D;
+  --brand-purple: #8781BA;
+
+  /* Gradient accent — brand pink → purple → blue (replaces the old
+     Instagram-style pink/purple/cyan blend). */
+  --grad-ai:    linear-gradient(135deg, #FF6699 0%, #8781BA 50%, #6ACAFD 100%);
+  --grad-brand: linear-gradient(135deg, #FF6699 0%, #8781BA 55%, #6ACAFD 100%);
+  --grad-subtle: linear-gradient(135deg, rgba(255,102,153,0.07) 0%, rgba(135,129,186,0.06) 50%, rgba(106,202,253,0.07) 100%);
 }
 
 /* ── DARK MODE ─────────────────────────────────────────────────── */
 [data-theme="dark"] {
   --pink:    #FF6699;
   --pink-soft: rgba(255,102,153,0.12);
-  --cyan:    #83C5ED;
-  --cyan-soft: rgba(131,197,237,0.12);
+  --cyan:    #6ACAFD;
+  --cyan-soft: rgba(106,202,253,0.12);
   --blue:    #3C6478;
   --success: #56D364;
   --warning: #E3B341;
@@ -68,7 +78,13 @@
 
   --shadow:  0 2px 12px rgba(0,0,0,0.4);
   --shadow-md: 0 4px 32px rgba(0,0,0,0.5);
-  --grad-subtle: linear-gradient(135deg, rgba(255,102,153,0.06) 0%, rgba(131,197,237,0.06) 100%);
+  --brand-pink:   #FF6699;
+  --brand-blue:   #6ACAFD;
+  --brand-lime:   #C8DA5D;
+  --brand-purple: #8781BA;
+  --grad-ai:    linear-gradient(135deg, #FF6699 0%, #8781BA 50%, #6ACAFD 100%);
+  --grad-brand: linear-gradient(135deg, #FF6699 0%, #8781BA 55%, #6ACAFD 100%);
+  --grad-subtle: linear-gradient(135deg, rgba(255,102,153,0.08) 0%, rgba(135,129,186,0.07) 50%, rgba(106,202,253,0.08) 100%);
 }
 
 /* ── RESET / BASE ────────────────────────────────────────── */
@@ -184,7 +200,7 @@ body.six-nav-collapsed .six-sidebar { transform: translateX(-100%); }
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--pink), #a855f7);
+  background: linear-gradient(135deg, var(--pink), #8781BA);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -495,8 +511,8 @@ body.six-nav-collapsed .six-sidebar { transform: translateX(-100%); }
 [style*="background: var(--pink)"],
 [style*="background:linear-gradient(135deg,var(--pink)"],
 [style*="background: linear-gradient(135deg, var(--pink)"],
-[style*="background:linear-gradient(135deg,#E8547A"],
-[style*="background:#E8547A"],
+[style*="background:linear-gradient(135deg,#FF6699"],
+[style*="background:#FF6699"],
 [style*="background:#FF6699"],
 [style*="background:#e6407a"] { color: #fff; }
 
@@ -664,7 +680,7 @@ body.six-nav-collapsed .six-sidebar { transform: translateX(-100%); }
   line-height: 1.45;
 }
 .six-msg.mine .six-msg-bubble {
-  background: linear-gradient(135deg, rgba(255,102,153,0.2), rgba(168,85,247,0.15));
+  background: linear-gradient(135deg, rgba(255,102,153,0.2), rgba(135,129,186,0.15));
   border-color: rgba(255, 102, 153, 0.3);
   border-radius: 14px 14px 4px 14px;
 }
@@ -691,7 +707,7 @@ body.six-nav-collapsed .six-sidebar { transform: translateX(-100%); }
 
 /* ── READINESS BANNER ────────────────────────────────────── */
 .six-readiness-banner {
-  background: linear-gradient(135deg, rgba(60,100,120,0.35), rgba(131,197,237,0.1));
+  background: linear-gradient(135deg, rgba(60,100,120,0.35), rgba(106,202,253,0.1));
   border: 1px solid rgba(131, 197, 237, 0.25);
   border-radius: var(--radius);
   padding: 20px 22px;
@@ -869,7 +885,7 @@ body.six-nav-collapsed .six-sidebar { transform: translateX(-100%); }
 }
 .six-lead-badge.hot  { background: rgba(255,107,107,0.15); color: var(--danger); }
 .six-lead-badge.warm { background: rgba(227,179,65,0.15);  color: var(--warning); }
-.six-lead-badge.cold { background: rgba(131,197,237,0.12); color: var(--cyan); }
+.six-lead-badge.cold { background: rgba(106,202,253,0.12); color: var(--cyan); }
 
 .six-lead-card {
   display: flex;
@@ -1286,7 +1302,7 @@ textarea.six-input {
 .six-icon-wrap-cyan   { background: var(--cyan-soft); color: var(--cyan); }
 .six-icon-wrap-green  { background: rgba(27,158,82,0.1); color: var(--success); }
 .six-icon-wrap-amber  { background: rgba(193,123,26,0.1); color: var(--warning); }
-.six-icon-wrap-purple { background: rgba(168,85,247,0.1); color: #a855f7; }
+.six-icon-wrap-purple { background: rgba(135,129,186,0.1); color: #8781BA; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    MOBILE-FIRST PREMIUM SaaS OVERHAUL
@@ -2252,7 +2268,7 @@ textarea.six-input {
   .six-client-card-avatar {
     width: 40px; height: 40px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--pink), #a855f7);
+    background: linear-gradient(135deg, var(--pink), #8781BA);
     color: white;
     font-size: 13px;
     font-weight: 700;
@@ -2401,7 +2417,7 @@ textarea.six-input {
 .six-client-header-avatar {
   width: 48px; height: 48px;
   border-radius: 13px;
-  background: linear-gradient(135deg, var(--pink), #a855f7);
+  background: linear-gradient(135deg, var(--pink), #8781BA);
   display: flex; align-items: center; justify-content: center;
   font-size: 17px; font-weight: 700; color: white;
   flex-shrink: 0;

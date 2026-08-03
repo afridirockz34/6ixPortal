@@ -48,7 +48,7 @@ function six_admin_overview() {
             <?php
             $stats = array(
                 array( 'Total Customers',   count( $customers ),     '#FF6699' ),
-                array( 'Active Services',   intval( $svc_count ),    '#83C5ED' ),
+                array( 'Active Services',   intval( $svc_count ),    '#6ACAFD' ),
                 array( 'Pending Approvals', intval( $pend_count ),   '#E3B341' ),
                 array( 'Hot Leads (70+)',   intval( $lead_count ),   '#FF6B6B' ),
             );
@@ -219,7 +219,7 @@ function six_admin_settings() {
 
             <!-- ═══ ANTHROPIC AI ═══════════════════════════════════════ -->
             <div class="six-int-card">
-                <div class="six-int-head"><span class="dot" style="background:#a855f7"></span> AI Intelligence — Anthropic <?php echo $badge($has_ai); ?></div>
+                <div class="six-int-head"><span class="dot" style="background:#8781BA"></span> AI Intelligence — Anthropic <?php echo $badge($has_ai); ?></div>
                 <div class="six-int-body">
                     <div class="hint">Powers the AI Strategist, growth plans and competitor intelligence. Key from <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>.</div>
                     <div class="six-fld"><label>Anthropic API Key</label><input type="password" name="six_anthropic_api_key" value="<?php echo $s('six_anthropic_api_key',true); ?>" placeholder="sk-ant-..."><div class="desc">Server-side only, never exposed to the browser.</div></div>
@@ -862,7 +862,7 @@ function six_maybe_test_ai() {
 
     if ( ! $key ) {
         echo '<p style="color:#FF6B6B"> No API key found in database (option: six_anthropic_api_key)</p>';
-        echo '<p>Go to <a href="'.admin_url('admin.php?page=six-portal-settings').'" style="color:#83C5ED">Integration Settings</a>, enter your key, and save.</p>';
+        echo '<p>Go to <a href="'.admin_url('admin.php?page=six-portal-settings').'" style="color:#6ACAFD">Integration Settings</a>, enter your key, and save.</p>';
         echo '</div>'; exit;
     }
 
@@ -904,7 +904,7 @@ function six_maybe_test_ai() {
         echo '<p style="color:#FF6B6B"> Error '.$code.' — see raw response above.</p>';
     }
 
-    echo '<p style="margin-top:20px"><a href="'.admin_url('admin.php?page=six-portal-settings').'" style="color:#83C5ED">← Back to Settings</a></p>';
+    echo '<p style="margin-top:20px"><a href="'.admin_url('admin.php?page=six-portal-settings').'" style="color:#6ACAFD">← Back to Settings</a></p>';
     echo '</div>'; exit;
 }
 

@@ -115,7 +115,7 @@ $total_hot      = count($hot_leads);
                 <div class="six-stat-val" style="color:var(--warning)"><?php echo count($warm_leads);?></div>
                 <div style="font-size:10px;color:var(--text3);margin-top:4px">Score 40–69</div>
             </div>
-            <div class="six-stat-card" style="border-color:rgba(131,197,237,0.3)">
+            <div class="six-stat-card" style="border-color:rgba(106,202,253,0.3)">
                 <div class="six-stat-label" style="color:var(--cyan)"> Cold Leads</div>
                 <div class="six-stat-val" style="color:var(--cyan)"><?php echo count($cold_leads);?></div>
                 <div style="font-size:10px;color:var(--text3);margin-top:4px">Score under 40</div>
@@ -127,7 +127,7 @@ $total_hot      = count($hot_leads);
             </div>
         </div>
 
-        <?php foreach(array(array('label'=>' Hot Leads','color'=>'var(--danger)','leads'=>$hot_leads,'border'=>'rgba(255,107,107,0.3)'),array('label'=>' Warm Leads','color'=>'var(--warning)','leads'=>$warm_leads,'border'=>'rgba(227,179,65,0.3)'),array('label'=>' Cold Leads','color'=>'var(--cyan)','leads'=>$cold_leads,'border'=>'rgba(131,197,237,0.3)')) as $group):
+        <?php foreach(array(array('label'=>' Hot Leads','color'=>'var(--danger)','leads'=>$hot_leads,'border'=>'rgba(255,107,107,0.3)'),array('label'=>' Warm Leads','color'=>'var(--warning)','leads'=>$warm_leads,'border'=>'rgba(227,179,65,0.3)'),array('label'=>' Cold Leads','color'=>'var(--cyan)','leads'=>$cold_leads,'border'=>'rgba(106,202,253,0.3)')) as $group):
             if(empty($group['leads'])) continue;?>
         <div class="six-card" style="margin-bottom:16px;border-color:<?php echo $group['border'];?>">
             <div class="six-card-header"><span class="six-card-title" style="color:<?php echo $group['color'];?>"><?php echo $group['label'];?></span></div>
