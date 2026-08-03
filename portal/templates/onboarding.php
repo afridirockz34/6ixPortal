@@ -53,7 +53,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .ob-side-foot a{color:var(--cy);text-decoration:none;}
 
 /* Main */
-.ob-main{padding:48px 40px;max-width:640px;margin:0 auto;width:100%;}
+.ob-main{padding:64px 40px 76px;max-width:640px;margin:0 auto;width:100%;align-self:center;}
 /* Login panel: vertically centered inside the right column */
 #ob-login.ob-panel.active{
   min-height:calc(100vh - 96px);
@@ -88,7 +88,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .ob-inp::placeholder{color:var(--t3);}
 .ob-inp[readonly]{opacity:.55;cursor:not-allowed;}
 .ob-inp option{background:var(--d3);}
-.ob-g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.ob-g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:end;}
 @media(max-width:520px){.ob-g2{grid-template-columns:1fr;}}
 .ob-hr{border:none;border-top:1px solid var(--bdr);margin:20px 0;}
 
