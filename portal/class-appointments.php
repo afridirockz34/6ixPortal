@@ -296,7 +296,7 @@ class Six_Appointments {
                 . ( $notes ? '<tr><td style="color:#666;padding-right:14px;vertical-align:top">Notes</td><td>' . esc_html( $notes ) . '</td></tr>' : '' )
                 . '</table>'
                 . $meet_row
-                . '<p style="margin-top:16px"><a href="' . esc_url( home_url( '/advisor-portal/?tab=clients&client=' . $client->ID ) ) . '" style="color:#83C5ED">Open client profile →</a></p>'
+                . '<p style="margin-top:16px"><a href="' . esc_url( home_url( '/advisor-portal/?tab=clients&client=' . $client->ID ) ) . '" style="color:#6ACAFD">Open client profile →</a></p>'
                 . '<p style="font-size:12px;color:#999">— 6ix Developers Portal</p></div>';
             wp_mail( $advisor->user_email, ( $start_iso ? 'Call scheduled: ' : 'Call request: ' ) . $client->display_name, $adv_body, $headers, $attach );
         }

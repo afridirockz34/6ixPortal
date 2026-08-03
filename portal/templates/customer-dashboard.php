@@ -113,7 +113,7 @@ $svc_def = array(
     'google-ads'      => array('name'=>'Google Ads',              'icon'=>'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="3"/><path d="M7 15V9m5 6V7m5 8V5" stroke-width="2"/></svg>', 'color'=>'#4285F4'),
     'seo'             => array('name'=>'SEO',                     'icon'=>'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>', 'color'=>'#56D364'),
     'google-business' => array('name'=>'Google Business Profile', 'icon'=>'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>', 'color'=>'#FBBC05'),
-    'website'         => array('name'=>'Website Development',     'icon'=>'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>', 'color'=>'#a855f7'),
+    'website'         => array('name'=>'Website Development',     'icon'=>'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>', 'color'=>'#8781BA'),
 );
 ?>
 <!-- Notifications panel -->
@@ -541,7 +541,7 @@ $has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
 
     <!-- 1. New Customers -->
     <div class="six-kc" data-kpi="new_customers">
-        <div class="six-kc-bar" style="background:linear-gradient(90deg,#FF6699,#c084fc)"></div>
+        <div class="six-kc-bar" style="background:linear-gradient(90deg,#FF6699,#8781BA)"></div>
         <div class="six-kc-head">
             <span class="six-kc-label">New Customers</span>
             <div class="six-kc-icon" style="background:rgba(255,102,153,0.12)">
@@ -629,11 +629,11 @@ $has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
 
     <!-- 4. Live ROI Projection -->
     <div class="six-kc six-kc-roi" data-kpi="roi_projection">
-        <div class="six-kc-bar" style="background:linear-gradient(90deg,#FF6699,#a855f7,#83C5ED)"></div>
+        <div class="six-kc-bar" style="background:linear-gradient(90deg,#FF6699,#8781BA,#6ACAFD)"></div>
         <div class="six-kc-head">
             <span class="six-kc-label">Live ROI Projection</span>
-            <div class="six-kc-icon" style="background:rgba(168,85,247,0.12)">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <div class="six-kc-icon" style="background:rgba(135,129,186,0.12)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8781BA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
                 </svg>
             </div>
@@ -702,7 +702,7 @@ $has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
             if (!empty($next_appt->start_datetime)) { $na_when = date('D, M j · g:i A', strtotime($next_appt->start_datetime)); }
             else { $na_when = ($next_appt->time_window ?: 'Time to be confirmed'); }
         ?>
-        <div style="background:rgba(131,197,237,.06);border:1px solid rgba(131,197,237,.2);border-radius:12px;padding:14px;margin-bottom:20px">
+        <div style="background:rgba(106,202,253,.06);border:1px solid rgba(106,202,253,.2);border-radius:12px;padding:14px;margin-bottom:20px">
             <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);font-weight:700;margin-bottom:6px">Upcoming Call</div>
             <div style="font-size:14px;font-weight:700;color:var(--text1)"><?php echo esc_html($na_when); ?></div>
             <?php if(!empty($next_appt->notes)):?><div style="font-size:11px;color:var(--text3);margin-top:3px"><?php echo esc_html(mb_substr($next_appt->notes,0,80)); ?></div><?php endif;?>
@@ -716,14 +716,14 @@ $has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
         <!-- Services list -->
         <div class="six-adv-services">
             <?php foreach($active_svcs as $s):
-                $sd = $svc_def[$s->service_slug] ?? array('color'=>'#83C5ED');
+                $sd = $svc_def[$s->service_slug] ?? array('color'=>'#6ACAFD');
             ?>
             <div class="six-adv-svc-row">
                 <div style="display:flex;align-items:center;gap:8px">
                     <div style="width:7px;height:7px;border-radius:2px;background:<?php echo esc_attr($sd['color']); ?>;flex-shrink:0"></div>
                     <span class="six-adv-svc-name"><?php echo esc_html($s->service_name); ?></span>
                 </div>
-                <span class="six-adv-svc-price" style="color:<?php echo floatval($s->budget)>0?'#83C5ED':'rgba(255,255,255,0.3)'; ?>">
+                <span class="six-adv-svc-price" style="color:<?php echo floatval($s->budget)>0?'#6ACAFD':'rgba(255,255,255,0.3)'; ?>">
                     $<?php echo number_format(floatval($s->budget),0); ?>
                 </span>
             </div>
@@ -785,14 +785,14 @@ $has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
 /* Legend color adapts to theme via vars */
 
 /* Advisor */
-.six-adv-avatar-ring{width:54px;height:54px;border-radius:50%;padding:2px;background:linear-gradient(135deg,#FF6699,#a855f7,#83C5ED);flex-shrink:0}
+.six-adv-avatar-ring{width:54px;height:54px;border-radius:50%;padding:2px;background:linear-gradient(135deg,#FF6699,#8781BA,#6ACAFD);flex-shrink:0}
 .six-adv-avatar{border-radius:50%;background:linear-gradient(135deg,var(--dark3,#1a1f2e),var(--dark1,#0E1117));display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:15px;font-weight:800;color:var(--text1);width:100%;height:100%}
 :not([data-theme="dark"]) .six-adv-avatar{background:#E8EDF2;color:#111827}
 .six-adv-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;font-weight:600;padding:9px 12px;border-radius:10px;text-decoration:none;cursor:pointer;transition:all .2s}
 .six-adv-msg{background:rgba(255,102,153,.08);border:1px solid rgba(255,102,153,.25);color:#FF6699}
 .six-adv-msg:hover{background:rgba(255,102,153,.15);color:#FF6699}
-.six-adv-book{background:rgba(131,197,237,.06);border:1px solid rgba(131,197,237,.2);color:#83C5ED}
-.six-adv-book:hover{background:rgba(131,197,237,.12);color:#83C5ED}
+.six-adv-book{background:rgba(106,202,253,.06);border:1px solid rgba(106,202,253,.2);color:#6ACAFD}
+.six-adv-book:hover{background:rgba(106,202,253,.12);color:#6ACAFD}
 
 
 
@@ -919,7 +919,7 @@ $has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
   }
 
   function styleTab(el, active){
-    if (active){ el.style.background='linear-gradient(135deg,#FF6699,#83C5ED)'; el.style.color='#fff'; el.style.borderColor='transparent'; }
+    if (active){ el.style.background='linear-gradient(135deg,#FF6699,#6ACAFD)'; el.style.color='#fff'; el.style.borderColor='transparent'; }
     else { el.style.background=isDark?'rgba(255,255,255,.05)':'rgba(15,20,40,.05)'; el.style.color=isDark?'rgba(255,255,255,.6)':'rgba(15,20,40,.6)'; el.style.borderColor=isDark?'rgba(255,255,255,.08)':'rgba(15,20,40,.08)'; }
   }
   function refreshTabs(){
@@ -1017,23 +1017,23 @@ $has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
     '    <svg id="proj-svg" style="width:100%;height:100%;overflow:visible" role="img" aria-label="Growth projection range over the first 90 days">',
     '      <defs>',
     '        <linearGradient id="projBand" x1="0" y1="0" x2="0" y2="1">',
-    '          <stop offset="0%" stop-color="#83C5ED" stop-opacity=".28"/>',
-    '          <stop offset="100%" stop-color="#83C5ED" stop-opacity=".03"/>',
+    '          <stop offset="0%" stop-color="#6ACAFD" stop-opacity=".28"/>',
+    '          <stop offset="100%" stop-color="#6ACAFD" stop-opacity=".03"/>',
     '        </linearGradient>',
     '        <linearGradient id="projLine" x1="0" y1="0" x2="1" y2="0">',
-    '          <stop offset="0%" stop-color="#83C5ED"/><stop offset="100%" stop-color="#FF6699"/>',
+    '          <stop offset="0%" stop-color="#6ACAFD"/><stop offset="100%" stop-color="#FF6699"/>',
     '        </linearGradient>',
     '      </defs>',
     '      <g id="proj-grid"></g>',
     '      <path id="proj-area" fill="url(#projBand)"/>',
-    '      <path id="proj-lo" fill="none" stroke="'+(isDark?'rgba(131,197,237,.5)':'rgba(131,197,237,.7)')+'" stroke-width="1.2" stroke-dasharray="4,4"/>',
+    '      <path id="proj-lo" fill="none" stroke="'+(isDark?'rgba(106,202,253,.5)':'rgba(106,202,253,.7)')+'" stroke-width="1.2" stroke-dasharray="4,4"/>',
     '      <path id="proj-hi" fill="none" stroke="'+(isDark?'rgba(255,102,153,.45)':'rgba(255,102,153,.6)')+'" stroke-width="1.2" stroke-dasharray="4,4"/>',
     '      <path id="proj-exp" fill="none" stroke="url(#projLine)" stroke-width="2.6" stroke-linecap="round"/>',
     '      <g id="proj-xlbl"></g><g id="proj-ylbl"></g>',
     '      <circle id="proj-end" r="4.5" fill="#FF6699"/>',
     '      <line id="proj-hv" stroke="'+(isDark?'rgba(255,255,255,.14)':'rgba(15,20,40,.14)')+'" stroke-width="1" stroke-dasharray="3,3" opacity="0"/>',
     '    </svg>',
-    '    <div id="proj-tt" style="position:absolute;pointer-events:none;opacity:0;background:'+(isDark?'rgba(11,15,26,.92)':'rgba(255,255,255,.96)')+';border:1px solid '+(isDark?'rgba(131,197,237,.2)':'rgba(15,20,40,.12)')+';border-radius:9px;padding:8px 11px;font-size:11.5px;min-width:132px;box-shadow:0 8px 28px rgba(0,0,0,.32);transition:opacity .12s;z-index:20;color:'+strong+'">',
+    '    <div id="proj-tt" style="position:absolute;pointer-events:none;opacity:0;background:'+(isDark?'rgba(11,15,26,.92)':'rgba(255,255,255,.96)')+';border:1px solid '+(isDark?'rgba(106,202,253,.2)':'rgba(15,20,40,.12)')+';border-radius:9px;padding:8px 11px;font-size:11.5px;min-width:132px;box-shadow:0 8px 28px rgba(0,0,0,.32);transition:opacity .12s;z-index:20;color:'+strong+'">',
     '      <div id="proj-tt-w" style="font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;opacity:.5;margin-bottom:5px"></div>',
     '      <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:2px"><span style="color:#FF6699;font-weight:700">Expected</span><span id="proj-tt-e" style="font-variant-numeric:tabular-nums"></span></div>',
     '      <div style="display:flex;justify-content:space-between;gap:12px;font-size:10.5px;opacity:.7"><span>Range</span><span id="proj-tt-r" style="font-variant-numeric:tabular-nums"></span></div>',
@@ -1117,7 +1117,7 @@ $ds_pct   = $ds_total ? round(($ds_connected/$ds_total)*100) : 0;
         <div style="text-align:right;min-width:120px">
             <div style="font-size:12px;color:var(--text3)"><span id="ds-count"><?php echo $ds_connected; ?></span>/<?php echo $ds_total; ?> connected</div>
             <div style="height:7px;border-radius:5px;background:var(--border,rgba(255,255,255,.08));margin-top:6px;overflow:hidden">
-                <div id="ds-bar" style="height:100%;width:<?php echo $ds_pct; ?>%;border-radius:5px;background:linear-gradient(90deg,#83C5ED,#FF6699);transition:width .4s"></div>
+                <div id="ds-bar" style="height:100%;width:<?php echo $ds_pct; ?>%;border-radius:5px;background:linear-gradient(90deg,#6ACAFD,#FF6699);transition:width .4s"></div>
             </div>
         </div>
     </div>
@@ -1244,7 +1244,7 @@ $opp_types=array(
         'prompt'=>"You are a competitive intelligence analyst at 6ix Developers. In 2 sentences, describe the most significant channel gap vs competitors and what business is being lost. Business: {$ai_business}, Industry: {$ai_industry}, Current: {$ai_svc_names}. Competitors: ".($comp_str?:'typical industry players').". End: '6ix Developers can close this with our [service].'"),
     array('id'=>'roi',     'icon'=>'revenue',    'title'=>'Revenue Gap Analysis',     'color'=>'#E3B341','key'=>'roi',
         'prompt'=>"You are a revenue strategist at 6ix Developers. In 2 sentences, identify the biggest revenue opportunity being left on the table. Business: {$ai_business}, Industry: {$ai_industry}, Services: {$ai_svc_names}. Use realistic benchmark numbers. End: 'Our [service] typically delivers [result] within [timeframe].'"),
-    array('id'=>'content', 'icon'=>'brand',      'title'=>'Brand Authority Gap',      'color'=>'#a855f7','key'=>'content',
+    array('id'=>'content', 'icon'=>'brand',      'title'=>'Brand Authority Gap',      'color'=>'#8781BA','key'=>'content',
         'prompt'=>"You are a brand strategist at 6ix Developers. In 2 sentences, assess this business's brand authority gap and the competitive risk. Business: {$ai_business}, Industry: {$ai_industry}, Services: {$ai_svc_names}. Make it specific to their industry. End: 'Our brand and content services address this directly.'"),
     array('id'=>'quickwin','icon'=>'trending-up','title'=>'30-Day Revenue Projection','color'=>'var(--success)','key'=>'quickwin',
         'prompt'=>"You are a growth advisor at 6ix Developers. In 2 sentences, project what adding the most impactful missing service delivers in 30 days. Business: {$ai_business}, Industry: {$ai_industry}, Challenge: {$ai_challenge}, Services: {$ai_svc_names}. Missing: {$missing_svcs}. Use compelling realistic numbers. End: 'Book a strategy call — your advisor is ready.'"),
@@ -1586,9 +1586,9 @@ $chart_json = json_encode(array(
 <?php endif; ?>
 
 <!-- AI Upsell Opportunity card -->
-<div style="background:linear-gradient(135deg,var(--dark2),rgba(168,85,247,0.06));border:1px solid rgba(168,85,247,0.2);border-radius:14px;overflow:hidden;margin-bottom:20px;position:relative">
-    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#a855f7,var(--cyan))"></div>
-    <div style="padding:18px 20px;border-bottom:1px solid rgba(168,85,247,0.1);display:flex;align-items:center;justify-content:space-between">
+<div style="background:linear-gradient(135deg,var(--dark2),rgba(135,129,186,0.06));border:1px solid rgba(135,129,186,0.2);border-radius:14px;overflow:hidden;margin-bottom:20px;position:relative">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#8781BA,var(--cyan))"></div>
+    <div style="padding:18px 20px;border-bottom:1px solid rgba(135,129,186,0.1);display:flex;align-items:center;justify-content:space-between">
         <div style="display:flex;align-items:center;gap:8px">
             <span style="font-size:16px"></span>
             <div>
@@ -1657,7 +1657,7 @@ $chart_json = json_encode(array(
             <?php if(empty($conv)): ?><div style="text-align:center;padding:40px;color:var(--text3)">No messages yet. Say hello! </div>
             <?php else: foreach($conv as $msg): $is_mine=intval($msg->sender_id)===$user_id; ?>
             <div class="six-msg <?php echo $is_mine?'mine':''; ?>">
-                <div class="six-msg-avatar" style="background:<?php echo $is_mine?'linear-gradient(135deg,var(--pink),#a855f7)':'linear-gradient(135deg,var(--blue),var(--cyan))'; ?>"><?php echo esc_html(six_get_initials($msg->sender_name)); ?></div>
+                <div class="six-msg-avatar" style="background:<?php echo $is_mine?'linear-gradient(135deg,var(--pink),#8781BA)':'linear-gradient(135deg,var(--blue),var(--cyan))'; ?>"><?php echo esc_html(six_get_initials($msg->sender_name)); ?></div>
                 <div><div class="six-msg-bubble"><?php echo esc_html($msg->message); ?></div><div class="six-msg-time"><?php echo human_time_diff(strtotime($msg->created_at),time()); ?> ago</div></div>
             </div>
             <?php endforeach; endif; ?>
@@ -1682,7 +1682,7 @@ $conv = class_exists('Six_Messaging') ? Six_Messaging::get_conversation($user_id
 <div style="display:grid;grid-template-columns:70% 30%;gap:20px;align-items:start">
     <div class="six-card">
         <div class="six-card-body" style="text-align:center;padding:32px 24px">
-            <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--pink),#a855f7);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;margin:0 auto 16px;color:white"><?php echo esc_html(six_get_initials($advisor->display_name)); ?></div>
+            <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--pink),#8781BA);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;margin:0 auto 16px;color:white"><?php echo esc_html(six_get_initials($advisor->display_name)); ?></div>
             <div style="font-size:20px;font-weight:800;font-family:var(--font-head);margin-bottom:4px"><?php echo esc_html($advisor->display_name); ?></div>
             <div style="font-size:13px;color:var(--pink);font-weight:600;margin-bottom:16px">Senior Marketing Advisor · 6ix Developers</div>
             <div style="background:var(--dark4);border-radius:12px;padding:15px 16px;margin-bottom:18px;text-align:left">
@@ -1751,7 +1751,7 @@ $conv = class_exists('Six_Messaging') ? Six_Messaging::get_conversation($user_id
             <div style="text-align:center;padding:48px 20px;color:var(--text3);font-size:13px">No messages yet — send your advisor a note and their replies will show up here.</div>
             <?php else: foreach($conv as $msg): $is_mine=intval($msg->sender_id)===$user_id; ?>
             <div class="six-msg <?php echo $is_mine?'mine':''; ?>">
-                <div class="six-msg-avatar" style="background:<?php echo $is_mine?'linear-gradient(135deg,var(--pink),#a855f7)':'linear-gradient(135deg,var(--blue),var(--cyan))'; ?>"><?php echo esc_html(six_get_initials($msg->sender_name)); ?></div>
+                <div class="six-msg-avatar" style="background:<?php echo $is_mine?'linear-gradient(135deg,var(--pink),#8781BA)':'linear-gradient(135deg,var(--blue),var(--cyan))'; ?>"><?php echo esc_html(six_get_initials($msg->sender_name)); ?></div>
                 <div><div class="six-msg-bubble"><?php echo esc_html($msg->message); ?></div><div class="six-msg-time"><?php echo human_time_diff(strtotime($msg->created_at),time()); ?> ago</div></div>
             </div>
             <?php endforeach; endif; ?>
@@ -1844,7 +1844,7 @@ $next_billing=date('M 1, Y',strtotime('first day of next month'));
             <div style="display:flex;justify-content:space-between;padding:12px 0 0;font-size:15px;font-weight:800;font-family:var(--font-head);border-top:2px solid var(--border)"><span>Total / Month</span><span style="color:var(--pink)">$<?php echo number_format($billing_total,0); ?></span></div>
             <?php endif; ?>
             <?php if($billing_total>0): ?>
-            <div style="margin-top:14px;padding:12px;background:rgba(131,197,237,0.08);border:1px solid rgba(131,197,237,0.2);border-radius:8px;text-align:center">
+            <div style="margin-top:14px;padding:12px;background:rgba(106,202,253,0.08);border:1px solid rgba(106,202,253,0.2);border-radius:8px;text-align:center">
                 <div style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Next Billing</div>
                 <div style="font-size:15px;font-weight:700;color:var(--cyan)"><?php echo esc_html($next_billing); ?></div>
                 <div style="font-size:20px;font-weight:800;font-family:var(--font-head);color:var(--pink);margin-top:4px">$<?php echo number_format($billing_total,0); ?></div>
@@ -1963,7 +1963,7 @@ $next_billing=date('M 1, Y',strtotime('first day of next month'));
 </div>
 
 <style>
-.six-ai-badge{font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;background:linear-gradient(135deg,var(--pink),#a855f7);color:white;padding:3px 8px;border-radius:100px}
+.six-ai-badge{font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;background:linear-gradient(135deg,var(--pink),#8781BA);color:white;padding:3px 8px;border-radius:100px}
 .six-ai-body{font-size:13px;color:var(--text2);line-height:1.8;min-height:60px}
 .six-ai-loading{display:flex;align-items:center;gap:10px;color:var(--text3);font-size:12px;padding:8px 0}
 .six-ai-spinner{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,102,153,0.3);border-top-color:var(--pink);animation:aiSpin 0.8s linear infinite;flex-shrink:0}
@@ -2011,7 +2011,7 @@ var ADV_ID= '<?php echo intval($advisor_id); ?>';
             window.sixDashChart.options.scales.y.ticks.color = tc;
             window.sixDashChart.options.scales.y.grid.color  = gc;
             window.sixDashChart.options.plugins.legend.labels.color = lc;
-            window.sixDashChart.data.datasets[0].backgroundColor = dk ? 'rgba(131,197,237,0.30)' : 'rgba(60,100,120,0.16)';
+            window.sixDashChart.data.datasets[0].backgroundColor = dk ? 'rgba(106,202,253,0.30)' : 'rgba(60,100,120,0.16)';
             window.sixDashChart.update();
         }
     }
@@ -2104,7 +2104,7 @@ var msgIn=document.getElementById('six-msg-input'),msgSend=document.getElementBy
 if(msgSend&&msgIn){
     var sendMsg=function(){var msg=msgIn.value.trim(),receiver=msgIn.dataset.receiver;if(!msg||!receiver)return;
         post({action:'six_send_message',receiver_id:receiver,message:msg}).then(function(res){
-            if(res.success){var t=document.getElementById('six-msg-thread');var d=document.createElement('div');d.className='six-msg mine';d.innerHTML='<div class="six-msg-avatar" style="background:linear-gradient(135deg,var(--pink),#a855f7)">'+INI+'</div><div><div class="six-msg-bubble">'+msg.replace(/</g,'&lt;')+'</div><div class="six-msg-time">just now</div></div>';t.appendChild(d);t.scrollTop=t.scrollHeight;msgIn.value='';}
+            if(res.success){var t=document.getElementById('six-msg-thread');var d=document.createElement('div');d.className='six-msg mine';d.innerHTML='<div class="six-msg-avatar" style="background:linear-gradient(135deg,var(--pink),#8781BA)">'+INI+'</div><div><div class="six-msg-bubble">'+msg.replace(/</g,'&lt;')+'</div><div class="six-msg-time">just now</div></div>';t.appendChild(d);t.scrollTop=t.scrollHeight;msgIn.value='';}
         });
     };
     msgSend.addEventListener('click',sendMsg);
@@ -2319,8 +2319,8 @@ function parseSteps(text){
 }
 
 function getSvcColor(service){
-    var map={'Google Ads':'#4285F4','SEO':'#56D364','':'#FF6699','Brand':'#E3B341','Website':'#83C5ED'};
-    var col='#a855f7';
+    var map={'Google Ads':'#4285F4','SEO':'#56D364','':'#FF6699','Brand':'#E3B341','Website':'#6ACAFD'};
+    var col='#8781BA';
     Object.keys(map).forEach(function(k){if(service&&service.indexOf(k)!==-1)col=map[k];});
     return col;
 }
@@ -2337,7 +2337,7 @@ function fmtRoadmap(text){
     var t1      = cs.getPropertyValue('--text1').trim()||'#0F1923';
     var t2      = cs.getPropertyValue('--text2').trim()||'#4A5568';
     var phLabels=['Month 1–2','Month 3–4','Month 5–6'];
-    var phColors=['#4285F4','#a855f7','#83C5ED'];
+    var phColors=['#4285F4','#8781BA','#6ACAFD'];
     var succCol = cs.getPropertyValue('--success').trim()||'#1B9E52';
     var html='<div style="display:flex;flex-direction:column;gap:0;padding:4px 0">';
     steps.forEach(function(s,i){
@@ -2375,7 +2375,7 @@ function fmtActions(text){
     var steps=parseSteps(text);
     if(!steps.length)return fmtAI(text);
     var weekLabels=['Week 1','Week 2','Week 3','Week 4'];
-    var weekColors=['#FF6699','#E3B341','#83C5ED','#56D364'];
+    var weekColors=['#FF6699','#E3B341','#6ACAFD','#56D364'];
     var html='<div style="display:flex;flex-direction:column;gap:10px;padding:4px 0">';
     var cs2=getComputedStyle(document.documentElement);
     var cb2=cs2.getPropertyValue('--dark2').trim()||'#fff';

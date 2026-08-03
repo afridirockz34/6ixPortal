@@ -2036,7 +2036,7 @@ add_action('admin_init', function() {
     echo '<h2>✓ Abandon cron queue cleared</h2>';
     echo '<p>Removed scheduled events for: ' . implode(', ', $hooks) . '</p>';
     echo '<p>Cleared ' . $cleared . ' event slots.</p>';
-    echo '<p><a href="' . admin_url() . '" style="color:#83C5ED">← Back to admin</a></p>';
+    echo '<p><a href="' . admin_url() . '" style="color:#6ACAFD">← Back to admin</a></p>';
     echo '</div>';
     exit;
 });
@@ -2081,7 +2081,7 @@ function six_odoo_maybe_run_setup() {
     $usr = get_option('six_odoo_username',''); $key=get_option('six_odoo_api_key') ? '✓ set' : ' not set';
     echo "<table style='font-size:13px;margin-bottom:16px'>";
     foreach (array('URL'=>$url,'DB'=>$db,'Username'=>$usr,'API Key'=>$key) as $k=>$v)
-        echo "<tr><td style='padding:3px 16px 3px 0;color:#83C5ED'>{$k}:</td><td>".esc_html($v)."</td></tr>";
+        echo "<tr><td style='padding:3px 16px 3px 0;color:#6ACAFD'>{$k}:</td><td>".esc_html($v)."</td></tr>";
     echo "</table>";
 
     if (!$url||!$db||!$usr||!get_option('six_odoo_api_key')) {
@@ -2096,7 +2096,7 @@ function six_odoo_maybe_run_setup() {
 
     // ── RAW DIAGNOSTIC — shows exact Odoo responses before setup runs ──
     echo '<hr style="border-color:#333;margin:16px 0">';
-    echo '<p style="color:#83C5ED;font-weight:bold">Diagnostic Tests:</p>';
+    echo '<p style="color:#6ACAFD;font-weight:bold">Diagnostic Tests:</p>';
     echo '<ul style="line-height:2;font-size:12px">';
 
     // Test 1: Direct crm.lead search (no special rights needed)
@@ -2116,7 +2116,7 @@ function six_odoo_maybe_run_setup() {
     $d('res.partner search',    'res.partner','search_read', array(array()),            array('fields'=>array('id','name'),'limit'=>1));
     $d('ir.model → crm.lead',  'ir.model',   'search_read', array(array(array('model','=','crm.lead'))), array('fields'=>array('id','model'),'limit'=>1));
     $d('mail.activity.type',    'mail.activity.type','search_read',array(array()),     array('fields'=>array('id','name'),'limit'=>3));
-    echo '<li style="color:#83C5ED">WP_DEBUG: ' . (defined('WP_DEBUG') && WP_DEBUG ? '&#x2705; on &mdash; see wp-content/debug.log' : '&#x26A0; off &mdash; add define(&quot;WP_DEBUG&quot;,true); to wp-config.php') . '</li>';
+    echo '<li style="color:#6ACAFD">WP_DEBUG: ' . (defined('WP_DEBUG') && WP_DEBUG ? '&#x2705; on &mdash; see wp-content/debug.log' : '&#x26A0; off &mdash; add define(&quot;WP_DEBUG&quot;,true); to wp-config.php') . '</li>';
 
     echo '</ul>';
     echo '<hr style="border-color:#333;margin:16px 0">';
@@ -2129,7 +2129,7 @@ function six_odoo_maybe_run_setup() {
         if (strpos($r,'') !== false) $color = '#56D364';
         elseif (strpos($r,'') !== false || strpos($r,'') !== false) { $color = '#FF6B6B'; $has_error = true; }
         elseif (strpos($r,'') !== false || strpos($r,'→') !== false) { $color = '#E3B341'; }
-        elseif (strpos($r,'') !== false) $color = '#83C5ED';
+        elseif (strpos($r,'') !== false) $color = '#6ACAFD';
         echo '<li style="color:'.$color.'">' . $r . '</li>';
     }
     echo '</ul>';
