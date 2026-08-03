@@ -59,10 +59,8 @@ class Six_EstimateEngine {
 
         $services    = array_filter( explode( ',', $co->platforms ?? '' ) );
         $industry    = strtolower( $co->industry ?? '' );
-        // Use service-specific target location for KW Planner, fall back to business address
-        $target_loc  = trim( $co->ads_locations ?? $co->seo_locations ?? '' );
-        $biz_loc     = trim( $co->location ?? $co->business_address ?? '' );
-        $kw_location = $target_loc ?: $biz_loc;
+        // The cities the client wants to target (never their own street address).
+        $kw_location = self::market_location( $co, $services );
         $conv_rate   = self::conv_rate( $industry );
 
         // Pull keyword CPC data — try DataForSEO first (most reliable),
@@ -521,10 +519,9 @@ class Six_EstimateEngine {
 
         $biz    = $co->business_name ?? 'the business';
         $ind    = $co->industry      ?? 'local business';
-        // Prefer service-specific target location over business address
-        $target_loc = trim($co->ads_locations ?? $co->seo_locations ?? '');
-        $biz_loc    = trim($co->location ?? $co->business_address ?? '');
-        $loc        = $target_loc ?: $biz_loc ?: 'their area';
+        // The cities the client wants to target — never their own street address.
+        $loc        = self::market_location( $co, $svcs );
+        $biz_loc    = self::strip_street( trim( (string) ( $co->location ?? $co->business_address ?? '' ) ) );
         $loc_type   = trim($co->ads_loc_type ?? 'Include');
         $goals  = $co->goal ? str_replace(',',', ',$co->goal) : 'grow the business';
         $comps  = $co->competitors ?? '';
@@ -665,6 +662,22 @@ class Six_EstimateEngine {
         $L[] = 'NEVER use generic phrases like "optimise your presence" or "improve performance".';
         $L[] = 'ALWAYS name their specific keyword, service, location, or business.';
         $L[] = '';
+        // ── Service-scoping: only speak to the channels they actually chose ──
+        $has_ads = in_array('google-ads',$svcs,true);
+        $has_seo = in_array('seo',$svcs,true);
+        $has_gbp = in_array('google-business',$svcs,true);
+        $has_web = in_array('website',$svcs,true);
+        $L[] = '=== SERVICE FOCUS (critical — stay in scope) ===';
+        $L[] = "This client selected ONLY: {$svc_str}. Speak exclusively to these channels using the right vocabulary for each. Do NOT recommend or reference channels they did not choose.";
+        if ( $has_seo && ! $has_ads )
+            $L[] = 'They are NOT running Google Ads. Do NOT frame growth around CPC, clicks, or ad spend. Frame SEO around: keyword rankings, page-1 positions, organic traffic growth, domain authority, and content — cite real search volumes, not CPC-as-spend.';
+        if ( $has_ads )  $L[] = 'Google Ads focus: CPC economics, click volume, conversion rate, campaign structure, negative keywords, and cost-per-lead.';
+        if ( $has_seo )  $L[] = 'SEO focus: current vs target rankings for their keywords, organic traffic upside from real search volume, on-page/technical fixes, and content gaps vs competitors.';
+        if ( $has_gbp )  $L[] = 'Google Business Profile focus: local map-pack ranking, review velocity/rating, calls and direction requests, photos and posts.';
+        if ( $has_web )  $L[] = 'Website focus: conversion rate, page speed, mobile UX, and the highest-ROI pages/CTAs to build first.';
+        $L[] = 'Choose KPI labels that match their services — e.g. for SEO use "Est. Organic Leads / Mo", "Keywords on Page 1", "Traffic Growth"; for Google Ads use lead/CPC/ROI labels.';
+        $L[] = 'LENGTH RULE: every roadmap "points" item and every insight "what"/"why"/"action" must be a COMPLETE sentence of 18–25 words. Never output fragments, never truncate, never end with an ellipsis ("…"). Titles stay short (about 5 words).';
+        $L[] = '';
         // Build service-specific insight instructions
         $svc_insight_instructions = array();
         if ( strpos($svc_str,'Google Ads') !== false )
@@ -802,10 +815,9 @@ class Six_EstimateEngine {
         );
         $biz  = $co->business_name ?? 'your business';
         $ind  = $co->industry      ?? 'your industry';
-        // Use target location from questionnaire, not business address
-        $target_loc = trim($co->ads_locations ?? $co->seo_locations ?? '');
-        $biz_loc    = trim($co->location ?? $co->business_address ?? '');
-        $loc        = $target_loc ?: $biz_loc ?: 'your area';
+        // The cities the client wants to target — never their own street address.
+        $loc        = self::market_location( $co, $svcs );
+        if ( $loc === 'their area' ) $loc = 'your area';
         $loc_type   = trim($co->ads_loc_type ?? 'Include');
         $ch   = implode(' + ', array_map(fn($s)=>$svc_labels[$s]??$s, $svcs));
         $bud  = intval($co->ads_budget??0)+intval($co->seo_budget??0)+intval($co->gbp_budget??0);
@@ -952,6 +964,48 @@ class Six_EstimateEngine {
         foreach ( self::$conv_rates as $kw => $r )
             if ( strpos($ind, $kw) !== false ) return $r;
         return self::$default_conv;
+    }
+
+    /**
+     * The market the plan should speak to — the cities the client wants to rank
+     * in / advertise to, chosen by the selected services. NEVER the business's
+     * own street address (marketing on your own address makes no sense).
+     * Uses ?: (falsy) not ?? so an empty string falls through to the next source.
+     */
+    private static function market_location( $co, array $svcs = array() ): string {
+        $seo = trim( (string) ( $co->seo_locations ?? '' ) );
+        $ads = trim( (string) ( $co->ads_locations ?? '' ) );
+        $gbp = trim( (string) ( $co->gbp_area ?? '' ) );
+        // Prefer a location tied to a selected service.
+        $ordered = array();
+        if ( in_array('seo', $svcs, true ) )             $ordered[] = $seo;
+        if ( in_array('google-ads', $svcs, true ) )      $ordered[] = $ads;
+        if ( in_array('google-business', $svcs, true ) ) $ordered[] = $gbp;
+        // Then any target location at all.
+        $ordered[] = $seo; $ordered[] = $ads; $ordered[] = $gbp;
+        foreach ( $ordered as $p ) {
+            if ( $p !== '' ) return self::clean_city_list( $p );
+        }
+        // Last resort: the general location/city field, with any street line stripped.
+        $loc = trim( (string) ( $co->location ?? '' ) ) ?: trim( (string) ( $co->business_address ?? '' ) );
+        $loc = self::strip_street( $loc );
+        return $loc !== '' ? $loc : 'their area';
+    }
+
+    /** Drop a leading street line: "1550 South Gateway Rd, Mississauga" → "Mississauga". */
+    private static function strip_street( string $addr ): string {
+        $addr = trim( $addr );
+        if ( $addr !== '' && preg_match( '/^\s*\d/', $addr ) && strpos( $addr, ',' ) !== false ) {
+            $addr = trim( substr( $addr, strpos( $addr, ',' ) + 1 ) );
+        }
+        return $addr;
+    }
+
+    /** Normalise a comma/newline list of cities to at most three, comma-joined. */
+    private static function clean_city_list( string $s ): string {
+        $parts = array_filter( array_map( 'trim', preg_split( '/[,;\n]+/', $s ) ) );
+        $parts = array_slice( array_values( $parts ), 0, 3 );
+        return implode( ', ', $parts ) ?: 'their area';
     }
 
     // Industry average CPC benchmarks — Google Ads (WordStream/Google industry data)

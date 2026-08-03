@@ -1587,19 +1587,10 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 <?php if($c_meta_account): ?><span style="font-size:10px;background:rgba(86,211,100,0.1);color:var(--success);padding:2px 8px;border-radius:10px;font-weight:700">● Connected</span><?php endif; ?>
             </div>
             <div style="padding:14px 18px">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-                    <div>
-                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Business ID</div>
-                        <input class="six-input" id="meta-business-id" value="<?php echo esc_attr($c_meta_business); ?>" placeholder="1234567890" style="font-size:12px;font-family:monospace">
-                    </div>
-                    <div>
-                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Ad Account ID</div>
-                        <input class="six-input" id="meta-account-id" value="<?php echo esc_attr($c_meta_account); ?>" placeholder="act_1234567890" style="font-size:12px;font-family:monospace">
-                    </div>
-                    <div>
-                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Pixel ID</div>
-                        <input class="six-input" id="meta-pixel-id" value="<?php echo esc_attr($c_meta_pixel); ?>" placeholder="1234567890" style="font-size:12px;font-family:monospace">
-                    </div>
+                <div style="margin-bottom:10px">
+                    <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Ad Account ID</div>
+                    <input class="six-input" id="meta-account-id" value="<?php echo esc_attr($c_meta_account); ?>" placeholder="act_1234567890" style="font-size:12px;font-family:monospace">
+                    <div style="font-size:10px;color:var(--text3);margin-top:3px">That's all we need — the agency System User token reads this account's insights. Found in Ads Manager (act_XXXXXXXX).</div>
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap">
                     <button class="six-btn six-btn-primary six-btn-sm" id="save-meta-ids" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Save Meta IDs</button>
@@ -3751,9 +3742,7 @@ var saveMetaBtn=document.getElementById('save-meta-ids');
 if(saveMetaBtn){saveMetaBtn.addEventListener('click',function(){
     var client=this.dataset.client,res=document.getElementById('meta-result');
     this.textContent='Saving…';this.disabled=true;var self=this;
-    var fields={six_meta_business_id:(document.getElementById('meta-business-id')||{}).value||'',
-                six_meta_ad_account_id:(document.getElementById('meta-account-id')||{}).value||'',
-                six_meta_pixel_id:(document.getElementById('meta-pixel-id')||{}).value||''};
+    var fields={six_meta_ad_account_id:(document.getElementById('meta-account-id')||{}).value||''};
     fetch(AJAX,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
         body:new URLSearchParams(Object.assign({action:'six_save_client_datasources',nonce:NONCE,client_id:client},fields))})
     .then(function(r){return r.json();})
