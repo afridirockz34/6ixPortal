@@ -1101,8 +1101,9 @@ $ds_defs = array(
     'gads' => array('label'=>'Google Ads',              'meta'=>'six_gads_customer_id',   'metric'=>'Leads & spend',  'hint'=>'Customer ID (e.g. 123-456-7890)'),
     'meta' => array('label'=>'Meta Ads',                'meta'=>'six_meta_ad_account_id', 'metric'=>'Social leads',   'hint'=>'Ad Account ID (e.g. act_1234567890)'),
     'gbp'  => array('label'=>'Google Business Profile', 'meta'=>'six_gbp_location_id',    'metric'=>'Calls & local',  'hint'=>'Business name or location ID'),
-    'gsc'  => array('label'=>'Google Search Console',   'meta'=>'six_gsc_site',           'metric'=>'Organic traffic','hint'=>'Website domain (e.g. yoursite.com)'),
 );
+// Search Console is handled by the advisor from their side (using the website
+// the customer already provided), so it is intentionally not shown here.
 $ds_connected = 0;
 foreach ( $ds_defs as $d ) { if ( get_user_meta($user_id,$d['meta'],true) ) $ds_connected++; }
 $ds_total = count($ds_defs);
@@ -1984,6 +1985,10 @@ var AJAX  = '<?php echo esc_js($ajax_url); ?>';
 var NONCE = '<?php echo esc_js($nonce); ?>';
 var INI   = '<?php echo esc_js($initials); ?>';
 var ADV_ID= '<?php echo intval($advisor_id); ?>';
+// Shared global so every script block (incl. the earlier Data Sources IIFE)
+// can post — previously post() was trapped inside later IIFEs, so the
+// Data Sources save threw "post is not defined" and hung on "Saving…".
+function post(d){ return fetch(AJAX,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(Object.assign({nonce:NONCE},d))}).then(function(r){ return r.json(); }); }
 
 // ── Theme toggle (light/dark) ─────────────────────────────────────────────
 (function(){

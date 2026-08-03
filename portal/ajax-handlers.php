@@ -292,14 +292,18 @@ function six_approve_service(){
     $svc = $wpdb->get_row($wpdb->prepare(
         "SELECT * FROM {$wpdb->prefix}six_client_services WHERE id=%d", $svc_id));
     if(!$svc) wp_send_json_error('Service not found');
-    // NOTE: this table has approved_by/approved_at columns, NOT advisor_id.
-    // Writing a non-existent column makes the whole update fail (status never
-    // changes) — the reason "Approve" appeared to do nothing.
-    $updated = $wpdb->update(
-        "{$wpdb->prefix}six_client_services",
-        array('status'=>'active','approved_by'=>get_current_user_id(),'approved_at'=>current_time('mysql')),
-        array('id'=>$svc_id)
-    );
+    // Write ONLY columns that exist. The v7 migration adds advisor_id +
+    // updated_at to this table for exactly this handler; approved_by/approved_at
+    // were never created, so writing them made the whole update fail and the
+    // status never changed ("Approve" appeared to do nothing). Guard each
+    // optional column by what the live table actually has.
+    $cols = $wpdb->get_col( "SHOW COLUMNS FROM {$wpdb->prefix}six_client_services", 0 );
+    $data = array( 'status' => 'active' );
+    if ( in_array( 'advisor_id', $cols, true ) ) $data['advisor_id'] = get_current_user_id();
+    if ( in_array( 'updated_at', $cols, true ) ) $data['updated_at'] = current_time( 'mysql' );
+    if ( in_array( 'approved_by', $cols, true ) ) $data['approved_by'] = get_current_user_id();
+    if ( in_array( 'approved_at', $cols, true ) ) $data['approved_at'] = current_time( 'mysql' );
+    $updated = $wpdb->update( "{$wpdb->prefix}six_client_services", $data, array( 'id' => $svc_id ) );
     if ( $updated === false ) {
         wp_send_json_error('Database error: '.$wpdb->last_error);
         return;

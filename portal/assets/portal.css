@@ -514,7 +514,10 @@ body.six-nav-collapsed .six-sidebar { transform: translateX(-100%); }
 [style*="background:linear-gradient(135deg,#FF6699"],
 [style*="background:#FF6699"],
 [style*="background:#FF6699"],
-[style*="background:#e6407a"] { color: #fff; }
+[style*="background:#e6407a"] { color: #fff !important; }
+/* Links styled as primary buttons must stay white even when a nearby
+   `.card a { color }` rule is more specific (e.g. the Add Service link). */
+a.six-btn-primary, a.six-btn-primary:visited, a.six-btn-primary:hover { color: #fff !important; }
 
 .six-btn-secondary {
   background: var(--dark4);
