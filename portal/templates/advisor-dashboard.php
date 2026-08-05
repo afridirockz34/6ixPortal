@@ -1046,8 +1046,9 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 <?php if(!$svc_row->advisor_id&&$advisor_id): ?>
                 <button class="six-btn six-btn-ghost six-btn-sm six-adv-assign-self" data-service-id="<?php echo $svc_row->id; ?>" style="font-size:11px">Assign to Me</button>
                 <?php endif; ?>
+                <button class="six-btn six-btn-ghost six-btn-sm" onclick="sixServiceWizard(<?php echo intval($svc_row->id); ?>,<?php echo intval($view_client_id); ?>,'<?php echo esc_js($slug); ?>','<?php echo esc_js($sd_item['name']); ?>',false)" style="font-size:11px">Edit Setup</button>
                 <?php elseif($svc_row&&$svc_row->status==='pending'): ?>
-                <button class="six-btn six-btn-primary six-btn-sm" onclick="sixApproveService(this,<?php echo intval($svc_row->id); ?>,<?php echo intval($view_client_id); ?>)">Approve Service</button>
+                <button class="six-btn six-btn-primary six-btn-sm" onclick="sixApproveService(this,<?php echo intval($svc_row->id); ?>,<?php echo intval($view_client_id); ?>,'<?php echo esc_js($slug); ?>','<?php echo esc_js($sd_item['name']); ?>')">Approve &amp; Set Up</button>
                 <?php else: ?>
                 <span style="font-size:10px;color:var(--text3)">Not requested</span>
                 <?php endif; ?>
@@ -2680,7 +2681,7 @@ function advCompleteOnboarding(clientId){
                     <div style="font-size:11px;color:var(--text3);margin-top:2px"><?php echo esc_html($ps->service_name);?> · $<?php echo number_format(floatval($ps->budget??0),0);?>/mo · <span style="color:var(--warning)">Pending</span></div>
                 </div>
                 <a href="?tab=clients&client=<?php echo intval($ps->client_id);?>&ctab=services" class="six-btn six-btn-ghost six-btn-sm" style="font-size:11px">Open client</a>
-                <button class="six-btn six-btn-primary six-btn-sm" onclick="sixApproveService(this,<?php echo intval($ps->id);?>,<?php echo intval($ps->client_id);?>)" style="font-size:11px">Approve Service</button>
+                <button class="six-btn six-btn-primary six-btn-sm" onclick="sixApproveService(this,<?php echo intval($ps->id);?>,<?php echo intval($ps->client_id);?>,'<?php echo esc_js($ps_slug);?>','<?php echo esc_js($ps->service_name);?>')" style="font-size:11px">Approve &amp; Set Up</button>
             </div>
             <?php endforeach;?>
             </div>
@@ -3349,48 +3350,189 @@ if(composeGo) composeGo.addEventListener('click',function(){var id=document.getE
 // ── Approve Service ─────────────────────────────────────────────────────────
 // Exposed on window because the button uses an inline onclick, which can only
 // reach global functions (this whole block runs inside an IIFE).
+// Approve now opens the guided setup wizard (advisor enters service info +
+// metrics, then activates). Callers without a slug fall back to direct approve.
 window.sixApproveService = sixApproveService;
-function sixApproveService(btn, serviceId, clientId) {
+function sixApproveService(btn, serviceId, clientId, slug, name) {
     if (!serviceId) { alert('Missing service ID'); return; }
+    if (slug) { sixServiceWizard(serviceId, clientId, slug, name || 'Service', true); return; }
+    sixDirectApprove(btn, serviceId, clientId);
+}
+function sixDirectApprove(btn, serviceId, clientId) {
     btn.textContent = 'Approving…';
     btn.disabled = true;
     btn.style.opacity = '0.7';
-    // Refresh nonce inline to prevent stale-nonce failures
     var currentNonce = (typeof NONCE !== 'undefined') ? NONCE : '';
     fetch(AJAX, {
         method: 'POST',
         headers: {'Content-Type':'application/x-www-form-urlencoded'},
-        body: new URLSearchParams({
-            action:     'six_approve_service',
-            nonce:      currentNonce,
-            service_id: String(serviceId),
-            client_id:  String(clientId || 0)
-        })
+        body: new URLSearchParams({ action:'six_approve_service', nonce:currentNonce, service_id:String(serviceId), client_id:String(clientId||0) })
     })
-    .then(function(r){
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
-    })
+    .then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then(function(res){
         if (res.success) {
             btn.textContent = '✓ Approved';
-            btn.style.background = 'var(--success)';
-            btn.style.borderColor = 'var(--success)';
+            btn.style.background = 'var(--success)'; btn.style.borderColor = 'var(--success)';
             setTimeout(function(){ location.reload(); }, 800);
         } else {
-            btn.textContent = 'Approve Service';
-            btn.disabled = false;
-            btn.style.opacity = '1';
+            btn.textContent = 'Approve Service'; btn.disabled = false; btn.style.opacity = '1';
             alert('Error: ' + (res.data || 'Could not approve service'));
         }
     })
     .catch(function(err){
-        btn.textContent = 'Approve Service';
-        btn.disabled = false;
-        btn.style.opacity = '1';
-        alert('Network error — please try again');
-        console.error('Approve error:', err);
+        btn.textContent = 'Approve Service'; btn.disabled = false; btn.style.opacity = '1';
+        alert('Network error — please try again'); console.error('Approve error:', err);
     });
+}
+
+// ── Guided service-activation wizard ────────────────────────────────────────
+// Per-service fields the advisor fills in. Keys matching a data-source meta
+// name (six_gads_customer_id, six_ga4_property_id, six_gsc_site,
+// six_gbp_location_id, six_meta_ad_account_id) auto-connect the client's live
+// data when saved.
+var SIX_SVC_FIELDS = {
+  'google-ads': [
+    {k:'six_gads_customer_id', label:'Google Ads Account ID (Customer ID)', ph:'123-456-7890'},
+    {k:'six_ga4_property_id', label:'GA4 Property ID (optional)', ph:'e.g. 312345678'},
+    {k:'objective', label:'Primary objective', ph:'Leads / Calls / Sales'},
+    {k:'target_locations', label:'Target locations', ph:'Toronto, Mississauga, GTA'},
+    {k:'landing_url', label:'Landing page URL', ph:'https://…'},
+    {k:'notes', label:'Setup notes', ph:'Anything the team should know', ta:true}
+  ],
+  'seo': [
+    {k:'website_url', label:'Website URL', ph:'https://…'},
+    {k:'six_gsc_site', label:'Search Console property (optional)', ph:'https://example.com/ or sc-domain:example.com'},
+    {k:'target_keywords', label:'Target keywords', ph:'plumber toronto, emergency plumber…', ta:true},
+    {k:'target_cities', label:'Target cities', ph:'Toronto, Vaughan, Markham'},
+    {k:'competitors', label:'Competitor sites', ph:'competitor1.com, competitor2.com'},
+    {k:'notes', label:'Setup notes', ph:'', ta:true}
+  ],
+  'google-business': [
+    {k:'six_gbp_location_id', label:'GBP Location / Listing ID', ph:'Place ID or listing name'},
+    {k:'primary_category', label:'Primary category', ph:'e.g. Plumber'},
+    {k:'service_areas', label:'Service areas', ph:'Toronto, GTA'},
+    {k:'notes', label:'Setup notes', ph:'', ta:true}
+  ],
+  'website': [
+    {k:'domain', label:'Domain', ph:'example.com'},
+    {k:'scope', label:'Project scope / pages', ph:'Home, Services, About, Contact…', ta:true},
+    {k:'timeline', label:'Target timeline', ph:'e.g. 4 weeks'},
+    {k:'notes', label:'Setup notes', ph:'', ta:true}
+  ]
+};
+
+window.sixServiceWizard = sixServiceWizard;
+function sixServiceWizard(serviceId, clientId, slug, name, activateMode){
+  var W = { step:1, activate:!!activateMode, config:{}, metrics:[] };
+  var esc=function(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+  var fields = SIX_SVC_FIELDS[slug] || [{k:'account_id',label:'Account / Reference ID',ph:''},{k:'notes',label:'Setup notes',ph:'',ta:true}];
+
+  var ov=document.getElementById('six-wiz-ov'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='six-wiz-ov';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML='<div style="background:var(--dark2,#15151c);border:1px solid var(--border,#2a2a35);border-radius:16px;width:100%;max-width:560px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden">'
+    +'<div style="padding:18px 20px;border-bottom:1px solid var(--border,#2a2a35);display:flex;align-items:center;justify-content:space-between;gap:10px">'
+      +'<div><div style="font-size:14px;font-weight:700">'+(W.activate?'Activate ':'Set up ')+esc(name)+'</div>'
+      +'<div id="wiz-steps" style="font-size:11px;color:var(--text3,#8a8a99);margin-top:3px"></div></div>'
+      +'<button id="wiz-x" style="background:none;border:none;color:var(--text3,#8a8a99);font-size:24px;cursor:pointer;line-height:1">&times;</button>'
+    +'</div>'
+    +'<div id="wiz-body" style="padding:20px;overflow-y:auto;flex:1"><div style="font-size:12px;color:var(--text3,#8a8a99)">Loading…</div></div>'
+    +'<div style="padding:14px 20px;border-top:1px solid var(--border,#2a2a35);display:flex;align-items:center;gap:10px">'
+      +'<button id="wiz-back" class="six-btn six-btn-ghost six-btn-sm" style="font-size:12px">Back</button>'
+      +'<div id="wiz-msg" style="font-size:11px;color:var(--text3,#8a8a99);flex:1;text-align:center"></div>'
+      +'<button id="wiz-next" class="six-btn six-btn-primary six-btn-sm" style="font-size:12px">Next</button>'
+    +'</div></div>';
+  document.body.appendChild(ov);
+  var body=ov.querySelector('#wiz-body'), stepsEl=ov.querySelector('#wiz-steps'),
+      backBtn=ov.querySelector('#wiz-back'), nextBtn=ov.querySelector('#wiz-next'), msgEl=ov.querySelector('#wiz-msg');
+  ov.querySelector('#wiz-x').onclick=function(){ ov.remove(); };
+  ov.addEventListener('click',function(e){ if(e.target===ov) ov.remove(); });
+
+  post({action:'six_get_service_setup',client_id:clientId,service_slug:slug}).then(function(r){
+    if(r&&r.success&&r.data){
+      if(r.data.config) W.config=r.data.config||{};
+      if(r.data.metrics&&r.data.metrics.length) W.metrics=r.data.metrics.map(function(m){return {label:m.label,previous:m.previous,current:m.current,target:m.target};});
+    }
+    render();
+  }).catch(render);
+
+  function collectStep1(){ body.querySelectorAll('[data-ck]').forEach(function(el){ W.config[el.dataset.ck]=el.value; }); }
+  function collectStep2(){ W.metrics=[]; body.querySelectorAll('.wiz-mrow').forEach(function(row){ var l=(row.querySelector('.m-label').value||'').trim(); if(!l) return; W.metrics.push({label:l,previous:row.querySelector('.m-prev').value,current:row.querySelector('.m-cur').value,target:row.querySelector('.m-tgt').value}); }); }
+
+  function render(){
+    var titles={1:'Service details',2:'Performance metrics',3:'Review'};
+    stepsEl.textContent='Step '+W.step+' of 3 · '+titles[W.step];
+    backBtn.style.visibility = W.step>1 ? 'visible':'hidden';
+    nextBtn.textContent = W.step<3 ? 'Next' : (W.activate?'Activate service':'Save setup');
+    nextBtn.disabled=false; msgEl.textContent='';
+    if(W.step===1) renderStep1(); else if(W.step===2) renderStep2(); else renderStep3();
+  }
+  function renderStep1(){
+    var h='<div style="font-size:12px;color:var(--text3,#8a8a99);margin-bottom:14px">Enter what you know — account IDs you fill in here connect the client’s live data automatically.</div>';
+    fields.forEach(function(f){
+      var v=esc(W.config[f.k]||'');
+      h+='<div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:600;color:var(--text2,#b5b5c5);margin-bottom:5px">'+esc(f.label)+'</label>'
+        +(f.ta? '<textarea class="six-input" data-ck="'+f.k+'" rows="2" placeholder="'+esc(f.ph||'')+'" style="width:100%;font-size:12px;padding:8px 10px;resize:vertical">'+v+'</textarea>'
+              : '<input class="six-input" data-ck="'+f.k+'" value="'+v+'" placeholder="'+esc(f.ph||'')+'" style="width:100%;font-size:12px;padding:8px 10px">')
+        +'</div>';
+    });
+    body.innerHTML=h;
+  }
+  function renderStep2(){
+    body.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap">'
+      +'<div style="font-size:12px;color:var(--text3,#8a8a99)">Metrics the customer will see — previous / current / target.</div>'
+      +'<button id="wiz-suggest" class="six-btn six-btn-ghost six-btn-sm" style="font-size:11px;color:var(--pink,#ff4d8d)">✨ Suggest with AI</button></div>'
+      +'<div id="wiz-metrics"></div>'
+      +'<button id="wiz-addm" class="six-btn six-btn-ghost six-btn-sm" style="font-size:11px;margin-top:8px">+ Add metric row</button>';
+    var list=body.querySelector('#wiz-metrics');
+    function addRow(m){ m=m||{}; var row=document.createElement('div'); row.className='wiz-mrow';
+      row.style.cssText='display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:6px;align-items:center;margin-bottom:6px';
+      row.innerHTML='<input class="six-input m-label" placeholder="Metric" value="'+esc(m.label||'')+'" style="font-size:12px;padding:6px 8px">'
+        +'<input class="six-input m-prev" placeholder="prev" value="'+esc(m.previous||'')+'" style="font-size:12px;padding:6px 8px">'
+        +'<input class="six-input m-cur" placeholder="current" value="'+esc(m.current||'')+'" style="font-size:12px;padding:6px 8px">'
+        +'<input class="six-input m-tgt" placeholder="target" value="'+esc(m.target||'')+'" style="font-size:12px;padding:6px 8px">'
+        +'<button class="m-del" title="Remove" style="background:none;border:none;color:var(--text3,#8a8a99);cursor:pointer;font-size:16px">&times;</button>';
+      row.querySelector('.m-del').onclick=function(){ row.remove(); };
+      list.appendChild(row);
+    }
+    if(W.metrics.length) W.metrics.forEach(addRow); else addRow();
+    body.querySelector('#wiz-addm').onclick=function(){ addRow(); };
+    body.querySelector('#wiz-suggest').onclick=function(){
+      var sb=this; sb.disabled=true; sb.textContent='Thinking…';
+      post({action:'six_suggest_metrics',client_id:clientId,service_slug:slug}).then(function(r){
+        sb.disabled=false; sb.textContent='✨ Suggest with AI';
+        if(r&&r.success&&r.data&&r.data.metrics&&r.data.metrics.length){ r.data.metrics.forEach(addRow); }
+        else { msgEl.textContent=(r&&r.data&&(r.data.message||r.data))||'No suggestions.'; }
+      }).catch(function(){ sb.disabled=false; sb.textContent='✨ Suggest with AI'; msgEl.textContent='Network error.'; });
+    };
+  }
+  function renderStep3(){
+    var h='<div style="font-size:12px;color:var(--text3,#8a8a99);margin-bottom:12px">Review before '+(W.activate?'activating':'saving')+'.</div>';
+    h+='<div style="border:1px solid var(--border,#2a2a35);border-radius:10px;overflow:hidden;margin-bottom:14px">';
+    h+='<div style="padding:8px 12px;background:var(--dark3,#1c1c24);font-size:11px;font-weight:700;color:var(--text3,#8a8a99)">Service details</div>';
+    var any=false;
+    fields.forEach(function(f){ var v=W.config[f.k]; if(v){ any=true; h+='<div style="display:flex;gap:10px;padding:7px 12px;border-top:1px solid var(--border,#2a2a35);font-size:12px"><div style="width:150px;color:var(--text3,#8a8a99);flex-shrink:0">'+esc(f.label)+'</div><div style="flex:1;word-break:break-word">'+esc(v)+'</div></div>'; } });
+    if(!any) h+='<div style="padding:8px 12px;font-size:12px;color:var(--text3,#8a8a99)">No details entered.</div>';
+    h+='</div>';
+    h+='<div style="border:1px solid var(--border,#2a2a35);border-radius:10px;overflow:hidden"><div style="padding:8px 12px;background:var(--dark3,#1c1c24);font-size:11px;font-weight:700;color:var(--text3,#8a8a99)">Metrics ('+W.metrics.length+')</div>';
+    if(W.metrics.length) W.metrics.forEach(function(m){ h+='<div style="display:flex;gap:10px;padding:7px 12px;border-top:1px solid var(--border,#2a2a35);font-size:12px"><div style="flex:1;font-weight:600">'+esc(m.label)+'</div><div style="color:var(--text3,#8a8a99)">'+esc(m.previous||'–')+' &rarr; '+esc(m.current||'–')+' &rarr; target '+esc(m.target||'–')+'</div></div>'; });
+    else h+='<div style="padding:8px 12px;font-size:12px;color:var(--text3,#8a8a99)">No metrics yet — the customer sees “Metrics coming soon”.</div>';
+    h+='</div>';
+    body.innerHTML=h;
+  }
+
+  backBtn.onclick=function(){ if(W.step===2) collectStep2(); if(W.step>1){ W.step--; render(); } };
+  nextBtn.onclick=function(){
+    if(W.step===1){ collectStep1(); W.step=2; render(); return; }
+    if(W.step===2){ collectStep2(); W.step=3; render(); return; }
+    nextBtn.disabled=true; nextBtn.textContent='Saving…';
+    post({action:'six_save_service_setup',client_id:clientId,service_id:serviceId,service_slug:slug,activate:W.activate?1:0,config:JSON.stringify(W.config),metrics:JSON.stringify(W.metrics)})
+    .then(function(r){
+      if(r&&r.success){ nextBtn.textContent=W.activate?'Activated ✓':'Saved ✓'; setTimeout(function(){ location.reload(); },700); }
+      else { nextBtn.disabled=false; nextBtn.textContent=W.activate?'Activate service':'Save setup'; msgEl.textContent=(r&&r.data)||'Error saving.'; }
+    })
+    .catch(function(){ nextBtn.disabled=false; nextBtn.textContent=W.activate?'Activate service':'Save setup'; msgEl.textContent='Network error.'; });
+  };
 }
 
 // Legacy delegation for any old-style buttons

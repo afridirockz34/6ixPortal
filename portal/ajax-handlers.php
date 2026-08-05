@@ -474,6 +474,101 @@ add_action( 'wp_ajax_six_add_metric', function() {
     wp_send_json_success( array( 'id' => $wpdb->insert_id, 'updated' => false ) );
 } );
 
+// Service-activation wizard — read saved setup (config + connected account IDs
+// + existing metrics) so the advisor can review/edit before activating.
+add_action( 'wp_ajax_six_get_service_setup', function() {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+    $client_id = intval( $_POST['client_id'] ?? 0 );
+    $slug      = sanitize_key( $_POST['service_slug'] ?? '' );
+    if ( ! $client_id || ! $slug ) wp_send_json_error( 'Missing client or service.' );
+    global $wpdb;
+    $config = get_user_meta( $client_id, 'six_svc_config_' . $slug, true );
+    if ( ! is_array( $config ) ) $config = array();
+    // Pull any already-connected data-source account IDs as sensible defaults.
+    $map = function_exists( 'six_data_source_meta_map' ) ? six_data_source_meta_map() : array();
+    foreach ( $map as $src => $m ) {
+        $v = get_user_meta( $client_id, $m['meta'], true );
+        if ( $v !== '' && $v !== false ) $config += array( $m['meta'] => $v );
+    }
+    $metrics = $wpdb->get_results( $wpdb->prepare(
+        "SELECT id,label,previous_value AS previous,current_value AS current,target_value AS target
+         FROM {$wpdb->prefix}six_metrics WHERE client_id=%d AND service_slug=%s ORDER BY id", $client_id, $slug ), ARRAY_A );
+    wp_send_json_success( array( 'config' => (object) $config, 'metrics' => $metrics ?: array() ) );
+} );
+
+// Service-activation wizard — save advisor-entered service info + metrics, and
+// optionally activate the service. Account-ID fields are mirrored into the
+// canonical data-source meta keys so live data connects automatically.
+add_action( 'wp_ajax_six_save_service_setup', function() {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+    global $wpdb;
+    $client_id = intval( $_POST['client_id'] ?? 0 );
+    $svc_id    = intval( $_POST['service_id'] ?? 0 );
+    $slug      = sanitize_key( $_POST['service_slug'] ?? '' );
+    $activate  = ! empty( $_POST['activate'] );
+    if ( ! $client_id || ! $slug ) wp_send_json_error( 'Missing client or service.' );
+
+    // Config (arbitrary advisor-entered fields).
+    $config_raw = json_decode( wp_unslash( $_POST['config'] ?? '{}' ), true );
+    if ( ! is_array( $config_raw ) ) $config_raw = array();
+    $config = array();
+    foreach ( $config_raw as $k => $v ) { $config[ sanitize_key( $k ) ] = sanitize_textarea_field( (string) $v ); }
+    update_user_meta( $client_id, 'six_svc_config_' . $slug, $config );
+
+    // Mirror connected account IDs into the canonical data-source meta keys.
+    $map = function_exists( 'six_data_source_meta_map' ) ? six_data_source_meta_map() : array();
+    foreach ( $map as $src => $m ) {
+        if ( ! empty( $config[ $m['meta'] ] ) ) {
+            update_user_meta( $client_id, $m['meta'], $config[ $m['meta'] ] );
+            update_user_meta( $client_id, 'six_ds_' . $src . '_at', current_time( 'mysql' ) );
+        }
+    }
+
+    // Metrics (upsert by label within this service).
+    $metrics = json_decode( wp_unslash( $_POST['metrics'] ?? '[]' ), true );
+    if ( ! is_array( $metrics ) ) $metrics = array();
+    $saved = 0;
+    foreach ( $metrics as $mm ) {
+        $label = sanitize_text_field( $mm['label'] ?? '' );
+        if ( $label === '' ) continue;
+        $row = array(
+            'previous_value' => sanitize_text_field( $mm['previous'] ?? '' ),
+            'current_value'  => sanitize_text_field( $mm['current']  ?? '' ),
+            'target_value'   => sanitize_text_field( $mm['target']   ?? '' ),
+            'updated_at'     => current_time( 'mysql' ),
+        );
+        $ex = $wpdb->get_var( $wpdb->prepare(
+            "SELECT id FROM {$wpdb->prefix}six_metrics WHERE client_id=%d AND service_slug=%s AND label=%s",
+            $client_id, $slug, $label ) );
+        if ( $ex ) {
+            $wpdb->update( "{$wpdb->prefix}six_metrics", $row, array( 'id' => $ex ) );
+        } else {
+            $row['client_id'] = $client_id; $row['service_slug'] = $slug; $row['label'] = $label;
+            $wpdb->insert( "{$wpdb->prefix}six_metrics", $row );
+        }
+        $saved++;
+    }
+
+    // Activate the service if requested.
+    $activated = false;
+    if ( $activate && $svc_id ) {
+        $cols = $wpdb->get_col( "SHOW COLUMNS FROM {$wpdb->prefix}six_client_services", 0 );
+        $d = array( 'status' => 'active' );
+        if ( in_array( 'advisor_id', $cols, true ) ) $d['advisor_id'] = get_current_user_id();
+        if ( in_array( 'updated_at', $cols, true ) ) $d['updated_at'] = current_time( 'mysql' );
+        if ( $wpdb->update( "{$wpdb->prefix}six_client_services", $d, array( 'id' => $svc_id ) ) !== false ) {
+            $activated = true;
+            if ( class_exists( 'Six_Odoo' ) ) {
+                $lead = intval( get_user_meta( $client_id, 'six_odoo_lead_id', true ) );
+                if ( $lead ) Six_Odoo::update_lead_stage( $lead, 'Customer' );
+            }
+        }
+    }
+    wp_send_json_success( array( 'metrics_saved' => $saved, 'activated' => $activated ) );
+} );
+
 // AI-suggested metrics for a service (activation step). Grounded in live data
 // where connected, else industry benchmarks — returned in prev/current/target
 // form for the advisor to review and save.
