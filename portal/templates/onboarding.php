@@ -52,8 +52,11 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .ob-side-foot{font-size:11px;color:var(--t3);line-height:1.6;border-top:1px solid var(--bdr);padding-top:14px;}
 .ob-side-foot a{color:var(--cy);text-decoration:none;}
 
-/* Main */
-.ob-main{padding:64px 40px 76px;max-width:640px;margin:0 auto;width:100%;align-self:center;}
+/* Main — top-aligned so the eyebrow/title/fields sit in the same place on
+   every step (align-self:center re-centered each step by its own height, which
+   made the header jump vertically between steps and clipped tall steps). The
+   login panel centers itself via the #ob-login rule below. */
+.ob-main{padding:64px 40px 76px;max-width:640px;margin:0 auto;width:100%;align-self:start;}
 /* Login panel: vertically centered inside the right column */
 #ob-login.ob-panel.active{
   min-height:calc(100vh - 96px);
