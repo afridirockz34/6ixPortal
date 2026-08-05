@@ -59,10 +59,8 @@ class Six_EstimateEngine {
 
         $services    = array_filter( explode( ',', $co->platforms ?? '' ) );
         $industry    = strtolower( $co->industry ?? '' );
-        // Use service-specific target location for KW Planner, fall back to business address
-        $target_loc  = trim( $co->ads_locations ?? $co->seo_locations ?? '' );
-        $biz_loc     = trim( $co->location ?? $co->business_address ?? '' );
-        $kw_location = $target_loc ?: $biz_loc;
+        // The cities the client wants to target (never their own street address).
+        $kw_location = self::market_location( $co, $services );
         $conv_rate   = self::conv_rate( $industry );
 
         // Pull keyword CPC data — try DataForSEO first (most reliable),
@@ -84,8 +82,12 @@ class Six_EstimateEngine {
             }
         }
 
+        // Deep market intelligence (real rankings, competitors, keyword demand)
+        // — the specifics that make the plan feel genuinely researched.
+        $intel = self::market_intel( $co, $services, $kw_location );
+
         // Build Claude prompt
-        $prompt = self::build_prompt( $co, $services, $kw, $conv_rate );
+        $prompt = self::build_prompt( $co, $services, $kw, $conv_rate, $intel );
 
         // Ask Claude
         $plan = self::ask_claude( $prompt );
@@ -118,6 +120,76 @@ class Six_EstimateEngine {
         return $plan;
     }
 
+
+    private static function normalize_domain( $url ): string {
+        $d = preg_replace( '#^https?://#i', '', trim( (string) $url ) );
+        $d = preg_replace( '#^www\.#i', '', $d );
+        return rtrim( preg_replace( '#/.*$#', '', $d ), '/' );
+    }
+
+    /**
+     * Deep, real market intelligence for the plan — the stuff that makes a
+     * prospect feel "they already researched me". Pulls the client's actual
+     * organic rankings, real competitors, and true keyword demand from
+     * DataForSEO Labs, scoped to the selected services. Every call is guarded
+     * so one slow/failed lookup never blocks the plan.
+     */
+    private static function market_intel( $co, array $svcs, string $location ): array {
+        $out = array( 'has' => false, 'text' => '', 'quick_win_vol' => 0 );
+        if ( ! class_exists( 'Six_DataForSEO' ) || ! Six_DataForSEO::configured() ) return $out;
+
+        $domain = self::normalize_domain( $co->website ?? '' );
+        $is_seo = in_array( 'seo', $svcs, true );
+        $is_gbp = in_array( 'google-business', $svcs, true );
+        $is_ads = in_array( 'google-ads', $svcs, true );
+        $lines  = array();
+
+        // 1) The client's OWN rankings + page-2 "quick wins" (SEO, needs a domain).
+        if ( $is_seo && $domain ) {
+            try {
+                $rk = Six_DataForSEO::ranked_keywords( $domain, $location, 40 );
+                if ( empty( $rk['error'] ) && ! empty( $rk['ranked_keywords'] ) ) {
+                    $all   = $rk['ranked_keywords'];
+                    $quick = array_values( array_filter( $all, function ( $r ) { return $r['position'] >= 11 && $r['position'] <= 30 && $r['volume'] > 0; } ) );
+                    usort( $quick, function ( $a, $b ) { return $b['volume'] <=> $a['volume']; } );
+                    $qvol = array_sum( array_map( function ( $r ) { return $r['volume']; }, $quick ) );
+                    $out['quick_win_vol'] = $qvol;
+                    $ex = array_map( function ( $r ) { return "\"{$r['keyword']}\" at #{$r['position']} (" . number_format( $r['volume'] ) . "/mo)"; }, array_slice( $quick, 0, 3 ) );
+                    $lines[] = "{$domain} already ranks for " . count( $all ) . "+ keywords in {$location}. " . count( $quick ) . " sit on page 2 (positions 11-30) worth " . number_format( $qvol ) . " searches/month combined — the single fastest SEO win. Examples: " . implode( '; ', $ex ) . '.';
+                }
+            } catch ( \Throwable $e ) {}
+        }
+
+        // 2) Real organic competitors capturing their market (SEO/GBP, needs domain).
+        if ( ( $is_seo || $is_gbp ) && $domain ) {
+            try {
+                $cp = Six_DataForSEO::competitors( $domain, $location, 5 );
+                if ( empty( $cp['error'] ) && ! empty( $cp['competitors'] ) ) {
+                    $c  = array_slice( $cp['competitors'], 0, 3 );
+                    $cs = array_map( function ( $x ) { return "{$x['domain']} (~" . number_format( $x['organic_traffic'] ) . " monthly organic visits, " . number_format( $x['common_keywords'] ) . " keywords overlapping yours)"; }, $c );
+                    $lines[] = 'Competitors already winning the organic traffic you want: ' . implode( '; ', $cs ) . '.';
+                }
+            } catch ( \Throwable $e ) {}
+        }
+
+        // 3) True keyword demand to target (SEO or Ads, from their seed terms).
+        $seed_raw = $co->seo_keywords ?: ( $co->ads_keywords ?: '' );
+        if ( ( $is_seo || $is_ads ) && $seed_raw ) {
+            try {
+                $ideas = Six_DataForSEO::keyword_ideas( $seed_raw, $location, 25 );
+                if ( empty( $ideas['error'] ) && ! empty( $ideas['ideas'] ) ) {
+                    $top = array_slice( array_values( array_filter( $ideas['ideas'], function ( $r ) { return $r['volume'] > 0; } ) ), 0, 4 );
+                    if ( $top ) {
+                        $is = array_map( function ( $r ) { return "\"{$r['keyword']}\" (" . number_format( $r['volume'] ) . '/mo' . ( $r['cpc'] ? ", \${$r['cpc']} CPC" : '' ) . ')'; }, $top );
+                        $lines[] = "High-intent keywords with real demand in {$location} to capture: " . implode( '; ', $is ) . '.';
+                    }
+                }
+            } catch ( \Throwable $e ) {}
+        }
+
+        if ( $lines ) { $out['has'] = true; $out['text'] = implode( "\n- ", $lines ); }
+        return $out;
+    }
 
     // ─────────────────────────────────────────────────────────────────────
     // DATAFORSEO — Real Google Ads CPC + Volume (primary data source)
@@ -511,7 +583,7 @@ class Six_EstimateEngine {
     // CLAUDE PROMPT  — produces kpis[] + roadmap[] format
     // ─────────────────────────────────────────────────────────────────────
 
-    private static function build_prompt( $co, array $svcs, array $kw, float $cr ): string {
+    private static function build_prompt( $co, array $svcs, array $kw, float $cr, array $intel = array() ): string {
         $svc_labels = array(
             'google-ads'     => 'Google Ads',
             'seo'            => 'SEO',
@@ -521,10 +593,9 @@ class Six_EstimateEngine {
 
         $biz    = $co->business_name ?? 'the business';
         $ind    = $co->industry      ?? 'local business';
-        // Prefer service-specific target location over business address
-        $target_loc = trim($co->ads_locations ?? $co->seo_locations ?? '');
-        $biz_loc    = trim($co->location ?? $co->business_address ?? '');
-        $loc        = $target_loc ?: $biz_loc ?: 'their area';
+        // The cities the client wants to target — never their own street address.
+        $loc        = self::market_location( $co, $svcs );
+        $biz_loc    = self::strip_street( trim( (string) ( $co->location ?? $co->business_address ?? '' ) ) );
         $loc_type   = trim($co->ads_loc_type ?? 'Include');
         $goals  = $co->goal ? str_replace(',',', ',$co->goal) : 'grow the business';
         $comps  = $co->competitors ?? '';
@@ -608,7 +679,8 @@ class Six_EstimateEngine {
         } else {
             $L[] = 'Write a hyper-specific 60-day growth plan for a prospective client. This plan is the LAST thing they see before entering their credit card.';
             $L[] = 'Your job: make them feel that 6ix Developers has already done the homework, knows their market cold, and that NOT signing would be a mistake.';
-            $L[] = 'Every line must reference their actual business, keywords, location, competitors, or budget. Zero generic filler.';
+            $L[] = 'If LIVE MARKET INTELLIGENCE is provided below, OPEN with its single most striking fact (a real page-2 keyword, a named competitor, or a real monthly search volume) so they think "how did they already know that about my business?".';
+            $L[] = 'Every line must reference their actual business, keywords, location, competitors, or budget. Zero generic filler. Be specific enough that this plan could ONLY have been written for them.';
         }
         $L[] = '';
         $L[] = '=== CLIENT PROFILE ===';
@@ -658,12 +730,34 @@ class Six_EstimateEngine {
         $L[] = "ROI formula: leads × \${$deal_val} × 20% close rate − \${$bud_ads} = net ROI";
         $L[] = "Est. net ROI by Month 2: {$roi_str}";
         $L[] = '';
+        if ( ! empty( $intel['has'] ) ) {
+            $L[] = '=== LIVE MARKET INTELLIGENCE (real DataForSEO data pulled for THIS client — your biggest weapon) ===';
+            $L[] = '- ' . $intel['text'];
+            $L[] = 'Weave these EXACT numbers, keyword names and competitor domains into your headline, insight and roadmap. Naming their real page-2 keywords, real competitors and real search volumes is what makes this feel personally researched — lead with the most striking fact. Never contradict or round these figures.';
+            $L[] = '';
+        }
         $L[] = '';
         $L[] = '=== REQUIRED JSON OUTPUT ===';
         $L[] = 'Return ONLY valid JSON. No markdown fences, no text outside the JSON object.';
         $L[] = 'Every insight must cite a REAL number (CPC, keyword volume, competitor name, industry stat).';
         $L[] = 'NEVER use generic phrases like "optimise your presence" or "improve performance".';
         $L[] = 'ALWAYS name their specific keyword, service, location, or business.';
+        $L[] = '';
+        // ── Service-scoping: only speak to the channels they actually chose ──
+        $has_ads = in_array('google-ads',$svcs,true);
+        $has_seo = in_array('seo',$svcs,true);
+        $has_gbp = in_array('google-business',$svcs,true);
+        $has_web = in_array('website',$svcs,true);
+        $L[] = '=== SERVICE FOCUS (critical — stay in scope) ===';
+        $L[] = "This client selected ONLY: {$svc_str}. Speak exclusively to these channels using the right vocabulary for each. Do NOT recommend or reference channels they did not choose.";
+        if ( $has_seo && ! $has_ads )
+            $L[] = 'They are NOT running Google Ads. Do NOT frame growth around CPC, clicks, or ad spend. Frame SEO around: keyword rankings, page-1 positions, organic traffic growth, domain authority, and content — cite real search volumes, not CPC-as-spend.';
+        if ( $has_ads )  $L[] = 'Google Ads focus: CPC economics, click volume, conversion rate, campaign structure, negative keywords, and cost-per-lead.';
+        if ( $has_seo )  $L[] = 'SEO focus: current vs target rankings for their keywords, organic traffic upside from real search volume, on-page/technical fixes, and content gaps vs competitors.';
+        if ( $has_gbp )  $L[] = 'Google Business Profile focus: local map-pack ranking, review velocity/rating, calls and direction requests, photos and posts.';
+        if ( $has_web )  $L[] = 'Website focus: conversion rate, page speed, mobile UX, and the highest-ROI pages/CTAs to build first.';
+        $L[] = 'Choose KPI labels that match their services — e.g. for SEO use "Est. Organic Leads / Mo", "Keywords on Page 1", "Traffic Growth"; for Google Ads use lead/CPC/ROI labels.';
+        $L[] = 'LENGTH RULE: every roadmap "points" item and every insight "what"/"why"/"action" must be a COMPLETE sentence of 18–25 words. Never output fragments, never truncate, never end with an ellipsis ("…"). Titles stay short (about 5 words).';
         $L[] = '';
         // Build service-specific insight instructions
         $svc_insight_instructions = array();
@@ -802,10 +896,9 @@ class Six_EstimateEngine {
         );
         $biz  = $co->business_name ?? 'your business';
         $ind  = $co->industry      ?? 'your industry';
-        // Use target location from questionnaire, not business address
-        $target_loc = trim($co->ads_locations ?? $co->seo_locations ?? '');
-        $biz_loc    = trim($co->location ?? $co->business_address ?? '');
-        $loc        = $target_loc ?: $biz_loc ?: 'your area';
+        // The cities the client wants to target — never their own street address.
+        $loc        = self::market_location( $co, $svcs );
+        if ( $loc === 'their area' ) $loc = 'your area';
         $loc_type   = trim($co->ads_loc_type ?? 'Include');
         $ch   = implode(' + ', array_map(fn($s)=>$svc_labels[$s]??$s, $svcs));
         $bud  = intval($co->ads_budget??0)+intval($co->seo_budget??0)+intval($co->gbp_budget??0);
@@ -952,6 +1045,48 @@ class Six_EstimateEngine {
         foreach ( self::$conv_rates as $kw => $r )
             if ( strpos($ind, $kw) !== false ) return $r;
         return self::$default_conv;
+    }
+
+    /**
+     * The market the plan should speak to — the cities the client wants to rank
+     * in / advertise to, chosen by the selected services. NEVER the business's
+     * own street address (marketing on your own address makes no sense).
+     * Uses ?: (falsy) not ?? so an empty string falls through to the next source.
+     */
+    private static function market_location( $co, array $svcs = array() ): string {
+        $seo = trim( (string) ( $co->seo_locations ?? '' ) );
+        $ads = trim( (string) ( $co->ads_locations ?? '' ) );
+        $gbp = trim( (string) ( $co->gbp_area ?? '' ) );
+        // Prefer a location tied to a selected service.
+        $ordered = array();
+        if ( in_array('seo', $svcs, true ) )             $ordered[] = $seo;
+        if ( in_array('google-ads', $svcs, true ) )      $ordered[] = $ads;
+        if ( in_array('google-business', $svcs, true ) ) $ordered[] = $gbp;
+        // Then any target location at all.
+        $ordered[] = $seo; $ordered[] = $ads; $ordered[] = $gbp;
+        foreach ( $ordered as $p ) {
+            if ( $p !== '' ) return self::clean_city_list( $p );
+        }
+        // Last resort: the general location/city field, with any street line stripped.
+        $loc = trim( (string) ( $co->location ?? '' ) ) ?: trim( (string) ( $co->business_address ?? '' ) );
+        $loc = self::strip_street( $loc );
+        return $loc !== '' ? $loc : 'their area';
+    }
+
+    /** Drop a leading street line: "1550 South Gateway Rd, Mississauga" → "Mississauga". */
+    private static function strip_street( string $addr ): string {
+        $addr = trim( $addr );
+        if ( $addr !== '' && preg_match( '/^\s*\d/', $addr ) && strpos( $addr, ',' ) !== false ) {
+            $addr = trim( substr( $addr, strpos( $addr, ',' ) + 1 ) );
+        }
+        return $addr;
+    }
+
+    /** Normalise a comma/newline list of cities to at most three, comma-joined. */
+    private static function clean_city_list( string $s ): string {
+        $parts = array_filter( array_map( 'trim', preg_split( '/[,;\n]+/', $s ) ) );
+        $parts = array_slice( array_values( $parts ), 0, 3 );
+        return implode( ', ', $parts ) ?: 'their area';
     }
 
     // Industry average CPC benchmarks — Google Ads (WordStream/Google industry data)

@@ -292,14 +292,18 @@ function six_approve_service(){
     $svc = $wpdb->get_row($wpdb->prepare(
         "SELECT * FROM {$wpdb->prefix}six_client_services WHERE id=%d", $svc_id));
     if(!$svc) wp_send_json_error('Service not found');
-    // NOTE: this table has approved_by/approved_at columns, NOT advisor_id.
-    // Writing a non-existent column makes the whole update fail (status never
-    // changes) — the reason "Approve" appeared to do nothing.
-    $updated = $wpdb->update(
-        "{$wpdb->prefix}six_client_services",
-        array('status'=>'active','approved_by'=>get_current_user_id(),'approved_at'=>current_time('mysql')),
-        array('id'=>$svc_id)
-    );
+    // Write ONLY columns that exist. The v7 migration adds advisor_id +
+    // updated_at to this table for exactly this handler; approved_by/approved_at
+    // were never created, so writing them made the whole update fail and the
+    // status never changed ("Approve" appeared to do nothing). Guard each
+    // optional column by what the live table actually has.
+    $cols = $wpdb->get_col( "SHOW COLUMNS FROM {$wpdb->prefix}six_client_services", 0 );
+    $data = array( 'status' => 'active' );
+    if ( in_array( 'advisor_id', $cols, true ) ) $data['advisor_id'] = get_current_user_id();
+    if ( in_array( 'updated_at', $cols, true ) ) $data['updated_at'] = current_time( 'mysql' );
+    if ( in_array( 'approved_by', $cols, true ) ) $data['approved_by'] = get_current_user_id();
+    if ( in_array( 'approved_at', $cols, true ) ) $data['approved_at'] = current_time( 'mysql' );
+    $updated = $wpdb->update( "{$wpdb->prefix}six_client_services", $data, array( 'id' => $svc_id ) );
     if ( $updated === false ) {
         wp_send_json_error('Database error: '.$wpdb->last_error);
         return;
@@ -688,9 +692,51 @@ add_action( 'wp_ajax_six_sync_client_gads', function() {
 add_action( 'wp_ajax_six_stripe_setup', function() {
     check_ajax_referer( 'six_nonce', 'nonce' );
     if ( ! class_exists( 'Six_Stripe' ) ) wp_send_json_error( 'Stripe not configured' );
+    $pk = get_option( 'six_stripe_publishable_key', '' );
+    if ( ! $pk ) wp_send_json_error( 'Stripe publishable key not set. Ask your advisor to finish setup.' );
     $secret = Six_Stripe::create_setup_intent( get_current_user_id() );
-    if ( $secret ) wp_send_json_success( array( 'client_secret' => $secret ) );
-    else wp_send_json_error( 'Could not create setup intent' );
+    if ( $secret ) wp_send_json_success( array( 'client_secret' => $secret, 'pk' => $pk ) );
+    else wp_send_json_error( 'Could not start card setup (check the Stripe secret key).' );
+} );
+
+// Customer saves their confirmed card (after Stripe.js confirmCardSetup).
+add_action( 'wp_ajax_six_save_card', function() {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! class_exists( 'Six_Stripe' ) ) wp_send_json_error( 'Stripe not configured' );
+    $pm = sanitize_text_field( wp_unslash( $_POST['payment_method_id'] ?? '' ) );
+    if ( ! $pm ) wp_send_json_error( 'Missing card.' );
+    Six_Stripe::save_payment_method( get_current_user_id(), $pm );
+    $d    = Six_Stripe::get_payment_method_details( $pm );
+    $card = ( is_array( $d ) && ! empty( $d['card'] ) ) ? $d['card'] : array();
+    wp_send_json_success( array( 'brand' => ucfirst( $card['brand'] ?? 'Card' ), 'last4' => $card['last4'] ?? '••••' ) );
+} );
+
+// Advisor starts a card setup FOR a client (e.g. after a phone consultation).
+add_action( 'wp_ajax_six_admin_stripe_setup', function() {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+    if ( ! class_exists( 'Six_Stripe' ) ) wp_send_json_error( 'Stripe not configured' );
+    $client_id = intval( $_POST['client_id'] ?? 0 );
+    if ( ! $client_id ) wp_send_json_error( 'No client specified.' );
+    $pk = get_option( 'six_stripe_publishable_key', '' );
+    if ( ! $pk ) wp_send_json_error( 'Stripe publishable key not set in 6ix Portal → Integrations.' );
+    $secret = Six_Stripe::create_setup_intent( $client_id );
+    if ( ! $secret ) wp_send_json_error( 'Could not start card setup (check the Stripe secret key).' );
+    wp_send_json_success( array( 'client_secret' => $secret, 'pk' => $pk ) );
+} );
+
+// Advisor saves the confirmed card to the client's account.
+add_action( 'wp_ajax_six_admin_save_card', function() {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+    if ( ! class_exists( 'Six_Stripe' ) ) wp_send_json_error( 'Stripe not configured' );
+    $client_id = intval( $_POST['client_id'] ?? 0 );
+    $pm        = sanitize_text_field( wp_unslash( $_POST['payment_method_id'] ?? '' ) );
+    if ( ! $client_id || ! $pm ) wp_send_json_error( 'Missing data.' );
+    Six_Stripe::save_payment_method( $client_id, $pm );
+    $d    = Six_Stripe::get_payment_method_details( $pm );
+    $card = ( is_array( $d ) && ! empty( $d['card'] ) ) ? $d['card'] : array();
+    wp_send_json_success( array( 'brand' => ucfirst( $card['brand'] ?? 'Card' ), 'last4' => $card['last4'] ?? '••••' ) );
 } );
 
 // ─────────────────────────────────────────────────────────────────────────────

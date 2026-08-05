@@ -53,7 +53,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .ob-side-foot a{color:var(--cy);text-decoration:none;}
 
 /* Main */
-.ob-main{padding:48px 40px;max-width:640px;margin:0 auto;width:100%;}
+.ob-main{padding:64px 40px 76px;max-width:640px;margin:0 auto;width:100%;align-self:center;}
 /* Login panel: vertically centered inside the right column */
 #ob-login.ob-panel.active{
   min-height:calc(100vh - 96px);
@@ -88,7 +88,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .ob-inp::placeholder{color:var(--t3);}
 .ob-inp[readonly]{opacity:.55;cursor:not-allowed;}
 .ob-inp option{background:var(--d3);}
-.ob-g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.ob-g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:end;}
 @media(max-width:520px){.ob-g2{grid-template-columns:1fr;}}
 .ob-hr{border:none;border-top:1px solid var(--bdr);margin:20px 0;}
 
@@ -1169,9 +1169,6 @@ function buildPane(slug){
       qFG('Search terms to rank for',qTags('q-seo-kw'),'Words customers type into Google to find you — press Enter to add each')
       +qFG('Why customers choose you','<input class="ob-inp" id="q-seo-usp" placeholder="Why should customers choose you?">','What sets you apart from competitors')
       +qFG('Existing blog or content?',qTog('q-seo-blog'),'Any articles or resources already on your site')
-      +qFG('Top competitors','<input class="ob-inp" id="q-seo-comp" placeholder="e.g. competitor1.com, competitor2.com">','A few rival websites, if you know them')
-      +qFG('Review / CRM tools','<input class="ob-inp" id="q-seo-crm" placeholder="HubSpot, TrustIndex, Google Reviews…">','Anything you use to collect reviews or manage leads')
-      +qFG('Reviews &amp; awards','<input class="ob-inp" id="q-seo-reviews" placeholder="e.g. 4.9 stars, 200+ reviews, award name">','Ratings or recognitions worth highlighting')
       +qFG('Anything else?','<textarea class="ob-inp" id="q-seo-extra" rows="2" placeholder="Any other info that will help rank your site…"></textarea>','Other details that could help you rank')
     );
   } else if(slug==='google-business'){
@@ -1636,10 +1633,12 @@ window.OB={
         bizname:   S.q.bizname||'',
         industry:  S.q.industry||'',
         location:  S.q.address||'',
+        website:   S.q.website||'',
         deal_value:S.q.deal_value||'',
         close_rate:S.q.close_rate||'',
         platforms: S.svcs.join(','),
         ads_loc:   S.q.ads_loc||'',
+        seo_loc:   S.q.seo_loc||'',
         ads_kw:    S.q.ads_kw||'',
         seo_kw:    S.q.seo_kw||'',
         gbp_cat:   S.q.gbp_cat||'',
@@ -1659,31 +1658,39 @@ window.OB={
     if(!plan){
       var svcN={'google-ads':'Google Ads','seo':'SEO','google-business':'Google Business Profile','website':'Website Development'};
       var ch=svcs.map(function(s){return svcN[s]||s;}).join(', ');
+      // Market = the cities they want to target (never their own street address).
+      var mktLoc=((svcs.indexOf('seo')>-1?S.q.seo_loc:'')||S.q.ads_loc||S.q.seo_loc||'').split(',').slice(0,2).map(function(s){return s.trim();}).filter(Boolean).join(', ');
+      if(!mktLoc){ var _a=(q.address||'').trim(); if(/^\s*\d/.test(_a)&&_a.indexOf(',')>-1){_a=_a.substring(_a.indexOf(',')+1).trim();} mktLoc=_a; }
+      mktLoc=mktLoc||'your market';
+      var ind=q.industry||'your industry';
+      var isSeo=svcs.indexOf('seo')>-1, isAds=svcs.indexOf('google-ads')>-1;
       plan={
-        headline:(q.bizname||'Your business')+' is set up to generate consistent leads through '+ch+(q.address?' in '+q.address:'')+' — here is your 90-day roadmap.',
+        headline:(q.bizname||'Your business')+' is positioned to win new customers through '+ch+' in '+mktLoc+' — here is your tailored 90-day roadmap.',
         kpis:[
-          {label:'Est. Leads / Month 1',value:tot>0?Math.round(tot/150)+'-'+Math.round(tot/100):'8–15'},
-          {label:'Est. Leads / Month 3',value:tot>0?Math.round(tot/80)+'-'+Math.round(tot/55):'20–35'},
+          {label:isAds?'Est. Leads / Month 1':'Est. Organic Leads / Mo',value:tot>0?Math.round(tot/150)+'-'+Math.round(tot/100):'8–15'},
+          {label:'By Month 3',value:tot>0?Math.round(tot/80)+'-'+Math.round(tot/55):'20–35'},
           {label:'Est. Monthly ROI',value:tot>0?'+$'+Math.round(tot*2.5).toLocaleString():'TBD'}
         ],
         roadmap:[
-          {week:'Week 1–2',phase:'Foundation',title:'Account setup & campaign architecture',
-            points:['Audit your current digital presence and competitors in '+(q.address||'your market'),
-                    'Build campaign structure tailored to '+(q.industry||'your industry')+' buying intent',
-                    'Install tracking, conversion goals, and attribution'],
+          {week:'Week 1–2',phase:'Foundation',title:'Audit & architecture',
+            points:[(isSeo?'We audit your current rankings, site structure and top competitors for '+ind+' searches across '+mktLoc+' to find the fastest wins.':'We audit your current presence, tracking and top competitors for '+ind+' across '+mktLoc+' so every dollar is aimed precisely.'),
+                    'We map your highest-intent keywords and the exact pages or campaigns that will capture demand from buyers actively searching in '+mktLoc+'.',
+                    'We install conversion tracking, call and form attribution, and reporting so every lead is measured back to the channel that produced it.'],
             outcome:'Everything live and tracking'},
-          {week:'Week 3–4',phase:'Launch',title:'Campaigns go live — first data in',
-            points:['Launch targeted campaigns across '+ch,'Set up A/B tests on ad copy and landing pages',
-                    'Monitor daily — adjust bids, targeting, and messaging'],
-            outcome:'First leads within 30 days'},
+          {week:'Week 3–4',phase:isSeo&&!isAds?'Optimise & publish':'Launch',title:isSeo&&!isAds?'On-page & content live':'Campaigns go live',
+            points:[(isSeo&&!isAds?'We optimise your priority pages for the target keywords and publish the first content pieces built to rank in '+mktLoc+' within weeks.':'We launch tightly-themed campaigns across '+ch+', targeting the exact buyers searching for '+ind+' services in '+mktLoc+' right now.'),
+                    'We A/B test headlines, offers and landing pages so the highest-converting message wins and your cost per lead starts trending down quickly.',
+                    'We monitor performance daily and adjust targeting, bids or on-page signals so momentum builds steadily through the first full month of data.'],
+            outcome:'First results within 30 days'},
           {week:'Month 2',phase:'Optimise',title:'Data-driven refinement',
-            points:['Identify top-performing keywords and audiences','Cut underperforming spend, scale what works',
-                    'Deliver detailed performance report with recommendations'],
+            points:['We double down on the keywords, pages and audiences that are producing leads, and cut or rework anything that is underdelivering on budget.',
+                    'We expand the winning themes with fresh '+(isSeo?'content and internal links':'ad groups and creative')+' so results compound instead of plateauing in month two.',
+                    'We deliver a clear performance report showing leads, cost per lead and exactly what we are changing next, with no jargon or guesswork.'],
             outcome:'Lower cost per lead, higher quality'},
           {week:'Month 3',phase:'Scale',title:'Full momentum',
-            points:['Expand winning campaigns to new audiences and keywords',
-                    'Layer in '+(svcs.length>1?'cross-channel synergies between '+ch:'advanced targeting and retargeting'),
-                    'Forecast and plan for months 4–6 based on real data'],
+            points:['We scale the proven winners into new '+(isSeo?'keywords, cities and content clusters':'audiences, keywords and campaign types')+' so your pipeline keeps growing month over month.',
+                    (svcs.length>1?'We connect the channels — '+ch+' — so each one amplifies the others and your brand shows up wherever '+mktLoc+' buyers look.':'We layer in advanced targeting and retargeting so no warm prospect in '+mktLoc+' slips through the cracks.'),
+                    'We forecast months 4–6 from your real performance data so you always know the next move and the return you can expect from it.'],
             outcome:tot>0?'Consistent '+Math.round(tot/80)+'-'+Math.round(tot/55)+' leads/month':'Consistent qualified lead flow'}
         ],
         disclaimer:true
