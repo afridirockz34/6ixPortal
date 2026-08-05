@@ -1084,6 +1084,13 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             </div>
             <?php endif; ?>
 
+            <!-- Activation helper: AI-suggested metrics from live data / benchmarks -->
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+                <div style="font-size:11px;color:var(--text3)">Set up this service: connect the account under <a href="<?php echo $base_url; ?>&ctab=datasources" style="color:var(--cyan)">Data Sources</a>, then add the metrics the customer will see.</div>
+                <button class="six-btn six-btn-ghost six-btn-sm six-suggest-metrics" data-slug="<?php echo esc_attr($slug); ?>" data-client="<?php echo $view_client_id; ?>" style="font-size:11px;color:var(--pink);white-space:nowrap">✨ Suggest metrics with AI</button>
+            </div>
+            <div class="metric-suggest-<?php echo esc_attr($slug); ?>" style="margin-bottom:12px"></div>
+
             <!-- Add metric form for this service -->
             <div style="background:var(--dark4);border-radius:10px;padding:14px" id="metric-form-<?php echo esc_attr($slug); ?>">
                 <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">+ Add / Update Metric</div>
@@ -3803,6 +3810,47 @@ document.querySelectorAll('.six-add-metric-svc').forEach(function(btn){
                 if(result)result.innerHTML='<span style="color:var(--danger)">'+(d.data||'Error')+'</span>';
             }
         });
+    });
+});
+
+// ── AI-suggested metrics (service activation) ───────────────────────────
+document.querySelectorAll('.six-suggest-metrics').forEach(function(btn){
+    var esc=function(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+    btn.addEventListener('click',function(){
+        var slug=this.dataset.slug, client=this.dataset.client, self=this;
+        var box=document.querySelector('.metric-suggest-'+slug);
+        self.disabled=true; self.textContent='Thinking…';
+        if(box) box.innerHTML='<div style="font-size:12px;color:var(--text3);padding:4px 0">Analysing live data and benchmarks…</div>';
+        post({action:'six_suggest_metrics',client_id:client,service_slug:slug}).then(function(r){
+            self.disabled=false; self.textContent='✨ Suggest metrics with AI';
+            if(!(r&&r.success&&r.data&&r.data.metrics&&r.data.metrics.length)){ if(box) box.innerHTML='<div style="font-size:12px;color:var(--danger)">'+((r&&r.data&&(r.data.message||r.data))||'No suggestions returned.')+'</div>'; return; }
+            var html='<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">'
+                +'<div style="padding:8px 12px;background:var(--dark3);font-size:11px;color:var(--text3)">'+(r.data.has_live?'Suggested from this client’s live data — edit and add':'Suggested from industry benchmarks — edit and add')+'</div>';
+            r.data.metrics.forEach(function(m){
+                html+='<div class="sugg-row" style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:6px;align-items:center;padding:8px 12px;border-top:1px solid var(--border)">'
+                    +'<input class="six-input sm-label" value="'+esc(m.label)+'" title="'+esc(m.note||'')+'" style="font-size:12px;padding:6px 8px">'
+                    +'<input class="six-input sm-prev" value="'+esc(m.previous)+'" placeholder="prev" style="font-size:12px;padding:6px 8px">'
+                    +'<input class="six-input sm-cur" value="'+esc(m.current)+'" placeholder="current" style="font-size:12px;padding:6px 8px">'
+                    +'<input class="six-input sm-tgt" value="'+esc(m.target)+'" placeholder="target" style="font-size:12px;padding:6px 8px">'
+                    +'<button class="six-btn six-btn-primary six-btn-sm sm-add" style="font-size:11px">Add</button>'
+                    +'</div>';
+            });
+            html+='<div style="padding:8px 12px;border-top:1px solid var(--border)"><button class="six-btn six-btn-ghost six-btn-sm sm-add-all" style="font-size:11px;color:var(--success)">Add all</button></div></div>';
+            box.innerHTML=html;
+            function addRow(row, cb){
+                var label=(row.querySelector('.sm-label').value||'').trim(); if(!label){ cb&&cb(); return; }
+                post({action:'six_add_metric',client_id:client,service_slug:slug,label:label,
+                    previous_value:row.querySelector('.sm-prev').value,current_value:row.querySelector('.sm-cur').value,target_value:row.querySelector('.sm-tgt').value})
+                .then(function(d){ if(d&&d.success){ row.style.opacity='.5'; var b=row.querySelector('.sm-add'); if(b){b.textContent='Added';b.disabled=true;} } cb&&cb(); })
+                .catch(function(){ cb&&cb(); });
+            }
+            box.querySelectorAll('.sm-add').forEach(function(b){ b.addEventListener('click',function(){ addRow(b.closest('.sugg-row')); }); });
+            var allBtn=box.querySelector('.sm-add-all');
+            if(allBtn) allBtn.addEventListener('click',function(){ allBtn.disabled=true; allBtn.textContent='Adding…';
+                var rows=Array.prototype.slice.call(box.querySelectorAll('.sugg-row')), i=0;
+                (function next(){ if(i>=rows.length){ setTimeout(function(){location.reload();},700); return; } addRow(rows[i++], next); })();
+            });
+        }).catch(function(){ self.disabled=false; self.textContent='✨ Suggest metrics with AI'; if(box) box.innerHTML='<div style="font-size:12px;color:var(--danger)">Network error.</div>'; });
     });
 });
 
