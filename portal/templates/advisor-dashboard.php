@@ -3219,6 +3219,23 @@ var NONCE = '<?php echo esc_js($nonce);?>';
 var INI = '<?php echo esc_js($initials);?>';
 function post(data){ return fetch(AJAX,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(Object.assign({nonce:NONCE},data))}).then(function(r){ return r.json(); }); }
 
+// ── Edit a tracked metric: load its values into that service's form ──────
+// (Called from an inline onclick, so it must be global.) The save handler
+// upserts by client+service+label, so re-saving the same label updates it.
+function populateMetricForm(id, label, current, previous, target, slug){
+    var form=document.getElementById('metric-form-'+slug);
+    if(!form) return;
+    var set=function(sel,val){ var el=document.querySelector(sel); if(el) el.value=(val==null?'':String(val)); };
+    set('.metric-label-'+slug, label);
+    set('.metric-current-'+slug, current);
+    set('.metric-prev-'+slug, previous);
+    set('.metric-target-'+slug, target);
+    try{ form.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){}
+    var cur=document.querySelector('.metric-current-'+slug); if(cur) cur.focus();
+    form.style.transition='box-shadow .2s'; form.style.boxShadow='0 0 0 2px var(--cyan)';
+    setTimeout(function(){ form.style.boxShadow=''; },1200);
+}
+
 // ── Advisor: add / update a client's card (inline Stripe Elements) ───────
 function sixLoadStripe(cb){
     if(window.Stripe){cb();return;}
