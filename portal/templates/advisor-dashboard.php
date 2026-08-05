@@ -3304,6 +3304,9 @@ var composeGo=document.getElementById('compose-go');
 if(composeGo) composeGo.addEventListener('click',function(){var id=document.getElementById('compose-to').value;if(id)window.location.href='?tab=messages&with='+id;});
 
 // ── Approve Service ─────────────────────────────────────────────────────────
+// Exposed on window because the button uses an inline onclick, which can only
+// reach global functions (this whole block runs inside an IIFE).
+window.sixApproveService = sixApproveService;
 function sixApproveService(btn, serviceId, clientId) {
     if (!serviceId) { alert('Missing service ID'); return; }
     btn.textContent = 'Approving…';
@@ -3857,6 +3860,8 @@ document.querySelectorAll('.six-adv-edit-rec').forEach(function(btn){
             '<button class="six-btn six-btn-ghost six-btn-sm" onclick="location.reload()" style="font-size:11px">Cancel</button></div>';
     });
 });
+// Exposed on window — called from an inline onclick, which only reaches globals.
+window.saveRecEdit = saveRecEdit;
 function saveRecEdit(recId){
     var title=(document.getElementById('edit-rec-title-'+recId)||{}).value||'';
     var desc=(document.getElementById('edit-rec-desc-'+recId)||{}).value||'';
