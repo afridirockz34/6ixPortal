@@ -692,9 +692,51 @@ add_action( 'wp_ajax_six_sync_client_gads', function() {
 add_action( 'wp_ajax_six_stripe_setup', function() {
     check_ajax_referer( 'six_nonce', 'nonce' );
     if ( ! class_exists( 'Six_Stripe' ) ) wp_send_json_error( 'Stripe not configured' );
+    $pk = get_option( 'six_stripe_publishable_key', '' );
+    if ( ! $pk ) wp_send_json_error( 'Stripe publishable key not set. Ask your advisor to finish setup.' );
     $secret = Six_Stripe::create_setup_intent( get_current_user_id() );
-    if ( $secret ) wp_send_json_success( array( 'client_secret' => $secret ) );
-    else wp_send_json_error( 'Could not create setup intent' );
+    if ( $secret ) wp_send_json_success( array( 'client_secret' => $secret, 'pk' => $pk ) );
+    else wp_send_json_error( 'Could not start card setup (check the Stripe secret key).' );
+} );
+
+// Customer saves their confirmed card (after Stripe.js confirmCardSetup).
+add_action( 'wp_ajax_six_save_card', function() {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! class_exists( 'Six_Stripe' ) ) wp_send_json_error( 'Stripe not configured' );
+    $pm = sanitize_text_field( wp_unslash( $_POST['payment_method_id'] ?? '' ) );
+    if ( ! $pm ) wp_send_json_error( 'Missing card.' );
+    Six_Stripe::save_payment_method( get_current_user_id(), $pm );
+    $d    = Six_Stripe::get_payment_method_details( $pm );
+    $card = ( is_array( $d ) && ! empty( $d['card'] ) ) ? $d['card'] : array();
+    wp_send_json_success( array( 'brand' => ucfirst( $card['brand'] ?? 'Card' ), 'last4' => $card['last4'] ?? '••••' ) );
+} );
+
+// Advisor starts a card setup FOR a client (e.g. after a phone consultation).
+add_action( 'wp_ajax_six_admin_stripe_setup', function() {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+    if ( ! class_exists( 'Six_Stripe' ) ) wp_send_json_error( 'Stripe not configured' );
+    $client_id = intval( $_POST['client_id'] ?? 0 );
+    if ( ! $client_id ) wp_send_json_error( 'No client specified.' );
+    $pk = get_option( 'six_stripe_publishable_key', '' );
+    if ( ! $pk ) wp_send_json_error( 'Stripe publishable key not set in 6ix Portal → Integrations.' );
+    $secret = Six_Stripe::create_setup_intent( $client_id );
+    if ( ! $secret ) wp_send_json_error( 'Could not start card setup (check the Stripe secret key).' );
+    wp_send_json_success( array( 'client_secret' => $secret, 'pk' => $pk ) );
+} );
+
+// Advisor saves the confirmed card to the client's account.
+add_action( 'wp_ajax_six_admin_save_card', function() {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+    if ( ! class_exists( 'Six_Stripe' ) ) wp_send_json_error( 'Stripe not configured' );
+    $client_id = intval( $_POST['client_id'] ?? 0 );
+    $pm        = sanitize_text_field( wp_unslash( $_POST['payment_method_id'] ?? '' ) );
+    if ( ! $client_id || ! $pm ) wp_send_json_error( 'Missing data.' );
+    Six_Stripe::save_payment_method( $client_id, $pm );
+    $d    = Six_Stripe::get_payment_method_details( $pm );
+    $card = ( is_array( $d ) && ! empty( $d['card'] ) ) ? $d['card'] : array();
+    wp_send_json_success( array( 'brand' => ucfirst( $card['brand'] ?? 'Card' ), 'last4' => $card['last4'] ?? '••••' ) );
 } );
 
 // ─────────────────────────────────────────────────────────────────────────────

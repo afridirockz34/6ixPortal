@@ -2260,16 +2260,71 @@ if(saveBtn){
     });
 }
 
-// ── Billing: update/add card ─────────────────────────────────────────────
+// ── Reusable inline Stripe card capture (SetupIntent + Elements) ─────────
+function sixLoadStripe(cb){
+    if(window.Stripe){cb();return;}
+    var s=document.createElement('script');s.src='https://js.stripe.com/v3/';
+    s.onload=function(){cb();};s.onerror=function(){cb(new Error('Could not load Stripe.'));};
+    document.head.appendChild(s);
+}
+function sixCardFlow(opts){
+    opts=opts||{};
+    var params=opts.params||{};
+    // Build modal
+    var ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:20px';
+    ov.innerHTML='<div style="background:var(--dark2,#161B22);border:1px solid var(--border,#30363D);border-radius:14px;max-width:440px;width:100%;padding:22px;color:var(--text1,#F0F4F8)">'
+        +'<div style="font-size:15px;font-weight:700;margin-bottom:4px">'+(opts.title||'Add payment method')+'</div>'
+        +'<div style="font-size:12px;color:var(--text3,#8B96A3);margin-bottom:14px">Card details are sent directly to Stripe — 6ix never sees or stores the number.</div>'
+        +'<div id="six-cardflow-el" style="background:#fff;border:1px solid var(--border,#30363D);border-radius:10px;padding:12px 14px;min-height:44px"></div>'
+        +'<div id="six-cardflow-err" style="font-size:12px;color:var(--danger,#FF6B6B);margin-top:8px;min-height:16px"></div>'
+        +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">'
+        +'<button type="button" id="six-cardflow-cancel" class="six-btn six-btn-ghost six-btn-sm">Cancel</button>'
+        +'<button type="button" id="six-cardflow-save" class="six-btn six-btn-primary six-btn-sm" disabled style="opacity:.6">Save card</button>'
+        +'</div></div>';
+    document.body.appendChild(ov);
+    var errEl=ov.querySelector('#six-cardflow-err');
+    var saveBtn=ov.querySelector('#six-cardflow-save');
+    function close(){ ov.remove(); }
+    ov.querySelector('#six-cardflow-cancel').addEventListener('click',close);
+    ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
+    errEl.textContent='Loading secure form…';
+    sixLoadStripe(function(loadErr){
+        if(loadErr){ errEl.textContent=loadErr.message; return; }
+        post(Object.assign({action:opts.setupAction},params)).then(function(r){
+            if(!(r&&r.success&&r.data&&r.data.client_secret&&r.data.pk)){
+                errEl.textContent=(r&&r.data&&(r.data.message||r.data))||'Could not start card setup.'; return;
+            }
+            var secret=r.data.client_secret;
+            var stripe=Stripe(r.data.pk);
+            var elements=stripe.elements();
+            var card=elements.create('card',{style:{base:{fontSize:'15px',color:'#0F1923','::placeholder':{color:'#8B96A3'}}}});
+            card.mount('#six-cardflow-el');
+            errEl.textContent='';
+            card.on('change',function(ev){ errEl.textContent=ev.error?ev.error.message:''; saveBtn.disabled=!ev.complete; saveBtn.style.opacity=ev.complete?'1':'.6'; });
+            saveBtn.addEventListener('click',function(){
+                saveBtn.disabled=true; saveBtn.textContent='Saving…'; errEl.style.color='var(--text3,#8B96A3)'; errEl.textContent='Confirming with Stripe…';
+                stripe.confirmCardSetup(secret,{payment_method:{card:card}}).then(function(res){
+                    if(res.error){ errEl.style.color='var(--danger,#FF6B6B)'; errEl.textContent=res.error.message; saveBtn.disabled=false; saveBtn.textContent='Save card'; return; }
+                    var pmId=res.setupIntent.payment_method;
+                    post(Object.assign({action:opts.saveAction,payment_method_id:pmId},params)).then(function(sr){
+                        if(sr&&sr.success){ errEl.style.color='#1a7a2e'; errEl.textContent='Card saved. Refreshing…'; setTimeout(function(){ opts.onDone?opts.onDone(sr.data):location.reload(); },900); }
+                        else { errEl.style.color='var(--danger,#FF6B6B)'; errEl.textContent=(sr&&sr.data&&(sr.data.message||sr.data))||'Could not save the card.'; saveBtn.disabled=false; saveBtn.textContent='Save card'; }
+                    }).catch(function(){ errEl.textContent='Network error saving card.'; saveBtn.disabled=false; saveBtn.textContent='Save card'; });
+                });
+            });
+        }).catch(function(){ errEl.textContent='Network error starting card setup.'; });
+    });
+}
+
+// ── Billing: add / update card (inline Stripe Elements) ──────────────────
 function handleCardBtn(id){
     var btn=document.getElementById(id);if(!btn)return;
     btn.addEventListener('click',function(){
-        var result=document.getElementById('six-card-update-result');
-        btn.textContent='Loading…';btn.disabled=true;
-        post({action:'six_get_setup_intent'}).then(function(d){
-            btn.textContent=id==='six-update-card'?' Update Card':'+ Add Payment Method';btn.disabled=false;
-            if(d&&d.success&&d.data&&d.data.url)window.location.href=d.data.url;
-            else if(result)result.innerHTML='<span style="color:var(--danger)">Could not open payment page. Contact your advisor.</span>';
+        sixCardFlow({
+            setupAction:'six_stripe_setup',
+            saveAction:'six_save_card',
+            title:(id==='six-update-card'?'Update payment method':'Add payment method')
         });
     });
 }

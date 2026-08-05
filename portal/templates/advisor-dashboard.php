@@ -1764,6 +1764,35 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             </div>
         </div>
     </div>
+
+    <!-- ── Payment Method (advisor can add a card for the customer) ──────── -->
+    <?php
+        $c_pm = get_user_meta($view_client_id,'six_stripe_payment_method',true);
+        $c_card_brand = 'Card'; $c_card_last4 = '';
+        if ($c_pm && class_exists('Six_Stripe')) {
+            try { $pmd = Six_Stripe::get_payment_method_details($c_pm);
+                if (is_array($pmd) && !empty($pmd['card'])) { $c_card_brand = ucfirst($pmd['card']['brand'] ?? 'Card'); $c_card_last4 = $pmd['card']['last4'] ?? ''; }
+            } catch (\Throwable $e) {}
+        }
+        $stripe_ready = (bool) get_option('six_stripe_publishable_key','');
+    ?>
+    <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <div>
+                <div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">Payment Method</div>
+                <div id="adv-card-state" style="font-size:13px;color:var(--text1);margin-top:6px">
+                    <?php if($c_pm): ?><span style="font-weight:600"><?php echo esc_html($c_card_brand); ?></span> <?php echo $c_card_last4 ? '•••• '.esc_html($c_card_last4) : 'on file'; ?> <span style="font-size:11px;color:var(--success);margin-left:6px">● Saved</span>
+                    <?php else: ?><span style="color:var(--text3)">No card on file. Add one for clients who requested a call instead of completing checkout.</span><?php endif; ?>
+                </div>
+            </div>
+            <?php if($stripe_ready): ?>
+            <button class="six-btn six-btn-primary six-btn-sm" id="adv-add-card-btn" data-client="<?php echo $view_client_id; ?>" style="font-size:12px;white-space:nowrap"><?php echo $c_pm ? 'Update card' : '+ Add card for customer'; ?></button>
+            <?php else: ?>
+            <span style="font-size:11px;color:var(--warning)">Add Stripe keys in Integrations to enable.</span>
+            <?php endif; ?>
+        </div>
+    </div>
+
     <!-- ── Onboarding Questionnaire (moved from its own tab) ──────────── -->
     <div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin:4px 0 12px">Onboarding Questionnaire</div>
 
@@ -3189,6 +3218,61 @@ var AJAX = '<?php echo esc_js($ajax_url);?>';
 var NONCE = '<?php echo esc_js($nonce);?>';
 var INI = '<?php echo esc_js($initials);?>';
 function post(data){ return fetch(AJAX,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(Object.assign({nonce:NONCE},data))}).then(function(r){ return r.json(); }); }
+
+// ── Advisor: add / update a client's card (inline Stripe Elements) ───────
+function sixLoadStripe(cb){
+    if(window.Stripe){cb();return;}
+    var s=document.createElement('script');s.src='https://js.stripe.com/v3/';
+    s.onload=function(){cb();};s.onerror=function(){cb(new Error('Could not load Stripe.'));};
+    document.head.appendChild(s);
+}
+function sixCardFlow(opts){
+    opts=opts||{}; var params=opts.params||{};
+    var ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:20px';
+    ov.innerHTML='<div style="background:var(--dark2,#161B22);border:1px solid var(--border,#30363D);border-radius:14px;max-width:440px;width:100%;padding:22px;color:var(--text1,#F0F4F8)">'
+        +'<div style="font-size:15px;font-weight:700;margin-bottom:4px">'+(opts.title||'Add card for customer')+'</div>'
+        +'<div style="font-size:12px;color:var(--text3,#8B96A3);margin-bottom:14px">The card is sent straight to Stripe and saved to the customer’s account — enter it with the customer’s consent.</div>'
+        +'<div id="six-cardflow-el" style="background:#fff;border:1px solid var(--border,#30363D);border-radius:10px;padding:12px 14px;min-height:44px"></div>'
+        +'<div id="six-cardflow-err" style="font-size:12px;color:var(--danger,#FF6B6B);margin-top:8px;min-height:16px"></div>'
+        +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">'
+        +'<button type="button" id="six-cardflow-cancel" class="six-btn six-btn-ghost six-btn-sm">Cancel</button>'
+        +'<button type="button" id="six-cardflow-save" class="six-btn six-btn-primary six-btn-sm" disabled style="opacity:.6">Save card</button>'
+        +'</div></div>';
+    document.body.appendChild(ov);
+    var errEl=ov.querySelector('#six-cardflow-err'), saveBtn=ov.querySelector('#six-cardflow-save');
+    function close(){ ov.remove(); }
+    ov.querySelector('#six-cardflow-cancel').addEventListener('click',close);
+    ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
+    errEl.textContent='Loading secure form…';
+    sixLoadStripe(function(loadErr){
+        if(loadErr){ errEl.textContent=loadErr.message; return; }
+        post(Object.assign({action:opts.setupAction},params)).then(function(r){
+            if(!(r&&r.success&&r.data&&r.data.client_secret&&r.data.pk)){ errEl.textContent=(r&&r.data&&(r.data.message||r.data))||'Could not start card setup.'; return; }
+            var secret=r.data.client_secret, stripe=Stripe(r.data.pk), elements=stripe.elements();
+            var card=elements.create('card',{style:{base:{fontSize:'15px',color:'#0F1923','::placeholder':{color:'#8B96A3'}}}});
+            card.mount('#six-cardflow-el'); errEl.textContent='';
+            card.on('change',function(ev){ errEl.textContent=ev.error?ev.error.message:''; saveBtn.disabled=!ev.complete; saveBtn.style.opacity=ev.complete?'1':'.6'; });
+            saveBtn.addEventListener('click',function(){
+                saveBtn.disabled=true; saveBtn.textContent='Saving…'; errEl.style.color='var(--text3,#8B96A3)'; errEl.textContent='Confirming with Stripe…';
+                stripe.confirmCardSetup(secret,{payment_method:{card:card}}).then(function(res){
+                    if(res.error){ errEl.style.color='var(--danger,#FF6B6B)'; errEl.textContent=res.error.message; saveBtn.disabled=false; saveBtn.textContent='Save card'; return; }
+                    post(Object.assign({action:opts.saveAction,payment_method_id:res.setupIntent.payment_method},params)).then(function(sr){
+                        if(sr&&sr.success){ errEl.style.color='var(--success,#56D364)'; errEl.textContent='Card saved. Refreshing…'; setTimeout(function(){ location.reload(); },900); }
+                        else { errEl.style.color='var(--danger,#FF6B6B)'; errEl.textContent=(sr&&sr.data&&(sr.data.message||sr.data))||'Could not save the card.'; saveBtn.disabled=false; saveBtn.textContent='Save card'; }
+                    }).catch(function(){ errEl.textContent='Network error saving card.'; saveBtn.disabled=false; saveBtn.textContent='Save card'; });
+                });
+            });
+        }).catch(function(){ errEl.textContent='Network error starting card setup.'; });
+    });
+}
+(function(){
+    var b=document.getElementById('adv-add-card-btn');
+    if(b) b.addEventListener('click',function(){
+        sixCardFlow({ setupAction:'six_admin_stripe_setup', saveAction:'six_admin_save_card',
+            title:'Add card for customer', params:{client_id:b.dataset.client} });
+    });
+})();
 </script>
 <script>
 (function(){
