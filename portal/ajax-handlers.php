@@ -438,14 +438,18 @@ add_action( 'wp_ajax_six_add_metric', function() {
     global $wpdb;
     $client_id = intval( $_POST['client_id'] ?? 0 );
     $label     = sanitize_text_field( $_POST['label']     ?? '' );
-    $service   = sanitize_text_field( $_POST['service']   ?? '' );
+    // Accept both param spellings — the dashboard JS sends service_slug /
+    // *_value, older callers send service / previous|current|target. A mismatch
+    // here previously saved metrics with an empty service_slug and empty values,
+    // so they never matched the customer's service page.
+    $service   = sanitize_text_field( $_POST['service_slug'] ?? $_POST['service'] ?? '' );
     $metric_id = intval( $_POST['metric_id']              ?? 0 );
     if ( ! $client_id || ! $label ) wp_send_json_error( 'Missing fields' );
 
     $data = array(
-        'previous_value' => sanitize_text_field( $_POST['previous'] ?? '' ),
-        'current_value'  => sanitize_text_field( $_POST['current']  ?? '' ),
-        'target_value'   => sanitize_text_field( $_POST['target']   ?? '' ),
+        'previous_value' => sanitize_text_field( $_POST['previous_value'] ?? $_POST['previous'] ?? '' ),
+        'current_value'  => sanitize_text_field( $_POST['current_value']  ?? $_POST['current']  ?? '' ),
+        'target_value'   => sanitize_text_field( $_POST['target_value']   ?? $_POST['target']   ?? '' ),
         'unit'           => sanitize_text_field( $_POST['unit']     ?? '' ),
         'updated_at'     => current_time( 'mysql' ),
     );
@@ -468,6 +472,22 @@ add_action( 'wp_ajax_six_add_metric', function() {
     $data['client_id'] = $client_id; $data['service_slug'] = $service; $data['label'] = $label;
     $wpdb->insert( $wpdb->prefix . 'six_metrics', $data );
     wp_send_json_success( array( 'id' => $wpdb->insert_id, 'updated' => false ) );
+} );
+
+// AI-suggested metrics for a service (activation step). Grounded in live data
+// where connected, else industry benchmarks — returned in prev/current/target
+// form for the advisor to review and save.
+add_action( 'wp_ajax_six_suggest_metrics', function() {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+    if ( ! class_exists( 'Six_AI_Strategist' ) ) wp_send_json_error( 'AI Strategist not available.' );
+    $client_id = intval( $_POST['client_id'] ?? 0 );
+    $slug      = sanitize_key( $_POST['service_slug'] ?? '' );
+    if ( ! $client_id || ! $slug ) wp_send_json_error( 'Missing client or service.' );
+    @set_time_limit( 90 );
+    $r = Six_AI_Strategist::suggest_metrics( $client_id, $slug );
+    if ( isset( $r['error'] ) ) wp_send_json_error( $r['error'] );
+    wp_send_json_success( $r );
 } );
 
 add_action( 'wp_ajax_six_delete_metric', function() {

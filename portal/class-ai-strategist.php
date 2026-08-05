@@ -24,7 +24,11 @@ class Six_AI_Strategist {
     const MAX_TOOL_LOOPS = 6;
 
     // Deep, multi-step reasoning modes → Opus. Quick tasks → Sonnet.
-    private static $deep_modes = array( 'strategy', 'gads_audit', 'seo_audit', 'performance', 'chat' );
+    // Interactive chat uses the FAST model so replies come back in seconds, not
+    // minutes — the deep model (Opus) is reserved for the heavy Strategy/Audit
+    // modes the advisor triggers explicitly. Deep + 6 tool loops on every quick
+    // question was why chat sat on "Analysing…" for minutes.
+    private static $deep_modes = array( 'strategy', 'gads_audit', 'seo_audit', 'performance' );
 
     public static function model_for( $mode ) {
         $deep = get_option( 'six_ai_model_deep', 'claude-opus-5' );
@@ -648,6 +652,52 @@ class Six_AI_Strategist {
             }
         }
         return $snap;
+    }
+
+    /**
+     * Suggest KPI metrics for a service during activation — grounded in any live
+     * data that's connected, else industry benchmarks. Returns metrics in the
+     * advisor's previous/current/target format for review before saving.
+     */
+    public static function suggest_metrics( $client_id, $service_slug ) {
+        $svc_names = array(
+            'google-ads' => 'Google Ads', 'seo' => 'SEO',
+            'google-business' => 'Google Business Profile', 'website' => 'Website Development',
+        );
+        $svc  = $svc_names[ $service_slug ] ?? $service_slug;
+        $live = self::snapshot_metrics( $client_id );  // real GA4/Ads/GSC/Meta totals where connected
+        $ctx  = self::client_context( $client_id );
+
+        $system = "You are a marketing analyst at 6ix Developers setting up KPI tracking for a client's {$svc} service. "
+            . "Suggest 4-6 KPI metrics the advisor should track for THIS service. "
+            . "Return ONLY valid JSON, no prose: {\"metrics\":[{\"label\":\"short name\",\"previous\":\"last month value\",\"current\":\"this month / starting value\",\"target\":\"realistic 90-day goal\",\"note\":\"one short line on why\"}]}. "
+            . "Ground the numbers in the LIVE DATA when present; otherwise use realistic industry-benchmark starting values. "
+            . "Keep labels short and service-appropriate (e.g. SEO: \"Organic Traffic\", \"Keywords on Page 1\", \"Domain Authority\"; Google Ads: \"Leads / Month\", \"Cost per Lead\", \"CTR\"; GBP: \"Calls\", \"Direction Requests\", \"Review Rating\"). "
+            . "Values may include units/symbols (e.g. \"1,240\", \"$38\", \"4.6★\").";
+        $user = "CLIENT CONTEXT:\n{$ctx}\n\nLIVE DATA (JSON, use where present):\n" . wp_json_encode( $live ) . "\n\nSuggest the {$svc} metrics now.";
+        $model = get_option( 'six_ai_model_fast', 'claude-sonnet-5' );
+
+        $body = self::call_anthropic( $model, $system, array(), array( array( 'role' => 'user', 'content' => $user ) ) );
+        if ( isset( $body['error'] ) ) return array( 'error' => $body['error'] );
+        $text = '';
+        foreach ( (array) ( $body['content'] ?? array() ) as $b ) { if ( ( $b['type'] ?? '' ) === 'text' ) $text .= $b['text']; }
+        if ( preg_match( '/\{.*\}/s', $text, $m ) ) {
+            $j = json_decode( $m[0], true );
+            if ( ! empty( $j['metrics'] ) && is_array( $j['metrics'] ) ) {
+                $out = array();
+                foreach ( array_slice( $j['metrics'], 0, 6 ) as $mm ) {
+                    $out[] = array(
+                        'label'    => sanitize_text_field( $mm['label'] ?? '' ),
+                        'previous' => sanitize_text_field( $mm['previous'] ?? '' ),
+                        'current'  => sanitize_text_field( $mm['current'] ?? '' ),
+                        'target'   => sanitize_text_field( $mm['target'] ?? '' ),
+                        'note'     => sanitize_text_field( $mm['note'] ?? '' ),
+                    );
+                }
+                return array( 'metrics' => array_values( array_filter( $out, function ( $r ) { return $r['label'] !== ''; } ) ), 'has_live' => ! empty( $live ) );
+            }
+        }
+        return array( 'error' => 'Could not parse metric suggestions. Try again.' );
     }
 
     /** Percent-change lift between two snapshots for shared numeric fields. */
