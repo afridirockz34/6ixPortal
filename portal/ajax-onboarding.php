@@ -1728,6 +1728,9 @@ function six_google_login_complete() {
 add_action( 'wp_ajax_six_generate_growth_plan',        'six_ajax_generate_growth_plan' );
 add_action( 'wp_ajax_nopriv_six_generate_growth_plan', 'six_ajax_generate_growth_plan' );
 function six_ajax_generate_growth_plan() {
+    // The plan pulls live DataForSEO market intelligence + Claude, which can take
+    // longer than PHP's default 30s cap. Give it headroom so it never 500s midway.
+    @set_time_limit( 180 );
     $user_id = six_onboarding_resolve_user();
     if ( ! $user_id ) { wp_send_json_error('No user'); return; }
     error_log("6ix GrowthPlan: generating for user={$user_id}");
@@ -1739,11 +1742,13 @@ function six_ajax_generate_growth_plan() {
         'business_name' => sanitize_text_field( $_POST['bizname']     ?? '' ),
         'industry'      => sanitize_text_field( $_POST['industry']    ?? '' ),
         'location'      => sanitize_text_field( $_POST['location']    ?? '' ),
+        'website'       => esc_url_raw(          $_POST['website']    ?? '' ),
         'employees'     => sanitize_text_field( $_POST['employees']  ?? '' ),
         'monthly_revenue' => sanitize_text_field( $_POST['revenue']  ?? '' ),
         'challenge'     => sanitize_text_field( $_POST['challenge']  ?? '' ),
         'platforms'     => sanitize_text_field( $_POST['platforms']   ?? '' ),
         'ads_locations' => sanitize_text_field( $_POST['ads_loc']     ?? '' ),
+        'seo_locations' => sanitize_text_field( $_POST['seo_loc']     ?? '' ),
         'ads_keywords'  => sanitize_textarea_field( $_POST['ads_kw']  ?? '' ),
         'seo_keywords'  => sanitize_textarea_field( $_POST['seo_kw']  ?? '' ),
         'gbp_category'  => sanitize_text_field( $_POST['gbp_cat']     ?? '' ),
