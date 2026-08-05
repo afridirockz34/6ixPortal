@@ -2659,7 +2659,26 @@ function advCompleteOnboarding(clientId){
         </div>
         <?php endif;?>
 
-        
+        <!-- Pending Service Approvals -->
+        <?php if(!empty($pending_svcs)):?>
+        <div class="six-card" style="margin-bottom:16px">
+            <div class="six-card-header"><span class="six-card-title">Service Approvals <span style="font-size:11px;color:var(--warning);background:rgba(227,179,65,.12);padding:2px 8px;border-radius:10px;margin-left:4px"><?php echo count($pending_svcs);?></span></span></div>
+            <div class="six-card-body" style="padding:0">
+            <?php foreach($pending_svcs as $ps):
+                $ps_slug = $ps->service_slug ?? '';
+            ?>
+            <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border);flex-wrap:wrap">
+                <div style="flex:1;min-width:180px">
+                    <div style="font-size:13px;font-weight:600"><?php echo esc_html($ps->client_name);?></div>
+                    <div style="font-size:11px;color:var(--text3);margin-top:2px"><?php echo esc_html($ps->service_name);?> · $<?php echo number_format(floatval($ps->budget??0),0);?>/mo · <span style="color:var(--warning)">Pending</span></div>
+                </div>
+                <a href="?tab=clients&client=<?php echo intval($ps->client_id);?>&ctab=services" class="six-btn six-btn-ghost six-btn-sm" style="font-size:11px">Open client</a>
+                <button class="six-btn six-btn-primary six-btn-sm" onclick="sixApproveService(this,<?php echo intval($ps->id);?>,<?php echo intval($ps->client_id);?>)" style="font-size:11px">Approve Service</button>
+            </div>
+            <?php endforeach;?>
+            </div>
+        </div>
+        <?php endif;?>
 
         <?php if(!empty($budget_requests)):?>
         <div class="six-card">

@@ -1586,33 +1586,6 @@ $chart_json = json_encode(array(
 </div>
 <?php endif; ?>
 
-<!-- AI Upsell Opportunity card -->
-<div style="background:linear-gradient(135deg,var(--dark2),rgba(135,129,186,0.06));border:1px solid rgba(135,129,186,0.2);border-radius:14px;overflow:hidden;margin-bottom:20px;position:relative">
-    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#8781BA,var(--cyan))"></div>
-    <div style="padding:18px 20px;border-bottom:1px solid rgba(135,129,186,0.1);display:flex;align-items:center;justify-content:space-between">
-        <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:16px"></span>
-            <div>
-                <div style="font-size:13px;font-weight:700">Growth Opportunity Analysis</div>
-                <div style="font-size:10px;color:var(--text3)">AI-powered · Based on your <?php echo esc_html($sd['name']); ?> performance</div>
-            </div>
-            <span class="six-ai-badge">AI</span>
-        </div>
-        <div id="svc-upsell-action-<?php echo esc_attr($svc_slug); ?>" style="display:none">
-            <button class="six-btn six-btn-primary six-btn-sm six-request-opp"
-                    data-type="svc_upsell_<?php echo esc_attr($svc_slug); ?>"
-                    data-title="<?php echo esc_attr($sd['name']); ?> Growth Opportunity"
-                    data-card="svc-upsell-<?php echo esc_attr($svc_slug); ?>"
-                    style="font-size:11px">+ Add to Action Plan</button>
-        </div>
-    </div>
-    <div class="six-ai-body" id="svc-upsell-body-<?php echo esc_attr($svc_slug); ?>"
-         style="padding:16px 20px;font-size:13px;color:var(--text2);line-height:1.8;min-height:80px"
-         data-prompt="<?php echo esc_attr("You are a senior ".$sd['name']." growth strategist at 6ix Developers. Based on this client's performance, identify ONE specific upsell opportunity that would dramatically improve results. Business: ".$ai_business.", Industry: ".$ai_industry.", Budget: \$".number_format($cur_svc->budget,0)."/mo, Metrics: ".($svc_metrics_ctx?:"no metrics yet").". Available 6ix services not yet active: ".$missing_svcs.". Write exactly 3 sentences: (1) What the data shows is underperforming. (2) What adding or upgrading would achieve with a specific number. (3) End with: I recommend we discuss this in our next session. Be direct, no filler."); ?>">
-        <div class="six-ai-loading" style="padding:4px 0"><span class="six-ai-spinner"></span> <span style="font-size:12px;color:var(--text3)">Analysing your campaign performance…</span></div>
-    </div>
-</div>
-
 <!-- Advisor Recommendations -->
 <?php if(!empty($s_recs)): ?>
 <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px;max-width:100%;box-sizing:border-box">
