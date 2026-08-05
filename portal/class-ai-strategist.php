@@ -24,7 +24,11 @@ class Six_AI_Strategist {
     const MAX_TOOL_LOOPS = 6;
 
     // Deep, multi-step reasoning modes → Opus. Quick tasks → Sonnet.
-    private static $deep_modes = array( 'strategy', 'gads_audit', 'seo_audit', 'performance', 'chat' );
+    // Interactive chat uses the FAST model so replies come back in seconds, not
+    // minutes — the deep model (Opus) is reserved for the heavy Strategy/Audit
+    // modes the advisor triggers explicitly. Deep + 6 tool loops on every quick
+    // question was why chat sat on "Analysing…" for minutes.
+    private static $deep_modes = array( 'strategy', 'gads_audit', 'seo_audit', 'performance' );
 
     public static function model_for( $mode ) {
         $deep = get_option( 'six_ai_model_deep', 'claude-opus-5' );
