@@ -213,45 +213,74 @@
                     linear-gradient(90deg, rgba(106,202,253,.10) 1px, transparent 1px);
   background-size: 46px 46px; mask-image: radial-gradient(120% 90% at 70% 0%, #000 30%, transparent 75%);
 }
-/* Aurora lights — bold, slow, seamless drift on the top-right + bottom-left
-   glows. This is the hero's colour layer. Normal blending (not screen) so the
-   colour is guaranteed to read strongly over the dark hero, with the blob cores
-   pulled partly on-screen for a vivid first impression. */
+/* Aurora — Gemini-style flowing light. Saturated blue→indigo→magenta→pink
+   blobs that morph shape, rotate and drift on short, offset cycles for a
+   living, liquid-light feel, blended additively (screen) so they glow over
+   the dark hero. A warm accent bloom + a slow rotating colour-sheen are added
+   via pseudo-elements, so none of the 4 hero templates need markup changes. */
 .six-mk .mk-aurora { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-.six-mk .mk-aurora span { position: absolute; border-radius: 50%; filter: blur(70px); will-change: transform, opacity; }
-.six-mk .mk-aurora-a { /* top-right — purple */
-  top: -12%; right: -4%; width: 48%; height: 66%;
-  background: radial-gradient(circle at 50% 50%, rgba(180,96,255,.95), rgba(140,80,230,.55) 42%, transparent 70%);
-  animation: mkAuroraA 18s ease-in-out infinite alternate;
+.six-mk .mk-aurora span {
+  position: absolute; filter: blur(58px) saturate(1.25);
+  mix-blend-mode: screen; will-change: transform, border-radius, opacity;
 }
-.six-mk .mk-aurora-b { /* bottom-left — pink */
-  bottom: -14%; left: -6%; width: 46%; height: 62%;
-  background: radial-gradient(circle at 50% 50%, rgba(244,92,138,.9), rgba(200,72,150,.5) 44%, transparent 70%);
-  animation: mkAuroraB 23s ease-in-out infinite alternate;
+.six-mk .mk-aurora-a { /* blue → indigo, top-right */
+  top: -12%; right: -2%; width: 50%; height: 64%;
+  background: radial-gradient(circle at 50% 50%, rgba(80,150,255,.95), rgba(120,84,246,.55) 44%, transparent 70%);
+  border-radius: 60% 40% 55% 45%;
+  animation: mkAuroraA 12s ease-in-out infinite;
 }
-.six-mk .mk-aurora-c { /* mid — cyan depth accent */
-  top: 24%; left: 34%; width: 42%; height: 52%;
-  background: radial-gradient(circle at 50% 50%, rgba(74,158,205,.6), transparent 66%);
-  animation: mkAuroraC 28s ease-in-out infinite alternate;
+.six-mk .mk-aurora-b { /* magenta → pink, bottom-left */
+  bottom: -14%; left: -4%; width: 50%; height: 62%;
+  background: radial-gradient(circle at 50% 50%, rgba(240,80,170,.9), rgba(170,86,248,.5) 46%, transparent 70%);
+  border-radius: 45% 55% 50% 50%;
+  animation: mkAuroraB 14s ease-in-out infinite;
 }
-/* Larger drift + an opacity "breathing" pulse so the motion is clearly visible
-   on a big soft-blurred glow, while staying slow and seamless. */
+.six-mk .mk-aurora-c { /* cyan depth, mid */
+  top: 18%; left: 30%; width: 46%; height: 56%;
+  background: radial-gradient(circle at 50% 50%, rgba(40,190,235,.7), transparent 66%);
+  border-radius: 55% 45% 45% 55%;
+  animation: mkAuroraC 16s ease-in-out infinite;
+}
+.six-mk .mk-aurora::before { /* warm accent bloom */
+  content: ''; position: absolute; top: -6%; left: 8%; width: 38%; height: 48%;
+  background: radial-gradient(circle at 50% 50%, rgba(255,120,80,.5), transparent 66%);
+  filter: blur(64px); mix-blend-mode: screen; border-radius: 50%;
+  animation: mkAuroraD 13s ease-in-out infinite;
+}
+.six-mk .mk-aurora::after { /* slow conic sheen — the flowing-colour wash */
+  content: ''; position: absolute; inset: -25%;
+  background: conic-gradient(from 0deg at 50% 50%,
+    transparent 0deg, rgba(80,150,255,.16) 70deg, rgba(170,86,248,.18) 150deg,
+    rgba(240,80,170,.16) 230deg, rgba(40,190,235,.14) 310deg, transparent 360deg);
+  filter: blur(50px); mix-blend-mode: screen;
+  animation: mkAuroraSpin 22s linear infinite;
+}
+/* Morphing border-radius + rotation on a soft-blurred blob reads as flowing,
+   liquid light — the signature Gemini aurora movement. */
 @keyframes mkAuroraA {
-  0%   { transform: translate3d(0,0,0) scale(1);          opacity: .7; }
-  50%  { transform: translate3d(-17%,20%,0) scale(1.38);  opacity: 1;  }
-  100% { transform: translate3d(13%,-11%,0) scale(1.12);  opacity: .72; }
+  0%,100% { transform: translate3d(0,0,0) scale(1) rotate(0deg);         border-radius: 60% 40% 55% 45%; opacity: .85; }
+  33%     { transform: translate3d(-13%,16%,0) scale(1.28) rotate(70deg);  border-radius: 45% 55% 42% 58%; opacity: 1;   }
+  66%     { transform: translate3d(11%,-9%,0) scale(1.12) rotate(-40deg);  border-radius: 55% 45% 60% 40%; opacity: .9;  }
 }
 @keyframes mkAuroraB {
-  0%   { transform: translate3d(0,0,0) scale(1.1);        opacity: .6; }
-  50%  { transform: translate3d(20%,-16%,0) scale(1.42);  opacity: .96; }
-  100% { transform: translate3d(-13%,13%,0) scale(1);     opacity: .58; }
+  0%,100% { transform: translate3d(0,0,0) scale(1.05) rotate(0deg);        border-radius: 45% 55% 50% 50%; opacity: .8;  }
+  33%     { transform: translate3d(16%,-14%,0) scale(1.32) rotate(-60deg);  border-radius: 58% 42% 45% 55%; opacity: 1;   }
+  66%     { transform: translate3d(-11%,12%,0) scale(1.1) rotate(40deg);    border-radius: 42% 58% 55% 45%; opacity: .82; }
 }
 @keyframes mkAuroraC {
-  0%   { transform: translate3d(0,0,0) scale(1);          opacity: .3; }
-  50%  { transform: translate3d(12%,14%,0) scale(1.4);    opacity: .72; }
-  100% { transform: translate3d(-12%,-11%,0) scale(1.14); opacity: .28; }
+  0%,100% { transform: translate3d(0,0,0) scale(1) rotate(0deg);        opacity: .5; }
+  50%     { transform: translate3d(12%,12%,0) scale(1.3) rotate(50deg);   opacity: .8; }
 }
-@media (prefers-reduced-motion: reduce) { .six-mk .mk-aurora span { animation: none; } }
+@keyframes mkAuroraD {
+  0%,100% { transform: translate3d(0,0,0) scale(1);        opacity: .4; }
+  50%     { transform: translate3d(14%,10%,0) scale(1.3);   opacity: .7; }
+}
+@keyframes mkAuroraSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .six-mk .mk-aurora span,
+  .six-mk .mk-aurora::before,
+  .six-mk .mk-aurora::after { animation: none; }
+}
 .six-mk .mk-hero .mk-wrap { position: relative; z-index: 1; }
 .six-mk .mk-hero-inner { max-width: 880px; }
 .six-mk .mk-hero h1 { color: #fff; margin-bottom: 16px; }
