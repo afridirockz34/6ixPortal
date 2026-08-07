@@ -236,6 +236,45 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
 
     <main class="six-main">
 
+    <script>
+    /* Shared Markdown → HTML renderer for ALL AI output (chat, insights,
+       strategy/audit) so tables render as real tables everywhere instead of
+       raw pipe text. Defined before any tab branch so every later script can
+       use it. Handles: headings, bold, inline code, bullet/numbered lists,
+       and GitHub-style pipe tables. */
+    window.sixRenderMd = function(t){
+        if(t==null) return '';
+        function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        function inline(s){ return s.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/`(.+?)`/g,'<code>$1</code>'); }
+        function isSep(s){ return /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/.test(s); }
+        function cells(s){ return s.trim().replace(/^\|/,'').replace(/\|\s*$/,'').split(/(?<!\\)\|/).map(function(c){ return inline(c.trim().replace(/\\\|/g,'|')); }); }
+        var lines = esc(t).split('\n'), out=[], inUl=false, inOl=false;
+        function closeLists(){ if(inUl){out.push('</ul>');inUl=false;} if(inOl){out.push('</ol>');inOl=false;} }
+        for(var i=0;i<lines.length;i++){
+            var l=lines[i];
+            // ── Pipe table: header row followed by a |---|---| separator ──
+            if(/^\s*\|.*\|/.test(l) && i+1<lines.length && isSep(lines[i+1])){
+                closeLists();
+                var head=cells(l); i+=2; var rows=[];
+                while(i<lines.length && /^\s*\|/.test(lines[i]) && lines[i].indexOf('|',1)>-1){ rows.push(cells(lines[i])); i++; }
+                i--;
+                var th='<tr>'+head.map(function(c){ return '<th style="text-align:left;padding:7px 11px;border-bottom:2px solid var(--border);font-size:10.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;white-space:nowrap">'+c+'</th>'; }).join('')+'</tr>';
+                var tb=rows.map(function(r,ri){ return '<tr style="background:'+(ri%2?'transparent':'rgba(255,255,255,.02)')+'">'+r.map(function(c){ return '<td style="padding:7px 11px;border-bottom:1px solid var(--border);font-size:12.5px;line-height:1.5;vertical-align:top">'+c+'</td>'; }).join('')+'</tr>'; }).join('');
+                out.push('<div style="overflow-x:auto;margin:10px 0;border:1px solid var(--border);border-radius:10px"><table style="border-collapse:collapse;width:100%;min-width:320px">'+th+tb+'</table></div>');
+                continue;
+            }
+            l=inline(l);
+            if(/^\s*#{1,4}\s+/.test(l)){ closeLists(); out.push('<div style="font-weight:700;color:var(--text1);margin:10px 0 4px">'+l.replace(/^\s*#{1,4}\s+/,'')+'</div>'); continue; }
+            if(/^\s*[-*•]\s+/.test(l)){ if(!inUl){closeLists();out.push('<ul style="margin:4px 0 4px 18px;padding:0">');inUl=true;} out.push('<li style="margin:2px 0">'+l.replace(/^\s*[-*•]\s+/,'')+'</li>'); continue; }
+            if(/^\s*\d+[.)]\s+/.test(l)){ if(!inOl){closeLists();out.push('<ol style="margin:4px 0 4px 20px;padding:0">');inOl=true;} out.push('<li style="margin:2px 0">'+l.replace(/^\s*\d+[.)]\s+/,'')+'</li>'); continue; }
+            closeLists();
+            if(l.trim()==='') out.push('<div style="height:6px"></div>'); else out.push('<div>'+l+'</div>');
+        }
+        closeLists();
+        return out.join('');
+    };
+    </script>
+
     <?php /* ════════════ OVERVIEW / MISSION CONTROL ════════════ */ if($active_tab==='overview'):
         // Build client data for overview
         $clients_attention = array();
@@ -1193,22 +1232,9 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         var state = { threadId:0, mode:'chat', busy:false };
 
         function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-        // Minimal markdown → HTML (headings, bold, bullets, numbered, line breaks)
-        function md(t){
-            var lines = esc(t).split('\n'), out=[], inUl=false, inOl=false;
-            function closeLists(){ if(inUl){out.push('</ul>');inUl=false;} if(inOl){out.push('</ol>');inOl=false;} }
-            for(var i=0;i<lines.length;i++){
-                var l=lines[i];
-                l=l.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/`(.+?)`/g,'<code>$1</code>');
-                if(/^\s*#{1,4}\s+/.test(l)){ closeLists(); out.push('<div style="font-weight:700;color:var(--text1);margin:10px 0 4px">'+l.replace(/^\s*#{1,4}\s+/,'')+'</div>'); continue; }
-                if(/^\s*[-*•]\s+/.test(l)){ if(!inUl){closeLists();out.push('<ul style="margin:4px 0 4px 18px;padding:0">');inUl=true;} out.push('<li style="margin:2px 0">'+l.replace(/^\s*[-*•]\s+/,'')+'</li>'); continue; }
-                if(/^\s*\d+[.)]\s+/.test(l)){ if(!inOl){closeLists();out.push('<ol style="margin:4px 0 4px 20px;padding:0">');inOl=true;} out.push('<li style="margin:2px 0">'+l.replace(/^\s*\d+[.)]\s+/,'')+'</li>'); continue; }
-                closeLists();
-                if(l.trim()==='') out.push('<div style="height:6px"></div>'); else out.push('<div>'+l+'</div>');
-            }
-            closeLists();
-            return out.join('');
-        }
+        // AI chat markdown → HTML via the shared renderer (tables, headings,
+        // bold, code, lists) so output is consistent with every other AI surface.
+        function md(t){ return window.sixRenderMd ? window.sixRenderMd(t) : esc(t||'').replace(/\n/g,'<br>'); }
 
         function hideEmpty(){ var e=document.getElementById('ai-chat-empty'); if(e) e.style.display='none'; }
 
@@ -3793,18 +3819,9 @@ document.querySelectorAll('.six-ai-suggest-btn').forEach(function(btn) {
         .then(function(d){
             if (loading) loading.style.display = 'none';
             if (d && d.success && d.data && d.data.text) {
-                var text = d.data.text
-                    .replace(/^#{1,3}\s+(.+)$/gm, '<strong>$1</strong>')
-                    .replace(/[→\-\*]+\s*\*\*(.*?)\*\*:?\s*/g, '<li><strong>$1</strong>: ')
-                    .replace(/[→]+\s*/g, '<li>')
-                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                    .replace(/\n\n/g, '</p><p style="margin:8px 0 0">').replace(/\n/g, '<br>');
-                if (text.indexOf('<li>') !== -1) {
-                    text = '<ul style="padding-left:18px;margin:6px 0;line-height:1.85">' + text + '</ul>';
-                    text = text.replace(/<li>([\s\S]*?)(?=<li>|<\/ul>)/g, '<li>$1</li>');
-                } else {
-                    text = '<p style="margin:0">' + text + '</p>';
-                }
+                // Shared renderer → tables, headings, bold, lists (consistent with AI chat).
+                var text = window.sixRenderMd ? window.sixRenderMd(d.data.text)
+                    : String(d.data.text).replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
                 if (textEl)  textEl.innerHTML = text;
                 if (titleEl) titleEl.value = type.replace(/_/g,' ').replace(/\b\w/g,function(l){return l.toUpperCase();});
                 if (output)  output.style.display = 'block';
