@@ -1471,6 +1471,7 @@ window.OB={
       ch.addEventListener('click',function(){this.classList.toggle('sel');});
     });
     if(slug==='google-ads'&&S.q.gads_running==='yes')OB._restoreGadsAudit();
+    OB._restoreSvcData(slug);   // repopulate saved answers so back/forward never loses data
     $i('s3b-back-btn').textContent=idx===0?'← Back':('← '+(meta[S.svcs[idx-1]]||{name:S.svcs[idx-1]}).name);
     var isLast=idx===S.svcs.length-1;
     $i('s3b-next-btn').textContent=isLast?'Final Details →':('Next: '+(meta[S.svcs[idx+1]]||{name:S.svcs[idx+1]}).name+' →');
@@ -1511,11 +1512,75 @@ window.OB={
       var b=$i('q-gbp-bud');S.budgets[slug]=b?parseInt(b.value):0;
       S.q.gbp_name=v('q-gbp-name');S.q.gbp_cat=v('q-gbp-cat');
       S.q.gbp_svcs=v('q-gbp-svcs');S.q.gbp_rating=v('q-gbp-rating');
+      S.q.gbp_hrs=getHoursVal('gbp');   // hours widget was previously never collected
     } else if(slug==='website'){
       var b=$i('q-web-bud');S.budgets[slug]=b?parseInt(b.value):0;
       S.q.web_goal=chips('q-web-goal').join(',');
       S.q.web_pages=v('q-web-pages');S.q.web_style=chips('q-web-style').join(',');
       S.q.web_refs=v('q-web-refs');S.q.web_exist=togVal('q-web-exist');
+    }
+  },
+
+  // Re-populate a freshly-rebuilt service pane from S.q so answers survive
+  // back/forward navigation between services. buildPane() emits empty fields
+  // and the sliders default — without this, revisiting a service showed blank
+  // inputs and the next collect overwrote the saved answers (incl. budget).
+  // Shared answers (location, USP, business name) carry over between services
+  // so the visitor never re-types the same thing.
+  _restoreSvcData:function(slug){
+    var q=S.q;
+    var setV=function(id,val){var e=$i(id);if(e&&val!=null&&val!=='')e.value=val;};
+    var setSlider=function(id,val){var e=$i(id);if(e&&val){e.value=val;OB.sl(e);}};
+    var setTags=function(id,csv){
+      var wrap=$i(id+'-wrap');if(!wrap||!csv)return;var inp=$i(id+'-inp');
+      csv.split(',').map(function(s){return s.trim();}).filter(Boolean).forEach(function(val){
+        var tag=document.createElement('div');tag.className='ob-tag';tag.dataset.v=val;
+        tag.innerHTML=val+'<button class="ob-tag-del" onclick="this.parentNode.remove()">&times;</button>';
+        wrap.insertBefore(tag,inp);
+      });
+    };
+    var setChips=function(cid,csv){
+      if(!csv)return;var set=csv.split(',').map(function(s){return s.trim();});
+      document.querySelectorAll('#'+cid+' .ob-chip').forEach(function(c){ if(set.indexOf(c.dataset.v)>-1)c.classList.add('sel'); });
+    };
+    var setTog=function(id,val){ if(val!=='yes'&&val!=='no')return; var b=document.querySelector('[data-tog="'+id+'"][data-val="'+val+'"]'); if(b)OB.tog(b,val); };
+    var setHours=function(pfx,csv){
+      var wrap=$i('q-'+pfx+'-hrs');if(!wrap||!csv)return;
+      var days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],map={};
+      csv.split(',').forEach(function(p){var kv=p.split(':');if(kv.length===2)map[kv[0].trim()]=kv[1].trim();});
+      wrap.querySelectorAll('.ob-hr-day').forEach(function(day,i){
+        var slot=map[days[i]],btns=day.querySelectorAll('.ob-hr-btn');
+        btns.forEach(function(b){b.classList.remove('on');});
+        if(slot==='All day'){if(btns[0])btns[0].classList.add('on');if(btns[1])btns[1].classList.add('on');}
+        else if(slot==='AM'){if(btns[0])btns[0].classList.add('on');}
+        else if(slot==='PM'){if(btns[1])btns[1].classList.add('on');}
+      });
+    };
+    if(slug==='google-ads'){
+      setSlider('q-ads-bud',S.budgets['google-ads']);
+      setV('q-ads-loc',q.ads_loc);setV('q-ads-prod',q.ads_prod);
+      setTags('q-ads-kw',q.ads_kw);
+      setV('q-ads-usp',q.ads_usp);setV('q-ads-promo',q.ads_promo);
+    } else if(slug==='seo'){
+      setSlider('q-seo-bud',S.budgets['seo']);
+      setV('q-seo-pages',q.seo_pages);
+      setV('q-seo-loc',q.seo_loc||q.ads_loc);          // same market as ads — carry over
+      setTags('q-seo-kw',q.seo_kw);
+      setV('q-seo-usp',q.seo_usp||q.ads_usp);          // same USP as ads — carry over
+      setTog('q-seo-gsc',q.seo_gsc);setTog('q-seo-blog',q.seo_blog);
+      setV('q-seo-extra',q.seo_extra);
+    } else if(slug==='google-business'){
+      setSlider('q-gbp-bud',S.budgets['google-business']);
+      setV('q-gbp-name',q.gbp_name||q.bizname);        // prefill from business name
+      setV('q-gbp-cat',q.gbp_cat);setV('q-gbp-svcs',q.gbp_svcs||q.ads_prod);
+      setV('q-gbp-rating',q.gbp_rating);
+      setHours('gbp',q.gbp_hrs);
+    } else if(slug==='website'){
+      setSlider('q-web-bud',S.budgets['website']);
+      setChips('q-web-goal',q.web_goal);
+      setV('q-web-pages',q.web_pages);
+      setChips('q-web-style',q.web_style);
+      setV('q-web-refs',q.web_refs);setTog('q-web-exist',q.web_exist);
     }
   },
 
@@ -1843,6 +1908,7 @@ window.OB={
     var e=$i('s1-email');if(e&&S.email)e.value=S.email;
     if(S.userId)post({action:'six_save_checkout_step',step:n,user_id:S.userId});
     if(typeof GE!=='undefined')GE.onStep(n);
+    if(n===5)OB._initStep5();   // advisor card + call-time chips (also on resume)
 
     // ── Restore field values when navigating back ─────────────────────────
     var q=S.q;
@@ -1921,11 +1987,20 @@ window.OB={
     OB.goStep('3c');
   },
 
-  // Step 4 forward button — proceed to agreement
+  // Step 4 forward button — proceed to agreement. goStep(5) now runs the
+  // step-5 init, so this also works when a visitor resumes directly at step 5.
   doStep4:function(){
     OB.goStep(5);
+  },
+
+  // Step-5 init: load the advisor card and bind the call-time chip picker.
+  // Called from goStep(5) so it runs on both forward navigation and resume
+  // (previously only doStep4 did this, so a resume left the advisor card stuck
+  // on "Loading…" and the call-time chips unclickable → call path unusable).
+  _initStep5:function(){
     OB.loadAdvisor();
-    // Init chip listeners for schedule call time picker
+    if(OB.__step5bound) return;
+    OB.__step5bound=true;
     setTimeout(function(){
       document.querySelectorAll('#ob-call-time .ob-chip').forEach(function(ch){
         ch.addEventListener('click',function(){
@@ -1933,7 +2008,7 @@ window.OB={
           ch.classList.add('sel');
         });
       });
-    },150);
+    },120);
   },
 
   // ── Login: show back button after email entered ──────────────────────────
