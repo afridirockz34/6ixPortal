@@ -1559,13 +1559,13 @@ window.OB={
     if(slug==='google-ads'){
       setSlider('q-ads-bud',S.budgets['google-ads']);
       setV('q-ads-loc',q.ads_loc);setV('q-ads-prod',q.ads_prod);
-      setTags('q-ads-kw',q.ads_kw);
+      setTags('q-ads-kw',q.ads_kw||q.seo_kw);          // unified keywords — carry from seo
       setV('q-ads-usp',q.ads_usp);setV('q-ads-promo',q.ads_promo);
     } else if(slug==='seo'){
       setSlider('q-seo-bud',S.budgets['seo']);
       setV('q-seo-pages',q.seo_pages);
       setV('q-seo-loc',q.seo_loc||q.ads_loc);          // same market as ads — carry over
-      setTags('q-seo-kw',q.seo_kw);
+      setTags('q-seo-kw',q.seo_kw||q.ads_kw);          // unified keywords — carry from ads
       setV('q-seo-usp',q.seo_usp||q.ads_usp);          // same USP as ads — carry over
       setTog('q-seo-gsc',q.seo_gsc);setTog('q-seo-blog',q.seo_blog);
       setV('q-seo-extra',q.seo_extra);
