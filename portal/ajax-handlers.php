@@ -45,6 +45,24 @@ add_action( 'wp_ajax_six_mark_all_notifications_read', function() {
     wp_send_json_success();
 } );
 
+// Live toast polling — returns the current user's notifications newer than
+// since_id (newest first, capped) plus the unread count. The dashboard polls
+// this every ~30s while its tab is visible and pops new ones as toasts.
+add_action( 'wp_ajax_six_poll_notifications', function() {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    $uid = get_current_user_id();
+    if ( ! $uid ) wp_send_json_error( 'Not logged in' );
+    global $wpdb;
+    $t     = $wpdb->prefix . 'six_notifications';
+    $since = intval( $_POST['since_id'] ?? 0 );
+    $rows  = $wpdb->get_results( $wpdb->prepare(
+        "SELECT id, type, title, message, is_read, created_at FROM {$t} WHERE user_id=%d AND id > %d ORDER BY id DESC LIMIT 8",
+        $uid, $since ), ARRAY_A );
+    $unread = intval( $wpdb->get_var( $wpdb->prepare(
+        "SELECT COUNT(*) FROM {$t} WHERE user_id=%d AND is_read=0", $uid ) ) );
+    wp_send_json_success( array( 'items' => $rows ?: array(), 'unread' => $unread ) );
+} );
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PROFILE SAVE
 // ─────────────────────────────────────────────────────────────────────────────
