@@ -1553,6 +1553,60 @@ add_action( 'wp_ajax_six_test_client_datasource', function() {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// COMPETITOR ANALYSIS — DataForSEO competitor domains, one run per month,
+// persisted so the table stays populated between visits.
+// ─────────────────────────────────────────────────────────────────────────────
+add_action( 'wp_ajax_six_competitor_analysis', function() {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    $uid = get_current_user_id();
+    if ( ! $uid ) wp_send_json_error( 'Not logged in' );
+
+    $window = 30 * DAY_IN_SECONDS;
+    $last   = intval( get_user_meta( $uid, 'six_comp_analysis_at', true ) );
+    $saved  = get_user_meta( $uid, 'six_comp_analysis_data', true );
+
+    // Once a month: return the saved snapshot instead of spending another run.
+    if ( $last && ( time() - $last ) < $window && ! empty( $saved ) ) {
+        wp_send_json_success( array( 'locked' => true, 'ran_at' => $last, 'next_at' => $last + $window, 'data' => $saved ) );
+    }
+    if ( ! class_exists( 'Six_DataForSEO' ) ) wp_send_json_error( 'Competitor data source is not configured.' );
+
+    $domain = class_exists( 'Six_AI_Strategist' ) ? Six_AI_Strategist::client_domain( $uid ) : '';
+    if ( ! $domain ) {
+        global $wpdb;
+        $w = $wpdb->get_var( $wpdb->prepare( "SELECT website FROM {$wpdb->prefix}six_checkout_progress WHERE user_id=%d", $uid ) );
+        $domain = $w ? preg_replace( '/^www\./', '', parse_url( $w, PHP_URL_HOST ) ?: $w ) : '';
+    }
+    if ( ! $domain ) wp_send_json_error( 'Add your website URL in your profile first, then run the analysis.' );
+
+    $loc = class_exists( 'Six_AI_Strategist' ) ? Six_AI_Strategist::target_location( $uid ) : '';
+    $res = Six_DataForSEO::competitors( $domain, $loc, 12 );
+    if ( isset( $res['error'] ) ) wp_send_json_error( $res['error'] );
+
+    $rows = array();
+    foreach ( (array) ( $res['competitors'] ?? array() ) as $c ) {
+        $d = $c['domain'] ?? '';
+        if ( ! $d || $d === $domain ) continue;
+        $visits   = intval( $c['organic_traffic'] );
+        $keywords = intval( $c['organic_keywords'] );
+        $shared   = intval( $c['common_keywords'] );
+        if     ( $shared >= 50 && $visits >= 1000 ) $insight = 'Direct rival — high keyword overlap and strong traffic';
+        elseif ( $shared >= 50 )                    $insight = 'Direct competitor — competes for many of your keywords';
+        elseif ( $visits >= 5000 )                  $insight = 'Market leader — a large footprint to learn from';
+        elseif ( $shared > 0 )                      $insight = 'Partial overlap — competes on some terms';
+        else                                        $insight = 'Adjacent player';
+        $rows[] = array( 'domain' => $d, 'visits' => $visits, 'keywords' => $keywords, 'shared' => $shared, 'insight' => $insight );
+        if ( count( $rows ) >= 10 ) break;
+    }
+    if ( empty( $rows ) ) wp_send_json_error( 'No competitor data found for ' . $domain . ' yet — your advisor can refine your target keywords.' );
+
+    $data = array( 'domain' => $domain, 'rows' => $rows, 'ran_at' => time() );
+    update_user_meta( $uid, 'six_comp_analysis_data', $data );
+    update_user_meta( $uid, 'six_comp_analysis_at', time() );
+    wp_send_json_success( array( 'locked' => false, 'ran_at' => time(), 'next_at' => time() + $window, 'data' => $data ) );
+} );
+
+// ─────────────────────────────────────────────────────────────────────────────
 // SAVE MULTIPLE META IDS PER CLIENT
 // ─────────────────────────────────────────────────────────────────────────────
 add_action( 'wp_ajax_six_save_client_datasources', function() {
