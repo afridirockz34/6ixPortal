@@ -2632,9 +2632,11 @@ function advCompleteOnboarding(clientId){
         <?php endif;?>
         <script>
         function markNotifRead(id,btn){
+            // Action + param must match the registered handler (six_mark_notif_read / notif_id);
+            // the old six_mark_notification_read action didn't exist, so nothing happened.
             fetch(AJAX,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
-                body:new URLSearchParams({action:'six_mark_notification_read',nonce:NONCE,notification_id:id})
-            }).then(r=>r.json()).then(d=>{if(d.success){var row=btn.closest('[data-notif-id]');if(row)row.style.background='';btn.remove();}});
+                body:new URLSearchParams({action:'six_mark_notif_read',nonce:NONCE,notif_id:id})
+            }).then(r=>r.json()).then(d=>{if(d&&d.success){var row=btn.closest('[data-notif-id]');if(row){row.style.background='';var dot=row.querySelector('div');}btn.remove();}});
         }
         var _mar=document.getElementById('mark-all-read');
         if(_mar)_mar.addEventListener('click',function(){
@@ -3678,27 +3680,26 @@ document.querySelectorAll('.six-delete-rec').forEach(function(btn){
     });
 });
 
-// ── Report upload (file or URL) ──────────────────────────────────────────────
-var saveReport=document.getElementById('save-report');
-if(saveReport) saveReport.addEventListener('click',function(){
-    var title=(document.getElementById('rpt-title')||{}).value;
-    if(!title){document.getElementById('report-result').innerHTML='<span style="color:var(--danger)">Enter a title.</span>';return;}
-    var method=(document.querySelector('input[name="rpt-method"]:checked')||{}).value||'url';
-    var formData=new FormData();
-    formData.append('action','six_upload_report');
-    formData.append('nonce',NONCE);
-    formData.append('client_id',this.dataset.client);
-    formData.append('title',title);
-    formData.append('period',(document.getElementById('rpt-period')||{}).value||'');
-    if(method==='file'){var f=(document.getElementById('rpt-file')||{}).files;if(f&&f[0])formData.append('report_file',f[0]);}
-    else{formData.append('url',(document.getElementById('rpt-url')||{}).value||'');}
-    this.textContent='Uploading…';this.disabled=true;
-    fetch(AJAX,{method:'POST',body:formData}).then(function(r){return r.json();}).then(function(res){
-        document.getElementById('report-result').innerHTML=res.success
-            ?'<span style="color:var(--success)">Report published!</span>'
-            :'<span style="color:var(--danger)">'+(res.data||'Upload failed')+'</span>';
-        saveReport.textContent=' Publish Report';saveReport.disabled=false;
-    });
+// ── Report upload — binds to the actual button (upload-report-btn) and the
+// fields that exist (rpt-title, rpt-file, rpt-result). The old handler targeted
+// ids that were never rendered, so the button did nothing.
+var uploadReportBtn=document.getElementById('upload-report-btn');
+if(uploadReportBtn) uploadReportBtn.addEventListener('click',function(){
+    var res=document.getElementById('rpt-result');
+    var title=(document.getElementById('rpt-title')||{}).value||'';
+    if(!title.trim()){ if(res)res.innerHTML='<span style="color:var(--danger)">Enter a report title.</span>'; return; }
+    var files=(document.getElementById('rpt-file')||{}).files;
+    if(!files||!files[0]){ if(res)res.innerHTML='<span style="color:var(--danger)">Choose a file to upload.</span>'; return; }
+    var fd=new FormData();
+    fd.append('action','six_upload_report'); fd.append('nonce',NONCE);
+    fd.append('client_id',this.dataset.client); fd.append('title',title);
+    fd.append('report_file',files[0]);
+    var self=this; self.textContent='Uploading…'; self.disabled=true; if(res)res.textContent='';
+    fetch(AJAX,{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
+        self.textContent='Upload Report'; self.disabled=false;
+        if(d&&d.success){ if(res)res.innerHTML='<span style="color:var(--success)">Report published — the customer has been notified.</span>'; setTimeout(function(){location.reload();},900); }
+        else if(res){ res.innerHTML='<span style="color:var(--danger)">'+((d&&d.data)||'Upload failed')+'</span>'; }
+    }).catch(function(){ self.textContent='Upload Report'; self.disabled=false; if(res)res.innerHTML='<span style="color:var(--danger)">Network error.</span>'; });
 });
 
 // ── Google Ads: save Customer ID ─────────────────────────────────────────────

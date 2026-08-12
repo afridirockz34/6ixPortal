@@ -1104,6 +1104,19 @@ $ds_defs = array(
 );
 // Search Console is handled by the advisor from their side (using the website
 // the customer already provided), so it is intentionally not shown here.
+// Show ONLY the data sources relevant to the customer's active services — an
+// SEO-only client should not be asked to connect Google Ads or Meta.
+$ds_relevance = array(
+    'ga4'  => array( 'seo', 'google-ads', 'website' ),  // traffic analytics
+    'gads' => array( 'google-ads' ),
+    'meta' => array( 'google-ads' ),                    // paid-ads clients only
+    'gbp'  => array( 'google-business' ),
+);
+if ( ! empty( $active_svc_slugs ) ) {
+    $ds_defs = array_filter( $ds_defs, function ( $k ) use ( $ds_relevance, $active_svc_slugs ) {
+        return (bool) array_intersect( $ds_relevance[ $k ] ?? array(), $active_svc_slugs );
+    }, ARRAY_FILTER_USE_KEY );
+}
 $ds_connected = 0;
 foreach ( $ds_defs as $d ) { if ( get_user_meta($user_id,$d['meta'],true) ) $ds_connected++; }
 $ds_total = count($ds_defs);
