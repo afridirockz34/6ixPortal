@@ -734,6 +734,29 @@ add_action( 'wp_ajax_six_book_meeting', function() {
     wp_send_json_error( $result['error'] ?? 'Could not book meeting.' );
 } );
 
+// Advisor books a meeting WITH a client from the client profile. Same unified
+// path as the customer booking (persists, creates the Google Calendar event +
+// Meet link, emails both parties) — just with the client and advisor supplied.
+add_action( 'wp_ajax_six_adv_book_meeting', function() {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+    if ( ! class_exists( 'Six_Appointments' ) ) wp_send_json_error( 'Booking unavailable.' );
+    $client_id = intval( $_POST['client_id'] ?? 0 );
+    $start     = sanitize_text_field( $_POST['start'] ?? '' );
+    if ( ! $client_id ) wp_send_json_error( 'Missing client.' );
+    if ( ! $start )     wp_send_json_error( 'Please pick a time.' );
+    $result = Six_Appointments::create( array(
+        'client_id'  => $client_id,
+        'advisor_id' => get_current_user_id(),
+        'start'      => $start,
+        'duration'   => intval( $_POST['duration'] ?? 30 ),
+        'notes'      => sanitize_textarea_field( $_POST['notes'] ?? '' ),
+        'source'     => 'advisor',
+    ) );
+    if ( ! empty( $result['success'] ) ) wp_send_json_success( $result );
+    wp_send_json_error( $result['error'] ?? 'Could not book meeting.' );
+} );
+
 // ─────────────────────────────────────────────────────────────────────────────
 // GOOGLE ADS — MCC / Manager Account
 // ─────────────────────────────────────────────────────────────────────────────
