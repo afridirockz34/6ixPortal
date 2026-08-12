@@ -4273,3 +4273,69 @@ if(clearBtn){clearBtn.addEventListener('click',function(){
 })();
 })();
 </script>
+
+<!-- ── Live toast notifications (customer activity, macOS-style) ─────────── -->
+<script>
+(function(){
+  if(typeof post!=='function'||typeof NONCE==='undefined') return;
+  var ADV=<?php echo intval($advisor_id); ?>;
+  var LSK='six_notif_since_'+ADV;
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  var WRAP=document.createElement('div');
+  WRAP.style.cssText='position:fixed;top:16px;right:16px;z-index:99999;display:flex;flex-direction:column;gap:10px;width:340px;max-width:calc(100vw - 32px);pointer-events:none';
+  document.body.appendChild(WRAP);
+  function meta(t){
+    var m={
+      service_request:{c:'#4285F4',label:'Service request',tab:'?tab=approvals'},
+      budget_change:{c:'#E3B341',label:'Budget change',tab:'?tab=approvals'},
+      budget_request:{c:'#E3B341',label:'Budget change',tab:'?tab=approvals'},
+      call_request:{c:'#6366f1',label:'Call requested',tab:'?tab=approvals'},
+      call_requested:{c:'#6366f1',label:'Call requested',tab:'?tab=approvals'},
+      meeting_booked:{c:'#6ACAFD',label:'Meeting booked',tab:'?tab=calendar'},
+      message:{c:'#FF6699',label:'New message',tab:'?tab=messages'},
+      report_uploaded:{c:'#56D364',label:'Report',tab:'?tab=clients'},
+      onboarding_complete:{c:'#56D364',label:'New customer',tab:'?tab=clients'},
+      service_approved:{c:'#56D364',label:'Service',tab:'?tab=clients'},
+      data_source:{c:'#4285F4',label:'Data source',tab:'?tab=clients'},
+      data_source_connected:{c:'#4285F4',label:'Data source',tab:'?tab=clients'}
+    };
+    return m[t]||{c:'#8a8a99',label:'Update',tab:'?tab=notifications'};
+  }
+  function toast(n){
+    var mt=meta(n.type);
+    var el=document.createElement('div');
+    el.style.cssText='pointer-events:auto;background:var(--dark2,#15151c);border:1px solid var(--border,#2a2a35);border-left:3px solid '+mt.c+';border-radius:12px;padding:12px 14px;box-shadow:0 10px 34px rgba(0,0,0,.4);display:flex;gap:10px;align-items:flex-start;transform:translateX(120%);opacity:0;transition:transform .35s cubic-bezier(.2,.8,.2,1),opacity .35s;cursor:pointer';
+    el.innerHTML='<div style="flex:1;min-width:0">'
+      +'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:'+mt.c+';margin-bottom:2px">'+esc(mt.label)+'</div>'
+      +'<div style="font-size:13px;font-weight:600;color:var(--text1,#fff);margin-bottom:2px">'+esc(n.title||'Update')+'</div>'
+      +'<div style="font-size:12px;color:var(--text3,#8a8a99);line-height:1.45;max-height:54px;overflow:hidden">'+esc(n.message||'')+'</div></div>'
+      +'<button class="tc" aria-label="Dismiss" style="background:none;border:none;color:var(--text3,#8a8a99);font-size:17px;line-height:1;cursor:pointer;flex-shrink:0;padding:0 2px">&times;</button>';
+    WRAP.appendChild(el);
+    requestAnimationFrame(function(){ el.style.transform='translateX(0)'; el.style.opacity='1'; });
+    var done=false;
+    function dismiss(mark){ if(done)return; done=true; el.style.transform='translateX(120%)'; el.style.opacity='0'; setTimeout(function(){el.remove();},350); if(mark&&n.id) post({action:'six_mark_notif_read',notif_id:n.id}); }
+    el.querySelector('.tc').addEventListener('click',function(e){ e.stopPropagation(); dismiss(true); });
+    el.addEventListener('click',function(){ dismiss(true); window.location.href=mt.tab; });
+    setTimeout(function(){ dismiss(false); }, 9000);
+  }
+  function poll(){
+    if(document.hidden) return;
+    var had=localStorage.getItem(LSK);
+    var since=parseInt(had||'0',10)||0;
+    post({action:'six_poll_notifications',since_id:since}).then(function(r){
+      if(!(r&&r.success&&r.data)) return;
+      var items=r.data.items||[];
+      if(items.length){
+        localStorage.setItem(LSK,String(items[0].id));
+        // Seed silently on the first visit (had===null) so we don't replay the
+        // backlog; toast only genuinely new items after that (oldest first so
+        // the newest ends up on top).
+        if(had!=null){ items.slice().reverse().forEach(function(n){ if(!parseInt(n.is_read,10)) toast(n); }); }
+      }
+    }).catch(function(){});
+  }
+  poll();
+  setInterval(poll, 30000);
+  document.addEventListener('visibilitychange',function(){ if(!document.hidden) poll(); });
+})();
+</script>

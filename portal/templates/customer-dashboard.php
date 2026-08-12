@@ -1332,9 +1332,21 @@ $has_data = $domain || $ai_industry || ($checkout->competitors ?? '');
 $saved_comps = array_filter(array_map('trim', explode(',', $checkout->competitors ?? '')));
 $ctx     = "Business: {$ai_business}, Industry: {$ai_industry}, Website: ".($domain?:'not set').", Location: ".($checkout->location??'not set').", Current services: ".($ai_svc_names?:'none').". Known competitors: ".($comp_str?:'analyse typical industry competitors').". Available 6ix services: Google Ads, SEO, , Website Development.";
 ?>
+<?php
+$comp_saved  = get_user_meta($user_id,'six_comp_analysis_data',true);
+$comp_last   = intval(get_user_meta($user_id,'six_comp_analysis_at',true));
+$comp_window = 30*DAY_IN_SECONDS;
+$comp_locked = $comp_last && (time()-$comp_last)<$comp_window;
+$comp_next   = $comp_last + $comp_window;
+$comp_rows   = (is_array($comp_saved) && !empty($comp_saved['rows'])) ? $comp_saved['rows'] : array();
+?>
 <div class="six-page-header">
-    <div><h1 class="six-page-title">Competitor Intelligence</h1><p class="six-page-sub">See where you stand and where to gain ground</p></div>
-    <button class="six-btn six-btn-primary" id="six-run-competitor-analysis"> Run Analysis</button>
+    <div><h1 class="six-page-title">Competitor Intelligence</h1><p class="six-page-sub">Live competitor data for your market — refreshed monthly</p></div>
+    <?php if($comp_locked): ?>
+    <button class="six-btn six-btn-ghost" id="six-run-competitor-analysis" disabled title="One analysis per month keeps the data meaningful" style="opacity:.65;cursor:not-allowed">Next analysis <?php echo date('M j', $comp_next); ?></button>
+    <?php else: ?>
+    <button class="six-btn six-btn-primary" id="six-run-competitor-analysis">Run Analysis</button>
+    <?php endif; ?>
 </div>
 <?php if(!$has_data): ?>
 <div class="six-card"><div class="six-card-body" style="text-align:center;padding:60px">
@@ -1354,16 +1366,84 @@ $ctx     = "Business: {$ai_business}, Industry: {$ai_industry}, Website: ".($dom
         <a href="?tab=profile" class="six-btn six-btn-ghost six-btn-sm" style="font-size:11px"> Update</a>
     </div>
 </div>
-<span id="comp-ctx" data-value="<?php echo esc_attr($ctx); ?>" style="display:none"></span>
-<div id="competitor-results" style="display:none">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
-        <div class="six-card"><div class="six-card-header" style="border-bottom:1px solid var(--border);padding-bottom:12px"><div style="display:flex;align-items:center;gap:8px"><span></span><span class="six-card-title">Competitive Landscape</span><span class="six-ai-badge">AI</span></div></div><div id="ai-comp-landscape-body" class="six-card-body" style="font-size:13px;color:var(--text2);line-height:1.75"><div class="six-ai-loading"><span class="six-ai-spinner"></span> Mapping…</div></div></div>
-        <div class="six-card"><div class="six-card-header" style="border-bottom:1px solid var(--border);padding-bottom:12px"><div style="display:flex;align-items:center;gap:8px"><span></span><span class="six-card-title">Market Gaps You Can Win</span><span class="six-ai-badge">AI</span></div></div><div id="ai-comp-gaps-body" class="six-card-body" style="font-size:13px;color:var(--text2);line-height:1.75"><div class="six-ai-loading"><span class="six-ai-spinner"></span> Finding gaps…</div></div></div>
-        <div class="six-card"><div class="six-card-header" style="border-bottom:1px solid var(--border);padding-bottom:12px"><div style="display:flex;align-items:center;gap:8px"><span></span><span class="six-card-title">Keywords to Target</span><span class="six-ai-badge">AI</span></div></div><div id="ai-comp-keywords-body" class="six-card-body" style="font-size:13px;color:var(--text2);line-height:1.75"><div class="six-ai-loading"><span class="six-ai-spinner"></span> Researching…</div></div></div>
-        <div class="six-card"><div class="six-card-header" style="border-bottom:1px solid var(--border);padding-bottom:12px"><div style="display:flex;align-items:center;gap:8px"><span></span><span class="six-card-title">Your Positioning Advantage</span><span class="six-ai-badge">AI</span></div></div><div id="ai-comp-positioning-body" class="six-card-body" style="font-size:13px;color:var(--text2);line-height:1.75"><div class="six-ai-loading"><span class="six-ai-spinner"></span> Crafting…</div></div></div>
-    </div>
-    <div class="six-card"><div class="six-card-header" style="border-bottom:1px solid var(--border);padding-bottom:12px"><div style="display:flex;align-items:center;gap:8px"><span></span><span class="six-card-title">How to Overtake Competitors This Quarter</span><span class="six-ai-badge">AI</span></div></div><div id="ai-comp-winplan-body" class="six-card-body" style="font-size:13px;color:var(--text2);line-height:1.75"><div class="six-ai-loading"><span class="six-ai-spinner"></span> Building strategy…</div></div></div>
+<div id="comp-meta" style="font-size:12px;color:var(--text3);margin-bottom:10px">
+    <?php if($comp_last): ?>Last analysed <?php echo date('M j, Y', $comp_last); ?> &middot; next available <?php echo date('M j, Y', $comp_next); ?><?php else: ?>Run your first analysis to pull live competitor data into the table below.<?php endif; ?>
 </div>
+
+<div class="six-card">
+    <div class="six-card-header" style="border-bottom:1px solid var(--border);padding-bottom:12px">
+        <span class="six-card-title">Competitors in Your Market</span>
+        <span style="font-size:11px;color:var(--text3)">Live search data</span>
+    </div>
+    <div class="six-card-body" style="padding:0;overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;min-width:660px">
+            <thead>
+                <tr style="text-align:left">
+                    <?php $th='padding:10px 16px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);border-bottom:1px solid var(--border);white-space:nowrap'; ?>
+                    <th style="<?php echo $th; ?>">Competitor</th>
+                    <th style="<?php echo $th; ?>;text-align:right">Est. Monthly Visits</th>
+                    <th style="<?php echo $th; ?>;text-align:right">Keywords Ranked</th>
+                    <th style="<?php echo $th; ?>;text-align:right">Shared Keywords</th>
+                    <th style="<?php echo $th; ?>">What it means</th>
+                </tr>
+            </thead>
+            <tbody id="comp-tbody">
+                <?php if($comp_rows): $td='padding:11px 16px;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.04);vertical-align:top'; foreach($comp_rows as $r): ?>
+                <tr>
+                    <td style="<?php echo $td; ?>;font-weight:600"><?php echo esc_html($r['domain']); ?></td>
+                    <td style="<?php echo $td; ?>;text-align:right;font-variant-numeric:tabular-nums"><?php echo number_format(intval($r['visits'])); ?></td>
+                    <td style="<?php echo $td; ?>;text-align:right;font-variant-numeric:tabular-nums"><?php echo number_format(intval($r['keywords'])); ?></td>
+                    <td style="<?php echo $td; ?>;text-align:right;font-variant-numeric:tabular-nums"><?php echo number_format(intval($r['shared'])); ?></td>
+                    <td style="<?php echo $td; ?>;color:var(--text2);font-size:12px"><?php echo esc_html($r['insight']??''); ?></td>
+                </tr>
+                <?php endforeach; else: ?>
+                <tr><td colspan="5" style="padding:36px 16px;text-align:center;color:var(--text3);font-size:13px">No analysis yet — click <strong>Run Analysis</strong> to pull your competitors' traffic and keywords.</td></tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+<div id="comp-run-msg" style="font-size:12px;margin-top:10px"></div>
+
+<script>
+(function(){
+  var btn=document.getElementById('six-run-competitor-analysis');
+  if(!btn||btn.disabled) return;
+  var tbody=document.getElementById('comp-tbody'), meta=document.getElementById('comp-meta'), msg=document.getElementById('comp-run-msg');
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function nf(n){return (parseInt(n,10)||0).toLocaleString();}
+  function fmtDate(ts){var d=new Date(ts*1000);return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});}
+  function render(rows){
+    if(!rows||!rows.length){ tbody.innerHTML='<tr><td colspan="5" style="padding:36px 16px;text-align:center;color:var(--text3);font-size:13px">No competitor data found — your advisor can refine your keywords.</td></tr>'; return; }
+    var td='padding:11px 16px;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.04);vertical-align:top';
+    tbody.innerHTML=rows.map(function(r){
+      return '<tr>'
+        +'<td style="'+td+';font-weight:600">'+esc(r.domain)+'</td>'
+        +'<td style="'+td+';text-align:right;font-variant-numeric:tabular-nums">'+nf(r.visits)+'</td>'
+        +'<td style="'+td+';text-align:right;font-variant-numeric:tabular-nums">'+nf(r.keywords)+'</td>'
+        +'<td style="'+td+';text-align:right;font-variant-numeric:tabular-nums">'+nf(r.shared)+'</td>'
+        +'<td style="'+td+';color:var(--text2);font-size:12px">'+esc(r.insight||'')+'</td></tr>';
+    }).join('');
+  }
+  btn.addEventListener('click',function(){
+    btn.textContent='Analysing…'; btn.disabled=true; if(msg){msg.style.color='var(--text3)';msg.textContent='Pulling live competitor data — this can take a moment…';}
+    post({action:'six_competitor_analysis'}).then(function(r){
+      if(r&&r.success&&r.data&&r.data.data){
+        render(r.data.data.rows||[]);
+        if(meta) meta.innerHTML='Last analysed '+fmtDate(r.data.ran_at)+' &middot; next available '+fmtDate(r.data.next_at);
+        if(msg){msg.style.color='var(--success)';msg.textContent=r.data.locked?'Showing your saved analysis (one run per month).':'Analysis complete and saved.';}
+        // Lock the button until next month.
+        btn.className='six-btn six-btn-ghost'; btn.style.opacity='.65'; btn.style.cursor='not-allowed';
+        btn.textContent='Next analysis '+new Date(r.data.next_at*1000).toLocaleDateString(undefined,{month:'short',day:'numeric'});
+        btn.disabled=true;
+      } else {
+        btn.textContent='Run Analysis'; btn.disabled=false;
+        if(msg){msg.style.color='var(--danger)';msg.textContent=(r&&r.data)||'Could not run analysis.';}
+      }
+    }).catch(function(){ btn.textContent='Run Analysis'; btn.disabled=false; if(msg){msg.style.color='var(--danger)';msg.textContent='Network error — please try again.';} });
+  });
+})();
+</script>
 <?php endif; ?>
 
 <?php elseif($active_tab==='services'): ?>
@@ -2632,7 +2712,10 @@ attachRequestListeners();
 attachDismissListeners();
 
 // ── Competitor Analysis ──────────────────────────────────────────────────
-var compBtn=document.getElementById('six-run-competitor-analysis');
+// Legacy AI-cards handler disabled — the competitor tab now uses the persisted
+// DataForSEO table with its own inline script (six_competitor_analysis). Lookup
+// points at a dead id so this old block never binds (avoids a double click-bind).
+var compBtn=document.getElementById('six-run-competitor-analysis-legacy-off');
 if(compBtn){
     compBtn.addEventListener('click',function(){
         var ctxEl=document.getElementById('comp-ctx');
