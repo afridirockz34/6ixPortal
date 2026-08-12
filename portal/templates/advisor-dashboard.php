@@ -815,7 +815,69 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                     <?php endif; ?>
                 </div>
             </div>
+            <button class="six-btn six-btn-primary six-btn-sm" id="adv-schedule-meeting-btn"
+                    data-client="<?php echo intval($view_client_id); ?>" data-advisor="<?php echo intval($advisor_id); ?>"
+                    data-name="<?php echo esc_attr($view_client->display_name); ?>"
+                    style="margin-left:auto;align-self:center;white-space:nowrap;display:inline-flex;align-items:center;gap:6px">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                Schedule Meeting
+            </button>
         </div>
+
+        <script>
+        (function(){
+          var btn=document.getElementById('adv-schedule-meeting-btn');
+          if(!btn||btn._bound) return; btn._bound=1;
+          btn.addEventListener('click',function(){
+            var clientId=btn.dataset.client, advisorId=btn.dataset.advisor, name=btn.dataset.name||'client';
+            var ov=document.getElementById('adv-sched-ov'); if(ov) ov.remove();
+            ov=document.createElement('div'); ov.id='adv-sched-ov'; ov.className='six-modal-ov';
+            ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px';
+            var tomorrow=new Date(Date.now()+864e5).toISOString().slice(0,10);
+            ov.innerHTML='<div style="background:var(--dark2,#15151c);border:1px solid var(--border,#2a2a35);border-radius:16px;width:100%;max-width:460px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden">'
+              +'<div style="padding:18px 20px;border-bottom:1px solid var(--border,#2a2a35);display:flex;align-items:center;justify-content:space-between;gap:10px"><div style="font-size:14px;font-weight:700">Schedule a meeting with '+name+'</div><button id="asc-x" style="background:none;border:none;color:var(--text3,#8a8a99);font-size:24px;cursor:pointer;line-height:1">&times;</button></div>'
+              +'<div style="padding:20px;overflow-y:auto">'
+                +'<label style="display:block;font-size:11px;font-weight:600;color:var(--text2,#b5b5c5);margin-bottom:5px">Date</label>'
+                +'<input type="date" id="asc-date" min="'+tomorrow+'" value="'+tomorrow+'" class="six-input" style="width:100%;font-size:13px;padding:9px 11px;margin-bottom:14px">'
+                +'<label style="display:block;font-size:11px;font-weight:600;color:var(--text2,#b5b5c5);margin-bottom:5px">Available times</label>'
+                +'<div id="asc-slots" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;min-height:34px"><span style="font-size:12px;color:var(--text3,#8a8a99)">Pick a date…</span></div>'
+                +'<label style="display:block;font-size:11px;font-weight:600;color:var(--text2,#b5b5c5);margin-bottom:5px">Notes (optional)</label>'
+                +'<textarea id="asc-notes" rows="2" class="six-input" placeholder="Agenda, what to prepare…" style="width:100%;font-size:12px;padding:9px 11px;resize:vertical"></textarea>'
+                +'<div id="asc-msg" style="font-size:12px;margin-top:10px;min-height:16px"></div></div>'
+              +'<div style="padding:14px 20px;border-top:1px solid var(--border,#2a2a35);display:flex;justify-content:flex-end;gap:10px"><button id="asc-cancel" class="six-btn six-btn-ghost six-btn-sm" style="font-size:12px">Cancel</button><button id="asc-book" class="six-btn six-btn-primary six-btn-sm" style="font-size:12px" disabled>Book meeting</button></div></div>';
+            document.body.appendChild(ov);
+            var selected=null, slotsEl=ov.querySelector('#asc-slots'), dateEl=ov.querySelector('#asc-date'),
+                bookBtn=ov.querySelector('#asc-book'), msg=ov.querySelector('#asc-msg');
+            function close(){ ov.remove(); }
+            ov.querySelector('#asc-x').onclick=close; ov.querySelector('#asc-cancel').onclick=close;
+            ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
+            function loadSlots(){
+              selected=null; bookBtn.disabled=true; slotsEl.innerHTML='<span style="font-size:12px;color:var(--text3,#8a8a99)">Loading…</span>';
+              post({action:'six_get_available_slots',advisor_id:advisorId,date:dateEl.value}).then(function(r){
+                if(!(r&&r.success&&r.data&&r.data.slots&&r.data.slots.length)){ slotsEl.innerHTML='<span style="font-size:12px;color:var(--text3,#8a8a99)">No availability returned — connect Google Calendar for open slots.</span>'; return; }
+                var avail=r.data.slots.filter(function(s){return !s.booked;});
+                if(!avail.length){ slotsEl.innerHTML='<span style="font-size:12px;color:var(--text3,#8a8a99)">No open times that day — try another date.</span>'; return; }
+                slotsEl.innerHTML='';
+                avail.forEach(function(s){
+                  var b=document.createElement('button'); b.type='button'; b.textContent=s.label;
+                  b.style.cssText='font-size:12px;padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--dark3);color:var(--text1);cursor:pointer';
+                  b.onclick=function(){ selected=s.time; slotsEl.querySelectorAll('button').forEach(function(x){x.style.background='var(--dark3)';x.style.borderColor='var(--border)';x.style.color='var(--text1)';}); b.style.background='var(--pink)';b.style.borderColor='var(--pink)';b.style.color='#fff'; bookBtn.disabled=false; };
+                  slotsEl.appendChild(b);
+                });
+              }).catch(function(){ slotsEl.innerHTML='<span style="font-size:12px;color:var(--danger)">Could not load times.</span>'; });
+            }
+            dateEl.addEventListener('change',loadSlots); loadSlots();
+            bookBtn.onclick=function(){
+              if(!selected){ msg.style.color='var(--danger)'; msg.textContent='Pick a time first.'; return; }
+              bookBtn.disabled=true; bookBtn.textContent='Booking…'; msg.textContent='';
+              post({action:'six_adv_book_meeting',client_id:clientId,start:selected,duration:30,notes:(ov.querySelector('#asc-notes').value||'')}).then(function(d){
+                if(d&&d.success){ msg.style.color='var(--success)'; msg.innerHTML='Meeting booked'+(d.data&&d.data.meet_link?' — <a href="'+d.data.meet_link+'" target="_blank" style="color:var(--cyan)">Meet link</a>':'')+'. Reloading…'; setTimeout(function(){location.reload();},1300); }
+                else { bookBtn.disabled=false; bookBtn.textContent='Book meeting'; msg.style.color='var(--danger)'; msg.textContent=(d&&d.data)||'Could not book.'; }
+              }).catch(function(){ bookBtn.disabled=false; bookBtn.textContent='Book meeting'; msg.style.color='var(--danger)'; msg.textContent='Network error.'; });
+            };
+          });
+        })();
+        </script>
 
         <!-- Service badges row -->
         <div class="six-client-header-services">
@@ -2049,20 +2111,9 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
 
     </div><!-- /questionnaire cards -->
 
-    <!-- Service budgets -->
-    <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:16px">
-        <div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px">Service Budgets</div>
-        <?php foreach($c_active_svcs_arr as $s):
-            $sd2=$svc_def[$s->service_slug]??array('icon'=>'','color'=>'var(--pink)'); ?>
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-            <span style="font-size:13px;flex-shrink:0"><?php echo $sd2['icon']; ?></span>
-            <span style="font-size:12px;font-weight:600;min-width:160px"><?php echo esc_html($s->service_name); ?></span>
-            <input class="six-input adv-svc-budget-input" data-service-id="<?php echo $s->id; ?>" value="<?php echo esc_attr(intval($s->budget)); ?>" type="number" min="0" style="font-size:12px;max-width:140px">
-            <span style="font-size:11px;color:var(--text3)">/mo</span>
-            <button class="six-btn six-btn-primary six-btn-sm six-adv-set-budget" data-service-id="<?php echo $s->id; ?>" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Update</button>
-        </div>
-        <?php endforeach; ?>
-    </div>
+    <!-- Service budgets are managed in the single "Services & Budget" section
+         below (all services, status, budget edit + add) — the separate
+         active-only "Service Budgets" card here was removed as a duplicate. -->
     <div style="display:flex;justify-content:flex-end">
         <button class="six-btn six-btn-primary" id="adv-save-profile-btn" data-client="<?php echo $view_client_id; ?>" style="font-size:13px;padding:10px 28px"> Save Profile</button>
     </div>
@@ -2243,10 +2294,13 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
 }
 
 function advUpdateServiceBudget(clientId,svcId,budget){
+    var msg=document.getElementById('adv-svc-msg-'+clientId);
+    if(msg){msg.style.color='var(--text3)';msg.textContent='Saving…';}
     fetch(AJAX,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
         body:new URLSearchParams({action:'six_adv_update_service_budget',nonce:NONCE,client_id:clientId,service_id:svcId,budget:budget})
     }).then(r=>r.json()).then(d=>{
-        if(!d.success)alert(d.data||'Error updating budget');
+        if(d&&d.success){ if(msg){msg.style.color='var(--success)';msg.textContent='Budget updated — $'+parseInt(budget||0,10).toLocaleString()+'/mo.';setTimeout(function(){msg.textContent='';},2500);} }
+        else{ if(msg){msg.style.color='var(--danger)';msg.textContent=(d&&d.data)||'Error updating budget';} }
     });
 }
 
