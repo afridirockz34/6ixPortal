@@ -356,15 +356,15 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         <?php
         $priorities = array();
         $p_ap = intval( $total_pending ?? 0 );
-        if ( $p_ap > 0 ) $priorities[] = array('t'=>$p_ap.' approval'.($p_ap>1?'s':'').' waiting','d'=>'Budget & service requests need your sign-off','u'=>'?tab=approvals','c'=>'var(--warning)','cta'=>'Review');
+        if ( $p_ap > 0 ) $priorities[] = array('key'=>'approvals','n'=>$p_ap,'t'=>$p_ap.' approval'.($p_ap>1?'s':'').' waiting','d'=>'Budget & service requests need your sign-off','u'=>'?tab=approvals','c'=>'var(--warning)','cta'=>'Review');
         $p_um = intval( $unread_msg ?? 0 );
-        if ( $p_um > 0 ) $priorities[] = array('t'=>$p_um.' unread message'.($p_um>1?'s':''),'d'=>'Clients are waiting to hear back from you','u'=>'?tab=clients','c'=>'var(--pink)','cta'=>'Open');
+        if ( $p_um > 0 ) $priorities[] = array('key'=>'messages','n'=>$p_um,'t'=>$p_um.' unread message'.($p_um>1?'s':''),'d'=>'Clients are waiting to hear back from you','u'=>'?tab=clients','c'=>'var(--pink)','cta'=>'Open');
         $p_ai = intval( $total_intel_pending ?? 0 );
-        if ( $p_ai > 0 ) $priorities[] = array('t'=>$p_ai.' AI recommendation'.($p_ai>1?'s':'').' to review','d'=>'Approve or decline growth opportunities for your clients','u'=>'?tab=intelligence','c'=>'#8781BA','cta'=>'Review');
+        if ( $p_ai > 0 ) $priorities[] = array('key'=>'ai','n'=>$p_ai,'t'=>$p_ai.' AI recommendation'.($p_ai>1?'s':'').' to review','d'=>'Approve or decline growth opportunities for your clients','u'=>'?tab=intelligence','c'=>'#8781BA','cta'=>'Review');
         $p_crit = array_filter( (array)$clients_attention, function($c){ return ($c['health'] ?? 100) < 50; } );
-        if ( count($p_crit) > 0 ) { $p_first = reset($p_crit); $priorities[] = array('t'=>count($p_crit).' client'.(count($p_crit)>1?'s':'').' at risk','d'=>'Low health scores — reach out before they churn','u'=>'?tab=clients&client='.intval($p_first['id']),'c'=>'var(--danger)','cta'=>'View'); }
-        if ( ! empty($today_meetings) ) { $p_next=null; foreach($today_meetings as $m){ if(strtotime($m['start'])>time()){ $p_next=$m; break; } } if($p_next) $priorities[] = array('t'=>'Next call at '.date('g:i A',strtotime($p_next['start'])),'d'=>($p_next['title']??'Client meeting'),'u'=>'?tab=calendar','c'=>'var(--cyan)','cta'=>'Prep'); }
-        if ( $appts_pending > 0 ) $priorities[] = array('t'=>$appts_pending.' call request'.($appts_pending>1?'s':'').' to confirm','d'=>'Clients asked for a call — confirm a time and send the Meet link','u'=>'?tab=calendar','c'=>'#6366f1','cta'=>'Open');
+        if ( count($p_crit) > 0 ) { $p_first = reset($p_crit); $priorities[] = array('key'=>'risk','n'=>count($p_crit),'t'=>count($p_crit).' client'.(count($p_crit)>1?'s':'').' at risk','d'=>'Low health scores — reach out before they churn','u'=>'?tab=clients&client='.intval($p_first['id']),'c'=>'var(--danger)','cta'=>'View'); }
+        if ( ! empty($today_meetings) ) { $p_next=null; foreach($today_meetings as $m){ if(strtotime($m['start'])>time()){ $p_next=$m; break; } } if($p_next) $priorities[] = array('key'=>'meeting','n'=>strtotime($p_next['start']),'t'=>'Next call at '.date('g:i A',strtotime($p_next['start'])),'d'=>($p_next['title']??'Client meeting'),'u'=>'?tab=calendar','c'=>'var(--cyan)','cta'=>'Prep'); }
+        if ( $appts_pending > 0 ) $priorities[] = array('key'=>'calls','n'=>$appts_pending,'t'=>$appts_pending.' call request'.($appts_pending>1?'s':'').' to confirm','d'=>'Clients asked for a call — confirm a time and send the Meet link','u'=>'?tab=calendar','c'=>'#6366f1','cta'=>'Open');
         ?>
         <div class="six-card" style="margin-bottom:24px">
             <div class="six-card-header">
@@ -372,20 +372,45 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 <?php if(count($priorities)>0):?><span class="six-badge" style="background:var(--pink)"><?php echo count($priorities);?></span><?php endif;?>
             </div>
             <div class="six-card-body" style="padding:0">
-                <?php if(empty($priorities)):?>
-                <div style="padding:26px;text-align:center;color:var(--text3);font-size:13px">You're all caught up — nothing needs your attention right now.</div>
-                <?php else: foreach($priorities as $pr):?>
-                <a href="<?php echo esc_url($pr['u']);?>" style="display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid var(--border);text-decoration:none;transition:background .15s" onmouseover="this.style.background='var(--dark3)'" onmouseout="this.style.background='transparent'">
-                    <span style="width:9px;height:9px;border-radius:50%;background:<?php echo $pr['c'];?>;flex-shrink:0"></span>
-                    <div style="flex:1;min-width:0">
-                        <div style="font-weight:700;font-size:14px;color:var(--text1)"><?php echo esc_html($pr['t']);?></div>
-                        <div style="font-size:12px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><?php echo esc_html($pr['d']);?></div>
-                    </div>
-                    <span class="six-btn six-btn-secondary six-btn-sm" style="flex-shrink:0;font-size:12px;pointer-events:none"><?php echo esc_html($pr['cta']);?> →</span>
-                </a>
-                <?php endforeach; endif;?>
+                <div id="six-priorities-empty" style="padding:26px;text-align:center;color:var(--text3);font-size:13px;<?php echo empty($priorities)?'':'display:none';?>">You're all caught up — nothing needs your attention right now.</div>
+                <?php foreach($priorities as $pr):?>
+                <div class="six-priority-row" data-prio-key="<?php echo esc_attr($pr['key']);?>" data-prio-n="<?php echo intval($pr['n']);?>" style="display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--border)">
+                    <a href="<?php echo esc_url($pr['u']);?>" style="flex:1;min-width:0;display:flex;align-items:center;gap:14px;padding:14px 18px;text-decoration:none;transition:background .15s" onmouseover="this.style.background='var(--dark3)'" onmouseout="this.style.background='transparent'">
+                        <span style="width:9px;height:9px;border-radius:50%;background:<?php echo $pr['c'];?>;flex-shrink:0"></span>
+                        <div style="flex:1;min-width:0">
+                            <div style="font-weight:700;font-size:14px;color:var(--text1)"><?php echo esc_html($pr['t']);?></div>
+                            <div style="font-size:12px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><?php echo esc_html($pr['d']);?></div>
+                        </div>
+                        <span class="six-btn six-btn-secondary six-btn-sm" style="flex-shrink:0;font-size:12px;pointer-events:none"><?php echo esc_html($pr['cta']);?> →</span>
+                    </a>
+                    <button type="button" class="six-priority-done" title="Mark done — hide from priorities" aria-label="Mark done" style="flex-shrink:0;background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:8px 14px;line-height:1">✓</button>
+                </div>
+                <?php endforeach;?>
             </div>
         </div>
+        <script>
+        (function(){
+            var KEY='six_prio_dismissed_<?php echo intval($advisor_id);?>';
+            function load(){ try{return JSON.parse(localStorage.getItem(KEY)||'{}');}catch(e){return {};} }
+            function save(o){ try{localStorage.setItem(KEY,JSON.stringify(o));}catch(e){} }
+            var dismissed=load(), rows=document.querySelectorAll('.six-priority-row'), shown=0;
+            rows.forEach(function(row){
+                var k=row.getAttribute('data-prio-key'), n=parseInt(row.getAttribute('data-prio-n'),10)||0;
+                // Hide only if snoozed at a count >= the current one; if the situation
+                // grew (more items, or a newer meeting), show it again.
+                if(dismissed[k]!=null && dismissed[k]>=n){ row.style.display='none'; }
+                else { shown++; }
+                var btn=row.querySelector('.six-priority-done');
+                if(btn) btn.addEventListener('click',function(){
+                    var d=load(); d[k]=n; save(d);
+                    row.style.display='none';
+                    var remaining=0; document.querySelectorAll('.six-priority-row').forEach(function(r){ if(r.style.display!=='none') remaining++; });
+                    var empty=document.getElementById('six-priorities-empty'); if(empty&&remaining===0) empty.style.display='';
+                });
+            });
+            var empty=document.getElementById('six-priorities-empty'); if(empty&&shown===0) empty.style.display='';
+        })();
+        </script>
 
         <!-- ── Stat cards ──────────────────────────────────────────── -->
         <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:24px">
@@ -2859,6 +2884,25 @@ function advCompleteOnboarding(clientId){
         if ($gcal_connected && class_exists('Six_Google_Calendar')) {
             $upcoming_events = Six_Google_Calendar::get_upcoming_events($advisor_id, 14) ?: array();
         }
+        // Merge portal-booked meetings (six_appointments) — these already show on
+        // the Overview but were never added to the Calendar tab. Works even when
+        // Google Calendar isn't connected.
+        if ( class_exists('Six_Appointments') ) {
+            foreach ( ( Six_Appointments::get_upcoming_for_advisor($advisor_id, 30) ?: array() ) as $ap ) {
+                if ( empty($ap->start_datetime) ) continue;
+                $ap_ts = strtotime($ap->start_datetime);
+                $ap_u  = get_userdata( intval($ap->client_id) );
+                $upcoming_events[] = array(
+                    'start'       => date('c', $ap_ts),
+                    'end'         => date('c', $ap_ts + 1800),
+                    'title'       => ( ($ap->status ?? '') === 'requested' ) ? 'Consultation (requested)' : 'Consultation call',
+                    'client_name' => $ap_u ? $ap_u->display_name : ( 'Client #' . intval($ap->client_id) ),
+                    'description' => $ap->notes ?? '',
+                    'meet_link'   => $ap->meet_link ?? '',
+                );
+            }
+            usort( $upcoming_events, function ( $a, $b ) { return strtotime($a['start']) - strtotime($b['start']); } );
+        }
 
         // Group events by date
         $events_by_date = array();
@@ -2877,8 +2921,8 @@ function advCompleteOnboarding(clientId){
             <?php endif;?>
         </div>
 
-        <?php if(!$gcal_connected): ?>
-        <!-- Connect screen -->
+        <?php if(!$gcal_connected && empty($upcoming_events)): ?>
+        <!-- Connect screen (only when there are no portal meetings to show either) -->
         <div style="max-width:480px;margin:60px auto;text-align:center">
             <div style="width:80px;height:80px;border-radius:50%;background:var(--dark3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 24px"></div>
             <h2 style="font-family:var(--font-head);font-size:22px;font-weight:700;margin-bottom:12px">Connect Google Calendar</h2>
