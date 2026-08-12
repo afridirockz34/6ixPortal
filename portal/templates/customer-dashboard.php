@@ -899,7 +899,7 @@ $has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
 
   // ── Empty state (no data at all) ──────────────────────────────────────────
   if (!PROJ.has) {
-    isDark = (localStorage.getItem('six_theme')||'dark')==='dark';
+    isDark = (function(){var r=document.getElementById('six-portal-root')||document.documentElement; if(r.getAttribute('data-theme')==='dark')return true; if(r.getAttribute('data-theme')==='light')return false; return (localStorage.getItem('six_theme')||'light')==='dark';})();  // match the page theme (toggle defaults to light) — was defaulting to dark and flashing
     mount.innerHTML = '<div id="analytics-root" style="background:'+(isDark?'#0B0F1A':'#F4F6FB')+';padding:28px;display:flex;align-items:center;justify-content:center;text-align:center">'
       + '<div style="color:'+(isDark?'rgba(255,255,255,.5)':'rgba(15,20,40,.5)')+';font-size:13px;line-height:1.6;max-width:280px">Your growth projection appears here once your services and budget are set. Complete onboarding or add a service to see it.</div></div>';
     return;
@@ -993,7 +993,7 @@ $has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
   }
 
   function build(){
-    isDark = (localStorage.getItem('six_theme')||'dark')==='dark';
+    isDark = (function(){var r=document.getElementById('six-portal-root')||document.documentElement; if(r.getAttribute('data-theme')==='dark')return true; if(r.getAttribute('data-theme')==='light')return false; return (localStorage.getItem('six_theme')||'light')==='dark';})();  // match the page theme (toggle defaults to light) — was defaulting to dark and flashing
     var bg = isDark ? '#0B0F1A' : '#F4F6FB';
     var strong = isDark ? '#fff' : '#0f1428';
     var muted  = isDark ? 'rgba(255,255,255,.32)' : 'rgba(15,20,40,.4)';

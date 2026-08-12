@@ -3984,14 +3984,17 @@ document.querySelectorAll('.six-suggest-metrics').forEach(function(btn){
         post({action:'six_suggest_metrics',client_id:client,service_slug:slug}).then(function(r){
             self.disabled=false; self.textContent='✨ Suggest metrics with AI';
             if(!(r&&r.success&&r.data&&r.data.metrics&&r.data.metrics.length)){ if(box) box.innerHTML='<div style="font-size:12px;color:var(--danger)">'+((r&&r.data&&(r.data.message||r.data))||'No suggestions returned.')+'</div>'; return; }
+            var srcBase=r.data.has_live?'Based on this client’s live connected data (Google Ads / GA4 / Search Console / Meta where connected).':'Based on industry benchmarks for this service — no live data connected yet, so these are typical starting figures your advisor should refine.';
             var html='<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">'
                 +'<div style="padding:8px 12px;background:var(--dark3);font-size:11px;color:var(--text3)">'+(r.data.has_live?'Suggested from this client’s live data — edit and add':'Suggested from industry benchmarks — edit and add')+'</div>';
             r.data.metrics.forEach(function(m){
-                html+='<div class="sugg-row" style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:6px;align-items:center;padding:8px 12px;border-top:1px solid var(--border)">'
-                    +'<input class="six-input sm-label" value="'+esc(m.label)+'" title="'+esc(m.note||'')+'" style="font-size:12px;padding:6px 8px">'
-                    +'<input class="six-input sm-prev" value="'+esc(m.previous)+'" placeholder="prev" style="font-size:12px;padding:6px 8px">'
-                    +'<input class="six-input sm-cur" value="'+esc(m.current)+'" placeholder="current" style="font-size:12px;padding:6px 8px">'
-                    +'<input class="six-input sm-tgt" value="'+esc(m.target)+'" placeholder="target" style="font-size:12px;padding:6px 8px">'
+                var tip=srcBase+(m.note?'\n\nWhy this metric: '+m.note:'');
+                html+='<div class="sugg-row" style="display:grid;grid-template-columns:auto 2fr 1fr 1fr 1fr auto;gap:6px;align-items:center;padding:8px 12px;border-top:1px solid var(--border)">'
+                    +'<span title="'+esc(tip)+'" style="cursor:help;color:var(--cyan);font-size:14px;display:inline-flex;align-items:center" aria-label="Where this number comes from">ⓘ</span>'
+                    +'<input class="six-input sm-label" value="'+esc(m.label)+'" title="'+esc(tip)+'" style="font-size:12px;padding:6px 8px">'
+                    +'<input class="six-input sm-prev" value="'+esc(m.previous)+'" placeholder="prev" title="'+esc(tip)+'" style="font-size:12px;padding:6px 8px">'
+                    +'<input class="six-input sm-cur" value="'+esc(m.current)+'" placeholder="current" title="'+esc(tip)+'" style="font-size:12px;padding:6px 8px">'
+                    +'<input class="six-input sm-tgt" value="'+esc(m.target)+'" placeholder="target" title="'+esc(tip)+'" style="font-size:12px;padding:6px 8px">'
                     +'<button class="six-btn six-btn-primary six-btn-sm sm-add" style="font-size:11px">Add</button>'
                     +'</div>';
             });
