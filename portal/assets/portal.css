@@ -116,6 +116,17 @@
   box-sizing: border-box;
 }
 
+/* Modals/popups are appended to <body> (outside #six-portal-root), so they
+   miss the reset above. Without border-box, their full-width inputs (width:100%
+   + padding) overflow the panel's right edge — which reads as "extra padding on
+   the left, none on the right". Apply the reset to those overlays too. */
+.six-modal-ov,
+.six-modal-ov *,
+.six-modal-ov *::before,
+.six-modal-ov *::after {
+  box-sizing: border-box;
+}
+
 #six-portal-root a {
   text-decoration: none;
   color: inherit;

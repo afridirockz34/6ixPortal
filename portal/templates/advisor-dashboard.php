@@ -3344,7 +3344,7 @@ function sixLoadStripe(cb){
 }
 function sixCardFlow(opts){
     opts=opts||{}; var params=opts.params||{};
-    var ov=document.createElement('div');
+    var ov=document.createElement('div'); ov.className='six-modal-ov';
     ov.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:20px';
     ov.innerHTML='<div style="background:var(--dark2,#161B22);border:1px solid var(--border,#30363D);border-radius:14px;max-width:440px;width:100%;padding:22px;color:var(--text1,#F0F4F8)">'
         +'<div style="font-size:15px;font-weight:700;margin-bottom:4px">'+(opts.title||'Add card for customer')+'</div>'
@@ -3500,7 +3500,7 @@ function sixServiceWizard(serviceId, clientId, slug, name, activateMode){
   var fields = SIX_SVC_FIELDS[slug] || [{k:'account_id',label:'Account / Reference ID',ph:''},{k:'notes',label:'Setup notes',ph:'',ta:true}];
 
   var ov=document.getElementById('six-wiz-ov'); if(ov) ov.remove();
-  ov=document.createElement('div'); ov.id='six-wiz-ov';
+  ov=document.createElement('div'); ov.id='six-wiz-ov'; ov.className='six-modal-ov';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px';
   ov.innerHTML='<div style="background:var(--dark2,#15151c);border:1px solid var(--border,#2a2a35);border-radius:16px;width:100%;max-width:560px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden">'
     +'<div style="padding:18px 20px;border-bottom:1px solid var(--border,#2a2a35);display:flex;align-items:center;justify-content:space-between;gap:10px">'
