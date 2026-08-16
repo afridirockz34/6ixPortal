@@ -859,6 +859,57 @@ add_action( 'wp_ajax_six_sync_client_gads', function() {
     }
 } );
 
+// Advisor: toggle "Auto-from-source" for a service's metrics. When enabled for
+// a live-source service (Google Ads today), immediately pull the current month
+// and persist it to six_metrics so the customer dashboard reflects live data.
+add_action( 'wp_ajax_six_toggle_metric_auto', function() {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! Six_Roles::is_advisor() ) wp_send_json_error( 'Permission denied' );
+    global $wpdb;
+    $client_id = intval( $_POST['client_id'] ?? 0 );
+    $slug      = sanitize_key( $_POST['service_slug'] ?? '' );
+    $enabled   = ! empty( $_POST['enabled'] );
+    if ( ! $client_id || ! $slug ) wp_send_json_error( 'Invalid request' );
+
+    // Ownership check for non-admin advisors
+    if ( ! current_user_can( 'manage_options' ) ) {
+        $ok = $wpdb->get_var( $wpdb->prepare(
+            "SELECT id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d AND advisor_id=%d",
+            $client_id, get_current_user_id()
+        ) );
+        if ( ! $ok ) wp_send_json_error( 'Not your client' );
+    }
+
+    // Which slugs can auto-pull from a live source
+    $live_sources = array( 'google-ads' => 'Google Ads' );
+
+    if ( ! $enabled ) {
+        delete_user_meta( $client_id, 'six_metric_auto_' . $slug );
+        wp_send_json_success( array( 'message' => 'Manual entry', 'enabled' => false ) );
+    }
+
+    update_user_meta( $client_id, 'six_metric_auto_' . $slug, '1' );
+
+    // Enabling: pull live data right now for supported sources.
+    if ( $slug === 'google-ads' && class_exists( 'Six_Google_Ads' ) ) {
+        $m = Six_Google_Ads::get_campaign_metrics_for_client( $client_id, 'THIS_MONTH', true );
+        if ( $m === false ) {
+            // Keep the preference on, but tell the advisor why nothing pulled.
+            wp_send_json_success( array(
+                'message' => 'On — but no data yet: ' . ( Six_Google_Ads::get_last_error() ?: 'check the Customer ID.' ),
+                'enabled' => true,
+            ) );
+        }
+        wp_send_json_success( array(
+            'message' => 'On — Google Ads metrics pulled ✓',
+            'enabled' => true,
+            'metrics' => $m,
+        ) );
+    }
+
+    wp_send_json_success( array( 'message' => 'On', 'enabled' => true ) );
+} );
+
 // ─────────────────────────────────────────────────────────────────────────────
 // STRIPE
 // ─────────────────────────────────────────────────────────────────────────────

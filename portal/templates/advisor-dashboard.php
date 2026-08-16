@@ -1070,6 +1070,34 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
     <!-- ═══════════════════════ CTAB: SERVICES & METRICS ═══════════════════════ -->
     <?php elseif($ctab==='services'): ?>
 
+    <!-- ══ Two-tab metrics system: Overview KPIs vs Live Service Metrics ══ -->
+    <div style="display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid var(--border)">
+        <button type="button" class="six-mtab active" data-mtab="overview"
+            style="background:none;border:none;border-bottom:2px solid var(--cyan);color:var(--text1);font-size:13px;font-weight:700;padding:10px 14px;cursor:pointer">Overview KPIs</button>
+        <button type="button" class="six-mtab" data-mtab="services"
+            style="background:none;border:none;border-bottom:2px solid transparent;color:var(--text3);font-size:13px;font-weight:700;padding:10px 14px;cursor:pointer">Live Service Metrics</button>
+    </div>
+    <script>
+    (function(){
+        document.querySelectorAll('.six-mtab').forEach(function(tab){
+            tab.addEventListener('click',function(){
+                var target=this.dataset.mtab;
+                document.querySelectorAll('.six-mtab').forEach(function(t){
+                    var on=t.dataset.mtab===target;
+                    t.style.borderBottomColor=on?'var(--cyan)':'transparent';
+                    t.style.color=on?'var(--text1)':'var(--text3)';
+                    t.classList.toggle('active',on);
+                });
+                document.querySelectorAll('[data-mpane]').forEach(function(p){
+                    p.style.display=p.dataset.mpane===target?'':'none';
+                });
+            });
+        });
+    })();
+    </script>
+
+    <!-- ── TAB 1: Overview KPIs — the customer dashboard's top cards ── -->
+    <div data-mpane="overview">
     <!-- ── Advisor KPI Editor: customer dashboard fields ── -->
     <div style="background:var(--dark3);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
@@ -1147,6 +1175,15 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         });
     }
     </script>
+    </div><!-- /TAB 1 Overview KPIs -->
+
+    <!-- ── TAB 2: Live Service Metrics — per service, last/current/target ── -->
+    <div data-mpane="services" style="display:none">
+    <div style="font-size:11px;color:var(--text3);margin-bottom:14px;max-width:640px">
+        Each metric shows <strong>last month → current month → next month (target)</strong>. Turn on
+        <strong>Auto-from-source</strong> on a service to pull its numbers straight from the connected
+        account (Google Ads live now; GA4 &amp; Meta as they connect) so you don't re-enter them each month.
+    </div>
 
     <!-- Services list with per-service metric management -->
     <?php foreach($svc_def as $slug => $sd_item):
@@ -1211,6 +1248,24 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             </div>
             <?php endif; ?>
 
+            <?php
+            // Which services can pull live from a connected source. Google Ads is
+            // wired now; GA4/Meta slugs will join as those integrations land.
+            $auto_sources = array( 'google-ads' => 'Google Ads' );
+            $auto_on = get_user_meta( $view_client_id, 'six_metric_auto_' . $slug, true ) === '1';
+            ?>
+            <?php if( isset($auto_sources[$slug]) ): ?>
+            <!-- Auto-from-source: pull this service's metrics straight from the live account -->
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;padding:10px 12px;background:var(--dark4);border:1px solid var(--border);border-radius:10px">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:600;color:var(--text1)">
+                    <input type="checkbox" class="six-metric-auto" data-slug="<?php echo esc_attr($slug); ?>" data-client="<?php echo $view_client_id; ?>" <?php checked($auto_on); ?> style="width:16px;height:16px;accent-color:var(--cyan)">
+                    Auto-from-source (<?php echo esc_html($auto_sources[$slug]); ?>)
+                </label>
+                <span style="font-size:10.5px;color:var(--text3)">On: current + last month pull automatically each visit. Off: enter numbers by hand below.</span>
+                <span class="six-metric-auto-msg-<?php echo esc_attr($slug); ?>" style="font-size:11px;margin-left:auto"></span>
+            </div>
+            <?php endif; ?>
+
             <!-- Activation helper: AI-suggested metrics from live data / benchmarks -->
             <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px">
                 <div style="font-size:11px;color:var(--text3)">Set up this service: connect the account under <a href="<?php echo $base_url; ?>&ctab=datasources" style="color:var(--cyan)">Data Sources</a>, then add the metrics the customer will see.</div>
@@ -1228,15 +1283,15 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                         <input class="six-input metric-label-<?php echo esc_attr($slug); ?>" placeholder="e.g. Monthly Traffic" style="font-size:12px;padding:7px 10px">
                     </div>
                     <div>
-                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Current</div>
-                        <input class="six-input metric-current-<?php echo esc_attr($slug); ?>" placeholder="420" style="font-size:12px;padding:7px 10px">
-                    </div>
-                    <div>
-                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Previous</div>
+                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Last month</div>
                         <input class="six-input metric-prev-<?php echo esc_attr($slug); ?>" placeholder="310" style="font-size:12px;padding:7px 10px">
                     </div>
                     <div>
-                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Target</div>
+                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Current month</div>
+                        <input class="six-input metric-current-<?php echo esc_attr($slug); ?>" placeholder="420" style="font-size:12px;padding:7px 10px">
+                    </div>
+                    <div>
+                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Next month (target)</div>
                         <input class="six-input metric-target-<?php echo esc_attr($slug); ?>" placeholder="600" style="font-size:12px;padding:7px 10px">
                     </div>
                     <button class="six-btn six-btn-primary six-btn-sm six-add-metric-svc"
@@ -1251,6 +1306,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         <?php endif; // active svc ?>
     </div>
     <?php endforeach; // svc_def ?>
+    </div><!-- /TAB 2 Live Service Metrics -->
 
     <!-- ═══════════════════════ CTAB: AI STRATEGY ═══════════════════════ -->
     <?php elseif($ctab==='ai'): ?>
@@ -4160,6 +4216,24 @@ document.querySelectorAll('.six-add-metric-svc').forEach(function(btn){
                 if(result)result.innerHTML='<span style="color:var(--danger)">'+(d.data||'Error')+'</span>';
             }
         });
+    });
+});
+
+// ── Auto-from-source toggle (Tab 2) ─────────────────────────────────────
+document.querySelectorAll('.six-metric-auto').forEach(function(box){
+    box.addEventListener('change',function(){
+        var slug=this.dataset.slug, client=this.dataset.client, on=this.checked?1:0, self=this;
+        var msg=document.querySelector('.six-metric-auto-msg-'+slug);
+        if(msg){msg.style.color='var(--text3)';msg.textContent=on?'Pulling live data…':'Saving…';}
+        post({action:'six_toggle_metric_auto',client_id:client,service_slug:slug,enabled:on}).then(function(r){
+            if(r&&r.success){
+                if(msg){msg.style.color='var(--success)';msg.textContent=on?(r.data.message||'On — metrics pulled ✓'):'Off — manual entry';}
+                if(on) setTimeout(function(){location.reload();},900);
+            } else {
+                self.checked=!on;
+                if(msg){msg.style.color='var(--danger)';msg.textContent=(r&&r.data)||'Could not update.';}
+            }
+        }).catch(function(){self.checked=!on;if(msg){msg.style.color='var(--danger)';msg.textContent='Network error.';}});
     });
 });
 

@@ -262,10 +262,13 @@ class Six_Google_Ads {
         if ( $metrics ) {
             $metrics['date_range'] = strtoupper( trim( (string) $date_range ) );
             $metrics['synced_at']  = current_time( 'mysql' );
-            // Only the current calendar month is the canonical snapshot the
-            // customer dashboard reads — other ranges are advisor exploration
-            // and must not overwrite the live "this month" figures.
-            if ( strtoupper( trim( (string) $date_range ) ) === 'THIS_MONTH' ) {
+            // Persist to the six_metrics table (which the customer dashboard
+            // reads) only when BOTH: (a) this is the current calendar month —
+            // other ranges are advisor exploration — AND (b) the advisor has
+            // turned on Auto-from-source for Google Ads, so a manual override
+            // is never clobbered by an automatic pull.
+            $auto_on = get_user_meta( $client_id, 'six_metric_auto_google-ads', true ) === '1';
+            if ( $auto_on && strtoupper( trim( (string) $date_range ) ) === 'THIS_MONTH' ) {
                 self::save_metrics_to_db( $client_id, $metrics );
             }
             set_transient( $cache_key, $metrics, 6 * HOUR_IN_SECONDS );
