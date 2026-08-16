@@ -826,16 +826,34 @@ add_action( 'wp_ajax_six_save_client_gads', function() {
     wp_send_json_success( array( 'message' => 'Customer ID saved.' ) );
 } );
 
-// Advisor: manually trigger sync for one client
+// Advisor: manually trigger sync for one client.
+// Accepts an optional date_range (THIS_MONTH default, LAST_MONTH, ALL_TIME,
+// rolling windows, or "YYYY-MM-DD:YYYY-MM-DD") and a force flag that bypasses
+// the 6-hour cache — used by the advisor's "Refresh now" button and the
+// date-range selector on the client profile.
 add_action( 'wp_ajax_six_sync_client_gads', function() {
     check_ajax_referer( 'six_nonce', 'nonce' );
     if ( ! Six_Roles::is_advisor() ) wp_send_json_error( 'Permission denied' );
     $client_id   = intval( $_POST['client_id'] ?? 0 );
     $customer_id = get_user_meta( $client_id, 'six_gads_customer_id', true );
     if ( ! $customer_id ) wp_send_json_error( 'No Google Ads Customer ID set for this client.' );
-    $metrics = Six_Google_Ads::get_campaign_metrics_for_client( $client_id );
-    if ( $metrics ) {
-        wp_send_json_success( array( 'metrics' => $metrics ) );
+
+    $range = sanitize_text_field( $_POST['date_range'] ?? 'THIS_MONTH' );
+    // Whitelist tokens; allow the "YYYY-MM-DD:YYYY-MM-DD" custom form through.
+    $allowed = array( 'THIS_MONTH', 'LAST_MONTH', 'ALL_TIME', 'LAST_7_DAYS', 'LAST_14_DAYS', 'LAST_30_DAYS', 'YESTERDAY', 'TODAY' );
+    if ( ! in_array( strtoupper( $range ), $allowed, true )
+         && ! preg_match( '/^\d{4}-\d{2}-\d{2}:\d{4}-\d{2}-\d{2}$/', $range ) ) {
+        $range = 'THIS_MONTH';
+    }
+    $force = ! empty( $_POST['force'] );
+
+    $metrics = Six_Google_Ads::get_campaign_metrics_for_client( $client_id, $range, $force );
+    if ( $metrics !== false ) {
+        wp_send_json_success( array(
+            'metrics'    => $metrics,
+            'date_range' => strtoupper( $range ),
+            'empty'      => empty( $metrics['campaigns'] ),
+        ) );
     } else {
         wp_send_json_error( Six_Google_Ads::get_last_error() ?: 'Sync failed.' );
     }
@@ -1526,9 +1544,9 @@ add_action( 'wp_ajax_six_test_client_datasource', function() {
     }
     if ( $source === 'gads' ) {
         if ( ! class_exists('Six_Google_Ads') ) wp_send_json_error('Google Ads integration unavailable.');
-        $m = Six_Google_Ads::get_campaign_metrics_for_client( $client_id );
+        $m = Six_Google_Ads::get_campaign_metrics_for_client( $client_id, 'THIS_MONTH' );
         if ( $m === false ) wp_send_json_error( Six_Google_Ads::get_last_error() ?: 'Google Ads data unavailable.' );
-        if ( empty($m) ) wp_send_json_success( array('message'=>'Google Ads connected — no active-campaign data in the last 30 days.') );
+        if ( empty($m) ) wp_send_json_success( array('message'=>'Google Ads connected — no active-campaign data yet this month.') );
         wp_send_json_success( array('message'=>'Google Ads connected — live campaign metrics retrieved.') );
     }
     if ( $source === 'meta' ) {

@@ -1667,14 +1667,32 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                     <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Customer ID</div>
                     <input class="six-input" id="gads-cid" value="<?php echo esc_attr($c_gads); ?>" placeholder="123-456-7890" style="font-size:12px;font-family:monospace">
                 </div>
-                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
                     <button class="six-btn six-btn-primary six-btn-sm" id="save-gads-cid" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Save & Connect</button>
                     <?php if($c_gads): ?>
                     <button class="six-btn six-btn-ghost six-btn-sm six-ds-test" data-source="gads" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Test connection</button>
-                    <button class="six-btn six-btn-ghost six-btn-sm" id="sync-gads-now" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">↻ Sync Now</button>
-                    <?php if($c_sync): ?><span style="font-size:11px;color:var(--text3);align-self:center">Last: <?php echo human_time_diff(strtotime($c_sync),time()); ?> ago</span><?php endif; ?>
                     <?php endif; ?>
                 </div>
+                <?php if($c_gads): ?>
+                <!-- Date-range viewer: pull live campaign metrics by calendar month / all-time -->
+                <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.05)">
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                        <select class="six-input" id="gads-range" style="font-size:11px;width:auto;padding:6px 8px">
+                            <option value="THIS_MONTH">This month</option>
+                            <option value="LAST_MONTH">Last month</option>
+                            <option value="LAST_30_DAYS">Last 30 days</option>
+                            <option value="LAST_7_DAYS">Last 7 days</option>
+                            <option value="ALL_TIME">All time</option>
+                            <option value="__custom">Custom range…</option>
+                        </select>
+                        <input type="date" class="six-input" id="gads-range-from" style="font-size:11px;width:auto;padding:6px 8px;display:none">
+                        <input type="date" class="six-input" id="gads-range-to" style="font-size:11px;width:auto;padding:6px 8px;display:none">
+                        <button class="six-btn six-btn-ghost six-btn-sm" id="sync-gads-now" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">↻ Refresh now</button>
+                        <?php if($c_sync): ?><span style="font-size:11px;color:var(--text3);align-self:center" id="gads-last-sync">Last synced <?php echo human_time_diff(strtotime($c_sync),time()); ?> ago</span><?php endif; ?>
+                    </div>
+                    <div id="gads-metrics" style="margin-top:10px"></div>
+                </div>
+                <?php endif; ?>
                 <div id="gads-result" style="margin-top:8px;font-size:12px"></div>
             </div>
         </div>
@@ -3821,16 +3839,78 @@ if(saveCid) saveCid.addEventListener('click',function(){
         btn.textContent='Save Customer ID';btn.disabled=false;
     });
 });
+// Show/hide the custom date inputs when "Custom range…" is picked
+var gadsRangeSel=document.getElementById('gads-range');
+if(gadsRangeSel) gadsRangeSel.addEventListener('change',function(){
+    var custom=this.value==='__custom';
+    var f=document.getElementById('gads-range-from'), t=document.getElementById('gads-range-to');
+    if(f) f.style.display=custom?'':'none';
+    if(t) t.style.display=custom?'':'none';
+});
+// Resolve the chosen date range into an API token
+function gadsResolveRange(){
+    var sel=document.getElementById('gads-range');
+    if(!sel) return 'THIS_MONTH';
+    if(sel.value==='__custom'){
+        var f=(document.getElementById('gads-range-from')||{}).value,
+            t=(document.getElementById('gads-range-to')||{}).value;
+        if(f&&t) return f+':'+t;
+        return 'THIS_MONTH';
+    }
+    return sel.value;
+}
+// Render a compact metrics grid from the aggregated response
+function gadsRenderMetrics(m,range){
+    var box=document.getElementById('gads-metrics'); if(!box) return;
+    if(!m||!m.campaigns){ box.innerHTML='<div style="font-size:12px;color:var(--text3)">No active-campaign data for this range.</div>'; return; }
+    var labels={THIS_MONTH:'This month',LAST_MONTH:'Last month',ALL_TIME:'All time',LAST_30_DAYS:'Last 30 days',LAST_7_DAYS:'Last 7 days'};
+    var title=labels[range]||(range||'').replace(':',' → ');
+    var cells=[
+        ['Ad Spend','$'+(m.cost!=null?Number(m.cost).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}):'0.00')],
+        ['Clicks',Number(m.clicks||0).toLocaleString()],
+        ['Impressions',Number(m.impressions||0).toLocaleString()],
+        ['Conversions',Number(m.conversions||0).toLocaleString()],
+        ['Avg CPC','$'+(m.avg_cpc||0)],
+        ['CTR',(m.ctr||0)+'%'],
+        ['Conv. Rate',(m.conversion_rate||0)+'%'],
+        ['Campaigns',m.campaigns||0]
+    ];
+    var html='<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">'+title+'</div>';
+    html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:6px">';
+    cells.forEach(function(c){
+        html+='<div style="background:var(--dark3);border:1px solid var(--border);border-radius:8px;padding:8px"><div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px">'+c[0]+'</div><div style="font-size:14px;font-weight:700;color:var(--text1);margin-top:2px">'+c[1]+'</div></div>';
+    });
+    html+='</div>';
+    box.innerHTML=html;
+}
 var syncNow=document.getElementById('sync-gads-now');
 if(syncNow) syncNow.addEventListener('click',function(){
-    var btn=this;btn.textContent='Syncing…';btn.disabled=true;
-    post({action:'six_sync_client_gads',client_id:btn.dataset.client}).then(function(res){
-        document.getElementById('gads-result').innerHTML=res.success
-            ?'<span style="color:var(--success)">Synced! Metrics updated.</span>'
-            :'<span style="color:var(--danger)">'+(res.data||'Sync failed')+'</span>';
-        btn.textContent='↻ Sync Now';btn.disabled=false;
-    });
+    var btn=this;btn.textContent='Loading…';btn.disabled=true;
+    var range=gadsResolveRange();
+    post({action:'six_sync_client_gads',client_id:btn.dataset.client,date_range:range,force:1}).then(function(res){
+        if(res.success){
+            document.getElementById('gads-result').innerHTML='<span style="color:var(--success)">Updated ✓</span>';
+            gadsRenderMetrics(res.data.metrics,res.data.date_range);
+            var ls=document.getElementById('gads-last-sync'); if(ls) ls.textContent='Last synced just now';
+        } else {
+            document.getElementById('gads-result').innerHTML='<span style="color:var(--danger)">'+(res.data||'Sync failed')+'</span>';
+        }
+        btn.textContent='↻ Refresh now';btn.disabled=false;
+    }).catch(function(){document.getElementById('gads-result').innerHTML='<span style="color:var(--danger)">Network error.</span>';btn.textContent='↻ Refresh now';btn.disabled=false;});
 });
+// Auto-load current-month metrics on first paint (uses cache, no daily entry needed)
+if(document.getElementById('gads-metrics')){
+    (function(){
+        var box=document.getElementById('gads-metrics');
+        var cid=(document.getElementById('sync-gads-now')||{}).dataset;
+        if(!cid||!cid.client) return;
+        box.innerHTML='<div style="font-size:12px;color:var(--text3)">Loading this month…</div>';
+        post({action:'six_sync_client_gads',client_id:cid.client,date_range:'THIS_MONTH'}).then(function(res){
+            if(res.success) gadsRenderMetrics(res.data.metrics,res.data.date_range);
+            else box.innerHTML='<div style="font-size:12px;color:var(--text3)">'+(res.data||'Could not load metrics.')+'</div>';
+        }).catch(function(){box.innerHTML='';});
+    })();
+}
 
 // ── MCC Credentials ──────────────────────────────────────────────────────────
 var saveMcc=document.getElementById('save-mcc');
