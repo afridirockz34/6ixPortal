@@ -2251,7 +2251,7 @@ function sixCardFlow(opts){
             var secret=r.data.client_secret;
             var stripe=Stripe(r.data.pk);
             var elements=stripe.elements();
-            var card=elements.create('card',{style:{base:{fontSize:'15px',color:'#0F1923','::placeholder':{color:'#8B96A3'}}}});
+            var card=elements.create('card',{hidePostalCode:true,style:{base:{fontSize:'15px',color:'#0F1923','::placeholder':{color:'#8B96A3'}}}});
             card.mount('#six-cardflow-el');
             errEl.textContent='';
             card.on('change',function(ev){ errEl.textContent=ev.error?ev.error.message:''; saveBtn.disabled=!ev.complete; saveBtn.style.opacity=ev.complete?'1':'.6'; });

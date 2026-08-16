@@ -1204,7 +1204,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                     <!-- Edit/Delete -->
                     <div style="position:absolute;top:8px;right:8px;display:flex;gap:4px">
                         <button class="six-btn six-btn-ghost" style="padding:2px 6px;font-size:10px;color:var(--cyan)" onclick="populateMetricForm(<?php echo $met->id; ?>,'<?php echo esc_js($met->label); ?>','<?php echo esc_js($met->current_value); ?>','<?php echo esc_js($met->previous_value); ?>','<?php echo esc_js($met->target_value); ?>','<?php echo esc_js($met->service_slug); ?>')">Edit</button>
-                        <button class="six-btn six-btn-ghost six-del-metric" style="padding:2px 6px;font-size:10px;color:var(--danger)" data-metric-id="<?php echo $met->id; ?>"></button>
+                        <button class="six-btn six-btn-ghost six-del-metric" style="padding:2px 6px;font-size:10px;color:var(--danger)" data-metric-id="<?php echo $met->id; ?>">Delete</button>
                     </div>
                 </div>
                 <?php endforeach; ?>
@@ -1848,8 +1848,8 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             <span style="margin-left:auto;font-size:11px;color:<?php echo $sc; ?>;font-weight:700;text-transform:capitalize"><?php echo $status; ?></span>
             <?php if($status==='pending'): ?>
             <div style="display:flex;gap:6px">
-                <button class="six-btn six-btn-primary six-btn-sm six-adv-approve-budget" data-service-id="<?php echo $row->id; ?>" data-budget="<?php echo intval($rd['requested_budget']??0); ?>" style="font-size:11px"></button>
-                <button class="six-btn six-btn-ghost six-btn-sm six-adv-decline-budget" data-service-id="<?php echo $row->id; ?>" style="font-size:11px"></button>
+                <button class="six-btn six-btn-primary six-btn-sm six-adv-approve-budget" data-service-id="<?php echo $row->id; ?>" data-budget="<?php echo intval($rd['requested_budget']??0); ?>" style="font-size:11px">Approve</button>
+                <button class="six-btn six-btn-ghost six-btn-sm six-adv-decline-budget" data-service-id="<?php echo $row->id; ?>" style="font-size:11px">Decline</button>
             </div>
             <?php endif; ?>
         </div>
@@ -3420,7 +3420,7 @@ function sixCardFlow(opts){
         post(Object.assign({action:opts.setupAction},params)).then(function(r){
             if(!(r&&r.success&&r.data&&r.data.client_secret&&r.data.pk)){ errEl.textContent=(r&&r.data&&(r.data.message||r.data))||'Could not start card setup.'; return; }
             var secret=r.data.client_secret, stripe=Stripe(r.data.pk), elements=stripe.elements();
-            var card=elements.create('card',{style:{base:{fontSize:'15px',color:'#0F1923','::placeholder':{color:'#8B96A3'}}}});
+            var card=elements.create('card',{hidePostalCode:true,style:{base:{fontSize:'15px',color:'#0F1923','::placeholder':{color:'#8B96A3'}}}});
             card.mount('#six-cardflow-el'); errEl.textContent='';
             card.on('change',function(ev){ errEl.textContent=ev.error?ev.error.message:''; saveBtn.disabled=!ev.complete; saveBtn.style.opacity=ev.complete?'1':'.6'; });
             saveBtn.addEventListener('click',function(){
@@ -3756,14 +3756,26 @@ if(cancelRec) cancelRec.addEventListener('click',function(){
     this.style.display='none';
     ['rec-title','rec-desc','rec-action'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
 });
-var saveRec=document.getElementById('save-rec');
+// Bind to the actual button (six-add-rec-btn). The old code targeted a
+// non-existent id ("save-rec") and read a non-existent field ("rec-edit-id"),
+// which threw before sending — so "Send Recommendation" did nothing.
+var saveRec=document.getElementById('six-add-rec-btn');
 if(saveRec) saveRec.addEventListener('click',function(){
     var client=this.dataset.client;
-    post({action:'six_add_recommendation',client_id:client,rec_id:document.getElementById('rec-edit-id').value,
-        title:document.getElementById('rec-title').value,description:document.getElementById('rec-desc').value,action_label:document.getElementById('rec-action').value,
-    }).then(function(res){
-        document.getElementById('rec-result').innerHTML=res.success?'<span style="color:var(--success)">'+(res.data&&res.data.updated?'Updated!':'Sent to client!')+'</span>':'<span style="color:var(--danger)">Error</span>';
-        if(res.success)setTimeout(function(){location.reload();},900);
+    var titleEl=document.getElementById('rec-title'), descEl=document.getElementById('rec-desc'),
+        actEl=document.getElementById('rec-action'), editEl=document.getElementById('rec-edit-id'),
+        resEl=document.getElementById('rec-result');
+    var title=((titleEl&&titleEl.value)||'').trim(), desc=((descEl&&descEl.value)||'').trim();
+    if(!title||!desc){ if(resEl)resEl.innerHTML='<span style="color:var(--danger)">Enter a title and a description.</span>'; return; }
+    var self=this; self.textContent='Sending…'; self.disabled=true;
+    post({action:'six_add_recommendation',client_id:client,rec_id:(editEl?editEl.value:'')||0,
+        title:title,description:desc,action_label:(actEl?actEl.value:'')})
+    .then(function(res){
+        self.textContent='Send Recommendation'; self.disabled=false;
+        if(resEl)resEl.innerHTML=res&&res.success
+            ?'<span style="color:var(--success)">'+((res.data&&res.data.updated)?'Updated!':'Sent to client ✓')+'</span>'
+            :'<span style="color:var(--danger)">'+((res&&res.data)||'Error')+'</span>';
+        if(res&&res.success)setTimeout(function(){location.reload();},900);
     });
 });
 
