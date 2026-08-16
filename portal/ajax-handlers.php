@@ -1580,8 +1580,8 @@ add_action( 'wp_ajax_six_competitor_analysis', function() {
     if ( ! $domain ) wp_send_json_error( 'Add your website URL in your profile first, then run the analysis.' );
 
     $loc = class_exists( 'Six_AI_Strategist' ) ? Six_AI_Strategist::target_location( $uid ) : '';
-    $res = Six_DataForSEO::competitors( $domain, $loc, 12 );
-    if ( isset( $res['error'] ) ) wp_send_json_error( $res['error'] );
+    $res     = Six_DataForSEO::competitors( $domain, $loc, 12 );
+    $api_err = $res['error'] ?? '';   // an empty set is common for small sites — fall through
 
     $rows = array();
     foreach ( (array) ( $res['competitors'] ?? array() ) as $c ) {
@@ -1598,7 +1598,55 @@ add_action( 'wp_ajax_six_competitor_analysis', function() {
         $rows[] = array( 'domain' => $d, 'visits' => $visits, 'keywords' => $keywords, 'shared' => $shared, 'insight' => $insight );
         if ( count( $rows ) >= 10 ) break;
     }
-    if ( empty( $rows ) ) wp_send_json_error( 'No competitor data found for ' . $domain . ' yet — your advisor can refine your target keywords.' );
+
+    // Fallbacks — competitors() finds nothing when the client's own site has a
+    // thin ranking footprint (new/small sites). Use the competitors they named
+    // at onboarding, else discover who ranks for their top keyword.
+    if ( empty( $rows ) ) {
+        global $wpdb;
+        $ck = $wpdb->get_row( $wpdb->prepare(
+            "SELECT competitors, seo_keywords, ads_keywords FROM {$wpdb->prefix}six_checkout_progress WHERE user_id=%d", $uid ) );
+
+        $row_from_domain = function ( $dom, $insight ) use ( $loc, $domain ) {
+            $dom = preg_replace( '/^https?:\/\//', '', trim( (string) $dom ) );
+            $dom = preg_replace( '/^www\./', '', $dom );
+            $dom = preg_replace( '#/.*$#', '', $dom );
+            if ( ! $dom || strpos( $dom, '.' ) === false || $dom === $domain ) return null;
+            $rk = Six_DataForSEO::ranked_keywords( $dom, $loc, 100 );
+            if ( isset( $rk['error'] ) || empty( $rk['ranked_keywords'] ) ) return null;
+            $kws = $rk['ranked_keywords'];
+            $vol = 0; foreach ( $kws as $k ) $vol += intval( $k['volume'] ?? 0 );
+            return array( 'domain' => $dom, 'visits' => (int) round( $vol * 0.20 ), 'keywords' => count( $kws ), 'shared' => 0, 'insight' => $insight );
+        };
+
+        // A) Competitors the customer named during onboarding.
+        foreach ( array_filter( array_map( 'trim', explode( ',', $ck->competitors ?? '' ) ) ) as $nd ) {
+            $r = $row_from_domain( $nd, 'Competitor you named — live keyword footprint' );
+            if ( $r ) { $rows[] = $r; if ( count( $rows ) >= 8 ) break; }
+        }
+
+        // B) Still nothing? Whoever ranks page-1 for their top keyword.
+        if ( empty( $rows ) ) {
+            $kw = trim( strtok( (string) ( $ck->seo_keywords ?: $ck->ads_keywords ?: '' ), ',' ) );
+            if ( $kw ) {
+                $serp = Six_DataForSEO::serp( $kw, $loc, 10 );
+                $seen = array();
+                foreach ( (array) ( $serp['results'] ?? array() ) as $it ) {
+                    $du = preg_replace( '/^www\./', '', (string) ( $it['domain'] ?? '' ) );
+                    if ( ! $du || $du === $domain || isset( $seen[ $du ] ) ) continue;
+                    $seen[ $du ] = 1;
+                    $r = $row_from_domain( $du, 'Ranks page 1 for “' . $kw . '”' );
+                    if ( $r ) { $rows[] = $r; if ( count( $rows ) >= 6 ) break; }
+                }
+            }
+        }
+    }
+
+    if ( empty( $rows ) ) {
+        wp_send_json_error( $api_err
+            ? 'Competitor data source error: ' . $api_err
+            : 'No competitor data yet for ' . $domain . '. Add a few competitor URLs or target keywords in the profile, then run again.' );
+    }
 
     $data = array( 'domain' => $domain, 'rows' => $rows, 'ran_at' => time() );
     update_user_meta( $uid, 'six_comp_analysis_data', $data );
