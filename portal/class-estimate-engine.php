@@ -771,11 +771,11 @@ class Six_EstimateEngine {
             $svc_insight_instructions[] = 'Website insight: identify 1 conversion friction point common in ' . $ind . ', explain why load speed or headline copy affects cost per lead, and name the highest-ROI page to build first.';
 
         if ( $is_ga_audit ) {
-            $L[] = 'For the "insights" array, produce 3 IMPROVEMENT OPPORTUNITIES, ordered by revenue impact (biggest first). Each MUST follow this structure:';
+            $L[] = 'For the "insights" array, produce EXACTLY ONE opportunity — the single highest-impact improvement to their CURRENT Google Ads. Do not list more than one. It MUST follow this structure:';
             $L[] = '  what: The specific gap or leak in their CURRENT Google Ads (cite a number, their stated problem, or a competitor)';
             $L[] = '  why: Why fixing it grows ' . $biz . '\'s leads/revenue (be specific to ' . $ind . ' and what they told us)';
             $L[] = '  action: The single highest-impact fix (name the keyword, campaign type, setting, or tactic)';
-            $L[] = 'In the FIRST insight\'s "what", begin with "Biggest opportunity: ". In the second, begin with "Opportunity #2: ". In the third, "Opportunity #3: ".';
+            $L[] = 'Begin the "what" with "Biggest opportunity: ".';
             $L[] = 'Directly reference what they said is not working and their biggest challenge. Do not invent problems they did not describe unless the data clearly shows one.';
             $L[] = '';
             $L[] = '{';
@@ -798,12 +798,12 @@ class Six_EstimateEngine {
             $L[] = '  ]';
             $L[] = '}';
         } else {
-        $L[] = 'For the "insights" array, produce one insight per service. Each insight MUST follow this structure:';
+        $L[] = 'For the "insights" array, weigh every selected service and produce EXACTLY ONE opportunity — the single best, highest-revenue-impact move for this specific business right now. Do not list one per service; pick the strongest. It MUST follow this structure:';
         $L[] = '  what: What is happening in their market RIGHT NOW (cite a number or competitor name)';
         $L[] = '  why: Why this directly affects ' . $biz . '\'s revenue (be specific to ' . $ind . ')';
         $L[] = '  action: The single most important next step (name the keyword, page, or tactic)';
         if ( !empty($svc_insight_instructions) ) {
-            $L[] = 'Per-service guidance:';
+            $L[] = 'Use this per-service context to decide which single opportunity is strongest (do NOT output one for each):';
             foreach ($svc_insight_instructions as $si) $L[] = '- ' . $si;
         }
         $L[] = '';
