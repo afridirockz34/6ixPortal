@@ -17,9 +17,11 @@ global $wpdb;
 
 $advisor_id  = six_get_client_advisor_id( $user_id );
 $advisor     = $advisor_id ? get_userdata( $advisor_id ) : null;
-// Every advisor assigned to this client, tagged by service role (General,
-// Google Ads, SEO, SMM) — used by the Advisor tab to show the full team.
-$all_advisors = six_get_client_advisors( $user_id );
+// Every DISTINCT advisor assigned to this client — one entry per person
+// (an advisor covering every service, whether via "All Services" or by
+// holding every individual role, still counts as one). Used by the Advisor
+// tab to decide whether to show a "Your Team" breakdown at all.
+$all_advisors = six_get_client_advisors_grouped( $user_id );
 $services    = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}six_client_services WHERE client_id=%d ORDER BY status DESC", $user_id ) );
 $metrics     = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}six_metrics WHERE client_id=%d ORDER BY service_slug,label", $user_id ) );
 $recs        = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}six_recommendations WHERE client_id=%d AND status='active' ORDER BY created_at DESC LIMIT 10", $user_id ) );
@@ -1642,7 +1644,7 @@ $chart_json = json_encode(array(
             <div class="six-advisor-avatar" style="width:38px;height:38px;flex-shrink:0"><?php echo esc_html(six_get_initials($ca['name'])); ?></div>
             <div style="min-width:0">
                 <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><?php echo esc_html($ca['name']); ?></div>
-                <div style="font-size:11px;color:var(--pink);font-weight:600"><?php echo esc_html($ca['role_label']); ?><?php echo $ca['role']===''?' · Main contact':''; ?></div>
+                <div style="font-size:11px;color:var(--pink);font-weight:600"><?php echo esc_html($ca['role_label']); ?><?php echo in_array('',$ca['roles'],true)?' · Main contact':''; ?></div>
             </div>
         </div>
         <?php endforeach; ?>

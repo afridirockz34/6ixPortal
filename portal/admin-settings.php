@@ -433,7 +433,7 @@ function six_admin_assign() {
     ?>
     <div class="wrap">
         <h1>Assign Advisors to Clients</h1>
-        <p style="color:#666;max-width:720px">A client can have a <strong>General</strong> advisor (their main point of contact) plus a dedicated advisor per service — Google Ads, SEO, SMM. Assigning a new advisor to a role that's already filled replaces that role's advisor only; other roles are untouched. This same management is also available per-client from <a href="<?php echo admin_url('admin.php?page=six-portal-clients'); ?>">All Clients</a>.</p>
+        <p style="color:#666;max-width:720px">A client can have a <strong>General</strong> advisor (their main point of contact), an <strong>All Services</strong> advisor (handles everything active), and/or a dedicated advisor per service — Google Ads, SEO, SMM. Assigning a new advisor to a role that's already filled replaces that role's advisor only; other roles are untouched. This same management is also available per-client from <a href="<?php echo admin_url('admin.php?page=six-portal-clients'); ?>">All Clients</a>.</p>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:20px">
 
@@ -675,7 +675,7 @@ function six_admin_clients() {
     ?>
     <div class="wrap">
         <h1>All Portal Clients (<?php echo count( $clients ); ?>)</h1>
-        <p style="color:#666;max-width:760px">Each client can have a <strong>General</strong> advisor (main point of contact) plus a dedicated advisor per service — <strong>Google Ads</strong>, <strong>SEO</strong>, <strong>SMM</strong>. Use <strong>Manage Advisors</strong> to change or add any of them.</p>
+        <p style="color:#666;max-width:760px">Each client can have a <strong>General</strong> advisor (main point of contact), an <strong>All Services</strong> advisor (one person handling everything), and/or a dedicated advisor per service — <strong>Google Ads</strong>, <strong>SEO</strong>, <strong>SMM</strong>. Use <strong>Manage Advisors</strong> to change or add any of them.</p>
         <?php if ( empty( $clients ) ) : ?>
             <p>No customers yet. <a href="<?php echo admin_url('user-new.php'); ?>">Add a user</a> with role "Portal Customer".</p>
         <?php else : ?>
@@ -699,18 +699,21 @@ function six_admin_clients() {
                 $gads_id   = get_user_meta( $client->ID, 'six_gads_customer_id', true );
                 $last_sync = get_user_meta( $client->ID, 'six_gads_last_sync', true );
 
-                $client_advisors = six_get_client_advisors( $client->ID );
+                $client_advisors = six_get_client_advisors( $client->ID ); // raw, per role — feeds the modal's selects
                 // role_key => advisor_id (0 = unassigned), for the modal's selects.
                 $role_map = array_fill_keys( array_keys( $roles ), 0 );
                 foreach ( $client_advisors as $ca ) { $role_map[ $ca['role'] ] = $ca['advisor_id']; }
+                // Grouped by person for display, so one advisor covering every
+                // role (via "All Services" or by holding each role) shows once.
+                $client_advisors_grouped = six_get_client_advisors_grouped( $client->ID );
             ?>
             <tr>
                 <td><strong><?php echo esc_html( $client->display_name ); ?></strong></td>
                 <td><?php echo esc_html( $client->user_email ); ?></td>
                 <td>
-                    <?php if ( empty( $client_advisors ) ) : ?>
+                    <?php if ( empty( $client_advisors_grouped ) ) : ?>
                         <span style="color:#999">— None assigned —</span>
-                    <?php else : foreach ( $client_advisors as $ca ) : ?>
+                    <?php else : foreach ( $client_advisors_grouped as $ca ) : ?>
                         <span class="button button-small" style="pointer-events:none;margin:0 4px 4px 0" title="<?php echo esc_attr( $ca['role_label'] ); ?>">
                             <?php echo esc_html( $ca['name'] ); ?> <em style="opacity:.65">(<?php echo esc_html( $ca['role_label'] ); ?>)</em>
                         </span>
@@ -749,7 +752,7 @@ function six_admin_clients() {
         <div style="background:#fff;border-radius:8px;max-width:480px;margin:8vh auto;padding:24px;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.3)">
             <button type="button" id="six-advisors-modal-close" style="position:absolute;top:14px;right:14px;background:none;border:0;font-size:20px;cursor:pointer;line-height:1;color:#666">&times;</button>
             <h2 style="margin-top:0">Manage Advisors — <span id="six-advisors-modal-client"></span></h2>
-            <p style="color:#666;font-size:13px">Set one advisor per role, or "— Unassigned —" to remove it. Save applies all four at once.</p>
+            <p style="color:#666;font-size:13px">Set one advisor per role, or "— Unassigned —" to remove it. Pick "All Services" instead of filling in each service separately when one advisor handles everything. Save applies every role at once.</p>
             <form method="post">
                 <?php wp_nonce_field( 'six_save_advisors_PLACEHOLDER', 'six_advisors_nonce_field', false ); ?>
                 <input type="hidden" name="six_save_advisors" value="1">

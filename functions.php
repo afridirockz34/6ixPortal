@@ -304,34 +304,42 @@ add_action( 'admin_init', 'six_migrate_assignments_multi_advisor' );
 
 /**
  * Canonical service-role choices for advisor assignment.
- * '' = General / primary advisor (the client's main point of contact —
- * every other lookup that just wants "the" advisor prefers this row).
+ * '' = General / primary advisor (the client's main point of contact).
+ * 'all' = this advisor handles every active service for the client — the
+ * one-advisor-does-everything case, as a single row instead of one row per
+ * service, so the customer-facing UI can show just one person.
  */
 function six_advisor_service_roles() {
     return array(
         ''           => 'General',
+        'all'        => 'All Services',
         'google-ads' => 'Google Ads',
         'seo'        => 'SEO',
         'smm'        => 'Social Media (SMM)',
     );
 }
 
+/** SQL fragment ranking a role column: General first, then All, then the rest. */
+function six_advisor_role_priority_sql( $col = 'service_role' ) {
+    return "CASE {$col} WHEN '' THEN 0 WHEN 'all' THEN 1 ELSE 2 END";
+}
+
 /**
  * The single advisor_id to use for a client when the caller doesn't care
  * about per-service granularity (notifications, ownership checks, "who is
- * my advisor" widgets, etc). Always prefers the General row so every
- * pre-existing single-advisor client keeps behaving exactly as before;
- * only falls back to a role-specific advisor if no General one is set.
+ * my advisor" widgets, etc). Prefers, in order: the exact role requested,
+ * the "All Services" advisor, then General — so every pre-existing
+ * single-advisor client keeps behaving exactly as before.
  *
- * Pass a specific $service_role to prefer that role's advisor first
- * (falling back to General if that role has no dedicated advisor).
+ * Pass a specific $service_role to prefer that role's dedicated advisor
+ * first (falling back to All Services, then General).
  */
 function six_get_client_advisor_id( $client_id, $service_role = '' ) {
     global $wpdb;
     $client_id = intval( $client_id );
     if ( ! $client_id ) return 0;
 
-    if ( $service_role !== '' ) {
+    if ( $service_role !== '' && $service_role !== 'all' ) {
         $id = $wpdb->get_var( $wpdb->prepare(
             "SELECT advisor_id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d AND service_role=%s",
             $client_id, $service_role
@@ -339,29 +347,35 @@ function six_get_client_advisor_id( $client_id, $service_role = '' ) {
         if ( $id ) return intval( $id );
     }
 
+    $priority = six_advisor_role_priority_sql();
     $id = $wpdb->get_var( $wpdb->prepare(
-        "SELECT advisor_id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d ORDER BY (service_role='') DESC, id ASC LIMIT 1",
+        "SELECT advisor_id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d ORDER BY {$priority} ASC, id ASC LIMIT 1",
         $client_id
     ) );
     return intval( $id );
 }
 
 /**
- * Every advisor assigned to a client, each tagged with its service role —
- * General first, then alphabetical by role. Used by the customer dashboard's
- * advisor section and the All Clients admin page.
+ * Every advisor ASSIGNMENT ROW for a client — one entry per (role, advisor)
+ * pair, so the same person can appear more than once if they hold multiple
+ * roles. This raw, per-role shape is what the "Manage Advisors" admin modal
+ * needs to populate its role selects independently.
+ *
+ * For anything customer-facing, use six_get_client_advisors_grouped()
+ * instead — it collapses this down to one entry per distinct person.
  */
 function six_get_client_advisors( $client_id ) {
     global $wpdb;
     $client_id = intval( $client_id );
     if ( ! $client_id ) return array();
 
+    $priority = six_advisor_role_priority_sql( 'a.service_role' );
     $rows = $wpdb->get_results( $wpdb->prepare(
         "SELECT a.id, a.advisor_id, a.service_role, u.display_name, u.user_email
          FROM {$wpdb->prefix}six_assignments a
          INNER JOIN {$wpdb->prefix}users u ON a.advisor_id = u.ID
          WHERE a.client_id=%d
-         ORDER BY (a.service_role='') DESC, a.service_role ASC",
+         ORDER BY {$priority} ASC, a.service_role ASC",
         $client_id
     ) );
 
@@ -377,6 +391,62 @@ function six_get_client_advisors( $client_id ) {
             'role_label'    => $roles[ $r->service_role ] ?? ucwords( str_replace( '-', ' ', $r->service_role ) ),
         );
     }
+    return $out;
+}
+
+/**
+ * Every DISTINCT advisor assigned to a client — one entry per person, with
+ * their role(s) combined into a single display label. This is what
+ * customer-facing UI (and the All Clients admin badges) should use: if one
+ * advisor was assigned "All Services", or was manually given every role, or
+ * is simply the client's only advisor, this returns exactly one entry —
+ * matching the client's real-world experience of having one advisor, not one
+ * per role. General/All-Services advisors sort first.
+ */
+function six_get_client_advisors_grouped( $client_id ) {
+    $rows = six_get_client_advisors( $client_id );
+    if ( ! $rows ) return array();
+
+    $by_advisor = array();
+    foreach ( $rows as $r ) {
+        $aid = $r['advisor_id'];
+        if ( ! isset( $by_advisor[ $aid ] ) ) {
+            $by_advisor[ $aid ] = array(
+                'advisor_id' => $aid,
+                'name'       => $r['name'],
+                'email'      => $r['email'],
+                'roles'      => array(),
+                'labels'     => array(),
+            );
+        }
+        $by_advisor[ $aid ]['roles'][]  = $r['role'];
+        $by_advisor[ $aid ]['labels'][] = $r['role_label'];
+    }
+
+    $out = array();
+    foreach ( $by_advisor as $entry ) {
+        if ( in_array( 'all', $entry['roles'], true ) ) {
+            $combined = 'All Services';
+        } else {
+            $combined = implode( ', ', $entry['labels'] );
+        }
+        $out[] = array(
+            'advisor_id' => $entry['advisor_id'],
+            'name'       => $entry['name'],
+            'email'      => $entry['email'],
+            'roles'      => $entry['roles'],
+            'role_label' => $combined,
+        );
+    }
+
+    usort( $out, function ( $a, $b ) {
+        $score = function ( $e ) {
+            if ( in_array( '', $e['roles'], true ) ) return 0;
+            if ( in_array( 'all', $e['roles'], true ) ) return 1;
+            return 2;
+        };
+        return $score( $a ) <=> $score( $b );
+    } );
     return $out;
 }
 
