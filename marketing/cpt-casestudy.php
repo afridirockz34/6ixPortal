@@ -40,12 +40,55 @@ add_action( 'init', function () {
 }, 9 );
 
 /**
- * Curated icon cycles (keys from mk_icon()). Objectives and Achievements each
- * auto-assign an icon per item, cycling so no two adjacent rows repeat — the
- * editor never has to pick one.
+ * Icon cycles used ONLY as a fallback for Case Studies saved before the
+ * icon-picker existed (plain "one line per item" text, no per-item icon).
+ * Never used once an item has been through the picker and saved as JSON.
  */
 function six_cs_obj_icons() { return array( 'target', 'trending', 'bulb', 'rocket', 'gauge', 'users' ); }
 function six_cs_ach_icons() { return array( 'search', 'layers', 'pen', 'globe', 'rocket', 'link', 'award', 'chart' ); }
+
+/**
+ * The icon choices offered to the advisor for each Objective / Achievement
+ * row — every icon in the theme's set (mk_icon_list()), labelled for a plain
+ * <select>. Keeping this as "all of them" (20) gives the widest relevant
+ * range while guaranteeing every pick already matches the site's style.
+ */
+function six_cs_selectable_icons() {
+    return array(
+        'target'   => 'Target / Goal',
+        'trending' => 'Trending Up',
+        'chart'    => 'Analytics / Chart',
+        'gauge'    => 'Speed / Performance',
+        'rocket'   => 'Growth / Launch',
+        'bulb'     => 'Idea / Strategy',
+        'spark'    => 'Spark / Highlight',
+        'award'    => 'Award / Results',
+        'shield'   => 'Trust / Security',
+        'clock'    => 'Time / Turnaround',
+        'search'   => 'Search / SEO',
+        'seo'      => 'SEO',
+        'ads'      => 'Ads / PPC',
+        'website'  => 'Website',
+        'social'   => 'Social Media',
+        'globe'    => 'Reach / Global',
+        'link'     => 'Links / Backlinks',
+        'layers'   => 'Structure / Layers',
+        'pen'      => 'Content / Copy',
+        'users'    => 'Audience / Team',
+    );
+}
+
+/**
+ * Raw SVG path data for the selectable icons, keyed the same as
+ * six_cs_selectable_icons() — passed to the admin repeater's JS so the icon
+ * preview can render without any extra asset/API call. Sourced from
+ * mk_icon_list() (marketing/helpers.php) so it can never drift from the
+ * front-end icon set.
+ */
+function six_cs_icon_paths_for_js() {
+    if ( ! function_exists( 'mk_icon_list' ) ) return array();
+    return array_intersect_key( mk_icon_list(), six_cs_selectable_icons() );
+}
 
 /** Split a textarea (one item per line) into a clean array of trimmed lines. */
 function six_cs_lines( $raw ) {
@@ -57,12 +100,92 @@ function six_cs_lines( $raw ) {
     return $out;
 }
 
+/**
+ * Read one repeater field (Objectives or Achievements) as an array of
+ * ['icon'=>..., 'text'=>...]. Prefers the icon-picker JSON; falls back to the
+ * legacy newline-text field (auto-cycled icons) for Case Studies created
+ * before the picker existed, so nothing already saved goes blank.
+ */
+function six_cs_parse_items( $post_id, $json_key, $legacy_key, $cycle_icons ) {
+    $raw = get_post_meta( $post_id, $json_key, true );
+    if ( $raw ) {
+        $decoded = json_decode( $raw, true );
+        if ( is_array( $decoded ) ) {
+            $out = array();
+            foreach ( $decoded as $row ) {
+                $text = trim( (string) ( is_array( $row ) ? ( $row['text'] ?? '' ) : '' ) );
+                if ( $text === '' ) continue;
+                $icon = sanitize_key( $row['icon'] ?? '' );
+                if ( ! $icon ) $icon = 'spark';
+                $out[] = array( 'icon' => $icon, 'text' => $text );
+            }
+            if ( $out ) return $out;
+        }
+    }
+    // Legacy fallback.
+    $lines = six_cs_lines( get_post_meta( $post_id, $legacy_key, true ) );
+    $out = array();
+    foreach ( $lines as $i => $l ) {
+        $out[] = array( 'icon' => $cycle_icons[ $i % count( $cycle_icons ) ], 'text' => $l );
+    }
+    return $out;
+}
+
 // Load the WP media uploader on the Case Study editor screens.
 add_action( 'admin_enqueue_scripts', function ( $hook ) {
     if ( ! in_array( $hook, array( 'post.php', 'post-new.php' ), true ) ) return;
     $screen = get_current_screen();
     if ( $screen && $screen->post_type === 'six_case_study' ) wp_enqueue_media();
 } );
+
+/**
+ * Render one icon-picker repeater (Objectives or Achievements): each row is
+ * an icon <select> (from six_cs_selectable_icons()) with a live SVG preview,
+ * plus a text input. Rows can be added/removed; on form submit, JS serialises
+ * them into the hidden JSON field the save handler reads.
+ */
+function six_cs_render_repeater( $post_id, $json_key, $legacy_key, $cycle_icons, $label, $add_label, $placeholder ) {
+    $icons = six_cs_selectable_icons();
+    $items = six_cs_parse_items( $post_id, $json_key, $legacy_key, $cycle_icons );
+    if ( ! $items ) $items = array( array( 'icon' => $cycle_icons[0], 'text' => '' ) );
+    ?>
+    <div style="margin:0 0 18px">
+      <label style="display:block;font-weight:600;margin-bottom:8px"><?php echo esc_html( $label ); ?></label>
+      <div class="six-cs-repeater" data-default-icon="<?php echo esc_attr( $cycle_icons[0] ); ?>" data-placeholder="<?php echo esc_attr( $placeholder ); ?>">
+        <div class="six-cs-rep-rows">
+          <?php foreach ( $items as $it ) : ?>
+          <div class="six-cs-rep-row">
+            <select class="six-cs-rep-icon">
+              <?php foreach ( $icons as $key => $lbl ) : ?>
+              <option value="<?php echo esc_attr( $key ); ?>"<?php selected( $it['icon'], $key ); ?>><?php echo esc_html( $lbl ); ?></option>
+              <?php endforeach; ?>
+            </select>
+            <span class="six-cs-rep-preview"></span>
+            <input type="text" class="six-cs-rep-text" value="<?php echo esc_attr( $it['text'] ); ?>" placeholder="<?php echo esc_attr( $placeholder ); ?>">
+            <button type="button" class="button six-cs-rep-remove" aria-label="Remove">✕</button>
+          </div>
+          <?php endforeach; ?>
+        </div>
+        <!-- Always-present template for "+ Add" to clone — independent of the
+             live rows above, so Add still works after every row is removed. -->
+        <div class="six-cs-rep-template" style="display:none" aria-hidden="true">
+          <div class="six-cs-rep-row">
+            <select class="six-cs-rep-icon">
+              <?php foreach ( $icons as $key => $lbl ) : ?>
+              <option value="<?php echo esc_attr( $key ); ?>"<?php selected( $key, $cycle_icons[0] ); ?>><?php echo esc_html( $lbl ); ?></option>
+              <?php endforeach; ?>
+            </select>
+            <span class="six-cs-rep-preview"></span>
+            <input type="text" class="six-cs-rep-text" value="" placeholder="<?php echo esc_attr( $placeholder ); ?>">
+            <button type="button" class="button six-cs-rep-remove" aria-label="Remove">✕</button>
+          </div>
+        </div>
+        <button type="button" class="button six-cs-rep-add"><?php echo esc_html( $add_label ); ?></button>
+        <input type="hidden" name="<?php echo esc_attr( $json_key ); ?>" class="six-cs-rep-json">
+      </div>
+    </div>
+    <?php
+}
 
 // ── Meta box: the sections an editor fills in ───────────────────────────────
 add_action( 'add_meta_boxes', function () {
@@ -80,13 +203,85 @@ add_action( 'add_meta_boxes', function () {
         };
 
         echo '<p style="color:#666;margin-top:0">The <strong>title</strong> is the client / organisation name (e.g. “College for Adult Learning”). '
-           . 'Set the hero photo as the <strong>Featured Image</strong>. Fill the sections below — icons, colours and layout are applied automatically to match the site.</p>';
+           . 'Set the hero photo as the <strong>Featured Image</strong>. Fill the sections below — colours and layout are applied automatically to match the site.</p>';
 
         $text( 'six_cs_subtitle', 'Subtitle / category', 'Training Organization Case Study' );
         $text( 'six_cs_headline', 'Headline result (big banner line)', '300%+ more sales with 60% lower cost per sale' );
         $area( 'six_cs_background', 'Background', "A short paragraph on who the client is and the challenge they came to us with.", 4 );
-        $area( 'six_cs_objectives', 'Objectives — one per line', "Dramatically reduce cost-per-lead to a profitable level.\nIncrease the volume of qualified leads.\nAssist with the online launch of new courses.", 5 );
-        $area( 'six_cs_achievements', 'Achievements — one per line', "Rebuilt and re-organised the Google Ads campaigns.\nCreated targeted landing pages for specific courses.\nSet up landing-page split tests to improve conversion.", 6 );
+
+        // ── Icon-picker repeaters (Objectives / Achievements) ─────────────
+        ?>
+        <style>
+          .six-cs-rep-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+          .six-cs-rep-icon{width:190px;flex-shrink:0}
+          .six-cs-rep-preview{width:34px;height:34px;flex-shrink:0;border-radius:7px;background:#F1F3F8;
+            display:flex;align-items:center;justify-content:center;color:#8781BA}
+          .six-cs-rep-preview svg{width:18px;height:18px}
+          .six-cs-rep-text{flex:1;min-width:0}
+          .six-cs-rep-remove{flex-shrink:0}
+        </style>
+        <?php
+        six_cs_render_repeater(
+            $post->ID, 'six_cs_objectives_json', 'six_cs_objectives', six_cs_obj_icons(),
+            'Objectives — pick an icon for each', '+ Add objective',
+            'e.g. Dramatically reduce cost-per-lead to a profitable level.'
+        );
+        six_cs_render_repeater(
+            $post->ID, 'six_cs_achievements_json', 'six_cs_achievements', six_cs_ach_icons(),
+            'Achievements — pick an icon for each', '+ Add achievement',
+            'e.g. Rebuilt and re-organised the Google Ads campaigns.'
+        );
+        ?>
+        <script>
+        (function(){
+          var ICONS = <?php echo wp_json_encode( six_cs_icon_paths_for_js() ); ?>;
+          function svg(name){
+            var p = ICONS[name] || ICONS.spark;
+            return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>';
+          }
+          function wireRow(row){
+            var sel = row.querySelector('.six-cs-rep-icon');
+            var prev = row.querySelector('.six-cs-rep-preview');
+            function update(){ prev.innerHTML = svg(sel.value); }
+            sel.addEventListener('change', update);
+            update();
+            row.querySelector('.six-cs-rep-remove').addEventListener('click', function(){
+              row.remove();
+            });
+          }
+          document.querySelectorAll('.six-cs-repeater').forEach(function(rep){
+            var rowsWrap = rep.querySelector('.six-cs-rep-rows');
+            var template = rep.querySelector('.six-cs-rep-template .six-cs-rep-row');
+            rep.querySelectorAll('.six-cs-rep-rows .six-cs-rep-row').forEach(wireRow);
+            rep.querySelector('.six-cs-rep-add').addEventListener('click', function(){
+              var row = template.cloneNode(true);
+              row.querySelector('.six-cs-rep-icon').value = rep.dataset.defaultIcon;
+              row.querySelector('.six-cs-rep-text').value = '';
+              rowsWrap.appendChild(row);
+              wireRow(row);
+              row.querySelector('.six-cs-rep-text').focus();
+            });
+          });
+          // Serialise every repeater into its hidden JSON field right before
+          // the post form submits (works for Publish/Update and autosave-safe
+          // since it only touches the hidden input's value).
+          var form = document.getElementById('post');
+          if(form){
+            form.addEventListener('submit', function(){
+              document.querySelectorAll('.six-cs-repeater').forEach(function(rep){
+                var out = [];
+                rep.querySelectorAll('.six-cs-rep-rows .six-cs-rep-row').forEach(function(row){
+                  var text = row.querySelector('.six-cs-rep-text').value.trim();
+                  if(!text) return;
+                  out.push({ icon: row.querySelector('.six-cs-rep-icon').value, text: text });
+                });
+                rep.querySelector('.six-cs-rep-json').value = JSON.stringify(out);
+              });
+            });
+          }
+        })();
+        </script>
+        <?php
 
         echo '<hr style="margin:20px 0"><p style="font-weight:600;margin:0 0 6px">Key Results</p>';
         echo '<p style="color:#666;margin:0 0 12px">Up to four headline numbers. Leave a row blank to hide it. Direction shows an up or down arrow.</p>';
@@ -121,9 +316,31 @@ add_action( 'save_post_six_case_study', function ( $post_id ) {
     foreach ( array( 'six_cs_subtitle', 'six_cs_headline' ) as $k ) {
         if ( isset( $_POST[ $k ] ) ) update_post_meta( $post_id, $k, sanitize_text_field( wp_unslash( $_POST[ $k ] ) ) );
     }
-    foreach ( array( 'six_cs_background', 'six_cs_objectives', 'six_cs_achievements' ) as $k ) {
-        if ( isset( $_POST[ $k ] ) ) update_post_meta( $post_id, $k, sanitize_textarea_field( wp_unslash( $_POST[ $k ] ) ) );
+    if ( isset( $_POST['six_cs_background'] ) ) {
+        update_post_meta( $post_id, 'six_cs_background', sanitize_textarea_field( wp_unslash( $_POST['six_cs_background'] ) ) );
     }
+
+    // Objectives / Achievements — icon-picker rows, serialised to JSON by the
+    // repeater's JS just before submit. Validate each icon against the
+    // allowed set so only real theme icons can ever be stored.
+    $allowed_icons = six_cs_selectable_icons();
+    foreach ( array( 'six_cs_objectives_json', 'six_cs_achievements_json' ) as $k ) {
+        if ( ! isset( $_POST[ $k ] ) ) continue;
+        $decoded = json_decode( wp_unslash( $_POST[ $k ] ), true );
+        $clean = array();
+        if ( is_array( $decoded ) ) {
+            foreach ( $decoded as $row ) {
+                if ( ! is_array( $row ) ) continue;
+                $item_text = sanitize_text_field( $row['text'] ?? '' );
+                if ( $item_text === '' ) continue;
+                $icon = sanitize_key( $row['icon'] ?? '' );
+                if ( ! isset( $allowed_icons[ $icon ] ) ) $icon = 'spark';
+                $clean[] = array( 'icon' => $icon, 'text' => $item_text );
+            }
+        }
+        update_post_meta( $post_id, $k, wp_json_encode( $clean ) );
+    }
+
     for ( $i = 1; $i <= 4; $i++ ) {
         foreach ( array( 'value', 'label', 'dir' ) as $suf ) {
             $k = "six_cs_kr{$i}_{$suf}";
@@ -158,8 +375,11 @@ function six_cs_get( $post ) {
         'subtitle'     => get_post_meta( $id, 'six_cs_subtitle', true ),
         'headline'     => get_post_meta( $id, 'six_cs_headline', true ),
         'background'   => get_post_meta( $id, 'six_cs_background', true ),
-        'objectives'   => six_cs_lines( get_post_meta( $id, 'six_cs_objectives', true ) ),
-        'achievements' => six_cs_lines( get_post_meta( $id, 'six_cs_achievements', true ) ),
+        // Each item is ['icon'=>..., 'text'=>...] — icon picked by the
+        // advisor (or auto-cycled for legacy stories saved before the picker
+        // existed; see six_cs_parse_items()).
+        'objectives'   => six_cs_parse_items( $id, 'six_cs_objectives_json',   'six_cs_objectives',   six_cs_obj_icons() ),
+        'achievements' => six_cs_parse_items( $id, 'six_cs_achievements_json', 'six_cs_achievements', six_cs_ach_icons() ),
         'results'      => $results,
         'image'        => get_the_post_thumbnail_url( $p, 'large' ) ?: '',
         'url'          => get_permalink( $p ),
