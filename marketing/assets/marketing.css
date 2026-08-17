@@ -122,7 +122,8 @@
   background: transparent; transition: background .28s ease, box-shadow .28s ease, border-color .28s ease;
   border-bottom: 1px solid transparent;
 }
-.six-mk .mk-header.mk-scrolled {
+.six-mk .mk-header.mk-scrolled,
+.six-mk .mk-header.mk-header--solid {
   background: var(--mk-navy); border-bottom-color: rgba(255,255,255,.08);
   box-shadow: 0 6px 26px rgba(3,21,35,.28);
 }
@@ -130,8 +131,10 @@
 .six-mk .mk-logo { display: inline-flex; align-items: center; gap: 10px; }
 .six-mk .mk-logo img { max-height: 48px; width: auto; }
 .six-mk .mk-logo .mk-logo-scrolled { display: none; }
-.six-mk .mk-header.mk-scrolled .mk-logo .mk-logo-default { display: none; }
-.six-mk .mk-header.mk-scrolled .mk-logo .mk-logo-scrolled { display: block; }
+.six-mk .mk-header.mk-scrolled .mk-logo .mk-logo-default,
+.six-mk .mk-header.mk-header--solid .mk-logo .mk-logo-default { display: none; }
+.six-mk .mk-header.mk-scrolled .mk-logo .mk-logo-scrolled,
+.six-mk .mk-header.mk-header--solid .mk-logo .mk-logo-scrolled { display: block; }
 /* Links are light because the header sits on the dark hero / navy bar */
 .six-mk .mk-nav-links { display: flex; align-items: center; gap: 22px; margin-left: auto; }
 .six-mk .mk-nav-links > a,
