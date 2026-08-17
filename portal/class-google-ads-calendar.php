@@ -83,11 +83,51 @@ class Six_Google_Ads {
     }
 
     /**
+     * Translate a friendly date-range token into a GAQL WHERE fragment.
+     *
+     * Accepts calendar-month tokens (THIS_MONTH, LAST_MONTH), rolling windows
+     * (LAST_30_DAYS, LAST_7_DAYS), ALL_TIME (no filter), or a custom range in the
+     * form "YYYY-MM-DD:YYYY-MM-DD". Returns an empty string for ALL_TIME so the
+     * query pulls the account's full lifetime history.
+     */
+    private static function date_range_clause( $date_range ) {
+        $date_range = strtoupper( trim( (string) $date_range ) );
+
+        // Custom range: 2026-07-01:2026-07-31  (upper-casing leaves digits intact)
+        if ( preg_match( '/^(\d{4}-\d{2}-\d{2}):(\d{4}-\d{2}-\d{2})$/', $date_range, $m ) ) {
+            return " AND segments.date BETWEEN '{$m[1]}' AND '{$m[2]}'";
+        }
+
+        switch ( $date_range ) {
+            case 'ALL_TIME':
+                return '';
+            case 'THIS_MONTH':
+            case 'LAST_MONTH':
+            case 'LAST_7_DAYS':
+            case 'LAST_14_DAYS':
+            case 'LAST_30_DAYS':
+            case 'THIS_WEEK_MON_TODAY':
+            case 'LAST_WEEK_MON_SUN':
+            case 'YESTERDAY':
+            case 'TODAY':
+                return " AND segments.date DURING {$date_range}";
+            default:
+                // Unknown token — fall back to the current calendar month.
+                return ' AND segments.date DURING THIS_MONTH';
+        }
+    }
+
+    /**
      * Fetch campaign metrics for a client using their Customer ID.
      * Uses the single MCC access token + login-customer-id header.
      * Advisors only need to set the Customer ID per client — no per-client tokens.
+     *
+     * @param int    $client_id  WP user ID of the client.
+     * @param string $date_range Calendar token (THIS_MONTH default), ALL_TIME,
+     *                           a rolling window, or "YYYY-MM-DD:YYYY-MM-DD".
+     * @param bool   $force      Bypass the cached copy and re-pull from the API.
      */
-    public static function get_campaign_metrics_for_client( $client_id, $date_range = 'LAST_30_DAYS' ) {
+    public static function get_campaign_metrics_for_client( $client_id, $date_range = 'THIS_MONTH', $force = false ) {
         $customer_id = get_user_meta( $client_id, 'six_gads_customer_id', true );
         if ( ! $customer_id ) {
             self::$last_error = 'No Google Ads Customer ID set for this client.';
@@ -105,10 +145,12 @@ class Six_Google_Ads {
             return false;
         }
 
-        // Check cache first
+        // Check cache first (a manual "Refresh now" passes $force to skip it)
         $cache_key = 'six_gads_' . $customer_id . '_' . md5($date_range);
-        $cached    = get_transient( $cache_key );
-        if ( $cached !== false ) return $cached;
+        if ( ! $force ) {
+            $cached = get_transient( $cache_key );
+            if ( $cached !== false ) return $cached;
+        }
 
         // Get MCC access token
         $access_token    = self::get_mcc_access_token();
@@ -120,6 +162,8 @@ class Six_Google_Ads {
             self::$last_error = 'Developer Token not set. Add it in WP Admin → 6ix Portal → Integrations → Google Ads section.';
             return false;
         }
+
+        $date_clause = self::date_range_clause( $date_range );
 
         $query = "SELECT
             campaign.id,
@@ -133,9 +177,9 @@ class Six_Google_Ads {
             metrics.average_cpc,
             metrics.cost_per_conversion
           FROM campaign
-          WHERE campaign.status = 'ENABLED'
+          WHERE campaign.status = 'ENABLED'{$date_clause}
           ORDER BY metrics.cost_micros DESC
-          LIMIT 20";
+          LIMIT 50";
 
         $headers = array(
             'Authorization'   => 'Bearer ' . $access_token,
@@ -216,10 +260,39 @@ class Six_Google_Ads {
 
         $metrics = self::aggregate_metrics( $body['results'] ?? array() );
         if ( $metrics ) {
-            self::save_metrics_to_db( $client_id, $metrics );
+            $metrics['date_range'] = strtoupper( trim( (string) $date_range ) );
+            $metrics['synced_at']  = current_time( 'mysql' );
+            // Persist to the six_metrics table (which the customer dashboard
+            // reads) only when BOTH: (a) this is the current calendar month —
+            // other ranges are advisor exploration — AND (b) the advisor has
+            // turned on Auto-from-source for Google Ads, so a manual override
+            // is never clobbered by an automatic pull.
+            $auto_on = get_user_meta( $client_id, 'six_metric_auto_google-ads', true ) === '1';
+            if ( $auto_on && strtoupper( trim( (string) $date_range ) ) === 'THIS_MONTH' ) {
+                self::save_metrics_to_db( $client_id, $metrics );
+            }
             set_transient( $cache_key, $metrics, 6 * HOUR_IN_SECONDS );
         }
         return $metrics ?: array();
+    }
+
+    /**
+     * Convenience: pull last-month + this-month in one call, for the advisor's
+     * "last month / current month / target" metric view. Falls back gracefully
+     * if either range errors.
+     *
+     * @return array{ last_month: array|false, this_month: array|false, error: string }
+     */
+    public static function get_month_comparison( $client_id, $force = false ) {
+        $this_month = self::get_campaign_metrics_for_client( $client_id, 'THIS_MONTH', $force );
+        $err        = $this_month === false ? self::$last_error : '';
+        $last_month = self::get_campaign_metrics_for_client( $client_id, 'LAST_MONTH', $force );
+        if ( $last_month === false && ! $err ) $err = self::$last_error;
+        return array(
+            'last_month' => $last_month,
+            'this_month' => $this_month,
+            'error'      => $err,
+        );
     }
 
     // ── Aggregate raw API results into summary totals ──────────────────────

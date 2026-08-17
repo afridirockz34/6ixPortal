@@ -1786,13 +1786,21 @@ window.OB={
     var sub=plan.insight||plan.sub||'';
     var subWords=sub.split(' ');
     if(subWords.length>28) sub=subWords.slice(0,28).join(' ')+'…';
+    // When the plan is grounded in real keyword/CPC data we show the numeric
+    // projection. When it isn't, precise-looking ranges read as fake — so we
+    // drop the numbers and show an honest "we'll benchmark this together" line
+    // instead of a hollow estimate box.
+    var heroLabel = backed ? 'Your Growth Estimate' : 'Your Opportunity Snapshot';
+    var heroStats = backed
+      ? (kpiHtml?'<div class="ob-plan-hero-stats">'+kpiHtml+'</div>':'')
+      : '<div class="ob-plan-hero-sub" style="margin-top:10px">Your advisor will benchmark these against your real account data and share firm numbers within one business day — no guesswork.</div>';
     $i('ob-plan-hero').innerHTML=
-      '<div class="ob-plan-hero-label">Your Growth Estimate'+
-        (backed?'<span class="ob-data-badge">Data-Backed ✓</span>':'<span class="ob-data-badge ob-data-est">Estimated</span>')+
+      '<div class="ob-plan-hero-label">'+heroLabel+
+        (backed?'<span class="ob-data-badge">Data-Backed ✓</span>':'<span class="ob-data-badge ob-data-est">Advisor will verify</span>')+
       '</div>'+
       '<div class="ob-plan-hero-headline">'+(plan.headline||'Your tailored growth plan is ready.')+'</div>'+
       (sub?'<div class="ob-plan-hero-sub">'+sub+'</div>':'')+
-      (kpiHtml?'<div class="ob-plan-hero-stats">'+kpiHtml+'</div>':'');
+      heroStats;
 
     // ── Insight cards (structured: what/why/action per service) ───────────
     var insHtml='';
@@ -1805,7 +1813,9 @@ window.OB={
         if(!ins||!ins.what) return false;
         var sig=(ins.what+'|'+(ins.action||'')).toLowerCase().replace(/\s+/g,' ').trim();
         if(_seen[sig]) return false; _seen[sig]=1; return true;
-      });
+      // Show only the single best opportunity (what / why / action). The model
+      // is asked for one; this cap guarantees it even if extras come back.
+      }).slice(0,1);
       _uniq.forEach(function(ins){
         var whyBlock = ins.why ?
             '<div style="display:flex;align-items:flex-start;gap:10px">'+
@@ -1878,7 +1888,7 @@ window.OB={
         disc.innerHTML=
           '<strong>How we built this.</strong> This is an <strong>initial AI-assisted assessment</strong> of your current Google Ads, '+
           'generated from the answers you gave us, live keyword and CPC data for your market'+(backed?'':' (industry benchmarks where live data was unavailable)')+', '+
-          'your competitors, and Claude AI. The opportunities are ranked by likely impact.'+roiNote+
+          'your competitors, and Claude AI. We surface the single highest-impact opportunity first.'+roiNote+
           '<br><br>It is <strong>not a substitute for a full audit inside your account.</strong> '+
           'Once you complete onboarding, your 6ix Developers advisor will log into your Google Ads (with your permission), '+
           'review your real campaign, keyword and conversion data, and refine this plan into a hands-on strategy — usually within one business day.';
@@ -1895,7 +1905,7 @@ window.OB={
     $i('s4-btnrow').style.display='flex';
     $i('s4-ttl').textContent=isAudit?'Your Google Ads Opportunity Plan':'Your 60-Day Growth Plan';
     $i('s4-dsc').textContent=isAudit
-      ?'An initial audit of your current Google Ads — your biggest opportunities, ranked. Review before proceeding.'
+      ?'An initial audit of your current Google Ads — your single biggest opportunity. Review before proceeding.'
       :'Built on real data for your market. Review before proceeding.';
   },
 

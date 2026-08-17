@@ -106,3 +106,60 @@ add_action( 'wp_loaded', function () {
         }
     }
 }, 20 );
+
+/**
+ * v4 — Case Studies. Creates the /case-studies listing Page (assigned the
+ * Case Studies template), seeds one example story so the section/layout is
+ * populated on first load, and flushes rewrite rules so the new
+ * /case-study/{slug} permalinks resolve. Idempotent and guarded by its own
+ * option so it never repeats.
+ */
+add_action( 'wp_loaded', function () {
+    if ( get_option( 'six_mk_setup_v4' ) ) return;
+    update_option( 'six_mk_setup_v4', 1 );
+
+    // 1. Listing page → template-case-studies.php at /case-studies
+    $existing = get_page_by_path( 'case-studies' );
+    $pid = $existing ? $existing->ID : wp_insert_post( array(
+        'post_title'  => 'Case Studies',
+        'post_name'   => 'case-studies',
+        'post_status' => 'publish',
+        'post_type'   => 'page',
+        'post_content'=> '',
+    ) );
+    if ( $pid && ! is_wp_error( $pid ) ) {
+        update_post_meta( $pid, '_wp_page_template', 'marketing/templates/template-case-studies.php' );
+    }
+
+    // 2. Seed one example Case Study (only if none exist yet).
+    if ( ! get_posts( array( 'post_type' => 'six_case_study', 'numberposts' => 1, 'fields' => 'ids', 'post_status' => 'any' ) ) ) {
+        $id = wp_insert_post( array(
+            'post_title'  => 'College for Adult Learning',
+            'post_type'   => 'six_case_study',
+            'post_status' => 'publish',
+            'menu_order'  => 0,
+        ) );
+        if ( $id && ! is_wp_error( $id ) ) {
+            update_post_meta( $id, 'six_cs_subtitle', 'Training Organization Case Study' );
+            update_post_meta( $id, 'six_cs_headline', '300%+ more sales with 60% lower cost per sale' );
+            update_post_meta( $id, 'six_cs_background',
+                'The College for Adult Learning (CAL) is a Melbourne-based Registered Training Organization (RTO) offering courses designed to further their students\' careers in the most effective way. After experiencing a sudden cost spike and unsustainable lead costs, CAL approached 6ix Developers with a number of objectives.' );
+            update_post_meta( $id, 'six_cs_objectives',
+                "Dramatically reduce cost-per-lead to a profitable level.\nIncrease the volume of qualified leads to drive business growth.\nAssist with the online launch of new courses and products.\nImplement and test new ideas to keep sales pushing ahead." );
+            update_post_meta( $id, 'six_cs_achievements',
+                "Rebuilt and re-organised existing Google Ads campaigns to sharply reduce cost per conversion.\nCreated targeted landing pages for specific courses.\nProvided input on the optimisation of the sales process.\nSet up landing-page split tests to steadily improve conversion rates.\nImplemented automated email campaigns to qualify and convert enquiries into sales." );
+            update_post_meta( $id, 'six_cs_kr1_value', '300%+' );
+            update_post_meta( $id, 'six_cs_kr1_label', 'Lead and sales volume increase' );
+            update_post_meta( $id, 'six_cs_kr1_dir',   'up' );
+            update_post_meta( $id, 'six_cs_kr2_value', '60%' );
+            update_post_meta( $id, 'six_cs_kr2_label', 'Cost per sale drops by more than' );
+            update_post_meta( $id, 'six_cs_kr2_dir',   'down' );
+            update_post_meta( $id, 'six_cs_kr3_value', 'On target' );
+            update_post_meta( $id, 'six_cs_kr3_label', 'Profitability and growth improve in line with goals and projections' );
+            update_post_meta( $id, 'six_cs_kr3_dir',   'up' );
+        }
+    }
+
+    // 3. New CPT rewrite slug needs a one-time flush to resolve.
+    flush_rewrite_rules( false );
+}, 25 );

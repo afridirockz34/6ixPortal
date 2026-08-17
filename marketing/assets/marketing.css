@@ -758,3 +758,138 @@
 .six-mk .mk-card-link { color: var(--mk-pink); }
 
 /* Package / guide badges & principle numbers already use brand grad — keep. */
+
+/* ═══════════════════════════════════════════════════════════════════════
+   CASE STUDIES — home/archive cards + single brochure layout
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Split section head: title left, "view all" button right */
+.six-mk .mk-sec-head--split {
+  max-width: none; display: flex; align-items: flex-end;
+  justify-content: space-between; gap: 20px; flex-wrap: wrap; margin-bottom: 34px;
+}
+.six-mk .mk-sec-head--split h2 { margin: 0; }
+
+/* ── Cards (shared by home section + archive) ── */
+.six-mk .mk-cstudy-card { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+.six-mk .mk-cstudy-thumb {
+  position: relative; height: 172px; background: var(--mk-navy);
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.six-mk .mk-cstudy-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.six-mk .mk-cstudy-thumb-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, rgba(255,102,153,.22), rgba(106,202,253,.18)); }
+.six-mk .mk-cstudy-thumb-ph svg { width: 46px; height: 46px; color: #fff; opacity: .85; }
+.six-mk .mk-cstudy-badge {
+  position: absolute; left: 14px; bottom: 14px; z-index: 2;
+  background: var(--mk-pink); color: #fff; font-family: var(--mk-num);
+  font-weight: 800; font-size: .9rem; letter-spacing: .01em;
+  padding: 6px 12px; border-radius: 999px; box-shadow: 0 6px 18px rgba(255,102,153,.35);
+}
+.six-mk .mk-cstudy-body { padding: 20px 22px 24px; display: flex; flex-direction: column; flex: 1; }
+.six-mk .mk-cstudy-body .mk-eyebrow { margin-bottom: 8px; font-size: .72rem; }
+.six-mk .mk-cstudy-body h3 { font-size: 1.16rem; margin: 0 0 8px; }
+.six-mk .mk-cstudy-body p { color: var(--mk-t2); font-size: .95rem; margin-bottom: 16px; }
+.six-mk .mk-cstudy-body .mk-card-link { margin-top: auto; }
+
+/* ── Single brochure ── */
+.six-mk .mk-cs-back {
+  display: inline-flex; align-items: center; gap: 7px; color: var(--mk-t3);
+  font-weight: 700; font-size: .9rem; margin-bottom: 22px;
+}
+.six-mk .mk-cs-back:hover { color: var(--mk-pink); }
+
+.six-mk .mk-cs-panels {
+  display: grid; grid-template-columns: 0.95fr 1.28fr 0.82fr; gap: 0;
+  border: 1px solid var(--mk-border); border-radius: 22px; overflow: hidden;
+  box-shadow: 0 30px 80px -40px rgba(3,21,35,.5);
+}
+
+/* Navy rails */
+.six-mk .mk-cs-rail--navy { background: var(--mk-navy); color: #EAF0F7; display: flex; flex-direction: column; }
+.six-mk .mk-cs-idhead {
+  padding: 34px 30px 30px; background-size: cover; background-position: center;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.six-mk .mk-cs-brandmark {
+  font-family: var(--mk-head); font-weight: 800; font-size: 1.1rem; letter-spacing: .02em;
+  color: #fff; opacity: .9; margin-bottom: 44px;
+}
+.six-mk .mk-cs-eyebrow {
+  display: block; font-family: var(--mk-num); font-weight: 700; font-size: .72rem;
+  letter-spacing: .16em; text-transform: uppercase; color: var(--mk-pink); margin-bottom: 10px;
+}
+.six-mk .mk-cs-title { font-size: clamp(1.7rem, 3vw, 2.5rem); line-height: 1.05; color: #fff; margin: 0; }
+.six-mk .mk-cs-bg { padding: 28px 30px 32px; position: relative; }
+.six-mk .mk-cs-quote {
+  font-family: var(--mk-head); font-size: 4.4rem; line-height: .6; color: var(--mk-pink);
+  opacity: .55; height: 34px; margin-bottom: 8px;
+}
+.six-mk .mk-cs-rail-h {
+  font-size: 1.15rem; color: #fff; margin: 0 0 12px;
+  text-transform: uppercase; letter-spacing: .06em; font-size: 1rem;
+}
+.six-mk .mk-cs-rail-h--center { text-align: center; }
+.six-mk .mk-cs-bg p { color: #B7C4D4; font-size: .95rem; line-height: 1.6; margin: 0; }
+
+/* Center panel */
+.six-mk .mk-cs-center { background: var(--mk-surface); padding: 34px 34px 38px; }
+.six-mk .mk-cs-headline {
+  font-family: var(--mk-head); font-weight: 800; font-size: clamp(1.35rem, 2.4vw, 1.9rem);
+  line-height: 1.12; color: var(--mk-t1); padding-bottom: 24px; margin-bottom: 26px;
+  border-bottom: 2px solid var(--mk-border);
+}
+.six-mk .mk-cs-block { margin-bottom: 28px; }
+.six-mk .mk-cs-block:last-child { margin-bottom: 0; }
+.six-mk .mk-cs-h {
+  font-family: var(--mk-head); font-weight: 700; font-size: 1.35rem; color: var(--mk-t1);
+  margin: 0 0 16px;
+}
+
+/* Objectives — solid pink icon chips */
+.six-mk .mk-cs-obj { list-style: none; display: grid; gap: 14px; }
+.six-mk .mk-cs-obj li { display: flex; align-items: flex-start; gap: 14px; }
+.six-mk .mk-cs-obj-ico {
+  flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%;
+  background: var(--mk-pink); display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 6px 16px rgba(255,102,153,.32);
+}
+.six-mk .mk-cs-obj-ico svg { width: 20px; height: 20px; color: #fff; }
+.six-mk .mk-cs-obj li > span:last-child { color: var(--mk-t2); font-size: .97rem; line-height: 1.5; padding-top: 8px; }
+
+/* Achievements — outlined chips connected by a vertical line (timeline) */
+.six-mk .mk-cs-ach { list-style: none; position: relative; display: grid; gap: 20px; }
+.six-mk .mk-cs-ach::before {
+  content: ''; position: absolute; left: 21px; top: 12px; bottom: 12px; width: 2px;
+  background: linear-gradient(var(--mk-pink), rgba(255,102,153,.25)); z-index: 0;
+}
+.six-mk .mk-cs-ach li { display: flex; align-items: flex-start; gap: 16px; position: relative; z-index: 1; }
+.six-mk .mk-cs-ach-ico {
+  flex-shrink: 0; width: 44px; height: 44px; border-radius: 50%;
+  background: var(--mk-surface); border: 2px solid var(--mk-pink);
+  display: flex; align-items: center; justify-content: center;
+}
+.six-mk .mk-cs-ach-ico svg { width: 20px; height: 20px; color: var(--mk-pink); }
+.six-mk .mk-cs-ach-txt { color: var(--mk-t2); font-size: .97rem; line-height: 1.5; padding-top: 11px; }
+
+/* Key results rail */
+.six-mk .mk-cs-rail--results { padding: 30px 24px 34px; justify-content: flex-start; }
+.six-mk .mk-cs-kr-list { display: grid; gap: 26px; margin-top: 10px; }
+.six-mk .mk-cs-kr { text-align: center; }
+.six-mk .mk-cs-kr-arrow { display: inline-flex; }
+.six-mk .mk-cs-kr-arrow svg { width: 40px; height: 40px; color: var(--mk-pink); }
+.six-mk .mk-cs-kr-value {
+  font-family: var(--mk-num); font-weight: 800; font-size: 2.1rem; color: var(--mk-pink);
+  line-height: 1; margin-top: 4px;
+}
+.six-mk .mk-cs-kr-label { color: #B7C4D4; font-size: .85rem; line-height: 1.4; margin: 6px auto 0; max-width: 190px; }
+
+/* Responsive: collapse the trifold into stacked panels */
+@media (max-width: 900px) {
+  .six-mk .mk-cs-panels { grid-template-columns: 1fr; }
+  .six-mk .mk-cs-brandmark { margin-bottom: 20px; }
+  .six-mk .mk-cs-kr-list { grid-template-columns: repeat(3, 1fr); gap: 16px; }
+}
+@media (max-width: 560px) {
+  .six-mk .mk-cs-kr-list { grid-template-columns: 1fr; }
+}

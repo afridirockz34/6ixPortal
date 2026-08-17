@@ -84,6 +84,7 @@ if ( $mk_logged_in ) {
           </div>
         </div>
         <a href="<?php echo esc_url( home_url( '/about-us' ) ); ?>">About Us</a>
+        <a href="<?php echo esc_url( home_url( '/case-studies' ) ); ?>">Case Studies</a>
         <a href="<?php echo esc_url( $mkurl( $contact_url ) ); ?>"><?php echo esc_html( $contact_label ); ?></a>
         <div class="mk-nav-cta">
           <a class="mk-phone-btn" href="<?php echo esc_url( $phone_href ); ?>">

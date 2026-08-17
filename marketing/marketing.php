@@ -19,6 +19,7 @@ require_once SIX_MK_DIR . 'helpers.php';
 require_once SIX_MK_DIR . 'forms.php';      // lead-capture forms (Ninja-Forms swappable)
 require_once SIX_MK_DIR . 'pages.php';      // service page content (keyed by slug)
 require_once SIX_MK_DIR . 'cpt.php';        // Client Success + Testimonials (no plugins)
+require_once SIX_MK_DIR . 'cpt-casestudy.php'; // Case Studies (brochure-style stories)
 require_once SIX_MK_DIR . 'setup.php';      // one-time page + front-page + seed setup
 require_once SIX_MK_DIR . 'acf-fields.php'; // optional: only active if ACF is installed
 
@@ -27,6 +28,9 @@ require_once SIX_MK_DIR . 'acf-fields.php'; // optional: only active if ACF is i
  * We check the assigned page template file path.
  */
 function six_mk_is_marketing_page() {
+    // Single Case Study views are rendered by a marketing template too, so they
+    // need the same fonts + design system even though they aren't Pages.
+    if ( is_singular( 'six_case_study' ) ) return true;
     if ( ! is_page() ) return false;
     $tpl = get_page_template_slug( get_queried_object_id() );
     return $tpl && strpos( $tpl, 'marketing/templates/' ) === 0;
