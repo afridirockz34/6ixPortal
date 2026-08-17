@@ -37,7 +37,13 @@ header( 'Content-Type: text/html; charset=utf-8' );
 
 <div id="six-mk-root" class="six-mk six-mk--case-study">
 
-  <?php include SIX_MK_DIR . 'partials/header.php'; ?>
+  <?php
+  // This page opens straight into a light section with no dark hero band
+  // beneath it, so the header must render solid from the start (see the note
+  // in header.php) instead of the usual transparent-until-scroll behaviour.
+  $six_mk_header_solid = true;
+  include SIX_MK_DIR . 'partials/header.php';
+  ?>
 
   <section class="mk-section mk-cs-hero-sec" style="padding-top:120px">
     <div class="mk-wrap">

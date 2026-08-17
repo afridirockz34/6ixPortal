@@ -3,8 +3,16 @@
  * Marketing header — transparent over the hero, turns navy (#031523) on
  * scroll with a logo swap. Phone shown as a button. Mobile = right-side
  * drawer. Content editable in WP Admin → 6ix Site.
+ *
+ * Transparency only reads correctly when a dark hero band (.mk-hero) sits
+ * directly beneath it — that's true for every template except pages whose
+ * top section has no header image/dark band (e.g. the single Case Study
+ * brochure). Those templates set $six_mk_header_solid = true before this
+ * include so the header renders solid navy from the start instead of
+ * blending into a light section.
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
+$mk_header_force_solid = ! empty( $six_mk_header_solid );
 
 $orig = 'https://6ixdevelopers.com/';
 $brand_name  = mk_opt( 'brand_name', '6ix Developers' );
@@ -54,7 +62,7 @@ if ( $mk_logged_in ) {
     }
 }
 ?>
-<header class="mk-header" id="mk-header">
+<header class="mk-header<?php echo $mk_header_force_solid ? ' mk-header--solid' : ''; ?>" id="mk-header">
   <div class="mk-wrap">
     <nav class="mk-nav" id="mk-nav">
       <a class="mk-logo" href="<?php echo esc_url( home_url( '/' ) ); ?>" aria-label="<?php echo esc_attr( $brand_name ); ?>">
