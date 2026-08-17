@@ -144,10 +144,21 @@ add_action( 'wp_loaded', function () {
             update_post_meta( $id, 'six_cs_headline', '300%+ more sales with 60% lower cost per sale' );
             update_post_meta( $id, 'six_cs_background',
                 'The College for Adult Learning (CAL) is a Melbourne-based Registered Training Organization (RTO) offering courses designed to further their students\' careers in the most effective way. After experiencing a sudden cost spike and unsustainable lead costs, CAL approached 6ix Developers with a number of objectives.' );
-            update_post_meta( $id, 'six_cs_objectives',
-                "Dramatically reduce cost-per-lead to a profitable level.\nIncrease the volume of qualified leads to drive business growth.\nAssist with the online launch of new courses and products.\nImplement and test new ideas to keep sales pushing ahead." );
-            update_post_meta( $id, 'six_cs_achievements',
-                "Rebuilt and re-organised existing Google Ads campaigns to sharply reduce cost per conversion.\nCreated targeted landing pages for specific courses.\nProvided input on the optimisation of the sales process.\nSet up landing-page split tests to steadily improve conversion rates.\nImplemented automated email campaigns to qualify and convert enquiries into sales." );
+            // Icon-tagged JSON (the format the picker UI saves) so the seeded
+            // example already demonstrates real icon choices when opened.
+            update_post_meta( $id, 'six_cs_objectives_json', wp_json_encode( array(
+                array( 'icon' => 'target',   'text' => 'Dramatically reduce cost-per-lead to a profitable level.' ),
+                array( 'icon' => 'trending', 'text' => 'Increase the volume of qualified leads to drive business growth.' ),
+                array( 'icon' => 'rocket',   'text' => 'Assist with the online launch of new courses and products.' ),
+                array( 'icon' => 'bulb',     'text' => 'Implement and test new ideas to keep sales pushing ahead.' ),
+            ) ) );
+            update_post_meta( $id, 'six_cs_achievements_json', wp_json_encode( array(
+                array( 'icon' => 'ads',    'text' => 'Rebuilt and re-organised existing Google Ads campaigns to sharply reduce cost per conversion.' ),
+                array( 'icon' => 'layers', 'text' => 'Created targeted landing pages for specific courses.' ),
+                array( 'icon' => 'gauge',  'text' => 'Provided input on the optimisation of the sales process.' ),
+                array( 'icon' => 'chart',  'text' => 'Set up landing-page split tests to steadily improve conversion rates.' ),
+                array( 'icon' => 'users',  'text' => 'Implemented automated email campaigns to qualify and convert enquiries into sales.' ),
+            ) ) );
             update_post_meta( $id, 'six_cs_kr1_value', '300%+' );
             update_post_meta( $id, 'six_cs_kr1_label', 'Lead and sales volume increase' );
             update_post_meta( $id, 'six_cs_kr1_dir',   'up' );

@@ -16,9 +16,6 @@ remove_action( 'wp_head', 'et_load_custom_scripts' );
 $cs = function_exists( 'six_cs_get' ) ? six_cs_get( get_queried_object_id() ) : null;
 if ( ! $cs ) { $cs = array( 'title' => get_the_title(), 'subtitle' => '', 'headline' => '', 'background' => '', 'objectives' => array(), 'achievements' => array(), 'results' => array(), 'image' => '' ); }
 
-$obj_icons = six_cs_obj_icons();
-$ach_icons = six_cs_ach_icons();
-
 // Direction arrows for key results.
 $arrow_up   = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="5"/><polyline points="6 11 12 5 18 11"/></svg>';
 $arrow_down = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="4" x2="12" y2="19"/><polyline points="6 13 12 19 18 13"/></svg>';
@@ -80,10 +77,10 @@ header( 'Content-Type: text/html; charset=utf-8' );
           <div class="mk-cs-block">
             <h2 class="mk-cs-h">Objectives</h2>
             <ul class="mk-cs-obj">
-              <?php foreach ( $cs['objectives'] as $i => $o ) : ?>
+              <?php foreach ( $cs['objectives'] as $o ) : ?>
               <li>
-                <span class="mk-cs-obj-ico"><?php echo mk_icon( $obj_icons[ $i % count( $obj_icons ) ] ); ?></span>
-                <span><?php echo esc_html( $o ); ?></span>
+                <span class="mk-cs-obj-ico"><?php echo mk_icon( $o['icon'] ?? 'target' ); ?></span>
+                <span><?php echo esc_html( $o['text'] ?? '' ); ?></span>
               </li>
               <?php endforeach; ?>
             </ul>
@@ -94,10 +91,10 @@ header( 'Content-Type: text/html; charset=utf-8' );
           <div class="mk-cs-block">
             <h2 class="mk-cs-h">Achievements</h2>
             <ul class="mk-cs-ach">
-              <?php foreach ( $cs['achievements'] as $i => $a ) : ?>
+              <?php foreach ( $cs['achievements'] as $a ) : ?>
               <li>
-                <span class="mk-cs-ach-ico"><?php echo mk_icon( $ach_icons[ $i % count( $ach_icons ) ] ); ?></span>
-                <span class="mk-cs-ach-txt"><?php echo esc_html( $a ); ?></span>
+                <span class="mk-cs-ach-ico"><?php echo mk_icon( $a['icon'] ?? 'search' ); ?></span>
+                <span class="mk-cs-ach-txt"><?php echo esc_html( $a['text'] ?? '' ); ?></span>
               </li>
               <?php endforeach; ?>
             </ul>

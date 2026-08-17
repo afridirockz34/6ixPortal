@@ -103,9 +103,14 @@ function mk_portal_band( $args = array() ) {
     <?php
 }
 
-/** Small inline SVG icon set for marketing cards (no external deps). */
-function mk_icon( $name ) {
-    $icons = array(
+/**
+ * Raw path data for the marketing icon set (name => inner SVG markup), single
+ * source of truth for both mk_icon() (front-end render) and any admin UI that
+ * needs the same icons available for picking (e.g. the Case Study repeater
+ * fields) — kept in one place so the two never drift apart.
+ */
+function mk_icon_list() {
+    return array(
         'website'  => '<path d="M2 3h20v14H2z"/><path d="M8 21h8M12 17v4"/>',
         'ads'      => '<path d="M3 11l18-5v12L3 13v-2z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
         'seo'      => '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
@@ -128,6 +133,11 @@ function mk_icon( $name ) {
         'clock'    => '<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/>',
         'link'     => '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7L12 18"/>',
     );
+}
+
+/** Small inline SVG icon set for marketing cards (no external deps). */
+function mk_icon( $name ) {
+    $icons = mk_icon_list();
     $p = $icons[ $name ] ?? $icons['spark'];
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' . $p . '</svg>';
 }
