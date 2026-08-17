@@ -54,7 +54,6 @@ header( 'Content-Type: text/html; charset=utf-8' );
         <!-- ── LEFT PANEL (navy): identity + background ── -->
         <aside class="mk-cs-rail mk-cs-rail--navy">
           <div class="mk-cs-idhead"<?php if ( ! empty( $cs['image'] ) ) : ?> style="background-image:linear-gradient(180deg,rgba(3,21,35,.35),rgba(3,21,35,.94)),url('<?php echo esc_url( $cs['image'] ); ?>')"<?php endif; ?>>
-            <div class="mk-cs-brandmark">6ix</div>
             <?php if ( ! empty( $cs['subtitle'] ) ) : ?><span class="mk-cs-eyebrow"><?php echo esc_html( $cs['subtitle'] ); ?></span><?php endif; ?>
             <h1 class="mk-cs-title"><?php echo esc_html( $cs['title'] ); ?></h1>
           </div>

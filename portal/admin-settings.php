@@ -382,25 +382,30 @@ function six_admin_settings() {
 function six_admin_assign() {
     global $wpdb;
     $table = $wpdb->prefix . 'six_assignments';
+    $roles = six_advisor_service_roles();
 
     // Handle assignment form submission
     if ( isset( $_POST['six_assign'] ) && check_admin_referer( 'six_assign' ) ) {
         $client_id  = intval( $_POST['client_id'] );
         $advisor_id = intval( $_POST['advisor_id'] );
+        $service_role = sanitize_key( $_POST['service_role'] ?? '' );
+        if ( ! isset( $roles[ $service_role ] ) ) $service_role = '';
         if ( $client_id && $advisor_id ) {
             // Check table exists
             $table_exists = $wpdb->get_var( "SHOW TABLES LIKE '$table'" );
             if ( ! $table_exists ) {
                 six_create_tables();
             }
-            // Upsert
+            // Upsert — keyed on (client_id, service_role), so a client can
+            // have one advisor per role (General + one per service) instead
+            // of exactly one advisor overall.
             $existing = $wpdb->get_var( $wpdb->prepare(
-                "SELECT id FROM $table WHERE client_id = %d", $client_id
+                "SELECT id FROM $table WHERE client_id = %d AND service_role = %s", $client_id, $service_role
             ) );
             if ( $existing ) {
-                $wpdb->update( $table, array( 'advisor_id' => $advisor_id ), array( 'client_id' => $client_id ) );
+                $wpdb->update( $table, array( 'advisor_id' => $advisor_id ), array( 'id' => $existing ) );
             } else {
-                $wpdb->insert( $table, array( 'client_id' => $client_id, 'advisor_id' => $advisor_id ) );
+                $wpdb->insert( $table, array( 'client_id' => $client_id, 'advisor_id' => $advisor_id, 'service_role' => $service_role ) );
             }
             echo '<div class="notice notice-success is-dismissible"><p>✓ Advisor assigned successfully.</p></div>';
         }
@@ -417,17 +422,18 @@ function six_admin_assign() {
 
     // Current assignments — join with WP users table directly to avoid meta dependency
     $assignments = $wpdb->get_results(
-        "SELECT a.id, a.client_id, a.advisor_id, a.assigned_at,
+        "SELECT a.id, a.client_id, a.advisor_id, a.service_role, a.assigned_at,
                 uc.display_name AS client_name, uc.user_email AS client_email,
                 ua.display_name AS advisor_name
          FROM {$table} a
          INNER JOIN {$wpdb->users} uc ON a.client_id  = uc.ID
          INNER JOIN {$wpdb->users} ua ON a.advisor_id = ua.ID
-         ORDER BY a.assigned_at DESC"
+         ORDER BY a.client_id ASC, (a.service_role='') DESC, a.service_role ASC"
     );
     ?>
     <div class="wrap">
         <h1>Assign Advisors to Clients</h1>
+        <p style="color:#666;max-width:720px">A client can have a <strong>General</strong> advisor (their main point of contact), an <strong>All Services</strong> advisor (handles everything active), and/or a dedicated advisor per service — Google Ads, SEO, SMM. Assigning a new advisor to a role that's already filled replaces that role's advisor only; other roles are untouched. This same management is also available per-client from <a href="<?php echo admin_url('admin.php?page=six-portal-clients'); ?>">All Clients</a>.</p>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:20px">
 
@@ -450,6 +456,16 @@ function six_admin_assign() {
                                     <?php if ( empty( $customers ) ) : ?>
                                         <option disabled>No customers found — create a user with role "Portal Customer" first</option>
                                     <?php endif; ?>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Role</th>
+                            <td>
+                                <select name="service_role" style="width:100%">
+                                    <?php foreach ( $roles as $rkey => $rlabel ) : ?>
+                                        <option value="<?php echo esc_attr( $rkey ); ?>"><?php echo esc_html( $rlabel ); ?></option>
+                                    <?php endforeach; ?>
                                 </select>
                             </td>
                         </tr>
@@ -494,6 +510,7 @@ function six_admin_assign() {
                         <thead>
                             <tr>
                                 <th>Client</th>
+                                <th>Role</th>
                                 <th>Advisor</th>
                                 <th>Since</th>
                                 <th></th>
@@ -506,6 +523,7 @@ function six_admin_assign() {
                                     <strong><?php echo esc_html( $row->client_name ); ?></strong><br>
                                     <small style="color:#666"><?php echo esc_html( $row->client_email ); ?></small>
                                 </td>
+                                <td><span class="button button-small" style="pointer-events:none"><?php echo esc_html( $roles[ $row->service_role ] ?? $row->service_role ); ?></span></td>
                                 <td><?php echo esc_html( $row->advisor_name ); ?></td>
                                 <td><?php echo esc_html( date( 'M j, Y', strtotime( $row->assigned_at ) ) ); ?></td>
                                 <td>
@@ -613,6 +631,9 @@ function six_save_gads_fields( $user_id ) {
 // All Clients admin page
 // ─────────────────────────────────────────────────────────────────────────────
 function six_admin_clients() {
+    global $wpdb;
+    $roles = six_advisor_service_roles(); // '' => General, 'google-ads', 'seo', 'smm'
+
     // Handle manual Google Ads sync trigger
     if ( isset( $_GET['sync_gads'] ) && check_admin_referer( 'six_sync_gads_' . intval( $_GET['sync_gads'] ) ) ) {
         $client_id = intval( $_GET['sync_gads'] );
@@ -621,10 +642,40 @@ function six_admin_clients() {
         echo '<div class="notice notice-success is-dismissible"><p>✓ Google Ads synced.</p></div>';
     }
 
-    $clients = get_users( array( 'role' => 'six_customer', 'number' => 100 ) );
+    // Handle the "Manage Advisors" modal save — one advisor (or none) per
+    // role for this client. Every role field is present in the POST (the
+    // modal always renders all 4 role rows), so a role set to "0" means
+    // "unassign this role" and any existing row for it is removed.
+    if ( isset( $_POST['six_save_advisors'] ) && isset( $_POST['client_id'] ) ) {
+        $save_client_id = intval( $_POST['client_id'] );
+        if ( $save_client_id && check_admin_referer( 'six_save_advisors_' . $save_client_id, 'six_advisors_nonce_field' ) ) {
+            $table = $wpdb->prefix . 'six_assignments';
+            foreach ( $roles as $rkey => $rlabel ) {
+                $field      = 'role_' . ( $rkey === '' ? 'general' : sanitize_key( $rkey ) );
+                $advisor_id = intval( $_POST[ $field ] ?? 0 );
+                $existing   = $wpdb->get_var( $wpdb->prepare(
+                    "SELECT id FROM $table WHERE client_id=%d AND service_role=%s", $save_client_id, $rkey
+                ) );
+                if ( $advisor_id > 0 ) {
+                    if ( $existing ) {
+                        $wpdb->update( $table, array( 'advisor_id' => $advisor_id ), array( 'id' => $existing ) );
+                    } else {
+                        $wpdb->insert( $table, array( 'client_id' => $save_client_id, 'advisor_id' => $advisor_id, 'service_role' => $rkey ) );
+                    }
+                } elseif ( $existing ) {
+                    $wpdb->delete( $table, array( 'id' => $existing ) );
+                }
+            }
+            echo '<div class="notice notice-success is-dismissible"><p>✓ Advisors updated for this client.</p></div>';
+        }
+    }
+
+    $clients  = get_users( array( 'role' => 'six_customer', 'number' => 100 ) );
+    $advisors = get_users( array( 'role__in' => array( 'six_advisor', 'administrator' ) ) );
     ?>
     <div class="wrap">
         <h1>All Portal Clients (<?php echo count( $clients ); ?>)</h1>
+        <p style="color:#666;max-width:760px">Each client can have a <strong>General</strong> advisor (main point of contact), an <strong>All Services</strong> advisor (one person handling everything), and/or a dedicated advisor per service — <strong>Google Ads</strong>, <strong>SEO</strong>, <strong>SMM</strong>. Use <strong>Manage Advisors</strong> to change or add any of them.</p>
         <?php if ( empty( $clients ) ) : ?>
             <p>No customers yet. <a href="<?php echo admin_url('user-new.php'); ?>">Add a user</a> with role "Portal Customer".</p>
         <?php else : ?>
@@ -633,7 +684,7 @@ function six_admin_clients() {
                 <tr>
                     <th>Name</th>
                     <th>Email</th>
-                    <th>Advisor</th>
+                    <th>Advisors</th>
                     <th>Health</th>
                     <th>Google Ads ID</th>
                     <th>Last Sync</th>
@@ -642,22 +693,32 @@ function six_admin_clients() {
             </thead>
             <tbody>
             <?php
-            global $wpdb;
             foreach ( $clients as $client ) :
-                $health     = class_exists( 'Six_Health_Score' ) ? Six_Health_Score::calculate( $client->ID ) : '—';
-                $color      = is_numeric($health) ? ( $health >= 75 ? '#27ae60' : ( $health >= 50 ? '#f39c12' : '#e74c3c' ) ) : '#999';
-                $gads_id    = get_user_meta( $client->ID, 'six_gads_customer_id', true );
-                $last_sync  = get_user_meta( $client->ID, 'six_gads_last_sync', true );
-                $advisor_id = $wpdb->get_var( $wpdb->prepare(
-                    "SELECT advisor_id FROM {$wpdb->prefix}six_assignments WHERE client_id = %d",
-                    $client->ID
-                ) );
-                $advisor_name = $advisor_id ? get_userdata( $advisor_id )->display_name : '—';
+                $health    = class_exists( 'Six_Health_Score' ) ? Six_Health_Score::calculate( $client->ID ) : '—';
+                $color     = is_numeric($health) ? ( $health >= 75 ? '#27ae60' : ( $health >= 50 ? '#f39c12' : '#e74c3c' ) ) : '#999';
+                $gads_id   = get_user_meta( $client->ID, 'six_gads_customer_id', true );
+                $last_sync = get_user_meta( $client->ID, 'six_gads_last_sync', true );
+
+                $client_advisors = six_get_client_advisors( $client->ID ); // raw, per role — feeds the modal's selects
+                // role_key => advisor_id (0 = unassigned), for the modal's selects.
+                $role_map = array_fill_keys( array_keys( $roles ), 0 );
+                foreach ( $client_advisors as $ca ) { $role_map[ $ca['role'] ] = $ca['advisor_id']; }
+                // Grouped by person for display, so one advisor covering every
+                // role (via "All Services" or by holding each role) shows once.
+                $client_advisors_grouped = six_get_client_advisors_grouped( $client->ID );
             ?>
             <tr>
                 <td><strong><?php echo esc_html( $client->display_name ); ?></strong></td>
                 <td><?php echo esc_html( $client->user_email ); ?></td>
-                <td><?php echo esc_html( $advisor_name ); ?></td>
+                <td>
+                    <?php if ( empty( $client_advisors_grouped ) ) : ?>
+                        <span style="color:#999">— None assigned —</span>
+                    <?php else : foreach ( $client_advisors_grouped as $ca ) : ?>
+                        <span class="button button-small" style="pointer-events:none;margin:0 4px 4px 0" title="<?php echo esc_attr( $ca['role_label'] ); ?>">
+                            <?php echo esc_html( $ca['name'] ); ?> <em style="opacity:.65">(<?php echo esc_html( $ca['role_label'] ); ?>)</em>
+                        </span>
+                    <?php endforeach; endif; ?>
+                </td>
                 <td><span style="color:<?php echo $color ?>;font-weight:700"><?php echo is_numeric($health) ? $health.'%' : $health; ?></span></td>
                 <td>
                     <?php if ( $gads_id ) : ?>
@@ -668,6 +729,12 @@ function six_admin_clients() {
                 </td>
                 <td><?php echo $last_sync ? esc_html( date( 'M j g:i A', strtotime( $last_sync ) ) ) : '<em>Never</em>'; ?></td>
                 <td style="display:flex;gap:6px;flex-wrap:wrap">
+                    <button type="button" class="button button-small six-manage-advisors-btn"
+                        data-client-id="<?php echo intval( $client->ID ); ?>"
+                        data-client-name="<?php echo esc_attr( $client->display_name ); ?>"
+                        data-roles="<?php echo esc_attr( wp_json_encode( $role_map ) ); ?>"
+                        data-nonce="<?php echo esc_attr( wp_create_nonce( 'six_save_advisors_' . $client->ID ) ); ?>"
+                    >Manage Advisors</button>
                     <a href="<?php echo admin_url( 'user-edit.php?user_id=' . $client->ID ); ?>" class="button button-small">Edit Credentials</a>
                     <?php if ( $gads_id ) : ?>
                     <a href="<?php echo wp_nonce_url( admin_url( 'admin.php?page=six-portal-clients&sync_gads=' . $client->ID ), 'six_sync_gads_' . $client->ID ); ?>" class="button button-small">Sync Ads</a>
@@ -679,6 +746,70 @@ function six_admin_clients() {
         </table>
         <?php endif; ?>
     </div>
+
+    <!-- ── Manage Advisors modal — one shared modal, repopulated per client ── -->
+    <div id="six-advisors-modal" style="display:none;position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.5)">
+        <div style="background:#fff;border-radius:8px;max-width:480px;margin:8vh auto;padding:24px;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+            <button type="button" id="six-advisors-modal-close" style="position:absolute;top:14px;right:14px;background:none;border:0;font-size:20px;cursor:pointer;line-height:1;color:#666">&times;</button>
+            <h2 style="margin-top:0">Manage Advisors — <span id="six-advisors-modal-client"></span></h2>
+            <p style="color:#666;font-size:13px">Set one advisor per role, or "— Unassigned —" to remove it. Pick "All Services" instead of filling in each service separately when one advisor handles everything. Save applies every role at once.</p>
+            <form method="post">
+                <?php wp_nonce_field( 'six_save_advisors_PLACEHOLDER', 'six_advisors_nonce_field', false ); ?>
+                <input type="hidden" name="six_save_advisors" value="1">
+                <input type="hidden" name="client_id" id="six-advisors-client-id" value="">
+                <table class="form-table" style="margin:0">
+                    <?php foreach ( $roles as $rkey => $rlabel ) :
+                        $field = 'role_' . ( $rkey === '' ? 'general' : sanitize_key( $rkey ) ); ?>
+                    <tr>
+                        <th style="width:110px"><?php echo esc_html( $rlabel ); ?></th>
+                        <td>
+                            <select name="<?php echo esc_attr( $field ); ?>" class="six-advisor-role-select" data-role="<?php echo esc_attr( $rkey ); ?>" style="width:100%">
+                                <option value="0">— Unassigned —</option>
+                                <?php foreach ( $advisors as $a ) : ?>
+                                <option value="<?php echo intval( $a->ID ); ?>"><?php echo esc_html( $a->display_name ); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </table>
+                <p style="margin-top:16px;text-align:right">
+                    <button type="button" class="button" id="six-advisors-modal-cancel">Cancel</button>
+                    <?php submit_button( 'Save Changes', 'primary', '', false ); ?>
+                </p>
+            </form>
+        </div>
+    </div>
+    <script>
+    (function(){
+        var modal   = document.getElementById('six-advisors-modal');
+        var closeEls = [document.getElementById('six-advisors-modal-close'), document.getElementById('six-advisors-modal-cancel')];
+        var clientIdField = document.getElementById('six-advisors-client-id');
+        var clientNameEl  = document.getElementById('six-advisors-modal-client');
+        var nonceField    = document.getElementById('six_advisors_nonce_field');
+
+        function open(btn){
+            var roles = {};
+            try { roles = JSON.parse(btn.getAttribute('data-roles') || '{}'); } catch(e){}
+            clientIdField.value = btn.getAttribute('data-client-id');
+            clientNameEl.textContent = btn.getAttribute('data-client-name') || '';
+            nonceField.value = btn.getAttribute('data-nonce') || '';
+            document.querySelectorAll('.six-advisor-role-select').forEach(function(sel){
+                var role = sel.getAttribute('data-role');
+                sel.value = String(roles[role] || 0);
+            });
+            modal.style.display = 'block';
+        }
+        function close(){ modal.style.display = 'none'; }
+
+        document.querySelectorAll('.six-manage-advisors-btn').forEach(function(btn){
+            btn.addEventListener('click', function(){ open(btn); });
+        });
+        closeEls.forEach(function(el){ if(el) el.addEventListener('click', close); });
+        modal.addEventListener('click', function(e){ if(e.target === modal) close(); });
+        document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && modal.style.display === 'block') close(); });
+    })();
+    </script>
     <?php
 }
 

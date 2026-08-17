@@ -15,8 +15,13 @@ $ajax_url   = admin_url( 'admin-ajax.php' );
 
 global $wpdb;
 
-$advisor_id  = $wpdb->get_var( $wpdb->prepare( "SELECT advisor_id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d", $user_id ) );
+$advisor_id  = six_get_client_advisor_id( $user_id );
 $advisor     = $advisor_id ? get_userdata( $advisor_id ) : null;
+// Every DISTINCT advisor assigned to this client — one entry per person
+// (an advisor covering every service, whether via "All Services" or by
+// holding every individual role, still counts as one). Used by the Advisor
+// tab to decide whether to show a "Your Team" breakdown at all.
+$all_advisors = six_get_client_advisors_grouped( $user_id );
 $services    = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}six_client_services WHERE client_id=%d ORDER BY status DESC", $user_id ) );
 $metrics     = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}six_metrics WHERE client_id=%d ORDER BY service_slug,label", $user_id ) );
 $recs        = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}six_recommendations WHERE client_id=%d AND status='active' ORDER BY created_at DESC LIMIT 10", $user_id ) );
@@ -1626,6 +1631,26 @@ $chart_json = json_encode(array(
 
 <?php elseif($active_tab==='advisor'): ?>
 <div class="six-page-header"><div><h1 class="six-page-title">Your Advisor</h1></div></div>
+<?php if(count($all_advisors)>1): ?>
+<!-- ── Your Team — every advisor assigned to this account, by role ────── -->
+<div class="six-card" style="margin-bottom:20px">
+    <div class="six-card-header" style="border-bottom:1px solid var(--border);padding-bottom:12px">
+        <span class="six-card-title">Your Team</span>
+        <span style="font-size:11px;color:var(--text3)">Different specialists manage different services</span>
+    </div>
+    <div class="six-card-body" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px">
+        <?php foreach($all_advisors as $ca): ?>
+        <div style="display:flex;align-items:center;gap:10px;background:var(--dark4);border-radius:10px;padding:12px">
+            <div class="six-advisor-avatar" style="width:38px;height:38px;flex-shrink:0"><?php echo esc_html(six_get_initials($ca['name'])); ?></div>
+            <div style="min-width:0">
+                <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><?php echo esc_html($ca['name']); ?></div>
+                <div style="font-size:11px;color:var(--pink);font-weight:600"><?php echo esc_html($ca['role_label']); ?><?php echo in_array('',$ca['roles'],true)?' · Main contact':''; ?></div>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+</div>
+<?php endif; ?>
 <?php if($advisor):
 $adv_bio=$advisor->description??get_user_meta($advisor_id,'description',true);
 $adv_phone=get_user_meta($advisor_id,'billing_phone',true);

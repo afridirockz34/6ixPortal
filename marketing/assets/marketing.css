@@ -812,12 +812,10 @@
 /* Navy rails */
 .six-mk .mk-cs-rail--navy { background: var(--mk-navy); color: #EAF0F7; display: flex; flex-direction: column; }
 .six-mk .mk-cs-idhead {
-  padding: 34px 30px 30px; background-size: cover; background-position: center;
+  /* Extra top padding (was the "6ix" brandmark's job) keeps the title clear
+     of the panel's top edge, especially over a background photo. */
+  padding: 74px 30px 30px; background-size: cover; background-position: center;
   border-bottom: 1px solid rgba(255,255,255,.08);
-}
-.six-mk .mk-cs-brandmark {
-  font-family: var(--mk-head); font-weight: 800; font-size: 1.1rem; letter-spacing: .02em;
-  color: #fff; opacity: .9; margin-bottom: 44px;
 }
 .six-mk .mk-cs-eyebrow {
   display: block; font-family: var(--mk-num); font-weight: 700; font-size: .72rem;
@@ -891,7 +889,7 @@
 /* Responsive: collapse the trifold into stacked panels */
 @media (max-width: 900px) {
   .six-mk .mk-cs-panels { grid-template-columns: 1fr; }
-  .six-mk .mk-cs-brandmark { margin-bottom: 20px; }
+  .six-mk .mk-cs-idhead { padding-top: 34px; }
   .six-mk .mk-cs-kr-list { grid-template-columns: repeat(3, 1fr); gap: 16px; }
 }
 @media (max-width: 560px) {

@@ -54,11 +54,9 @@ class Six_Appointments {
         return $map[ $w ] ?? 10;
     }
 
-    /** Assigned advisor for a client (creates the assignment if needed). */
+    /** Assigned (General) advisor for a client (creates the assignment if needed). */
     public static function resolve_advisor( $client_id ) {
-        global $wpdb;
-        $a = intval( $wpdb->get_var( $wpdb->prepare(
-            "SELECT advisor_id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d", $client_id ) ) );
+        $a = six_get_client_advisor_id( $client_id );
         if ( ! $a && class_exists( 'Six_Odoo' ) && method_exists( 'Six_Odoo', 'assign_advisor' ) ) {
             $a = intval( Six_Odoo::assign_advisor( $client_id ) );
         }

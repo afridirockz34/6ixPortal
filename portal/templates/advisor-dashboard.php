@@ -63,15 +63,18 @@ if ($client_search !== '') {
 }
 $search_params_count = array_merge($search_params, array($clients_per_page, $clients_offset));
 
+// DISTINCT/GROUP BY throughout: an advisor can now be assigned to the same
+// client via more than one row (General + a service-specific role), so a
+// plain JOIN would otherwise list that client twice.
 $clients_total = intval($wpdb->get_var($wpdb->prepare(
-    "SELECT COUNT(*) FROM {$wpdb->prefix}six_assignments a
+    "SELECT COUNT(DISTINCT u.ID) FROM {$wpdb->prefix}six_assignments a
      INNER JOIN {$wpdb->prefix}users u ON a.client_id=u.ID
      WHERE a.advisor_id=%d{$where_search}",
     ...$search_params
 )));
 
 $clients = $wpdb->get_results($wpdb->prepare(
-    "SELECT u.ID, u.display_name, u.user_email FROM {$wpdb->prefix}six_assignments a
+    "SELECT DISTINCT u.ID, u.display_name, u.user_email FROM {$wpdb->prefix}six_assignments a
      INNER JOIN {$wpdb->prefix}users u ON a.client_id=u.ID
      WHERE a.advisor_id=%d{$where_search}
      ORDER BY u.display_name ASC LIMIT %d OFFSET %d",
@@ -81,14 +84,19 @@ $clients_total_pages = max(1, ceil($clients_total / $clients_per_page));
 
 // Keep a full list (IDs only) for other queries that need all clients
 $all_client_ids = $wpdb->get_col($wpdb->prepare(
-    "SELECT a.client_id FROM {$wpdb->prefix}six_assignments a WHERE a.advisor_id=%d",
+    "SELECT DISTINCT a.client_id FROM {$wpdb->prefix}six_assignments a WHERE a.advisor_id=%d",
     $advisor_id
 ));
 
-$total_mrr = 0;
-foreach ( $clients as $c ) {
-    $total_mrr += floatval( $wpdb->get_var( $wpdb->prepare(
-        "SELECT COALESCE(SUM(budget),0) FROM {$wpdb->prefix}six_client_services WHERE client_id=%d AND status='active'", $c->ID
+// Total budget across every customer assigned to this advisor — the full
+// assignment list ($all_client_ids), not the paginated $clients page, so
+// this stays correct once an advisor has more than one page of clients.
+$total_budget = 0;
+if ( ! empty( $all_client_ids ) ) {
+    $placeholders = implode( ',', array_fill( 0, count( $all_client_ids ), '%d' ) );
+    $total_budget = floatval( $wpdb->get_var( $wpdb->prepare(
+        "SELECT COALESCE(SUM(budget),0) FROM {$wpdb->prefix}six_client_services WHERE status='active' AND client_id IN ($placeholders)",
+        ...$all_client_ids
     ) ) );
 }
 
@@ -96,8 +104,11 @@ $notifs     = class_exists('Six_Notifications') ? Six_Notifications::get_for_use
 $unread_n   = class_exists('Six_Notifications') ? Six_Notifications::get_unread_count( $advisor_id ) : 0;
 $unread_msg = class_exists('Six_Messaging')     ? Six_Messaging::get_unread_count( $advisor_id )    : 0;
 
+// DISTINCT: a client can now have more than one assignment row for this
+// advisor (General + a service role), which would otherwise list the same
+// pending service twice.
 $pending_svcs = $wpdb->get_results( $wpdb->prepare(
-    "SELECT cs.*, u.display_name AS client_name FROM {$wpdb->prefix}six_client_services cs
+    "SELECT DISTINCT cs.*, u.display_name AS client_name FROM {$wpdb->prefix}six_client_services cs
      INNER JOIN {$wpdb->prefix}six_assignments a ON cs.client_id=a.client_id AND a.advisor_id=%d
      INNER JOIN {$wpdb->prefix}users u ON cs.client_id=u.ID
      WHERE cs.status='pending' ORDER BY cs.id DESC", $advisor_id
@@ -198,8 +209,6 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         </div>
         <div class="six-nav-section">
             <div class="six-nav-label">Management</div>
-            
-            <a href="?tab=revenue"  class="six-nav-item <?php echo $active_tab==='revenue' ?'active':'';?>"><span class="six-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span> Revenue</a>
             <a href="?tab=gads"     class="six-nav-item <?php echo $active_tab==='gads'    ?'active':'';?>">
                 <span class="six-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span> Google Ads
                 <?php if(!$mcc_configured):?><span style="font-size:9px;color:var(--warning);margin-left:auto">Setup</span><?php endif;?>
@@ -208,7 +217,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 <span class="six-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></span> Drop-off Funnel
                 <?php
                 $intel_pending = $wpdb->get_var($wpdb->prepare(
-                    "SELECT COUNT(*) FROM {$wpdb->prefix}six_recommendations r
+                    "SELECT COUNT(DISTINCT r.id) FROM {$wpdb->prefix}six_recommendations r
                      INNER JOIN {$wpdb->prefix}six_assignments a ON r.client_id=a.client_id
                      WHERE a.advisor_id=%d AND r.status='active' AND r.source LIKE 'ai_%%'", $advisor_id));
                 if($intel_pending>0):?><span class="six-badge"><?php echo $intel_pending;?></span><?php endif;?>
@@ -330,12 +339,12 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
 
         // Intelligence counts for overview stats
         $total_intel_pending = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}six_recommendations r
+            "SELECT COUNT(DISTINCT r.id) FROM {$wpdb->prefix}six_recommendations r
              INNER JOIN {$wpdb->prefix}six_assignments a ON r.client_id=a.client_id
              WHERE a.advisor_id=%d AND r.status='active' AND r.source LIKE 'ai_%'",
             $advisor_id));
         $total_intel_approved = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}six_recommendations r
+            "SELECT COUNT(DISTINCT r.id) FROM {$wpdb->prefix}six_recommendations r
              INNER JOIN {$wpdb->prefix}six_assignments a ON r.client_id=a.client_id
              WHERE a.advisor_id=%d AND r.status='approved' AND r.source LIKE 'ai_%'",
             $advisor_id));
@@ -421,9 +430,9 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 <?php if($new_this_month>0):?><div class="six-stat-trend up">↑ <?php echo $new_this_month;?> this month</div><?php endif;?>
             </div>
             <div class="six-stat-card cyan">
-                <div class="six-stat-label">Total MRR</div>
-                <div class="six-stat-val">$<?php echo number_format($total_mrr/1000,1);?>K</div>
-                <?php if($total_mrr>0):?><div class="six-stat-trend up">↑ Active</div><?php endif;?>
+                <div class="six-stat-label">Total Budget</div>
+                <div class="six-stat-val">$<?php echo number_format($total_budget/1000,1);?>K</div>
+                <?php if($total_budget>0):?><div class="six-stat-trend up">↑ Active</div><?php endif;?>
             </div>
             <div class="six-stat-card blue">
                 <div class="six-stat-label">Meetings Today</div>
@@ -2517,7 +2526,7 @@ function advCompleteOnboarding(clientId){
         <?php
         // Full assigned-client list for instant client-side filtering (no reload).
         $list_clients = $wpdb->get_results($wpdb->prepare(
-            "SELECT u.ID, u.display_name, u.user_email FROM {$wpdb->prefix}six_assignments a
+            "SELECT DISTINCT u.ID, u.display_name, u.user_email FROM {$wpdb->prefix}six_assignments a
              INNER JOIN {$wpdb->prefix}users u ON a.client_id=u.ID
              WHERE a.advisor_id=%d ORDER BY u.display_name ASC",
             $advisor_id
@@ -2634,7 +2643,7 @@ function advCompleteOnboarding(clientId){
         $selected_id = isset($_GET['with']) ? intval($_GET['with']) : 0;
         // Get all threads
         $threads = $wpdb->get_results($wpdb->prepare(
-            "SELECT u.ID, u.display_name, u.user_email,
+            "SELECT DISTINCT u.ID, u.display_name, u.user_email,
                 (SELECT COUNT(*) FROM {$wpdb->prefix}six_messages WHERE receiver_id=%d AND sender_id=u.ID AND is_read=0) AS unread,
                 (SELECT message FROM {$wpdb->prefix}six_messages WHERE (sender_id=u.ID AND receiver_id=%d) OR (sender_id=%d AND receiver_id=u.ID) ORDER BY created_at DESC LIMIT 1) AS last_msg,
                 (SELECT created_at FROM {$wpdb->prefix}six_messages WHERE (sender_id=u.ID AND receiver_id=%d) OR (sender_id=%d AND receiver_id=u.ID) ORDER BY created_at DESC LIMIT 1) AS last_time
@@ -2903,7 +2912,7 @@ function advCompleteOnboarding(clientId){
         <div class="six-card"><div class="six-card-body">
             <p style="font-size:12px;color:var(--text2)">To upload reports, open a client's page: <a href="?tab=clients">Clients →</a></p>
             <?php $all_rpts=$wpdb->get_results($wpdb->prepare(
-                "SELECT r.*,u.display_name AS cname FROM {$wpdb->prefix}six_reports r
+                "SELECT DISTINCT r.*,u.display_name AS cname FROM {$wpdb->prefix}six_reports r
                  INNER JOIN {$wpdb->prefix}six_assignments a ON r.client_id=a.client_id AND a.advisor_id=%d
                  INNER JOIN {$wpdb->prefix}users u ON r.client_id=u.ID ORDER BY r.created_at DESC",$advisor_id));?>
             <?php if(empty($all_rpts)):?><div style="text-align:center;padding:30px;color:var(--text3)">No reports yet.</div>
@@ -2915,23 +2924,6 @@ function advCompleteOnboarding(clientId){
             <?php endforeach;?>
             </tbody></table>
             <?php endif;?>
-        </div></div>
-
-    <?php /* ════════════ REVENUE ════════════ */ elseif($active_tab==='revenue'):?>
-        <div class="six-page-header"><div><h1 class="six-page-title">Revenue Pipeline</h1></div></div>
-        <div class="six-stats-grid">
-            <div class="six-stat-card pink"><div class="six-stat-label">Total MRR</div><div class="six-stat-val">$<?php echo number_format($total_mrr,0);?></div></div>
-            <div class="six-stat-card cyan"><div class="six-stat-label">Active Clients</div><div class="six-stat-val"><?php echo count($clients);?></div></div>
-            <div class="six-stat-card blue"><div class="six-stat-label">Avg Client Value</div><div class="six-stat-val">$<?php echo count($clients)>0?number_format($total_mrr/count($clients),0):0;?></div></div>
-            <div class="six-stat-card green"><div class="six-stat-label">Budget Requests</div><div class="six-stat-val"><?php echo count($budget_requests);?></div></div>
-        </div>
-        <div class="six-card"><div class="six-card-header"><span class="six-card-title">MRR by Client</span></div><div class="six-card-body">
-            <?php foreach($clients as $c):$mr=floatval($wpdb->get_var($wpdb->prepare("SELECT COALESCE(SUM(budget),0) FROM {$wpdb->prefix}six_client_services WHERE client_id=%d AND status='active'",$c->ID)));$pct=$total_mrr>0?round(($mr/$total_mrr)*100):0;?>
-            <div style="margin-bottom:14px">
-                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px"><span style="color:var(--text2)"><?php echo esc_html($c->display_name);?></span><strong>$<?php echo number_format($mr,0);?>/mo</strong></div>
-                <div class="six-progress-track"><div class="six-progress-fill" style="width:<?php echo $pct;?>%;background:var(--pink)"></div></div>
-            </div>
-            <?php endforeach;?>
         </div></div>
 
     <?php /* ════════════ GOOGLE ADS SETUP ════════════ */ elseif($active_tab==='gads'):?>

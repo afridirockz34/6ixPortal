@@ -679,9 +679,7 @@ function six_complete_onboarding() {
     }
 
     // Notify advisor
-    $advisor_id = $wpdb->get_var( $wpdb->prepare(
-        "SELECT advisor_id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d", $user_id
-    ) );
+    $advisor_id = six_get_client_advisor_id( $user_id );
     if ( $advisor_id && class_exists('Six_Notifications') ) {
         $user = get_userdata( $user_id );
         Six_Notifications::create( array(
@@ -825,26 +823,29 @@ function six_assign_advisor_round_robin( $client_id ) {
         $advisors = $admins;
     }
 
-    // Find advisor with fewest clients (true round-robin by load)
+    // Find advisor with fewest General-assigned clients (true round-robin by
+    // load). Scoped to service_role='' so manually-added role-specific
+    // assignments (Google Ads/SEO/SMM) never skew this auto-assignment.
     $advisor_loads = array();
     foreach ( $advisors as $adv ) {
         $count = intval( $wpdb->get_var( $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}six_assignments WHERE advisor_id=%d", $adv->ID
+            "SELECT COUNT(*) FROM {$wpdb->prefix}six_assignments WHERE advisor_id=%d AND service_role=''", $adv->ID
         ) ) );
         $advisor_loads[ $adv->ID ] = $count;
     }
     asort( $advisor_loads );
     $assigned_id = array_key_first( $advisor_loads );
 
-    // Save assignment
+    // Save assignment (the client's General/primary advisor).
     $existing = $wpdb->get_var( $wpdb->prepare(
-        "SELECT id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d", $client_id
+        "SELECT id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d AND service_role=''", $client_id
     ) );
     if ( ! $existing ) {
         $wpdb->insert( $wpdb->prefix . 'six_assignments', array(
-            'client_id'   => $client_id,
-            'advisor_id'  => $assigned_id,
-            'assigned_at' => current_time('mysql'),
+            'client_id'    => $client_id,
+            'advisor_id'   => $assigned_id,
+            'service_role' => '',
+            'assigned_at'  => current_time('mysql'),
         ) );
     }
 
@@ -860,10 +861,7 @@ function six_assign_advisor_round_robin( $client_id ) {
 }
 
 function six_get_advisor_for_user( $user_id ) {
-    global $wpdb;
-    $advisor_id = $wpdb->get_var( $wpdb->prepare(
-        "SELECT advisor_id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d", $user_id
-    ) );
+    $advisor_id = six_get_client_advisor_id( $user_id );
     if ( ! $advisor_id ) return null;
     $advisor = get_userdata( $advisor_id );
     return array(
@@ -936,9 +934,7 @@ function six_generate_ai_suggestions( $user_id, $step1, $services ) {
             $user_id, $s['title']
         ) );
         if ( ! $existing ) {
-            $advisor_id = $wpdb->get_var( $wpdb->prepare(
-                "SELECT advisor_id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d", $user_id
-            ) ) ?: 1;
+            $advisor_id = six_get_client_advisor_id( $user_id ) ?: 1;
             $wpdb->insert( $wpdb->prefix . 'six_recommendations', array(
                 'client_id'    => $user_id,
                 'advisor_id'   => $advisor_id,
@@ -1123,9 +1119,7 @@ function six_generate_growth_opportunities( $user_id ) {
         "SELECT * FROM {$wpdb->prefix}six_checkout_progress WHERE user_id=%d", $user_id
     ) );
     $opportunities = array();
-    $advisor_id = $wpdb->get_var( $wpdb->prepare(
-        "SELECT advisor_id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d", $user_id
-    ) ) ?: 1;
+    $advisor_id = six_get_client_advisor_id( $user_id ) ?: 1;
 
     foreach ( $services as $svc ) {
         $svc_metrics = array_filter( $metrics, function($m) use ($svc) { return $m->service_slug === $svc->service_slug; } );

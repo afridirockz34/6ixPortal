@@ -175,9 +175,10 @@ function six_create_tables() {
             id bigint(20) NOT NULL AUTO_INCREMENT,
             client_id bigint(20) NOT NULL,
             advisor_id bigint(20) NOT NULL,
+            service_role varchar(20) NOT NULL DEFAULT '',
             assigned_at datetime DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
-            UNIQUE KEY client_id (client_id)
+            UNIQUE KEY client_service_role (client_id, service_role)
         ) $charset",
 
         "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}six_client_services (
@@ -265,6 +266,188 @@ function six_create_tables() {
     foreach ( $tables as $sql ) {
         dbDelta( $sql );
     }
+
+    six_migrate_assignments_multi_advisor();
+}
+
+/**
+ * Upgrade an existing six_assignments table to the multi-advisor schema.
+ * dbDelta() can add the new `service_role` column reliably, but it will not
+ * reliably swap an existing UNIQUE KEY's column list — the old installs have
+ * `UNIQUE KEY client_id (client_id)`, which must become a composite key on
+ * (client_id, service_role) before a client can have more than one advisor
+ * row. Runs once (guarded by an option) and is safe to call any time,
+ * including on a fresh install where the table already has the new key.
+ */
+function six_migrate_assignments_multi_advisor() {
+    if ( get_option( 'six_assignments_schema_v2' ) ) return;
+    global $wpdb;
+    $table = $wpdb->prefix . 'six_assignments';
+    if ( $wpdb->get_var( "SHOW TABLES LIKE '$table'" ) !== $table ) return; // created fresh (already v2) once six_create_tables runs again
+
+    if ( ! $wpdb->get_var( "SHOW COLUMNS FROM $table LIKE 'service_role'" ) ) {
+        $wpdb->query( "ALTER TABLE $table ADD COLUMN service_role VARCHAR(20) NOT NULL DEFAULT '' AFTER advisor_id" );
+    }
+    // Existing rows predate the "role" concept — they're every client's
+    // General/primary advisor, which service_role='' already represents
+    // (the column default), so no data backfill is needed.
+
+    if ( $wpdb->get_var( "SHOW INDEX FROM $table WHERE Key_name='client_id'" ) ) {
+        $wpdb->query( "ALTER TABLE $table DROP INDEX client_id" );
+    }
+    if ( ! $wpdb->get_var( "SHOW INDEX FROM $table WHERE Key_name='client_service_role'" ) ) {
+        $wpdb->query( "ALTER TABLE $table ADD UNIQUE KEY client_service_role (client_id, service_role)" );
+    }
+    update_option( 'six_assignments_schema_v2', 1 );
+}
+add_action( 'admin_init', 'six_migrate_assignments_multi_advisor' );
+
+/**
+ * Canonical service-role choices for advisor assignment.
+ * '' = General / primary advisor (the client's main point of contact).
+ * 'all' = this advisor handles every active service for the client — the
+ * one-advisor-does-everything case, as a single row instead of one row per
+ * service, so the customer-facing UI can show just one person.
+ */
+function six_advisor_service_roles() {
+    return array(
+        ''           => 'General',
+        'all'        => 'All Services',
+        'google-ads' => 'Google Ads',
+        'seo'        => 'SEO',
+        'smm'        => 'Social Media (SMM)',
+    );
+}
+
+/** SQL fragment ranking a role column: General first, then All, then the rest. */
+function six_advisor_role_priority_sql( $col = 'service_role' ) {
+    return "CASE {$col} WHEN '' THEN 0 WHEN 'all' THEN 1 ELSE 2 END";
+}
+
+/**
+ * The single advisor_id to use for a client when the caller doesn't care
+ * about per-service granularity (notifications, ownership checks, "who is
+ * my advisor" widgets, etc). Prefers, in order: the exact role requested,
+ * the "All Services" advisor, then General — so every pre-existing
+ * single-advisor client keeps behaving exactly as before.
+ *
+ * Pass a specific $service_role to prefer that role's dedicated advisor
+ * first (falling back to All Services, then General).
+ */
+function six_get_client_advisor_id( $client_id, $service_role = '' ) {
+    global $wpdb;
+    $client_id = intval( $client_id );
+    if ( ! $client_id ) return 0;
+
+    if ( $service_role !== '' && $service_role !== 'all' ) {
+        $id = $wpdb->get_var( $wpdb->prepare(
+            "SELECT advisor_id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d AND service_role=%s",
+            $client_id, $service_role
+        ) );
+        if ( $id ) return intval( $id );
+    }
+
+    $priority = six_advisor_role_priority_sql();
+    $id = $wpdb->get_var( $wpdb->prepare(
+        "SELECT advisor_id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d ORDER BY {$priority} ASC, id ASC LIMIT 1",
+        $client_id
+    ) );
+    return intval( $id );
+}
+
+/**
+ * Every advisor ASSIGNMENT ROW for a client — one entry per (role, advisor)
+ * pair, so the same person can appear more than once if they hold multiple
+ * roles. This raw, per-role shape is what the "Manage Advisors" admin modal
+ * needs to populate its role selects independently.
+ *
+ * For anything customer-facing, use six_get_client_advisors_grouped()
+ * instead — it collapses this down to one entry per distinct person.
+ */
+function six_get_client_advisors( $client_id ) {
+    global $wpdb;
+    $client_id = intval( $client_id );
+    if ( ! $client_id ) return array();
+
+    $priority = six_advisor_role_priority_sql( 'a.service_role' );
+    $rows = $wpdb->get_results( $wpdb->prepare(
+        "SELECT a.id, a.advisor_id, a.service_role, u.display_name, u.user_email
+         FROM {$wpdb->prefix}six_assignments a
+         INNER JOIN {$wpdb->prefix}users u ON a.advisor_id = u.ID
+         WHERE a.client_id=%d
+         ORDER BY {$priority} ASC, a.service_role ASC",
+        $client_id
+    ) );
+
+    $roles = six_advisor_service_roles();
+    $out   = array();
+    foreach ( $rows as $r ) {
+        $out[] = array(
+            'assignment_id' => intval( $r->id ),
+            'advisor_id'    => intval( $r->advisor_id ),
+            'name'          => $r->display_name,
+            'email'         => $r->user_email,
+            'role'          => $r->service_role,
+            'role_label'    => $roles[ $r->service_role ] ?? ucwords( str_replace( '-', ' ', $r->service_role ) ),
+        );
+    }
+    return $out;
+}
+
+/**
+ * Every DISTINCT advisor assigned to a client — one entry per person, with
+ * their role(s) combined into a single display label. This is what
+ * customer-facing UI (and the All Clients admin badges) should use: if one
+ * advisor was assigned "All Services", or was manually given every role, or
+ * is simply the client's only advisor, this returns exactly one entry —
+ * matching the client's real-world experience of having one advisor, not one
+ * per role. General/All-Services advisors sort first.
+ */
+function six_get_client_advisors_grouped( $client_id ) {
+    $rows = six_get_client_advisors( $client_id );
+    if ( ! $rows ) return array();
+
+    $by_advisor = array();
+    foreach ( $rows as $r ) {
+        $aid = $r['advisor_id'];
+        if ( ! isset( $by_advisor[ $aid ] ) ) {
+            $by_advisor[ $aid ] = array(
+                'advisor_id' => $aid,
+                'name'       => $r['name'],
+                'email'      => $r['email'],
+                'roles'      => array(),
+                'labels'     => array(),
+            );
+        }
+        $by_advisor[ $aid ]['roles'][]  = $r['role'];
+        $by_advisor[ $aid ]['labels'][] = $r['role_label'];
+    }
+
+    $out = array();
+    foreach ( $by_advisor as $entry ) {
+        if ( in_array( 'all', $entry['roles'], true ) ) {
+            $combined = 'All Services';
+        } else {
+            $combined = implode( ', ', $entry['labels'] );
+        }
+        $out[] = array(
+            'advisor_id' => $entry['advisor_id'],
+            'name'       => $entry['name'],
+            'email'      => $entry['email'],
+            'roles'      => $entry['roles'],
+            'role_label' => $combined,
+        );
+    }
+
+    usort( $out, function ( $a, $b ) {
+        $score = function ( $e ) {
+            if ( in_array( '', $e['roles'], true ) ) return 0;
+            if ( in_array( 'all', $e['roles'], true ) ) return 1;
+            return 2;
+        };
+        return $score( $a ) <=> $score( $b );
+    } );
+    return $out;
 }
 
 // ── PORTAL TEMPLATE ──────────────────────────────────────────────────────────
@@ -449,10 +632,7 @@ if ( ! function_exists('six_ajax_get_advisor_for_user') ) {
         check_ajax_referer('six_nonce', 'nonce');
         $uid = intval($_POST['user_id'] ?? 0);
         if ( ! $uid ) { wp_send_json_success(null); return; }
-        global $wpdb;
-        $aid = $wpdb->get_var($wpdb->prepare(
-            "SELECT advisor_id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d", $uid
-        ));
+        $aid = six_get_client_advisor_id( $uid );
         if ( ! $aid ) { wp_send_json_success(null); return; }
         $adv = get_userdata($aid);
         $ini = function_exists('six_get_initials') ? six_get_initials($adv->display_name) : strtoupper(substr($adv->display_name,0,2));

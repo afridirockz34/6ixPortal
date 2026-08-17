@@ -45,10 +45,11 @@ function six_social_prepare_user( $user_id ) {
     }
     update_user_meta( $user_id, 'six_last_activity', current_time( 'mysql' ) );
 
-    // Advisor assignment — same round-robin as the email signup flow
+    // Advisor assignment — same round-robin as the email signup flow. Scoped
+    // to the General role since round-robin only ever manages that one.
     global $wpdb;
     $has_advisor = $wpdb->get_var( $wpdb->prepare(
-        "SELECT id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d", $user_id
+        "SELECT id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d AND service_role=''", $user_id
     ) );
     if ( ! $has_advisor && function_exists( 'six_assign_advisor_round_robin' ) ) {
         six_assign_advisor_round_robin( $user_id );
