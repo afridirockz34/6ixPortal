@@ -489,7 +489,7 @@ code { font-family: var(--fmono); font-size: 11.5px; background: var(--surface2)
       <tr><td><code>six_client_services</code></td><td>Services per client — slug, name, status (pending/active), monthly budget, approval timestamps</td><td>Both dashboards · Billing · Odoo</td></tr>
       <tr><td><code>six_metrics</code></td><td>KPI values per service — current, previous, and target with unit</td><td>Customer dashboard · Advisor · AI engine</td></tr>
       <tr><td><code>six_recommendations</code></td><td>AI and advisor recommendations — title, description, status (active/approved/dismissed)</td><td>Customer dashboard · Advisor</td></tr>
-      <tr><td><code>six_assignments</code></td><td>Client-to-advisor pairing. One advisor per client.</td><td>All authenticated portal views</td></tr>
+      <tr><td><code>six_assignments</code></td><td>Client-to-advisor pairing. One General advisor per client plus optional per-service advisors (Google Ads / SEO / SMM) — unique on (client_id, service_role).</td><td>All authenticated portal views</td></tr>
       <tr><td><code>six_messages</code></td><td>Threaded messages between client and advisor with read status</td><td>Messaging tabs on both portals</td></tr>
       <tr><td><code>six_notifications</code></td><td>In-app notifications — service approved, budget changed, recommendation pushed</td><td>Notification bell on both portals</td></tr>
       <tr><td><code>six_reports</code></td><td>Uploaded reports — title, file URL, type, period, upload date</td><td>Reports tabs on both portals</td></tr>

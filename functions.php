@@ -175,9 +175,10 @@ function six_create_tables() {
             id bigint(20) NOT NULL AUTO_INCREMENT,
             client_id bigint(20) NOT NULL,
             advisor_id bigint(20) NOT NULL,
+            service_role varchar(20) NOT NULL DEFAULT '',
             assigned_at datetime DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
-            UNIQUE KEY client_id (client_id)
+            UNIQUE KEY client_service_role (client_id, service_role)
         ) $charset",
 
         "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}six_client_services (
@@ -265,6 +266,118 @@ function six_create_tables() {
     foreach ( $tables as $sql ) {
         dbDelta( $sql );
     }
+
+    six_migrate_assignments_multi_advisor();
+}
+
+/**
+ * Upgrade an existing six_assignments table to the multi-advisor schema.
+ * dbDelta() can add the new `service_role` column reliably, but it will not
+ * reliably swap an existing UNIQUE KEY's column list — the old installs have
+ * `UNIQUE KEY client_id (client_id)`, which must become a composite key on
+ * (client_id, service_role) before a client can have more than one advisor
+ * row. Runs once (guarded by an option) and is safe to call any time,
+ * including on a fresh install where the table already has the new key.
+ */
+function six_migrate_assignments_multi_advisor() {
+    if ( get_option( 'six_assignments_schema_v2' ) ) return;
+    global $wpdb;
+    $table = $wpdb->prefix . 'six_assignments';
+    if ( $wpdb->get_var( "SHOW TABLES LIKE '$table'" ) !== $table ) return; // created fresh (already v2) once six_create_tables runs again
+
+    if ( ! $wpdb->get_var( "SHOW COLUMNS FROM $table LIKE 'service_role'" ) ) {
+        $wpdb->query( "ALTER TABLE $table ADD COLUMN service_role VARCHAR(20) NOT NULL DEFAULT '' AFTER advisor_id" );
+    }
+    // Existing rows predate the "role" concept — they're every client's
+    // General/primary advisor, which service_role='' already represents
+    // (the column default), so no data backfill is needed.
+
+    if ( $wpdb->get_var( "SHOW INDEX FROM $table WHERE Key_name='client_id'" ) ) {
+        $wpdb->query( "ALTER TABLE $table DROP INDEX client_id" );
+    }
+    if ( ! $wpdb->get_var( "SHOW INDEX FROM $table WHERE Key_name='client_service_role'" ) ) {
+        $wpdb->query( "ALTER TABLE $table ADD UNIQUE KEY client_service_role (client_id, service_role)" );
+    }
+    update_option( 'six_assignments_schema_v2', 1 );
+}
+add_action( 'admin_init', 'six_migrate_assignments_multi_advisor' );
+
+/**
+ * Canonical service-role choices for advisor assignment.
+ * '' = General / primary advisor (the client's main point of contact —
+ * every other lookup that just wants "the" advisor prefers this row).
+ */
+function six_advisor_service_roles() {
+    return array(
+        ''           => 'General',
+        'google-ads' => 'Google Ads',
+        'seo'        => 'SEO',
+        'smm'        => 'Social Media (SMM)',
+    );
+}
+
+/**
+ * The single advisor_id to use for a client when the caller doesn't care
+ * about per-service granularity (notifications, ownership checks, "who is
+ * my advisor" widgets, etc). Always prefers the General row so every
+ * pre-existing single-advisor client keeps behaving exactly as before;
+ * only falls back to a role-specific advisor if no General one is set.
+ *
+ * Pass a specific $service_role to prefer that role's advisor first
+ * (falling back to General if that role has no dedicated advisor).
+ */
+function six_get_client_advisor_id( $client_id, $service_role = '' ) {
+    global $wpdb;
+    $client_id = intval( $client_id );
+    if ( ! $client_id ) return 0;
+
+    if ( $service_role !== '' ) {
+        $id = $wpdb->get_var( $wpdb->prepare(
+            "SELECT advisor_id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d AND service_role=%s",
+            $client_id, $service_role
+        ) );
+        if ( $id ) return intval( $id );
+    }
+
+    $id = $wpdb->get_var( $wpdb->prepare(
+        "SELECT advisor_id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d ORDER BY (service_role='') DESC, id ASC LIMIT 1",
+        $client_id
+    ) );
+    return intval( $id );
+}
+
+/**
+ * Every advisor assigned to a client, each tagged with its service role —
+ * General first, then alphabetical by role. Used by the customer dashboard's
+ * advisor section and the All Clients admin page.
+ */
+function six_get_client_advisors( $client_id ) {
+    global $wpdb;
+    $client_id = intval( $client_id );
+    if ( ! $client_id ) return array();
+
+    $rows = $wpdb->get_results( $wpdb->prepare(
+        "SELECT a.id, a.advisor_id, a.service_role, u.display_name, u.user_email
+         FROM {$wpdb->prefix}six_assignments a
+         INNER JOIN {$wpdb->prefix}users u ON a.advisor_id = u.ID
+         WHERE a.client_id=%d
+         ORDER BY (a.service_role='') DESC, a.service_role ASC",
+        $client_id
+    ) );
+
+    $roles = six_advisor_service_roles();
+    $out   = array();
+    foreach ( $rows as $r ) {
+        $out[] = array(
+            'assignment_id' => intval( $r->id ),
+            'advisor_id'    => intval( $r->advisor_id ),
+            'name'          => $r->display_name,
+            'email'         => $r->user_email,
+            'role'          => $r->service_role,
+            'role_label'    => $roles[ $r->service_role ] ?? ucwords( str_replace( '-', ' ', $r->service_role ) ),
+        );
+    }
+    return $out;
 }
 
 // ── PORTAL TEMPLATE ──────────────────────────────────────────────────────────
@@ -449,10 +562,7 @@ if ( ! function_exists('six_ajax_get_advisor_for_user') ) {
         check_ajax_referer('six_nonce', 'nonce');
         $uid = intval($_POST['user_id'] ?? 0);
         if ( ! $uid ) { wp_send_json_success(null); return; }
-        global $wpdb;
-        $aid = $wpdb->get_var($wpdb->prepare(
-            "SELECT advisor_id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d", $uid
-        ));
+        $aid = six_get_client_advisor_id( $uid );
         if ( ! $aid ) { wp_send_json_success(null); return; }
         $adv = get_userdata($aid);
         $ini = function_exists('six_get_initials') ? six_get_initials($adv->display_name) : strtoupper(substr($adv->display_name,0,2));

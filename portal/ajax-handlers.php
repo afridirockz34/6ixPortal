@@ -173,9 +173,7 @@ add_action( 'wp_ajax_six_save_data_source', function() {
     update_user_meta( $user_id, 'six_ds_' . $source . '_at', current_time('mysql') );
 
     // Notify the assigned advisor to complete the access grant.
-    global $wpdb;
-    $advisor_id = $wpdb->get_var( $wpdb->prepare(
-        "SELECT advisor_id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d", $user_id ) );
+    $advisor_id = six_get_client_advisor_id( $user_id );
     if ( $advisor_id && class_exists('Six_Notifications') ) {
         $u = get_userdata( $user_id );
         Six_Notifications::create( array(
@@ -222,9 +220,10 @@ add_action( 'wp_ajax_six_request_service', function() {
         'service_name' => $names[ $service ] ?? ucwords( str_replace( '-', ' ', $service ) ),
         'status' => 'pending', 'budget' => 0,
     ) );
-    $advisor_id = $wpdb->get_var( $wpdb->prepare(
-        "SELECT advisor_id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d", $client_id
-    ) );
+    // Prefer that service's dedicated advisor (if one is assigned), else the
+    // client's General advisor.
+    $role_map   = array( 'google-ads' => 'google-ads', 'seo' => 'seo', 'social-media' => 'smm' );
+    $advisor_id = six_get_client_advisor_id( $client_id, $role_map[ $service ] ?? '' );
     if ( $advisor_id ) {
         $client = get_userdata( $client_id );
         Six_Notifications::create( array(
@@ -360,9 +359,7 @@ add_action( 'wp_ajax_six_request_budget_change', function() {
     ) );
 
     // Notify advisor
-    $advisor_id = $wpdb->get_var( $wpdb->prepare(
-        "SELECT advisor_id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d", $client_id
-    ) );
+    $advisor_id = six_get_client_advisor_id( $client_id );
     if ( $advisor_id ) {
         $client  = get_userdata( $client_id );
         $advisor = get_userdata( $advisor_id );
@@ -1082,9 +1079,7 @@ function six_ajax_request_opportunity() {
     if ( ! $type || ! $title ) wp_send_json_error( 'Missing fields.' );
 
     // Get advisor
-    $advisor_id = $wpdb->get_var( $wpdb->prepare(
-        "SELECT advisor_id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d", $client_id
-    ) );
+    $advisor_id = six_get_client_advisor_id( $client_id );
     if ( ! $advisor_id ) $advisor_id = 1; // fallback to admin
 
     $source = 'ai_' . $type;

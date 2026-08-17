@@ -1643,29 +1643,29 @@ Best,
     public static function assign_advisor( $client_user_id ) {
         global $wpdb;
 
-        // Check if already assigned
-        $assigned = $wpdb->get_var($wpdb->prepare(
-            "SELECT advisor_id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d",
-            $client_user_id));
-        if ($assigned) return intval($assigned);
+        // Check if already assigned a General advisor
+        $assigned = six_get_client_advisor_id( $client_user_id );
+        if ($assigned) return $assigned;
 
         // Get all advisors
         $advisors = get_users(array('role'=>'six_advisor','fields'=>array('ID')));
         if (empty($advisors)) return 0;
 
-        // Round-robin: pick advisor with fewest current clients
+        // Round-robin: pick advisor with fewest General-assigned clients.
+        // Scoped to service_role='' so manually-added role-specific
+        // assignments never skew this auto-assignment.
         $counts = array();
         foreach ($advisors as $adv) {
             $counts[$adv->ID] = intval($wpdb->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM {$wpdb->prefix}six_assignments WHERE advisor_id=%d",$adv->ID)));
+                "SELECT COUNT(*) FROM {$wpdb->prefix}six_assignments WHERE advisor_id=%d AND service_role=''",$adv->ID)));
         }
         asort($counts);
         $advisor_id = array_key_first($counts);
 
-        // Save assignment
+        // Save assignment (the client's General/primary advisor).
         $wpdb->replace("{$wpdb->prefix}six_assignments",
-            array('client_id'=>$client_user_id,'advisor_id'=>$advisor_id),
-            array('%d','%d'));
+            array('client_id'=>$client_user_id,'advisor_id'=>$advisor_id,'service_role'=>''),
+            array('%d','%d','%s'));
 
         return intval($advisor_id);
     }

@@ -602,12 +602,13 @@ class Six_Growth_Engine {
 
         $leads = array();
         foreach ( $users as $u ) {
-            // Filter by advisor if specified
+            // Filter by advisor if specified — matches any assignment role
+            // (General or a specific service), not just the General advisor.
             if ( $advisor_id ) {
                 $assigned = $wpdb->get_var( $wpdb->prepare(
-                    "SELECT advisor_id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d", $u->ID
+                    "SELECT id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d AND advisor_id=%d", $u->ID, $advisor_id
                 ) );
-                if ( intval($assigned) !== intval($advisor_id) ) continue;
+                if ( ! $assigned ) continue;
             }
 
             $score    = self::calculate_score( $u->ID );
@@ -1030,11 +1031,7 @@ Anastasia
 
     private static function get_advisor_odoo_uid( $client_user_id ) {
         if ( ! class_exists('Six_Odoo') ) return 0;
-        // Use Six_Odoo's internal method via reflection or duplicate the lookup
-        global $wpdb;
-        $advisor_wp_id = $wpdb->get_var( $wpdb->prepare(
-            "SELECT advisor_id FROM {$wpdb->prefix}six_assignments WHERE client_id=%d", $client_user_id
-        ) );
+        $advisor_wp_id = six_get_client_advisor_id( $client_user_id );
         if ( ! $advisor_wp_id ) return 0;
         $advisor = get_userdata( intval($advisor_wp_id) );
         if ( ! $advisor ) return 0;
