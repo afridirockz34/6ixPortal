@@ -129,6 +129,30 @@ header( 'Content-Type: text/html; charset=utf-8' );
     </div>
   </section>
 
+  <?php
+  // CASE STUDIES — the four most recent, editable in WP Admin → Case Studies.
+  // Only rendered when at least one story exists, so the page is never sparse.
+  $cs_home = function_exists( 'six_cs_items' ) ? six_cs_items( 4 ) : array();
+  if ( ! empty( $cs_home ) ) : ?>
+  <!-- CASE STUDIES (four most recent) -->
+  <section class="mk-section mk-section-sm">
+    <div class="mk-wrap">
+      <div class="mk-sec-head mk-sec-head--split">
+        <div>
+          <span class="mk-eyebrow"><?php mk_e( 'cstudy_eyebrow', 'Proven Results' ); ?></span>
+          <h2><?php echo esc_html( mk_field( 'cstudy_heading', 'Case Studies' ) ); ?></h2>
+        </div>
+        <a class="mk-btn mk-btn-ghost" href="<?php echo esc_url( home_url( '/case-studies' ) ); ?>">View all case studies
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </a>
+      </div>
+      <div class="mk-grid mk-grid-4 mk-cstudy-grid">
+        <?php foreach ( $cs_home as $cs ) six_cs_card( $cs ); ?>
+      </div>
+    </div>
+  </section>
+  <?php endif; ?>
+
   <!-- CLIENT SUCCESS — auto-scrolling slider (one at a time), editable via CPT -->
   <section class="mk-section mk-section-sm mk-glow">
     <div class="mk-wrap">
