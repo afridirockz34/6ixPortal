@@ -180,6 +180,32 @@ function six_home_text_field( $post_id, $key, $label, $type = 'text' ) {
  * 'label']. Rows can be added/removed; on submit, JS serialises them to the
  * hidden `six_field_{$field}` JSON input the save handler reads.
  */
+/**
+ * The JSON a repeater's hidden field should hold for a given set of items,
+ * in the exact same shape the browser-side JS produces (only the row_spec's
+ * keys, rows with every field blank dropped). Used to PRE-FILL the hidden
+ * input server-side (see six_home_render_repeater()) so the correct, current
+ * value is present even if the sync JS never runs for this particular save —
+ * notably, the WordPress block editor saves classic meta boxes by building
+ * `new FormData(form)` directly and never dispatches a 'submit' event, so
+ * any logic that only ran inside a 'submit' listener never fires there.
+ */
+function six_home_repeater_initial_json( $row_spec, $items ) {
+    $out = array();
+    foreach ( (array) $items as $item ) {
+        if ( ! is_array( $item ) ) continue;
+        $row = array();
+        $has_value = false;
+        foreach ( $row_spec as $f ) {
+            $v = isset( $item[ $f['key'] ] ) ? (string) $item[ $f['key'] ] : '';
+            $row[ $f['key'] ] = $v;
+            if ( $v !== '' ) $has_value = true;
+        }
+        if ( $has_value ) $out[] = $row;
+    }
+    return wp_json_encode( $out );
+}
+
 function six_home_render_repeater( $post_id, $field, $row_spec, $label, $add_label ) {
     $defaults = six_home_defaults();
     $items    = mk_field( $field, $defaults[ $field ] ?? array(), $post_id );
@@ -195,7 +221,7 @@ function six_home_render_repeater( $post_id, $field, $row_spec, $label, $add_lab
           <?php echo six_home_render_row( $row_spec, array() ); ?>
         </div>
         <button type="button" class="button six-home-rep-add"><?php echo esc_html( $add_label ); ?></button>
-        <input type="hidden" name="six_field_<?php echo esc_attr( $field ); ?>" class="six-home-rep-json">
+        <input type="hidden" name="six_field_<?php echo esc_attr( $field ); ?>" class="six-home-rep-json" value="<?php echo esc_attr( six_home_repeater_initial_json( $row_spec, $items ) ); ?>">
       </div>
     </div>
     <?php
@@ -310,7 +336,36 @@ function six_home_render_meta_box( $post ) {
     ?>
     <script>
     (function(){
-        function wireImagePicker(row){
+        // Serialise one repeater's current rows into its hidden JSON field.
+        // Rows with every field left blank are dropped so an unused "+ Add"
+        // click never saves an empty entry.
+        //
+        // IMPORTANT: this runs on every change (see wireRow/add/remove/image
+        // pick below), not just on the form's 'submit' event. The WordPress
+        // BLOCK EDITOR saves classic meta boxes by building
+        // `new FormData(document.getElementById('post'))` directly and
+        // POSTing that — it never dispatches a native 'submit' event on the
+        // form — so logic that only ran inside a 'submit' listener silently
+        // never fired there, and this hidden field was submitted blank on
+        // every save. Keeping it continuously in sync makes the save correct
+        // regardless of which editor (classic or block) or save mechanism
+        // triggers it. The pre-filled `value` from PHP (see
+        // six_home_repeater_initial_json()) is a second safety net in case
+        // this script fails to load at all.
+        function syncRepeaterJSON(rep){
+            var out = [];
+            rep.querySelectorAll('.six-home-rep-rows .six-home-rep-row').forEach(function(row){
+                var obj = {}, hasValue = false;
+                row.querySelectorAll('[data-key]').forEach(function(el){
+                    var v = el.value.trim();
+                    obj[el.getAttribute('data-key')] = v;
+                    if(v) hasValue = true;
+                });
+                if(hasValue) out.push(obj);
+            });
+            rep.querySelector('.six-home-rep-json').value = JSON.stringify(out);
+        }
+        function wireImagePicker(row, rep){
             var pick = row.querySelector('.six-home-img-pick');
             if(!pick) return;
             var clear = row.querySelector('.six-home-img-clear');
@@ -321,6 +376,7 @@ function six_home_render_meta_box( $post ) {
                 inp.value = url;
                 if(url){ prev.style.backgroundImage = 'url('+url+')'; prev.classList.add('six-adm-has-img'); prev.textContent=''; if(clear) clear.style.display=''; }
                 else{ prev.style.backgroundImage = ''; prev.classList.remove('six-adm-has-img'); prev.textContent='No image'; if(clear) clear.style.display='none'; }
+                syncRepeaterJSON(rep);
             }
             pick.addEventListener('click', function(e){
                 e.preventDefault();
@@ -335,15 +391,20 @@ function six_home_render_meta_box( $post ) {
             });
             if(clear) clear.addEventListener('click', function(e){ e.preventDefault(); setPreview(''); });
         }
-        function wireRow(row){
-            wireImagePicker(row);
+        function wireRow(row, rep){
+            wireImagePicker(row, rep);
+            // Text/textarea fields: keep the hidden JSON current as the admin
+            // types, not just at save time.
+            row.querySelectorAll('[data-key]:not(.six-home-img-input)').forEach(function(el){
+                el.addEventListener('input', function(){ syncRepeaterJSON(rep); });
+            });
             var rm = row.querySelector('.six-home-rep-remove');
-            if(rm) rm.addEventListener('click', function(){ row.remove(); });
+            if(rm) rm.addEventListener('click', function(){ row.remove(); syncRepeaterJSON(rep); });
         }
         document.querySelectorAll('.six-home-repeater').forEach(function(rep){
             var rowsWrap = rep.querySelector('.six-home-rep-rows');
             var template = rep.querySelector('.six-home-rep-template .six-home-rep-row');
-            rep.querySelectorAll('.six-home-rep-rows .six-home-rep-row').forEach(wireRow);
+            rep.querySelectorAll('.six-home-rep-rows .six-home-rep-row').forEach(function(row){ wireRow(row, rep); });
             var addBtn = rep.querySelector('.six-home-rep-add');
             if(addBtn) addBtn.addEventListener('click', function(){
                 var row = template.cloneNode(true);
@@ -351,29 +412,18 @@ function six_home_render_meta_box( $post ) {
                 var prev = row.querySelector('.six-home-img-prev'); if(prev){ prev.style.backgroundImage=''; prev.classList.remove('six-adm-has-img'); prev.textContent='No image'; }
                 var clear = row.querySelector('.six-home-img-clear'); if(clear) clear.style.display='none';
                 rowsWrap.appendChild(row);
-                wireRow(row);
+                wireRow(row, rep);
                 row.scrollIntoView({ behavior:'smooth', block:'center' });
             });
+            // Keep the hidden field correct from the moment the page loads,
+            // and once more right before submit as a final safety net for
+            // the classic (non-block) editor's normal form submission.
+            syncRepeaterJSON(rep);
         });
-        // Serialise every repeater's rows into its hidden JSON field right
-        // before the post form submits. Rows with every field left blank are
-        // dropped so an unused "+ Add" click never saves an empty entry.
         var form = document.getElementById('post');
         if(form){
             form.addEventListener('submit', function(){
-                document.querySelectorAll('.six-home-repeater').forEach(function(rep){
-                    var out = [];
-                    rep.querySelectorAll('.six-home-rep-rows .six-home-rep-row').forEach(function(row){
-                        var obj = {}, hasValue = false;
-                        row.querySelectorAll('[data-key]').forEach(function(el){
-                            var v = el.value.trim();
-                            obj[el.getAttribute('data-key')] = v;
-                            if(v) hasValue = true;
-                        });
-                        if(hasValue) out.push(obj);
-                    });
-                    rep.querySelector('.six-home-rep-json').value = JSON.stringify(out);
-                });
+                document.querySelectorAll('.six-home-repeater').forEach(syncRepeaterJSON);
             });
         }
         // Quick-nav: smooth-scroll to the section, and highlight whichever
