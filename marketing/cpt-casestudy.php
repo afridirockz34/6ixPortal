@@ -203,7 +203,46 @@ add_action( 'add_meta_boxes', function () {
         };
 
         echo '<p style="color:#666;margin-top:0">The <strong>title</strong> is the client / organisation name (e.g. “College for Adult Learning”). '
-           . 'Set the hero photo as the <strong>Featured Image</strong>. Fill the sections below — colours and layout are applied automatically to match the site.</p>';
+           . 'Fill the sections below — colours and layout are applied automatically to match the site.</p>';
+
+        // ── Featured image picker — shown in the listing/blurb card (home
+        // section + /case-studies archive) and behind the title on the
+        // single brochure page. A dedicated picker (not the native "Featured
+        // Image" box) so it's guaranteed visible regardless of theme setup.
+        $img = get_post_meta( $post->ID, 'six_case_featured_image', true );
+        echo '<div style="margin:0 0 18px">';
+        echo '<label style="display:block;font-weight:600;margin-bottom:6px">Featured Image</label>';
+        echo '<p style="color:#666;margin:0 0 8px;font-size:13px">Shown as the thumbnail on the case study listing and behind the title on the full page.</p>';
+        echo '<div id="six-case-img-prev" style="width:180px;height:120px;border-radius:10px;border:1px solid #dcdcde;background:#f6f7f7 center/cover no-repeat;margin-bottom:8px' . ( $img ? ';background-image:url(' . esc_url( $img ) . ')' : '' ) . '"></div>';
+        echo '<input type="hidden" id="six-case-img" name="six_case_featured_image" value="' . esc_attr( $img ) . '">';
+        echo '<button type="button" class="button" id="six-case-img-pick">Select image</button> ';
+        echo '<button type="button" class="button-link" id="six-case-img-clear" style="' . ( $img ? '' : 'display:none' ) . '">Remove</button>';
+        echo '</div>';
+        ?>
+        <script>
+        (function(){
+            var frame, pick=document.getElementById('six-case-img-pick'),
+                clear=document.getElementById('six-case-img-clear'),
+                inp=document.getElementById('six-case-img'),
+                prev=document.getElementById('six-case-img-prev');
+            if(!pick) return;
+            pick.addEventListener('click', function(e){
+                e.preventDefault();
+                if(frame){ frame.open(); return; }
+                frame = wp.media({ title:'Select featured image', button:{text:'Use this image'}, multiple:false });
+                frame.on('select', function(){
+                    var a = frame.state().get('selection').first().toJSON();
+                    var url = (a.sizes && a.sizes.large) ? a.sizes.large.url : a.url;
+                    inp.value = url; prev.style.backgroundImage = 'url('+url+')'; clear.style.display='';
+                });
+                frame.open();
+            });
+            clear.addEventListener('click', function(e){
+                e.preventDefault(); inp.value=''; prev.style.backgroundImage=''; clear.style.display='none';
+            });
+        })();
+        </script>
+        <?php
 
         $text( 'six_cs_subtitle', 'Subtitle / category', 'Training Organization Case Study' );
         $text( 'six_cs_headline', 'Headline result (big banner line)', '300%+ more sales with 60% lower cost per sale' );
@@ -316,6 +355,9 @@ add_action( 'save_post_six_case_study', function ( $post_id ) {
     foreach ( array( 'six_cs_subtitle', 'six_cs_headline' ) as $k ) {
         if ( isset( $_POST[ $k ] ) ) update_post_meta( $post_id, $k, sanitize_text_field( wp_unslash( $_POST[ $k ] ) ) );
     }
+    if ( isset( $_POST['six_case_featured_image'] ) ) {
+        update_post_meta( $post_id, 'six_case_featured_image', esc_url_raw( wp_unslash( $_POST['six_case_featured_image'] ) ) );
+    }
     if ( isset( $_POST['six_cs_background'] ) ) {
         update_post_meta( $post_id, 'six_cs_background', sanitize_textarea_field( wp_unslash( $_POST['six_cs_background'] ) ) );
     }
@@ -381,7 +423,9 @@ function six_cs_get( $post ) {
         'objectives'   => six_cs_parse_items( $id, 'six_cs_objectives_json',   'six_cs_objectives',   six_cs_obj_icons() ),
         'achievements' => six_cs_parse_items( $id, 'six_cs_achievements_json', 'six_cs_achievements', six_cs_ach_icons() ),
         'results'      => $results,
-        'image'        => get_the_post_thumbnail_url( $p, 'large' ) ?: '',
+        // Prefer the dedicated Featured Image picker; fall back to the
+        // native WP featured image for anyone who set that instead.
+        'image'        => get_post_meta( $id, 'six_case_featured_image', true ) ?: ( get_the_post_thumbnail_url( $p, 'large' ) ?: '' ),
         'url'          => get_permalink( $p ),
     );
 }

@@ -20,6 +20,7 @@ require_once SIX_MK_DIR . 'forms.php';      // lead-capture forms (Ninja-Forms s
 require_once SIX_MK_DIR . 'pages.php';      // service page content (keyed by slug)
 require_once SIX_MK_DIR . 'cpt.php';        // Client Success + Testimonials (no plugins)
 require_once SIX_MK_DIR . 'cpt-casestudy.php'; // Case Studies (brochure-style stories)
+require_once SIX_MK_DIR . 'home-fields.php';   // Homepage Content editor (no ACF required)
 require_once SIX_MK_DIR . 'setup.php';      // one-time page + front-page + seed setup
 require_once SIX_MK_DIR . 'acf-fields.php'; // optional: only active if ACF is installed
 

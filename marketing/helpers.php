@@ -9,19 +9,46 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 /**
- * Get an ACF field with a fallback default. Safe when ACF is inactive.
+ * Get an editable field for a marketing template, with a fallback default.
  *
- * @param string $name    ACF field name
- * @param mixed  $default Value to use when the field is empty/unavailable
- * @param mixed  $post_id Optional ACF post/option id (e.g. 'option')
+ * Two independent storage tiers are checked, in order, so pages are
+ * editable whether or not ACF is installed:
+ *   1. ACF (if the plugin is active) — kept for any site that has real ACF
+ *      field groups configured.
+ *   2. Plain post meta, key 'six_field_{$name}', on the resolved post — this
+ *      is what the native meta-box editors (e.g. the Home page's "Homepage
+ *      Content" box) save to, so "Edit" in wp-admin actually changes the
+ *      live page without needing ACF at all. Array values are stored as
+ *      JSON and decoded automatically.
+ *
+ * @param string    $name    Field name.
+ * @param mixed     $default Value to use when nothing is set anywhere.
+ * @param mixed     $post_id Post ID to check, or 'option' for a site-wide
+ *                           ACF options-page field (postmeta tier is
+ *                           skipped for 'option' — there's no single post).
  */
 function mk_field( $name, $default = '', $post_id = false ) {
-    if ( ! function_exists( 'get_field' ) ) return $default;
-    $val = $post_id !== false ? get_field( $name, $post_id ) : get_field( $name );
-    if ( $val === null || $val === '' || $val === false || ( is_array( $val ) && empty( $val ) ) ) {
-        return $default;
+    if ( function_exists( 'get_field' ) ) {
+        $val = $post_id !== false ? get_field( $name, $post_id ) : get_field( $name );
+        if ( ! ( $val === null || $val === '' || $val === false || ( is_array( $val ) && empty( $val ) ) ) ) {
+            return $val;
+        }
     }
-    return $val;
+
+    $pid = ( $post_id !== false && $post_id !== 'option' ) ? intval( $post_id ) : get_queried_object_id();
+    if ( $pid ) {
+        $raw = get_post_meta( $pid, 'six_field_' . $name, true );
+        if ( $raw !== '' && $raw !== false ) {
+            // Arrays (repeaters) are stored as a JSON string.
+            if ( is_string( $raw ) && strlen( $raw ) && ( $raw[0] === '[' || $raw[0] === '{' ) ) {
+                $decoded = json_decode( $raw, true );
+                if ( json_last_error() === JSON_ERROR_NONE ) return $decoded;
+            }
+            return $raw;
+        }
+    }
+
+    return $default;
 }
 
 /** Site-wide option field (brand, nav, footer) with fallback. */
