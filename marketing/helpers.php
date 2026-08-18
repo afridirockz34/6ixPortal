@@ -13,13 +13,25 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  *
  * Two independent storage tiers are checked, in order, so pages are
  * editable whether or not ACF is installed:
- *   1. ACF (if the plugin is active) — kept for any site that has real ACF
- *      field groups configured.
- *   2. Plain post meta, key 'six_field_{$name}', on the resolved post — this
+ *   1. Plain post meta, key 'six_field_{$name}', on the resolved post — this
  *      is what the native meta-box editors (e.g. the Home page's "Homepage
  *      Content" box) save to, so "Edit" in wp-admin actually changes the
- *      live page without needing ACF at all. Array values are stored as
- *      JSON and decoded automatically.
+ *      live page. Array values are stored as JSON and decoded automatically.
+ *      Checked FIRST: this is the system every current editor screen writes
+ *      to, and it must always win once someone has used it.
+ *   2. ACF (only if the plugin is active AND nothing was found in tier 1) —
+ *      kept as a fallback for any field that has a real ACF field group
+ *      configured but no plain-postmeta editor of its own yet.
+ *
+ * Historically ACF was checked first, which caused a real bug: this theme
+ * also registers a code-side ACF field group for the Home page
+ * (marketing/acf-fields.php) whose field names happen to match the plain
+ * meta-box system 1:1. Whenever ACF was active, any value it returned —
+ * including stale or blank values from a meta box the user never
+ * consciously used — silently won over correctly-saved edits, making saves
+ * from the "Homepage Content" meta box appear to do nothing. Checking
+ * plain postmeta first fixes that at the root, regardless of whether ACF
+ * is active.
  *
  * @param string    $name    Field name.
  * @param mixed     $default Value to use when nothing is set anywhere.
@@ -28,13 +40,6 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  *                           skipped for 'option' — there's no single post).
  */
 function mk_field( $name, $default = '', $post_id = false ) {
-    if ( function_exists( 'get_field' ) ) {
-        $val = $post_id !== false ? get_field( $name, $post_id ) : get_field( $name );
-        if ( ! ( $val === null || $val === '' || $val === false || ( is_array( $val ) && empty( $val ) ) ) ) {
-            return $val;
-        }
-    }
-
     $pid = ( $post_id !== false && $post_id !== 'option' ) ? intval( $post_id ) : get_queried_object_id();
     if ( $pid ) {
         $raw = get_post_meta( $pid, 'six_field_' . $name, true );
@@ -44,11 +49,10 @@ function mk_field( $name, $default = '', $post_id = false ) {
                 $decoded = json_decode( $raw, true );
                 if ( json_last_error() === JSON_ERROR_NONE ) {
                     // A saved-but-empty array ('[]') is never useful to a
-                    // visitor — fall through to the default instead of
-                    // rendering a blank section, whatever caused it to end
-                    // up empty (the save handlers also guard against ever
-                    // writing this in the first place; this is a second,
-                    // display-layer safety net).
+                    // visitor — fall through instead of rendering a blank
+                    // section, whatever caused it to end up empty (the save
+                    // handlers also guard against ever writing this in the
+                    // first place; this is a second, display-layer net).
                     if ( ! ( is_array( $decoded ) && empty( $decoded ) ) ) return $decoded;
                 } else {
                     return $raw;
@@ -56,6 +60,13 @@ function mk_field( $name, $default = '', $post_id = false ) {
             } else {
                 return $raw;
             }
+        }
+    }
+
+    if ( function_exists( 'get_field' ) ) {
+        $val = $post_id !== false ? get_field( $name, $post_id ) : get_field( $name );
+        if ( ! ( $val === null || $val === '' || $val === false || ( is_array( $val ) && empty( $val ) ) ) ) {
+            return $val;
         }
     }
 

@@ -131,11 +131,14 @@ function six_cs_parse_items( $post_id, $json_key, $legacy_key, $cycle_icons ) {
     return $out;
 }
 
-// Load the WP media uploader on the Case Study editor screens.
+// Load the WP media uploader + the shared admin styling on the Case Study editor screens.
 add_action( 'admin_enqueue_scripts', function ( $hook ) {
     if ( ! in_array( $hook, array( 'post.php', 'post-new.php' ), true ) ) return;
     $screen = get_current_screen();
-    if ( $screen && $screen->post_type === 'six_case_study' ) wp_enqueue_media();
+    if ( ! $screen || $screen->post_type !== 'six_case_study' ) return;
+    wp_enqueue_media();
+    $css = SIX_MK_DIR . 'assets/admin-marketing.css';
+    wp_enqueue_style( 'six-mk-admin', SIX_MK_URL . 'assets/admin-marketing.css', array(), file_exists( $css ) ? filemtime( $css ) : '1' );
 } );
 
 /**
@@ -194,12 +197,12 @@ add_action( 'add_meta_boxes', function () {
         $g = fn( $k ) => get_post_meta( $post->ID, $k, true );
 
         $text = function ( $k, $label, $ph = '' ) use ( $g ) {
-            echo '<p style="margin:0 0 16px"><label style="display:block;font-weight:600;margin-bottom:4px">' . esc_html( $label ) . '</label>';
-            echo '<input type="text" name="' . esc_attr( $k ) . '" value="' . esc_attr( $g( $k ) ) . '" placeholder="' . esc_attr( $ph ) . '" style="width:100%"></p>';
+            echo '<div class="six-adm-field"><label class="six-adm-field-label">' . esc_html( $label ) . '</label>';
+            echo '<input type="text" name="' . esc_attr( $k ) . '" value="' . esc_attr( $g( $k ) ) . '" placeholder="' . esc_attr( $ph ) . '"></div>';
         };
         $area = function ( $k, $label, $ph = '', $rows = 4 ) use ( $g ) {
-            echo '<p style="margin:0 0 16px"><label style="display:block;font-weight:600;margin-bottom:4px">' . esc_html( $label ) . '</label>';
-            echo '<textarea name="' . esc_attr( $k ) . '" rows="' . intval( $rows ) . '" placeholder="' . esc_attr( $ph ) . '" style="width:100%">' . esc_textarea( $g( $k ) ) . '</textarea></p>';
+            echo '<div class="six-adm-field"><label class="six-adm-field-label">' . esc_html( $label ) . '</label>';
+            echo '<textarea name="' . esc_attr( $k ) . '" rows="' . intval( $rows ) . '" placeholder="' . esc_attr( $ph ) . '">' . esc_textarea( $g( $k ) ) . '</textarea></div>';
         };
 
         echo '<p style="color:#666;margin-top:0">The <strong>title</strong> is the client / organisation name (e.g. “College for Adult Learning”). '
@@ -210,14 +213,15 @@ add_action( 'add_meta_boxes', function () {
         // single brochure page. A dedicated picker (not the native "Featured
         // Image" box) so it's guaranteed visible regardless of theme setup.
         $img = get_post_meta( $post->ID, 'six_case_featured_image', true );
-        echo '<div style="margin:0 0 18px">';
-        echo '<label style="display:block;font-weight:600;margin-bottom:6px">Featured Image</label>';
-        echo '<p style="color:#666;margin:0 0 8px;font-size:13px">Shown as the thumbnail on the case study listing and behind the title on the full page.</p>';
-        echo '<div id="six-case-img-prev" style="width:180px;height:120px;border-radius:10px;border:1px solid #dcdcde;background:#f6f7f7 center/cover no-repeat;margin-bottom:8px' . ( $img ? ';background-image:url(' . esc_url( $img ) . ')' : '' ) . '"></div>';
+        echo '<div class="six-adm-field">';
+        echo '<label class="six-adm-field-label">Featured Image</label>';
+        echo '<p class="six-adm-hint" style="margin-top:0">Shown as the thumbnail on the case study listing and behind the title on the full page.</p>';
+        echo '<div id="six-case-img-prev" class="six-home-img-prev' . ( $img ? ' six-adm-has-img' : '' ) . '" style="width:180px;height:120px;' . ( $img ? 'background-image:url(' . esc_url( $img ) . ')' : '' ) . '">' . ( $img ? '' : 'No image' ) . '</div>';
         echo '<input type="hidden" id="six-case-img" name="six_case_featured_image" value="' . esc_attr( $img ) . '">';
-        echo '<button type="button" class="button" id="six-case-img-pick">Select image</button> ';
+        echo '<div class="six-home-img-actions">';
+        echo '<button type="button" class="button" id="six-case-img-pick">Select image</button>';
         echo '<button type="button" class="button-link" id="six-case-img-clear" style="' . ( $img ? '' : 'display:none' ) . '">Remove</button>';
-        echo '</div>';
+        echo '</div></div>';
         ?>
         <script>
         (function(){
@@ -226,6 +230,11 @@ add_action( 'add_meta_boxes', function () {
                 inp=document.getElementById('six-case-img'),
                 prev=document.getElementById('six-case-img-prev');
             if(!pick) return;
+            function setPreview(url){
+                inp.value = url;
+                if(url){ prev.style.backgroundImage = 'url('+url+')'; prev.classList.add('six-adm-has-img'); prev.textContent=''; clear.style.display=''; }
+                else{ prev.style.backgroundImage = ''; prev.classList.remove('six-adm-has-img'); prev.textContent='No image'; clear.style.display='none'; }
+            }
             pick.addEventListener('click', function(e){
                 e.preventDefault();
                 if(frame){ frame.open(); return; }
@@ -233,13 +242,11 @@ add_action( 'add_meta_boxes', function () {
                 frame.on('select', function(){
                     var a = frame.state().get('selection').first().toJSON();
                     var url = (a.sizes && a.sizes.large) ? a.sizes.large.url : a.url;
-                    inp.value = url; prev.style.backgroundImage = 'url('+url+')'; clear.style.display='';
+                    setPreview(url);
                 });
                 frame.open();
             });
-            clear.addEventListener('click', function(e){
-                e.preventDefault(); inp.value=''; prev.style.backgroundImage=''; clear.style.display='none';
-            });
+            clear.addEventListener('click', function(e){ e.preventDefault(); setPreview(''); });
         })();
         </script>
         <?php
