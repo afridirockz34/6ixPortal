@@ -88,12 +88,68 @@ function six_home_is_home_template( $post_id ) {
     return $post_id && get_page_template_slug( $post_id ) === 'marketing/templates/template-home.php';
 }
 
-// Load the WP media uploader on the Home page's editor screen.
+/**
+ * Ordered registry of every homepage section this editor covers: the
+ * meta-box heading it renders under, the matching `id` on the live page
+ * (see template-home.php's <section id="..."> tags — kept in lock-step with
+ * these keys on purpose) so "View live" can deep-link straight to it, and an
+ * icon (from mk_icon_list(), the same icon set the front end uses) so the
+ * section is recognisable at a glance instead of just another block of text.
+ */
+function six_home_sections() {
+    return array(
+        'hero'          => array( 'title' => 'Hero',                                       'anchor' => 'six-sec-hero',          'icon' => 'rocket' ),
+        'services'      => array( 'title' => 'Services Section',                            'anchor' => 'six-sec-services',      'icon' => 'layers' ),
+        'cstudy'        => array( 'title' => 'Case Studies Section',                        'anchor' => 'six-sec-cstudy',        'icon' => 'award' ),
+        'clientsuccess' => array( 'title' => 'Client Success Section',                      'anchor' => 'six-sec-clientsuccess', 'icon' => 'users' ),
+        'commit'        => array( 'title' => 'Our Commitment Section',                      'anchor' => 'six-sec-commit',        'icon' => 'shield' ),
+        'deepdives'     => array( 'title' => '"We Can Help Your Business With" Section',    'anchor' => 'six-sec-deepdives',     'icon' => 'search' ),
+        'testimonials'  => array( 'title' => 'Testimonials Section',                        'anchor' => 'six-sec-testimonials',  'icon' => 'chart' ),
+        'blog'          => array( 'title' => 'Blog Section',                                'anchor' => 'six-sec-blog',          'icon' => 'pen' ),
+        'finalcta'      => array( 'title' => 'Final Call-to-Action',                        'anchor' => 'six-sec-finalcta',      'icon' => 'target' ),
+    );
+}
+
+// Load the WP media uploader + the shared admin styling on the Home page's editor screen.
 add_action( 'admin_enqueue_scripts', function ( $hook ) {
     if ( ! in_array( $hook, array( 'post.php', 'post-new.php' ), true ) ) return;
     global $post;
-    if ( $post && six_home_is_home_template( $post->ID ) ) wp_enqueue_media();
+    if ( ! $post || ! six_home_is_home_template( $post->ID ) ) return;
+    wp_enqueue_media();
+    $css = SIX_MK_DIR . 'assets/admin-marketing.css';
+    wp_enqueue_style( 'six-mk-admin', SIX_MK_URL . 'assets/admin-marketing.css', array(), file_exists( $css ) ? filemtime( $css ) : '1' );
 } );
+
+/** Small external-link glyph used on every "View live" link. */
+function six_home_external_icon() {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+}
+
+/** Pill nav at the top of the meta box, jumping straight to any section below. */
+function six_home_render_quicknav() {
+    echo '<div class="six-adm-quicknav"><span class="six-adm-quicknav-label">Jump to section</span>';
+    foreach ( six_home_sections() as $key => $s ) {
+        echo '<a href="#six-adm-sec-' . esc_attr( $key ) . '" data-six-adm-nav="' . esc_attr( $key ) . '">' . mk_icon( $s['icon'] ) . esc_html( $s['title'] ) . '</a>';
+    }
+    echo '</div>';
+}
+
+/** Opens one section card: icon + title + a "View live" link straight to that section on the actual homepage. */
+function six_home_section_start( $post, $key ) {
+    $sections = six_home_sections();
+    $s        = $sections[ $key ] ?? array( 'title' => $key, 'anchor' => '', 'icon' => 'spark' );
+    $live_url = get_permalink( $post->ID ) . ( $s['anchor'] ? '#' . $s['anchor'] : '' );
+    echo '<div class="six-adm-section" id="six-adm-sec-' . esc_attr( $key ) . '" data-six-adm-section="' . esc_attr( $key ) . '">';
+    echo '<div class="six-adm-section-head">';
+    echo '<span class="six-adm-section-icon">' . mk_icon( $s['icon'] ) . '</span>';
+    echo '<div class="six-adm-section-titles"><div class="six-adm-section-title">' . esc_html( $s['title'] ) . '</div></div>';
+    echo '<a class="six-adm-section-live" href="' . esc_url( $live_url ) . '" target="_blank" rel="noopener">View live ' . six_home_external_icon() . '</a>';
+    echo '</div><div class="six-adm-section-body">';
+}
+
+function six_home_section_end() {
+    echo '</div></div>';
+}
 
 add_action( 'add_meta_boxes_page', function ( $post ) {
     if ( ! six_home_is_home_template( $post->ID ) ) return;
@@ -109,11 +165,11 @@ function six_home_text_field( $post_id, $key, $label, $type = 'text' ) {
     $defaults = six_home_defaults();
     $val      = mk_field( $key, $defaults[ $key ] ?? '', $post_id );
     $name     = 'six_field_' . $key;
-    echo '<div style="margin:0 0 16px"><label style="display:block;font-weight:600;margin-bottom:4px">' . esc_html( $label ) . '</label>';
+    echo '<div class="six-adm-field"><label class="six-adm-field-label">' . esc_html( $label ) . '</label>';
     if ( $type === 'textarea' ) {
-        echo '<textarea name="' . esc_attr( $name ) . '" rows="4" style="width:100%">' . esc_textarea( $val ) . '</textarea>';
+        echo '<textarea name="' . esc_attr( $name ) . '" rows="4">' . esc_textarea( $val ) . '</textarea>';
     } else {
-        echo '<input type="text" name="' . esc_attr( $name ) . '" value="' . esc_attr( $val ) . '" style="width:100%">';
+        echo '<input type="text" name="' . esc_attr( $name ) . '" value="' . esc_attr( $val ) . '">';
     }
     echo '</div>';
 }
@@ -129,8 +185,8 @@ function six_home_render_repeater( $post_id, $field, $row_spec, $label, $add_lab
     $items    = mk_field( $field, $defaults[ $field ] ?? array(), $post_id );
     if ( ! is_array( $items ) || ! $items ) $items = array( array() );
     ?>
-    <div style="margin:0 0 22px">
-      <label style="display:block;font-weight:600;margin-bottom:8px"><?php echo esc_html( $label ); ?></label>
+    <div class="six-adm-field">
+      <label class="six-adm-field-label"><?php echo esc_html( $label ); ?></label>
       <div class="six-home-repeater">
         <div class="six-home-rep-rows">
           <?php foreach ( $items as $item ) echo six_home_render_row( $row_spec, $item ); ?>
@@ -148,27 +204,29 @@ function six_home_render_repeater( $post_id, $field, $row_spec, $label, $add_lab
 function six_home_render_row( $row_spec, $item ) {
     ob_start();
     ?>
-    <div class="six-home-rep-row" style="border:1px solid #dcdcde;border-radius:8px;padding:14px;margin-bottom:12px;background:#fff">
+    <div class="six-home-rep-row">
       <?php foreach ( $row_spec as $f ) :
           $val = $item[ $f['key'] ] ?? '';
           if ( $f['type'] === 'image' ) : ?>
-      <div style="margin-bottom:10px">
-        <div class="six-home-img-prev" style="width:140px;height:90px;border-radius:6px;border:1px solid #dcdcde;background:#f6f7f7 center/cover no-repeat<?php echo $val ? ';background-image:url(' . esc_url( $val ) . ')' : ''; ?>"></div>
+      <div class="six-adm-row-field">
+        <div class="six-home-img-prev<?php echo $val ? ' six-adm-has-img' : ''; ?>" style="<?php echo $val ? 'background-image:url(' . esc_url( $val ) . ')' : ''; ?>"><?php echo $val ? '' : 'No image'; ?></div>
         <input type="hidden" class="six-home-img-input" data-key="<?php echo esc_attr( $f['key'] ); ?>" value="<?php echo esc_attr( $val ); ?>">
-        <button type="button" class="button six-home-img-pick" style="margin-top:6px;font-size:11px">Select image</button>
-        <button type="button" class="button-link six-home-img-clear" style="margin-left:6px;font-size:11px;<?php echo $val ? '' : 'display:none'; ?>">Remove</button>
+        <div class="six-home-img-actions">
+          <button type="button" class="button six-home-img-pick">Select image</button>
+          <button type="button" class="button-link six-home-img-clear" style="<?php echo $val ? '' : 'display:none'; ?>">Remove</button>
+        </div>
       </div>
       <?php else : ?>
-      <div style="margin-bottom:10px">
-        <label style="display:block;font-size:12px;font-weight:600;margin-bottom:3px"><?php echo esc_html( $f['label'] ); ?></label>
+      <div class="six-adm-row-field">
+        <label><?php echo esc_html( $f['label'] ); ?></label>
         <?php if ( $f['type'] === 'textarea' ) : ?>
-        <textarea data-key="<?php echo esc_attr( $f['key'] ); ?>" rows="3" style="width:100%"><?php echo esc_textarea( $val ); ?></textarea>
+        <textarea data-key="<?php echo esc_attr( $f['key'] ); ?>" rows="3"><?php echo esc_textarea( $val ); ?></textarea>
         <?php else : ?>
-        <input type="text" data-key="<?php echo esc_attr( $f['key'] ); ?>" value="<?php echo esc_attr( $val ); ?>" style="width:100%">
+        <input type="text" data-key="<?php echo esc_attr( $f['key'] ); ?>" value="<?php echo esc_attr( $val ); ?>">
         <?php endif; ?>
       </div>
       <?php endif; endforeach; ?>
-      <div style="text-align:right"><button type="button" class="button-link six-home-rep-remove" style="color:#b32d2e">Remove row</button></div>
+      <div style="text-align:right"><button type="button" class="button-link six-home-rep-remove">Remove row</button></div>
     </div>
     <?php
     return ob_get_clean();
@@ -176,9 +234,11 @@ function six_home_render_row( $row_spec, $item ) {
 
 function six_home_render_meta_box( $post ) {
     wp_nonce_field( 'six_home_meta', 'six_home_nonce' );
-    echo '<p style="color:#666;margin-top:0">These fields are the homepage\'s actual live text and images — editing and saving here updates the site immediately. Sections not listed here (Case Studies, Client Success, Testimonials) each have their own post type in the sidebar menu.</p>';
+    echo '<p style="color:#666;margin-top:0">These fields are the homepage\'s actual live text and images — editing and saving here updates the site immediately. Each section below has a <strong>View live</strong> link that opens the real homepage scrolled straight to it, so you can check your change right after saving. Sections not listed here (Case Studies, Client Success, Testimonials) each have their own post type in the sidebar menu.</p>';
 
-    echo '<h3 style="margin-top:24px">Hero</h3>';
+    six_home_render_quicknav();
+
+    six_home_section_start( $post, 'hero' );
     six_home_text_field( $post->ID, 'hero_heading', 'Heading' );
     six_home_text_field( $post->ID, 'hero_subheading', 'Sub-heading (smaller line under the heading)' );
     six_home_text_field( $post->ID, 'hero_lead', 'Lead line (before the typing animation)' );
@@ -186,8 +246,9 @@ function six_home_render_meta_box( $post ) {
     six_home_text_field( $post->ID, 'hero_cta1_label', 'Primary button label' );
     six_home_text_field( $post->ID, 'hero_cta1_url', 'Primary button link (relative, e.g. /contact-us)' );
     six_home_text_field( $post->ID, 'hero_cta2_label', 'Secondary button label' );
+    six_home_section_end();
 
-    echo '<h3>Services Section</h3>';
+    six_home_section_start( $post, 'services' );
     six_home_text_field( $post->ID, 'svc_heading', 'Heading' );
     six_home_text_field( $post->ID, 'svc_intro', 'Intro paragraph', 'textarea' );
     six_home_render_repeater( $post->ID, 'svc_cards', array(
@@ -196,24 +257,30 @@ function six_home_render_meta_box( $post ) {
         array( 'key' => 'text', 'type' => 'textarea', 'label' => 'Description' ),
         array( 'key' => 'link', 'type' => 'text', 'label' => 'Link (relative, e.g. /seo-agency-toronto)' ),
     ), 'Service Cards', '+ Add service card' );
+    six_home_section_end();
 
-    echo '<h3>Case Studies Section</h3>';
+    six_home_section_start( $post, 'cstudy' );
     six_home_text_field( $post->ID, 'cstudy_eyebrow', 'Eyebrow' );
     six_home_text_field( $post->ID, 'cstudy_heading', 'Heading' );
+    echo '<p class="six-adm-hint">The case study cards themselves come from wp-admin → Case Studies. This section only hides automatically when none exist yet.</p>';
+    six_home_section_end();
 
-    echo '<h3>Client Success Section</h3>';
+    six_home_section_start( $post, 'clientsuccess' );
     six_home_text_field( $post->ID, 'cs_eyebrow', 'Eyebrow' );
     six_home_text_field( $post->ID, 'cs_heading', 'Heading' );
+    echo '<p class="six-adm-hint">The success-story slides come from wp-admin → Client Success.</p>';
+    six_home_section_end();
 
-    echo '<h3>Our Commitment Section</h3>';
+    six_home_section_start( $post, 'commit' );
     six_home_text_field( $post->ID, 'commit_heading', 'Heading' );
     six_home_text_field( $post->ID, 'commit_p1', 'Paragraph 1', 'textarea' );
     six_home_text_field( $post->ID, 'commit_p2', 'Paragraph 2', 'textarea' );
     six_home_text_field( $post->ID, 'commit_q', 'Question line (bold, before the buttons)' );
     six_home_text_field( $post->ID, 'commit_cta1', 'Primary button label' );
     six_home_text_field( $post->ID, 'commit_cta2', 'Secondary button label' );
+    six_home_section_end();
 
-    echo '<h3>"We Can Help Your Business With" Section</h3>';
+    six_home_section_start( $post, 'deepdives' );
     six_home_text_field( $post->ID, 'dd_heading', 'Heading' );
     six_home_render_repeater( $post->ID, 'deepdives', array(
         array( 'key' => 'image', 'type' => 'image' ),
@@ -223,23 +290,24 @@ function six_home_render_meta_box( $post ) {
         array( 'key' => 'cta_label', 'type' => 'text', 'label' => 'Button label' ),
         array( 'key' => 'cta_url', 'type' => 'text', 'label' => 'Button link (relative)' ),
     ), 'Deep-Dive Blocks', '+ Add block' );
+    six_home_section_end();
 
-    echo '<h3>Testimonials Section</h3>';
+    six_home_section_start( $post, 'testimonials' );
     six_home_text_field( $post->ID, 'tst_heading', 'Heading' );
+    echo '<p class="six-adm-hint">The testimonials themselves come from wp-admin → Testimonials.</p>';
+    six_home_section_end();
 
-    echo '<h3>Blog Section</h3>';
+    six_home_section_start( $post, 'blog' );
     six_home_text_field( $post->ID, 'blog_heading', 'Heading' );
     six_home_text_field( $post->ID, 'blog_count', 'Number of recent posts to show' );
+    six_home_section_end();
 
-    echo '<h3>Final Call-to-Action</h3>';
+    six_home_section_start( $post, 'finalcta' );
     six_home_text_field( $post->ID, 'final_heading', 'Heading' );
     six_home_text_field( $post->ID, 'final_cta_label', 'Button label' );
     six_home_text_field( $post->ID, 'final_cta_url', 'Button link (relative)' );
+    six_home_section_end();
     ?>
-    <style>
-      #six_home_meta h3{margin:24px 0 10px;padding-top:16px;border-top:1px solid #dcdcde}
-      #six_home_meta h3:first-of-type{margin-top:0;padding-top:0;border-top:0}
-    </style>
     <script>
     (function(){
         function wireImagePicker(row){
@@ -249,6 +317,11 @@ function six_home_render_meta_box( $post ) {
             var inp   = row.querySelector('.six-home-img-input');
             var prev  = row.querySelector('.six-home-img-prev');
             var frame;
+            function setPreview(url){
+                inp.value = url;
+                if(url){ prev.style.backgroundImage = 'url('+url+')'; prev.classList.add('six-adm-has-img'); prev.textContent=''; if(clear) clear.style.display=''; }
+                else{ prev.style.backgroundImage = ''; prev.classList.remove('six-adm-has-img'); prev.textContent='No image'; if(clear) clear.style.display='none'; }
+            }
             pick.addEventListener('click', function(e){
                 e.preventDefault();
                 if(frame){ frame.open(); return; }
@@ -256,13 +329,11 @@ function six_home_render_meta_box( $post ) {
                 frame.on('select', function(){
                     var a = frame.state().get('selection').first().toJSON();
                     var url = (a.sizes && a.sizes.large) ? a.sizes.large.url : a.url;
-                    inp.value = url; prev.style.backgroundImage = 'url('+url+')'; if(clear) clear.style.display='';
+                    setPreview(url);
                 });
                 frame.open();
             });
-            if(clear) clear.addEventListener('click', function(e){
-                e.preventDefault(); inp.value=''; prev.style.backgroundImage=''; clear.style.display='none';
-            });
+            if(clear) clear.addEventListener('click', function(e){ e.preventDefault(); setPreview(''); });
         }
         function wireRow(row){
             wireImagePicker(row);
@@ -277,10 +348,11 @@ function six_home_render_meta_box( $post ) {
             if(addBtn) addBtn.addEventListener('click', function(){
                 var row = template.cloneNode(true);
                 row.querySelectorAll('[data-key]').forEach(function(el){ el.value=''; });
-                var prev = row.querySelector('.six-home-img-prev'); if(prev) prev.style.backgroundImage='';
+                var prev = row.querySelector('.six-home-img-prev'); if(prev){ prev.style.backgroundImage=''; prev.classList.remove('six-adm-has-img'); prev.textContent='No image'; }
                 var clear = row.querySelector('.six-home-img-clear'); if(clear) clear.style.display='none';
                 rowsWrap.appendChild(row);
                 wireRow(row);
+                row.scrollIntoView({ behavior:'smooth', block:'center' });
             });
         });
         // Serialise every repeater's rows into its hidden JSON field right
@@ -303,6 +375,32 @@ function six_home_render_meta_box( $post ) {
                     rep.querySelector('.six-home-rep-json').value = JSON.stringify(out);
                 });
             });
+        }
+        // Quick-nav: smooth-scroll to the section, and highlight whichever
+        // section card is currently in view so it's obvious where you are.
+        document.querySelectorAll('.six-adm-quicknav a').forEach(function(a){
+            a.addEventListener('click', function(e){
+                var target = document.querySelector(a.getAttribute('href'));
+                if(!target) return;
+                e.preventDefault();
+                target.scrollIntoView({ behavior:'smooth', block:'start' });
+            });
+        });
+        var navLinks = {};
+        document.querySelectorAll('.six-adm-quicknav a[data-six-adm-nav]').forEach(function(a){
+            navLinks[a.getAttribute('data-six-adm-nav')] = a;
+        });
+        var sections = document.querySelectorAll('[data-six-adm-section]');
+        if(sections.length && 'IntersectionObserver' in window){
+            var observer = new IntersectionObserver(function(entries){
+                entries.forEach(function(entry){
+                    var key = entry.target.getAttribute('data-six-adm-section');
+                    var link = navLinks[key];
+                    if(!link) return;
+                    link.classList.toggle('six-adm-active', entry.isIntersecting);
+                });
+            }, { rootMargin: '-45% 0px -50% 0px' });
+            sections.forEach(function(s){ observer.observe(s); });
         }
     })();
     </script>

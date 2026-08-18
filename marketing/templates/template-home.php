@@ -67,7 +67,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
   <?php include SIX_MK_DIR . 'partials/header.php'; ?>
 
   <!-- HERO (original copy, verbatim) -->
-  <section class="mk-hero mk-glow">
+  <section id="six-sec-hero" class="mk-hero mk-glow">
     <div class="mk-aurora" aria-hidden="true"><span class="mk-aurora-a"></span><span class="mk-aurora-b"></span><span class="mk-aurora-c"></span></div>
     <div class="mk-wrap">
       <div class="mk-hero-inner">
@@ -84,7 +84,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
   </section>
 
   <!-- HOW 6IX DEVELOPERS CAN HELP YOUR BUSINESS (original copy + icons) -->
-  <section class="mk-section" style="padding-top:64px">
+  <section id="six-sec-services" class="mk-section" style="padding-top:64px">
     <div class="mk-wrap">
       <div class="mk-sec-head mk-center mk-full">
         <h2><?php echo esc_html( mk_field( 'svc_heading', $home_defaults['svc_heading'] ) ); ?></h2>
@@ -113,7 +113,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
   $cs_home = function_exists( 'six_cs_items' ) ? six_cs_items( 4 ) : array();
   if ( ! empty( $cs_home ) ) : ?>
   <!-- CASE STUDIES (four most recent) -->
-  <section class="mk-section mk-section-sm">
+  <section id="six-sec-cstudy" class="mk-section mk-section-sm">
     <div class="mk-wrap">
       <div class="mk-sec-head mk-sec-head--split">
         <div>
@@ -132,7 +132,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
   <?php endif; ?>
 
   <!-- CLIENT SUCCESS — auto-scrolling slider (one at a time), editable via CPT -->
-  <section class="mk-section mk-section-sm mk-glow">
+  <section id="six-sec-clientsuccess" class="mk-section mk-section-sm mk-glow">
     <div class="mk-wrap">
       <div class="mk-sec-head mk-center">
         <span class="mk-eyebrow" style="justify-content:center"><?php mk_e( 'cs_eyebrow', $home_defaults['cs_eyebrow'] ); ?></span>
@@ -170,7 +170,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
   <?php mk_portal_band(); ?>
 
   <!-- OUR COMMITMENT (original copy) -->
-  <section class="mk-section mk-section-sm">
+  <section id="six-sec-commit" class="mk-section mk-section-sm">
     <div class="mk-wrap">
       <div class="mk-card mk-card-accent" style="padding:40px">
         <h2 style="font-size:clamp(1.6rem,2.6vw,2.2rem)"><?php echo esc_html( mk_field( 'commit_heading', $home_defaults['commit_heading'] ) ); ?></h2>
@@ -186,7 +186,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
   </section>
 
   <!-- WE CAN HELP YOUR BUSINESS WITH (original copy; equal columns + placeholder images) -->
-  <section class="mk-section" style="padding-top:48px">
+  <section id="six-sec-deepdives" class="mk-section" style="padding-top:48px">
     <div class="mk-wrap">
       <div class="mk-sec-head mk-center">
         <h2><?php echo esc_html( mk_field( 'dd_heading', $home_defaults['dd_heading'] ) ); ?></h2>
@@ -212,7 +212,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
   </section>
 
   <!-- WHAT OUR CLIENTS SAY — testimonial slider (editable via CPT) -->
-  <section class="mk-section mk-section-sm mk-glow">
+  <section id="six-sec-testimonials" class="mk-section mk-section-sm mk-glow">
     <div class="mk-wrap">
       <div class="mk-sec-head mk-center">
         <h2><?php echo esc_html( mk_field( 'tst_heading', $home_defaults['tst_heading'] ) ); ?></h2>
@@ -246,7 +246,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
 
   <?php if ( ! empty( $blog_posts ) ) : ?>
   <!-- FROM THE BLOG (addition) -->
-  <section class="mk-section mk-section-sm">
+  <section id="six-sec-blog" class="mk-section mk-section-sm">
     <div class="mk-wrap">
       <div class="mk-center" style="max-width:640px;margin:0 auto 34px">
         <span class="mk-eyebrow" style="justify-content:center">Insights</span>
@@ -269,7 +269,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
   <?php endif; ?>
 
   <!-- FINAL CTA (original copy) -->
-  <section class="mk-section mk-glow">
+  <section id="six-sec-finalcta" class="mk-section mk-glow">
     <div class="mk-wrap mk-center" style="max-width:760px">
       <h2 class="mk-grad-text"><?php echo esc_html( mk_field( 'final_heading', $home_defaults['final_heading'] ) ); ?></h2>
       <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:10px">

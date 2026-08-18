@@ -1,0 +1,113 @@
+/**
+ * 6ix Developers — wp-admin styling for the marketing-site content editors
+ * (Homepage Content, Case Study, Client Success / Testimonials meta boxes).
+ *
+ * Goal: make it obvious which front-end section a set of fields controls,
+ * and give the whole editing surface a deliberate, "this is a real product"
+ * look instead of a stack of unstyled inputs.
+ */
+
+/* ── Quick-nav pill bar (jumps to a section within the same meta box) ── */
+.six-adm-quicknav {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin: 0 0 20px; padding: 12px;
+  background: #f6f7fb; border: 1px solid #e2e4ea; border-radius: 10px;
+}
+.six-adm-quicknav-label {
+  display: block; width: 100%; font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .04em; color: #6b7280; margin-bottom: 6px;
+}
+.six-adm-quicknav a {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 11px; border-radius: 999px;
+  background: #fff; border: 1px solid #d7dae2; color: #2c3347;
+  font-size: 12px; font-weight: 600; text-decoration: none;
+  transition: background .12s ease, border-color .12s ease, color .12s ease;
+}
+.six-adm-quicknav a:hover { background: #eef1ff; border-color: #7c8cff; color: #3a3ff2; }
+.six-adm-quicknav a.six-adm-active { background: #3a3ff2; border-color: #3a3ff2; color: #fff; }
+.six-adm-quicknav a svg { width: 13px; height: 13px; flex: none; }
+
+/* ── Section card ── */
+.six-adm-section {
+  scroll-margin-top: 46px; /* clears the wp-admin sticky toolbar on jump */
+  margin: 0 0 18px; border: 1px solid #e2e4ea; border-radius: 12px;
+  background: #fff; overflow: hidden;
+}
+.six-adm-section-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 18px; background: linear-gradient(180deg, #fafbff, #f4f5fb);
+  border-bottom: 1px solid #e9eaf1;
+}
+.six-adm-section-icon {
+  display: flex; align-items: center; justify-content: center; flex: none;
+  width: 30px; height: 30px; border-radius: 8px;
+  background: #eef0ff; color: #3a3ff2;
+}
+.six-adm-section-icon svg { width: 16px; height: 16px; }
+.six-adm-section-titles { flex: 1; min-width: 0; }
+.six-adm-section-title { font-size: 13.5px; font-weight: 700; color: #1d2333; }
+.six-adm-section-sub { font-size: 11.5px; color: #7a7f92; margin-top: 1px; }
+.six-adm-section-live {
+  flex: none; display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 12px; border-radius: 7px; text-decoration: none;
+  font-size: 12px; font-weight: 600; color: #3a3ff2;
+  background: #fff; border: 1px solid #cfd3f5;
+}
+.six-adm-section-live:hover { background: #eef0ff; color: #2528b8; }
+.six-adm-section-live svg { width: 12px; height: 12px; }
+.six-adm-section-body { padding: 18px; }
+
+/* ── Fields ── */
+.six-adm-field { margin: 0 0 16px; }
+.six-adm-field:last-child { margin-bottom: 0; }
+.six-adm-field-label { display: block; font-weight: 600; font-size: 12.5px; color: #2c3347; margin-bottom: 5px; }
+.six-adm-field input[type=text], .six-adm-field textarea {
+  width: 100%; border: 1px solid #d7dae2; border-radius: 7px; padding: 8px 10px; font-size: 13px;
+}
+.six-adm-field input[type=text]:focus, .six-adm-field textarea:focus { border-color: #7c8cff; box-shadow: 0 0 0 1px #7c8cff; outline: none; }
+.six-adm-hint { color: #7a7f92; font-size: 11.5px; margin-top: 4px; }
+
+/* ── Repeaters ── */
+.six-home-repeater { counter-reset: six-adm-row; }
+.six-home-rep-row {
+  counter-increment: six-adm-row;
+  position: relative;
+  border: 1px solid #e2e4ea; border-radius: 10px; padding: 16px 16px 14px 44px;
+  margin-bottom: 12px; background: #fbfbfd;
+}
+.six-home-rep-row::before {
+  content: counter(six-adm-row);
+  position: absolute; top: 14px; left: 14px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #3a3ff2; color: #fff; font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.six-home-rep-row .six-adm-row-field { margin-bottom: 10px; }
+.six-home-rep-row .six-adm-row-field:last-of-type { margin-bottom: 0; }
+.six-home-rep-row label { display: block; font-size: 11.5px; font-weight: 600; margin-bottom: 3px; color: #2c3347; }
+.six-home-rep-row input[type=text], .six-home-rep-row textarea {
+  width: 100%; border: 1px solid #d7dae2; border-radius: 6px; padding: 7px 9px; font-size: 12.5px;
+}
+.six-home-rep-add {
+  display: inline-flex !important; align-items: center; gap: 6px;
+}
+.six-home-rep-remove {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 12px; text-decoration: none; color: #b32d2e;
+}
+.six-home-rep-remove:hover { color: #7d1f1f; }
+
+/* Image picker */
+.six-home-img-prev {
+  width: 160px; height: 100px; border-radius: 8px; border: 1px dashed #cfd3e0;
+  background: #f2f3f8 center/cover no-repeat; margin-bottom: 8px;
+  display: flex; align-items: center; justify-content: center;
+  color: #9599ad; font-size: 11px; text-align: center;
+}
+.six-home-img-prev.six-adm-has-img { border-style: solid; }
+.six-home-img-actions { display: flex; align-items: center; gap: 10px; }
+
+@media (max-width: 782px) {
+  .six-adm-section-head { flex-wrap: wrap; }
+  .six-adm-section-live { margin-left: 44px; }
+}

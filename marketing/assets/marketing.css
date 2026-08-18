@@ -203,6 +203,7 @@
 .mk-login-foot a { color: #8781BA; font-weight: 700; }
 
 /* ── Hero — AI/tech first impression ────────────────────── */
+.six-mk .mk-hero, .six-mk .mk-section { scroll-margin-top: 100px; } /* clears the fixed header when a section is opened via #anchor (e.g. from the "View live" links in wp-admin) */
 .six-mk .mk-hero {
   position: relative; overflow: hidden;
   padding: 290px 0 130px; margin-top: -92px; /* extra top padding so the hero clears the fixed header, pulled under it */
