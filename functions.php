@@ -20,6 +20,15 @@ add_action( 'init', function () {
     update_option( 'six_theme_standalone_v1', 1 );
 }, 1 );
 
+// ── THEME SUPPORT ─────────────────────────────────────────────────────────────
+// Never declared before, on this theme or its Divi-child predecessor — so the
+// native "Featured Image" box has never appeared for ANY post type, including
+// Case Studies, Client Success and Testimonials (each of those declares
+// 'thumbnail' support, but that's a no-op without this). Fixes it site-wide.
+add_action( 'after_setup_theme', function () {
+    add_theme_support( 'post-thumbnails' );
+} );
+
 // ── CONSTANTS ───────────────────────────────────────────────────────────────
 define( 'SIX_PORTAL_VERSION', '1.0.0' );
 define( 'SIX_PLUGIN_DIR',     get_stylesheet_directory() . '/portal/' );

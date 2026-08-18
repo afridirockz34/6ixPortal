@@ -5,8 +5,10 @@
  *
  * Redesigned homepage. Section order and copy mirror the original site
  * verbatim (SEO-preserving); the Marketing OS band, blog teaser and portal
- * CTAs are ADDITIONS. Every section is editable via ACF; defaults below keep
- * the page complete before any field is filled.
+ * CTAs are ADDITIONS. Every text/image field here is editable from wp-admin
+ * — open this page's "Edit" screen and use the "Homepage Content" box
+ * (marketing/home-fields.php). ACF is checked first if it's ever installed,
+ * but nothing here depends on it.
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
@@ -15,15 +17,14 @@ remove_action( 'wp_head', 'et_load_custom_scripts' );
 
 $orig = 'https://6ixdevelopers.com/';
 
-// ── Original copy as defaults (verbatim) ────────────────────────────────
-$typing_words = mk_field( 'hero_typing_words', 'PPC Management, Search Engine Marketing, Paid Social Media Advertising, Website Page Speed Optimization, Email Marketing' );
+// ── Defaults come from six_home_defaults() (marketing/home-fields.php) —
+// the same source the "Homepage Content" editor (wp-admin → edit this page)
+// reads and writes, so an untouched field and its live default never drift
+// apart. mk_field() itself checks ACF, then saved post meta, then this.
+$home_defaults = six_home_defaults();
+$typing_words  = mk_field( 'hero_typing_words', $home_defaults['hero_typing_words'] );
 
-$svc_cards = mk_field( 'svc_cards', array(
-    array( 'image' => $orig.'media/icons/ps-web.png', 'title' => 'Website Design',  'text' => 'Professional websites designed to run optimally across all devices', 'link' => '/website-design-agency-toronto' ),
-    array( 'image' => $orig.'media/icons/ps-ads.png', 'title' => 'Google Ads/PPC',  'text' => 'Managed by Google Ads specialists to help your business rank #1', 'link' => '/ppc-google-ads-management-toronto' ),
-    array( 'image' => $orig.'media/icons/ps-seo.png', 'title' => 'SEO',             'text' => 'Rank higher in organic search results and drive more traffic to your website', 'link' => '/seo-agency-toronto' ),
-    array( 'image' => $orig.'media/icons/ps-smm.png', 'title' => 'Social Media',    'text' => 'Customized campaigns and blogs to grow your online presence', 'link' => '/social-media-marketing-agency-toronto' ),
-) );
+$svc_cards = mk_field( 'svc_cards', $home_defaults['svc_cards'] );
 
 // Client Success — from the "Client Success" post type (add/edit/delete in
 // wp-admin). Falls back to the original data until stories are created.
@@ -38,20 +39,7 @@ $cs_slides = mk_success_items( array(
     array( 'title' => 'Restaurant',                      'period' => '2024, Q3 - Q4', 'conv' => '9.04%',  'ctr' => '22.04%', 'cpl' => '$9.95',   'image' => $ph ),
 ) );
 
-$deepdives = mk_field( 'deepdives', array(
-    array( 'eyebrow' => 'Website Design', 'title' => 'Responsive Website Design',
-        'text' => "Our website designs are optimized for lead generation and lead capturing. Our website designs are flexible and responsive on multiple platforms, devices, and browsers. While designing a website, we consider all important SEO aspects to help your website rank faster and higher than your competitors on Google search. Our striking website designs are developed in-house by experienced web designers. They are specifically designed for your potential clients to take action on the website, whether it's making a phone call or submitting a form.",
-        'cta_label' => 'Learn More', 'cta_url' => '/website-design-agency-toronto', 'image' => 'https://placehold.co/640x460/E8547A/ffffff?text=Website+Design' ),
-    array( 'eyebrow' => 'Google Ads', 'title' => 'Google Ads/PPC',
-        'text' => 'Google Ads, also known as PPC, is one of the most versatile and scalable platforms to advertise your business. This form of business advertising is primarily used to bring immediate return on investment. Our Google Ads/PPC certified experts specialize in designing a marketing solution for your business that best suits your needs. Regardless of your marketing budget size, we ensure that every dollar spent on marketing returns the best possible results for your business to leverage.',
-        'cta_label' => 'Learn More', 'cta_url' => '/ppc-google-ads-management-toronto', 'image' => 'https://placehold.co/640x460/A855F7/ffffff?text=Google+Ads' ),
-    array( 'eyebrow' => 'SEO', 'title' => 'SEO (Search Engine Marketing)',
-        'text' => 'When we work with an SEO client, we ensure that the deliverables are set for long-term and consistent returns. Research shows that Google processes more than 3.5 billion searches every day. With the right exposure at the right time, your business can dominate the industry. Certified and experienced SEO experts in your industry at 6ix Developers can take your business to the next level. We achieve this by making your website rank on the first page of Google search. Customer satisfaction is our #1 priority. We have helped many businesses rank #1 on Google. Yours could be next!',
-        'cta_label' => 'Learn More', 'cta_url' => '/seo-agency-toronto', 'image' => 'https://placehold.co/640x460/3C8FB5/ffffff?text=SEO' ),
-    array( 'eyebrow' => 'Social Media', 'title' => 'Social Media Marketing/Management',
-        'text' => "Social media is one of the most cost-effective yet powerful platforms to promote your services. Our Social Media specialists build a community on social media platforms that shares the same interests as your business. Being in front of your potential prospects all the time keeps your business/brand in their minds. So when they are ready to find someone, your business is the first name that comes to mind. If you don't currently have social media for your business or are just starting, hire us to jump-start your presence and compete with the top competitors in your industry.",
-        'cta_label' => 'Learn More', 'cta_url' => '/social-media-marketing-agency-toronto', 'image' => 'https://placehold.co/640x460/83C5ED/0b2233?text=Social+Media' ),
-) );
+$deepdives = mk_field( 'deepdives', $home_defaults['deepdives'] );
 
 $testimonials = mk_testimonial_items( array(
     array( 'quote' => 'I am very thankful to 6ix Developers for their services. I am super happy with my website and Google Ads. Coming from a bad experience, they made me feel comfortable and kept me in the loop with the whole progress of the website. Also I would like to thank Musab for suggesting and building a business plan for me and setting my business up with Google Ads. Much appreciated.', 'name' => 'Annie C.', 'role' => '' ),
@@ -60,17 +48,7 @@ $testimonials = mk_testimonial_items( array(
     array( 'quote' => "6ix Developers has handled our SEO for over five years now, and have been a key partner in our growth. We were a startup when we first started working together, and they respected our smaller budget and worked to get us the best return on investment. Now that we're established, we know that we are in good hands as we market our company in a very competitive online environment. 5 stars for 6ix Developers.", 'name' => 'Momi K.', 'role' => '' ),
 ) );
 
-$logos = mk_field( 'client_logos', array(
-    array( 'image' => $orig.'media/clients/1..jpg' ),
-    array( 'image' => $orig.'media/clients/4..jpg' ),
-    array( 'image' => $orig.'media/clients/5..jpg' ),
-    array( 'image' => $orig.'media/clients/6..jpg' ),
-    array( 'image' => $orig.'media/clients/11..jpeg' ),
-    array( 'image' => $orig.'media/clients/13..jpg' ),
-    array( 'image' => $orig.'media/clients/14..jpg' ),
-) );
-
-$blog_posts = get_posts( array( 'numberposts' => intval( mk_field( 'blog_count', 3 ) ), 'post_status' => 'publish' ) );
+$blog_posts = get_posts( array( 'numberposts' => intval( mk_field( 'blog_count', $home_defaults['blog_count'] ) ), 'post_status' => 'publish' ) );
 
 header( 'Content-Type: text/html; charset=utf-8' );
 ?>
@@ -93,13 +71,13 @@ header( 'Content-Type: text/html; charset=utf-8' );
     <div class="mk-aurora" aria-hidden="true"><span class="mk-aurora-a"></span><span class="mk-aurora-b"></span><span class="mk-aurora-c"></span></div>
     <div class="mk-wrap">
       <div class="mk-hero-inner">
-        <h1><?php echo esc_html( mk_field( 'hero_heading', 'Discover The Difference' ) ); ?>
-            <span class="mk-grad-text" style="display:block;font-size:.62em;margin-top:8px"><?php echo esc_html( mk_field( 'hero_subheading', '6ix Developers can make' ) ); ?></span></h1>
-        <p class="mk-lead"><?php echo esc_html( mk_field( 'hero_lead', 'Elevate your marketing through industry-leading:' ) ); ?><br>
+        <h1><?php echo esc_html( mk_field( 'hero_heading', $home_defaults['hero_heading'] ) ); ?>
+            <span class="mk-grad-text" style="display:block;font-size:.62em;margin-top:8px"><?php echo esc_html( mk_field( 'hero_subheading', $home_defaults['hero_subheading'] ) ); ?></span></h1>
+        <p class="mk-lead"><?php echo esc_html( mk_field( 'hero_lead', $home_defaults['hero_lead'] ) ); ?><br>
           <span class="mk-typing" id="mk-typing" data-words="<?php echo esc_attr( $typing_words ); ?>"></span></p>
         <div class="mk-hero-cta">
-          <a class="mk-btn mk-btn-primary mk-btn-lg" href="<?php echo esc_url( home_url( mk_field( 'hero_cta1_url', '/contact-us' ) ) ); ?>"><?php mk_e( 'hero_cta1_label', 'Get your free consultation' ); ?></a>
-          <a class="mk-btn mk-btn-ghost mk-btn-lg" href="<?php echo esc_url( mk_portal_url() ); ?>"><?php mk_e( 'hero_cta2_label', 'Find out how your business is doing' ); ?></a>
+          <a class="mk-btn mk-btn-primary mk-btn-lg" href="<?php echo esc_url( home_url( mk_field( 'hero_cta1_url', $home_defaults['hero_cta1_url'] ) ) ); ?>"><?php mk_e( 'hero_cta1_label', $home_defaults['hero_cta1_label'] ); ?></a>
+          <a class="mk-btn mk-btn-ghost mk-btn-lg" href="<?php echo esc_url( mk_portal_url() ); ?>"><?php mk_e( 'hero_cta2_label', $home_defaults['hero_cta2_label'] ); ?></a>
         </div>
       </div>
     </div>
@@ -109,8 +87,8 @@ header( 'Content-Type: text/html; charset=utf-8' );
   <section class="mk-section" style="padding-top:64px">
     <div class="mk-wrap">
       <div class="mk-sec-head mk-center mk-full">
-        <h2><?php echo esc_html( mk_field( 'svc_heading', 'How 6ix Developers Can Help Your Business' ) ); ?></h2>
-        <p class="mk-lead"><?php echo esc_html( mk_field( 'svc_intro', "6ix Developers is a full stack digital marketing agency with experienced and Google-certified staff. Our team members are specialized in Website Designs that are optimized for lead generation and lead capturing. We have Google Ads (aka. PPC) experts who are Google certified and experienced enough to take your business to another level. Our SEO team can help your business with organic ranking on Google and other search engines. Our Social Media team can show your business the opportunities it deserves. Secret to your success is in our expert team's hands who is fully invested in learning and understanding your business to help it grow exponentially." ) ); ?></p>
+        <h2><?php echo esc_html( mk_field( 'svc_heading', $home_defaults['svc_heading'] ) ); ?></h2>
+        <p class="mk-lead"><?php echo esc_html( mk_field( 'svc_intro', $home_defaults['svc_intro'] ) ); ?></p>
       </div>
       <div class="mk-grid mk-grid-4">
         <?php foreach ( (array) $svc_cards as $c ) : ?>
@@ -139,8 +117,8 @@ header( 'Content-Type: text/html; charset=utf-8' );
     <div class="mk-wrap">
       <div class="mk-sec-head mk-sec-head--split">
         <div>
-          <span class="mk-eyebrow"><?php mk_e( 'cstudy_eyebrow', 'Proven Results' ); ?></span>
-          <h2><?php echo esc_html( mk_field( 'cstudy_heading', 'Case Studies' ) ); ?></h2>
+          <span class="mk-eyebrow"><?php mk_e( 'cstudy_eyebrow', $home_defaults['cstudy_eyebrow'] ); ?></span>
+          <h2><?php echo esc_html( mk_field( 'cstudy_heading', $home_defaults['cstudy_heading'] ) ); ?></h2>
         </div>
         <a class="mk-btn mk-btn-ghost" href="<?php echo esc_url( home_url( '/case-studies' ) ); ?>">View all case studies
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
@@ -157,8 +135,8 @@ header( 'Content-Type: text/html; charset=utf-8' );
   <section class="mk-section mk-section-sm mk-glow">
     <div class="mk-wrap">
       <div class="mk-sec-head mk-center">
-        <span class="mk-eyebrow" style="justify-content:center"><?php mk_e( 'cs_eyebrow', 'We are Diverse & Experienced' ); ?></span>
-        <h2><?php echo esc_html( mk_field( 'cs_heading', 'Client Success' ) ); ?></h2>
+        <span class="mk-eyebrow" style="justify-content:center"><?php mk_e( 'cs_eyebrow', $home_defaults['cs_eyebrow'] ); ?></span>
+        <h2><?php echo esc_html( mk_field( 'cs_heading', $home_defaults['cs_heading'] ) ); ?></h2>
       </div>
       <div class="mk-carousel" data-carousel data-autoplay="5000">
         <button class="mk-carousel-arrow mk-prev" data-prev aria-label="Previous"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
@@ -195,13 +173,13 @@ header( 'Content-Type: text/html; charset=utf-8' );
   <section class="mk-section mk-section-sm">
     <div class="mk-wrap">
       <div class="mk-card mk-card-accent" style="padding:40px">
-        <h2 style="font-size:clamp(1.6rem,2.6vw,2.2rem)"><?php echo esc_html( mk_field( 'commit_heading', 'Our Commitment To Helping Other Businesses' ) ); ?></h2>
-        <p><?php echo esc_html( mk_field( 'commit_p1', "We strive to fully understand our client's business and industry before we begin a project. This is critical to build an online presence that meets our clients vision, and is relevant to their goals." ) ); ?></p>
-        <p><?php echo esc_html( mk_field( 'commit_p2', 'We are transparent, and involve our clients through the whole process. We continuously seek feedback to ensure we are on the right track.' ) ); ?></p>
-        <p style="font-weight:700;color:var(--mk-t1)"><?php echo esc_html( mk_field( 'commit_q', 'Could your business benefit from our services?' ) ); ?></p>
+        <h2 style="font-size:clamp(1.6rem,2.6vw,2.2rem)"><?php echo esc_html( mk_field( 'commit_heading', $home_defaults['commit_heading'] ) ); ?></h2>
+        <p><?php echo esc_html( mk_field( 'commit_p1', $home_defaults['commit_p1'] ) ); ?></p>
+        <p><?php echo esc_html( mk_field( 'commit_p2', $home_defaults['commit_p2'] ) ); ?></p>
+        <p style="font-weight:700;color:var(--mk-t1)"><?php echo esc_html( mk_field( 'commit_q', $home_defaults['commit_q'] ) ); ?></p>
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">
-          <a class="mk-btn mk-btn-primary" href="<?php echo esc_url( home_url( '/contact-us' ) ); ?>"><?php mk_e( 'commit_cta1', 'Get free consultation' ); ?></a>
-          <a class="mk-btn mk-btn-ghost" href="<?php echo esc_url( home_url( '/about-us' ) ); ?>"><?php mk_e( 'commit_cta2', 'Find out more about us' ); ?></a>
+          <a class="mk-btn mk-btn-primary" href="<?php echo esc_url( home_url( '/contact-us' ) ); ?>"><?php mk_e( 'commit_cta1', $home_defaults['commit_cta1'] ); ?></a>
+          <a class="mk-btn mk-btn-ghost" href="<?php echo esc_url( home_url( '/about-us' ) ); ?>"><?php mk_e( 'commit_cta2', $home_defaults['commit_cta2'] ); ?></a>
         </div>
       </div>
     </div>
@@ -211,7 +189,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
   <section class="mk-section" style="padding-top:48px">
     <div class="mk-wrap">
       <div class="mk-sec-head mk-center">
-        <h2><?php echo esc_html( mk_field( 'dd_heading', 'We Can Help Your Business With' ) ); ?></h2>
+        <h2><?php echo esc_html( mk_field( 'dd_heading', $home_defaults['dd_heading'] ) ); ?></h2>
       </div>
       <div class="mk-dd-list">
       <?php foreach ( (array) $deepdives as $i => $d ) : ?>
@@ -237,7 +215,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
   <section class="mk-section mk-section-sm mk-glow">
     <div class="mk-wrap">
       <div class="mk-sec-head mk-center">
-        <h2><?php echo esc_html( mk_field( 'tst_heading', 'What Our Clients Say' ) ); ?></h2>
+        <h2><?php echo esc_html( mk_field( 'tst_heading', $home_defaults['tst_heading'] ) ); ?></h2>
       </div>
       <div class="mk-carousel" data-carousel data-autoplay="6000">
         <button class="mk-carousel-arrow mk-prev" data-prev aria-label="Previous"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
@@ -272,7 +250,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
     <div class="mk-wrap">
       <div class="mk-center" style="max-width:640px;margin:0 auto 34px">
         <span class="mk-eyebrow" style="justify-content:center">Insights</span>
-        <h2><?php echo esc_html( mk_field( 'blog_heading', 'From the Blog' ) ); ?></h2>
+        <h2><?php echo esc_html( mk_field( 'blog_heading', $home_defaults['blog_heading'] ) ); ?></h2>
       </div>
       <div class="mk-grid mk-grid-3">
         <?php foreach ( $blog_posts as $bp ) : ?>
@@ -293,9 +271,9 @@ header( 'Content-Type: text/html; charset=utf-8' );
   <!-- FINAL CTA (original copy) -->
   <section class="mk-section mk-glow">
     <div class="mk-wrap mk-center" style="max-width:760px">
-      <h2 class="mk-grad-text"><?php echo esc_html( mk_field( 'final_heading', 'Ready to find out what sets 6ix Developers apart?' ) ); ?></h2>
+      <h2 class="mk-grad-text"><?php echo esc_html( mk_field( 'final_heading', $home_defaults['final_heading'] ) ); ?></h2>
       <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:10px">
-        <a class="mk-btn mk-btn-primary mk-btn-lg" href="<?php echo esc_url( home_url( mk_field( 'final_cta_url', '/contact-us' ) ) ); ?>"><?php mk_e( 'final_cta_label', 'Get free consultation now' ); ?></a>
+        <a class="mk-btn mk-btn-primary mk-btn-lg" href="<?php echo esc_url( home_url( mk_field( 'final_cta_url', $home_defaults['final_cta_url'] ) ) ); ?>"><?php mk_e( 'final_cta_label', $home_defaults['final_cta_label'] ); ?></a>
         <a class="mk-btn mk-btn-ghost mk-btn-lg" href="<?php echo esc_url( mk_portal_url() ); ?>">See where your business can grow</a>
       </div>
     </div>
