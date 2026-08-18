@@ -42,9 +42,20 @@ function mk_field( $name, $default = '', $post_id = false ) {
             // Arrays (repeaters) are stored as a JSON string.
             if ( is_string( $raw ) && strlen( $raw ) && ( $raw[0] === '[' || $raw[0] === '{' ) ) {
                 $decoded = json_decode( $raw, true );
-                if ( json_last_error() === JSON_ERROR_NONE ) return $decoded;
+                if ( json_last_error() === JSON_ERROR_NONE ) {
+                    // A saved-but-empty array ('[]') is never useful to a
+                    // visitor — fall through to the default instead of
+                    // rendering a blank section, whatever caused it to end
+                    // up empty (the save handlers also guard against ever
+                    // writing this in the first place; this is a second,
+                    // display-layer safety net).
+                    if ( ! ( is_array( $decoded ) && empty( $decoded ) ) ) return $decoded;
+                } else {
+                    return $raw;
+                }
+            } else {
+                return $raw;
             }
-            return $raw;
         }
     }
 

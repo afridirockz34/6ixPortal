@@ -358,6 +358,12 @@ add_action( 'save_post_page', function ( $post_id ) {
                 if ( array_filter( $clean_row ) ) $clean[] = $clean_row;
             }
         }
+        // Never save a fully-emptied repeater over existing content — a
+        // blank section going live is far worse than one save being
+        // ignored. If every row was dropped (all fields left blank, or the
+        // submitted JSON was otherwise malformed/empty), skip the update
+        // entirely and leave whatever was previously saved untouched.
+        if ( empty( $clean ) ) continue;
         update_post_meta( $post_id, $k, wp_json_encode( $clean ) );
     }
 } );
