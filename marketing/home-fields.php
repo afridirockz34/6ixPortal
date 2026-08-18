@@ -410,8 +410,23 @@ function six_home_render_meta_box( $post ) {
 add_action( 'save_post_page', function ( $post_id ) {
     if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
     if ( ! six_home_is_home_template( $post_id ) ) return;
-    if ( ! isset( $_POST['six_home_nonce'] ) || ! wp_verify_nonce( $_POST['six_home_nonce'], 'six_home_meta' ) ) return;
-    if ( ! current_user_can( 'edit_post', $post_id ) ) return;
+    // TEMP DIAGNOSTIC: record exactly what this request looked like before
+    // any nonce/capability gate can return early, so the debug notice below
+    // can tell us whether the form even reached this handler correctly.
+    // Safe to delete once the "image not saving" report is resolved.
+    $six_debug = array(
+        'nonce_present' => isset( $_POST['six_home_nonce'] ),
+        'nonce_valid'   => isset( $_POST['six_home_nonce'] ) ? (bool) wp_verify_nonce( $_POST['six_home_nonce'], 'six_home_meta' ) : false,
+        'can_edit'      => current_user_can( 'edit_post', $post_id ),
+    );
+    if ( ! isset( $_POST['six_home_nonce'] ) || ! wp_verify_nonce( $_POST['six_home_nonce'], 'six_home_meta' ) ) {
+        set_transient( 'six_home_save_debug_' . get_current_user_id(), array( 'STOPPED_AT' => 'nonce check', 'info' => $six_debug ), 120 );
+        return;
+    }
+    if ( ! current_user_can( 'edit_post', $post_id ) ) {
+        set_transient( 'six_home_save_debug_' . get_current_user_id(), array( 'STOPPED_AT' => 'capability check', 'info' => $six_debug ), 120 );
+        return;
+    }
 
     $text_fields = array(
         'hero_heading', 'hero_subheading', 'hero_lead', 'hero_typing_words',
@@ -440,9 +455,15 @@ add_action( 'save_post_page', function ( $post_id ) {
     );
     foreach ( $repeaters as $field => $schema ) {
         $k = 'six_field_' . $field;
+        $six_debug['repeaters'][ $field ]['post_present'] = isset( $_POST[ $k ] );
         if ( ! isset( $_POST[ $k ] ) ) continue;
-        $decoded = json_decode( wp_unslash( $_POST[ $k ] ), true );
-        $clean   = array();
+        $raw_json = wp_unslash( $_POST[ $k ] );
+        $decoded  = json_decode( $raw_json, true );
+        $six_debug['repeaters'][ $field ]['raw_len']      = strlen( $raw_json );
+        $six_debug['repeaters'][ $field ]['raw_sample']   = substr( $raw_json, 0, 200 );
+        $six_debug['repeaters'][ $field ]['json_error']   = json_last_error() === JSON_ERROR_NONE ? 'none' : json_last_error_msg();
+        $six_debug['repeaters'][ $field ]['decoded_rows'] = is_array( $decoded ) ? count( $decoded ) : null;
+        $clean = array();
         if ( is_array( $decoded ) ) {
             foreach ( $decoded as $row ) {
                 if ( ! is_array( $row ) ) continue;
@@ -456,12 +477,40 @@ add_action( 'save_post_page', function ( $post_id ) {
                 if ( array_filter( $clean_row ) ) $clean[] = $clean_row;
             }
         }
+        $six_debug['repeaters'][ $field ]['clean_rows']   = count( $clean );
+        $six_debug['repeaters'][ $field ]['clean_images'] = array_map(
+            function ( $r ) { return empty( $r['image'] ) ? '(none)' : '…' . substr( $r['image'], -50 ); },
+            $clean
+        );
         // Never save a fully-emptied repeater over existing content — a
         // blank section going live is far worse than one save being
         // ignored. If every row was dropped (all fields left blank, or the
         // submitted JSON was otherwise malformed/empty), skip the update
         // entirely and leave whatever was previously saved untouched.
-        if ( empty( $clean ) ) continue;
+        if ( empty( $clean ) ) {
+            $six_debug['repeaters'][ $field ]['result'] = 'SKIPPED (clean array was empty — previous content left untouched)';
+            continue;
+        }
         update_post_meta( $post_id, $k, wp_json_encode( $clean ) );
+        $six_debug['repeaters'][ $field ]['result'] = 'SAVED';
     }
+    set_transient( 'six_home_save_debug_' . get_current_user_id(), $six_debug, 120 );
+} );
+
+/**
+ * TEMP DIAGNOSTIC — shows exactly what the last save request looked like,
+ * right on the Edit screen, so a real save attempt can be inspected without
+ * server/log access. Self-clears after one view. Safe to delete once the
+ * "image not saving" report is resolved.
+ */
+add_action( 'admin_notices', function () {
+    global $post;
+    if ( ! $post || ! six_home_is_home_template( $post->ID ) ) return;
+    $key   = 'six_home_save_debug_' . get_current_user_id();
+    $debug = get_transient( $key );
+    if ( ! $debug ) return;
+    delete_transient( $key );
+    echo '<div class="notice notice-info is-dismissible"><p><strong>Homepage Content — last save diagnostics</strong> (temporary debug output):</p>'
+       . '<pre style="white-space:pre-wrap;background:#fff;padding:10px;border:1px solid #ccd0d4;max-width:900px;font-size:12px">'
+       . esc_html( print_r( $debug, true ) ) . '</pre></div>';
 } );
