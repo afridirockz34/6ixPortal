@@ -25,6 +25,52 @@ require_once SIX_MK_DIR . 'setup.php';      // one-time page + front-page + seed
 require_once SIX_MK_DIR . 'acf-fields.php'; // optional: only active if ACF is installed
 
 /**
+ * Register our marketing templates as real, selectable options in the
+ * native WordPress "Template" dropdown (Page Attributes, in every editor).
+ *
+ * WordPress auto-discovers page templates by scanning the theme for
+ * `Template Name:` headers, but only 1 level of subdirectories deep from
+ * the theme root. Our templates live 2 levels deep (marketing/templates/),
+ * so they were NEVER auto-discovered — meaning the dropdown always showed
+ * "Default Template" as selected for these pages (never our actual
+ * template), and saving the page via the normal editor SILENTLY reset
+ * _wp_page_template to empty, since WordPress always writes back exactly
+ * what the dropdown showed. That falls through to the theme's default page
+ * rendering (raw post_content — including any old content left over from
+ * before this redesign), which is why the page appears to "lose everything".
+ *
+ * This filter fixes it going forward. See setup.php for the one-time repair
+ * that restores any page already broken by this.
+ */
+add_filter( 'theme_page_templates', function ( $templates ) {
+    return array_merge( $templates, six_mk_managed_page_templates() );
+} );
+
+/** slug => [ template path, human label ] for every page this codebase manages. */
+function six_mk_managed_page_templates_by_slug() {
+    return array(
+        'about-us'                              => array( 'marketing/templates/template-about.php', '6ix — About' ),
+        'contact-us'                            => array( 'marketing/templates/template-contact.php', '6ix — Contact' ),
+        'website-design-agency-toronto'         => array( 'marketing/templates/template-service.php', '6ix — Service Page' ),
+        'ppc-google-ads-management-toronto'     => array( 'marketing/templates/template-service.php', '6ix — Service Page' ),
+        'seo-agency-toronto'                    => array( 'marketing/templates/template-service.php', '6ix — Service Page' ),
+        'social-media-marketing-agency-toronto' => array( 'marketing/templates/template-service.php', '6ix — Service Page' ),
+        'ppc-agency-toronto'                    => array( 'marketing/templates/template-service.php', '6ix — Service Page' ),
+        'digital-marketing-agency-toronto'      => array( 'marketing/templates/template-service.php', '6ix — Service Page' ),
+        'case-studies'                          => array( 'marketing/templates/template-case-studies.php', '6ix — Case Studies' ),
+    );
+}
+
+/** template path => human label, for the theme_page_templates dropdown (includes Home). */
+function six_mk_managed_page_templates() {
+    $out = array( 'marketing/templates/template-home.php' => '6ix — Home' );
+    foreach ( six_mk_managed_page_templates_by_slug() as $entry ) {
+        $out[ $entry[0] ] = $entry[1];
+    }
+    return $out;
+}
+
+/**
  * A page is a "marketing page" when it uses one of our marketing templates.
  * We check the assigned page template file path.
  */

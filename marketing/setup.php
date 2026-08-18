@@ -174,3 +174,34 @@ add_action( 'wp_loaded', function () {
     // 3. New CPT rewrite slug needs a one-time flush to resolve.
     flush_rewrite_rules( false );
 }, 25 );
+
+/**
+ * v5 — Repair pages whose _wp_page_template got silently wiped by
+ * WordPress's native "Template" dropdown not knowing about our templates
+ * (see the theme_page_templates filter in marketing.php for the permanent
+ * fix — this repairs anything already broken by it, right now, with no
+ * admin action needed). Runs on the very next request (front-end or admin)
+ * after this deploys, then never again.
+ */
+add_action( 'wp_loaded', function () {
+    if ( get_option( 'six_mk_setup_v5' ) ) return;
+    update_option( 'six_mk_setup_v5', 1 );
+
+    // Home page — whichever page is currently the site's front page.
+    $front_id = (int) get_option( 'page_on_front' );
+    if ( $front_id ) {
+        $tpl = 'marketing/templates/template-home.php';
+        if ( get_post_meta( $front_id, '_wp_page_template', true ) !== $tpl ) {
+            update_post_meta( $front_id, '_wp_page_template', $tpl );
+        }
+    }
+
+    // Every other managed page, matched by its known slug.
+    foreach ( six_mk_managed_page_templates_by_slug() as $slug => $entry ) {
+        $p = get_page_by_path( $slug );
+        if ( ! $p ) continue;
+        if ( get_post_meta( $p->ID, '_wp_page_template', true ) !== $entry[0] ) {
+            update_post_meta( $p->ID, '_wp_page_template', $entry[0] );
+        }
+    }
+}, 30 );
