@@ -151,6 +151,20 @@ function six_cs_render_repeater( $post_id, $json_key, $legacy_key, $cycle_icons,
     $icons = six_cs_selectable_icons();
     $items = six_cs_parse_items( $post_id, $json_key, $legacy_key, $cycle_icons );
     if ( ! $items ) $items = array( array( 'icon' => $cycle_icons[0], 'text' => '' ) );
+    // Pre-fill the hidden JSON field with the CURRENT value server-side, in
+    // the same shape the JS produces (rows with blank text dropped) — a
+    // safety net in case the sync JS below never runs for a given save. This
+    // matters in particular for the WordPress block editor, which saves
+    // classic meta boxes via `new FormData(form)` without ever dispatching a
+    // 'submit' event, so logic that only ran inside a 'submit' listener
+    // never fired there (see home-fields.php's six_home_repeater_initial_json()
+    // for the same fix, first found and root-caused there).
+    $initial = array();
+    foreach ( $items as $it ) {
+        $t = trim( (string) ( $it['text'] ?? '' ) );
+        if ( $t === '' ) continue;
+        $initial[] = array( 'icon' => $it['icon'] ?? $cycle_icons[0], 'text' => $t );
+    }
     ?>
     <div style="margin:0 0 18px">
       <label style="display:block;font-weight:600;margin-bottom:8px"><?php echo esc_html( $label ); ?></label>
@@ -184,7 +198,7 @@ function six_cs_render_repeater( $post_id, $json_key, $legacy_key, $cycle_icons,
           </div>
         </div>
         <button type="button" class="button six-cs-rep-add"><?php echo esc_html( $add_label ); ?></button>
-        <input type="hidden" name="<?php echo esc_attr( $json_key ); ?>" class="six-cs-rep-json">
+        <input type="hidden" name="<?php echo esc_attr( $json_key ); ?>" class="six-cs-rep-json" value="<?php echo esc_attr( wp_json_encode( $initial ) ); ?>">
       </div>
     </div>
     <?php
@@ -285,44 +299,58 @@ add_action( 'add_meta_boxes', function () {
             var p = ICONS[name] || ICONS.spark;
             return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>';
           }
-          function wireRow(row){
+          // Keep a repeater's hidden JSON field in sync on every change, not
+          // just on the form's 'submit' event. The WordPress BLOCK EDITOR
+          // saves classic meta boxes by building
+          // `new FormData(document.getElementById('post'))` directly and
+          // never dispatches a 'submit' event, so logic that only ran inside
+          // a 'submit' listener never fired there — this repeater's hidden
+          // field was submitted blank on every block-editor save (same root
+          // cause found and fixed for the Homepage Content editor's
+          // repeaters; see home-fields.php).
+          function syncRepeaterJSON(rep){
+            var out = [];
+            rep.querySelectorAll('.six-cs-rep-rows .six-cs-rep-row').forEach(function(row){
+              var text = row.querySelector('.six-cs-rep-text').value.trim();
+              if(!text) return;
+              out.push({ icon: row.querySelector('.six-cs-rep-icon').value, text: text });
+            });
+            rep.querySelector('.six-cs-rep-json').value = JSON.stringify(out);
+          }
+          function wireRow(row, rep){
             var sel = row.querySelector('.six-cs-rep-icon');
             var prev = row.querySelector('.six-cs-rep-preview');
+            var txt = row.querySelector('.six-cs-rep-text');
             function update(){ prev.innerHTML = svg(sel.value); }
-            sel.addEventListener('change', update);
+            sel.addEventListener('change', function(){ update(); syncRepeaterJSON(rep); });
+            txt.addEventListener('input', function(){ syncRepeaterJSON(rep); });
             update();
             row.querySelector('.six-cs-rep-remove').addEventListener('click', function(){
               row.remove();
+              syncRepeaterJSON(rep);
             });
           }
           document.querySelectorAll('.six-cs-repeater').forEach(function(rep){
             var rowsWrap = rep.querySelector('.six-cs-rep-rows');
             var template = rep.querySelector('.six-cs-rep-template .six-cs-rep-row');
-            rep.querySelectorAll('.six-cs-rep-rows .six-cs-rep-row').forEach(wireRow);
+            rep.querySelectorAll('.six-cs-rep-rows .six-cs-rep-row').forEach(function(row){ wireRow(row, rep); });
             rep.querySelector('.six-cs-rep-add').addEventListener('click', function(){
               var row = template.cloneNode(true);
               row.querySelector('.six-cs-rep-icon').value = rep.dataset.defaultIcon;
               row.querySelector('.six-cs-rep-text').value = '';
               rowsWrap.appendChild(row);
-              wireRow(row);
+              wireRow(row, rep);
               row.querySelector('.six-cs-rep-text').focus();
             });
+            // Keep it correct from page load too, and once more right before
+            // submit as a final safety net for the classic editor's normal
+            // form submission.
+            syncRepeaterJSON(rep);
           });
-          // Serialise every repeater into its hidden JSON field right before
-          // the post form submits (works for Publish/Update and autosave-safe
-          // since it only touches the hidden input's value).
           var form = document.getElementById('post');
           if(form){
             form.addEventListener('submit', function(){
-              document.querySelectorAll('.six-cs-repeater').forEach(function(rep){
-                var out = [];
-                rep.querySelectorAll('.six-cs-rep-rows .six-cs-rep-row').forEach(function(row){
-                  var text = row.querySelector('.six-cs-rep-text').value.trim();
-                  if(!text) return;
-                  out.push({ icon: row.querySelector('.six-cs-rep-icon').value, text: text });
-                });
-                rep.querySelector('.six-cs-rep-json').value = JSON.stringify(out);
-              });
+              document.querySelectorAll('.six-cs-repeater').forEach(syncRepeaterJSON);
             });
           }
         })();
