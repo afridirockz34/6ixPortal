@@ -59,6 +59,10 @@
 .six-mk .mk-wrap { max-width: var(--mk-maxw); margin: 0 auto; padding: 0 24px; width: 100%; }
 .six-mk .mk-section { position: relative; padding: 92px 0; }
 .six-mk .mk-section-sm { padding: 60px 0; }
+/* Subtle grey band — sets a section apart from a plain page-background
+   section above/below it without a hard border, e.g. Case Studies sitting
+   between two otherwise-white sections. */
+.six-mk .mk-section-tint { background: var(--mk-surface2); }
 .six-mk .mk-glow { position: relative; overflow: hidden; }
 .six-mk .mk-glow::before {
   content: ''; position: absolute; inset: -20% -10% auto -10%; height: 520px;
