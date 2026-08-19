@@ -59,6 +59,10 @@
 .six-mk .mk-wrap { max-width: var(--mk-maxw); margin: 0 auto; padding: 0 24px; width: 100%; }
 .six-mk .mk-section { position: relative; padding: 92px 0; }
 .six-mk .mk-section-sm { padding: 60px 0; }
+/* Subtle grey band — sets a section apart from a plain page-background
+   section above/below it without a hard border, e.g. Case Studies sitting
+   between two otherwise-white sections. */
+.six-mk .mk-section-tint { background: var(--mk-surface2); }
 .six-mk .mk-glow { position: relative; overflow: hidden; }
 .six-mk .mk-glow::before {
   content: ''; position: absolute; inset: -20% -10% auto -10%; height: 520px;
@@ -280,6 +284,22 @@
 }
 @keyframes mkAuroraSpin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
+  .six-mk .mk-aurora span,
+  .six-mk .mk-aurora::before,
+  .six-mk .mk-aurora::after { animation: none; }
+}
+/* Mobile/touch: same treatment as prefers-reduced-motion, for performance
+   rather than accessibility. Five overlapping blur()+mix-blend-mode layers
+   animating forever is heavy work every frame (measured: ~3x slower frame
+   times and 94% dropped frames under mobile-equivalent CPU throttling,
+   independent of prefers-reduced-motion) — expensive on any device, but
+   mobile Safari has the least headroom for it, and it was starving the main
+   thread badly enough to make the typing effect and scroll-reveal
+   animations stutter too. The gradient still renders — just as one static
+   paint instead of a continuous one — so the hero keeps its look. Matches
+   (hover:none)+(pointer:coarse) for real touch devices, with a max-width
+   fallback for browsers that don't support those media features yet. */
+@media (hover: none) and (pointer: coarse), (max-width: 780px) {
   .six-mk .mk-aurora span,
   .six-mk .mk-aurora::before,
   .six-mk .mk-aurora::after { animation: none; }
