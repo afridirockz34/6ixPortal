@@ -17,6 +17,7 @@ define( 'SIX_MK_URL', get_stylesheet_directory_uri() . '/marketing/' );
 
 require_once SIX_MK_DIR . 'helpers.php';
 require_once SIX_MK_DIR . 'forms.php';      // lead-capture forms (Ninja-Forms swappable)
+require_once SIX_MK_DIR . 'ninja-forms.php'; // Ninja Forms auto-provisioning + admin controls
 require_once SIX_MK_DIR . 'pages.php';      // service page content (keyed by slug)
 require_once SIX_MK_DIR . 'cpt.php';        // Client Success + Testimonials (no plugins)
 require_once SIX_MK_DIR . 'cpt-casestudy.php'; // Case Studies (brochure-style stories)
@@ -101,6 +102,22 @@ add_action( 'wp_enqueue_scripts', function () {
     $js = SIX_MK_DIR . 'assets/marketing.js';
     wp_enqueue_script( 'six-mk', SIX_MK_URL . 'assets/marketing.js', array(), file_exists( $js ) ? filemtime( $js ) : '1', true );
 }, 20 );
+
+/**
+ * Ninja Forms restyle — enqueued late (priority 30, vs. 20 above and
+ * Ninja Forms' own default of 10) so it loads after both marketing.css and
+ * Ninja Forms' own front-end CSS, and depends on Ninja Forms' main
+ * stylesheet handle when present so the load order is guaranteed rather
+ * than left to enqueue timing. Every rule in the file is also !important,
+ * as a second guarantee regardless of source order.
+ */
+add_action( 'wp_enqueue_scripts', function () {
+    if ( ! six_mk_is_marketing_page() ) return;
+    if ( ! class_exists( 'Ninja_Forms' ) ) return;
+    $css  = SIX_MK_DIR . 'assets/ninja-forms-theme.css';
+    $deps = wp_style_is( 'nf-display', 'registered' ) ? array( 'nf-display' ) : array();
+    wp_enqueue_style( 'six-mk-nf-theme', SIX_MK_URL . 'assets/ninja-forms-theme.css', $deps, file_exists( $css ) ? filemtime( $css ) : '1' );
+}, 30 );
 
 // On marketing pages, strip Divi's front-end shell so our template owns the page.
 add_action( 'wp', function () {

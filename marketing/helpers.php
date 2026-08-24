@@ -36,11 +36,42 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  * @param string    $name    Field name.
  * @param mixed     $default Value to use when nothing is set anywhere.
  * @param mixed     $post_id Post ID to check, or 'option' for a site-wide
- *                           ACF options-page field (postmeta tier is
- *                           skipped for 'option' — there's no single post).
+ *                           value — a real WP option (see mk_update_opt()),
+ *                           not tied to whichever post/page happens to be
+ *                           queried when this is called.
  */
 function mk_field( $name, $default = '', $post_id = false ) {
-    $pid = ( $post_id !== false && $post_id !== 'option' ) ? intval( $post_id ) : get_queried_object_id();
+    // Site-wide ('option') fields are a different storage shape entirely —
+    // there's no single post to attach postmeta to. Previously this branch
+    // fell through to get_queried_object_id(), which meant a "site-wide"
+    // value actually varied per page (whatever page happened to be
+    // rendering when it was read) — a real bug, not just imprecise: it made
+    // this tier unusable for its stated purpose. mk_opt()/mk_update_opt()
+    // are the only intended callers of this branch.
+    if ( $post_id === 'option' ) {
+        $raw = get_option( 'six_field_option_' . $name, '' );
+        if ( $raw !== '' && $raw !== false ) {
+            if ( is_string( $raw ) && strlen( $raw ) && ( $raw[0] === '[' || $raw[0] === '{' ) ) {
+                $decoded = json_decode( $raw, true );
+                if ( json_last_error() === JSON_ERROR_NONE ) {
+                    if ( ! ( is_array( $decoded ) && empty( $decoded ) ) ) return $decoded;
+                } else {
+                    return $raw;
+                }
+            } else {
+                return $raw;
+            }
+        }
+        if ( function_exists( 'get_field' ) ) {
+            $val = get_field( $name, 'option' );
+            if ( ! ( $val === null || $val === '' || $val === false || ( is_array( $val ) && empty( $val ) ) ) ) {
+                return $val;
+            }
+        }
+        return $default;
+    }
+
+    $pid = ( $post_id !== false ) ? intval( $post_id ) : get_queried_object_id();
     if ( $pid ) {
         $raw = get_post_meta( $pid, 'six_field_' . $name, true );
         if ( $raw !== '' && $raw !== false ) {
@@ -71,6 +102,12 @@ function mk_field( $name, $default = '', $post_id = false ) {
     }
 
     return $default;
+}
+
+/** Set a site-wide field written by mk_opt()/mk_field(..., 'option'). Arrays are JSON-encoded. */
+function mk_update_opt( $name, $value ) {
+    if ( is_array( $value ) ) $value = wp_json_encode( $value );
+    return update_option( 'six_field_option_' . $name, $value );
 }
 
 /** Site-wide option field (brand, nav, footer) with fallback. */
