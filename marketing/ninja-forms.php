@@ -158,45 +158,58 @@ function six_nf_build_field_settings( $f ) {
 }
 
 /**
- * Build the full Ninja Forms import_data() payload for one form spec —
- * fields (+ a trailing submit field) and two actions (email notification to
- * the site admin, and a success message), matching the shape Ninja Forms'
- * own import/export uses. Field/action 'id' keys are intentionally omitted
- * — Ninja Forms assigns those on save for a new form.
+ * Build the payload for Ninja Forms' real import mechanism — verified
+ * directly against the plugin's own source (NF_Database_Models_Form::import(),
+ * called via Ninja_Forms()->form()->import_form()), not guessed:
+ *   - $import['fields'] / $import['actions'] are FLAT arrays of settings
+ *     arrays — no {'settings' => …} wrapper. (import() does
+ *     `foreach ($import['fields'] as $settings)` and uses $settings
+ *     directly.)
+ *   - Field/action 'id' keys are omitted — import() unsets any 'id' anyway
+ *     when $is_conversion is false (the case here, a fresh form).
+ *   - The email action's real setting keys are `to` (not `email_to`),
+ *     `email_format`, `email_message`, `from_name`, `from_address`,
+ *     `reply_to`, `email_subject` (includes/Actions/Email.php +
+ *     includes/Config/ActionEmailSettings.php).
+ *   - The "all submitted fields" merge tag is {all_fields_table}, not
+ *     {all_fields}.
+ *   - The success-message action's real setting key is `success_msg`, not
+ *     `success_message` (includes/Actions/SuccessMessage.php).
  */
 function six_nf_build_import_data( $key, $spec ) {
     $fields = array();
     foreach ( $spec['fields'] as $f ) {
-        $fields[] = array( 'settings' => six_nf_build_field_settings( $f ) );
+        $fields[] = six_nf_build_field_settings( $f );
     }
-    $fields[] = array( 'settings' => array(
+    $fields[] = array(
         'type'  => 'submit',
         'label' => $spec['submit'],
         'classes' => '', 'container_class' => '', 'element_class' => '',
-    ) );
+    );
 
     $admin_email = get_option( 'admin_email' );
 
     return array(
         'fields'   => $fields,
         'actions'  => array(
-            array( 'settings' => array(
+            array(
                 'type'          => 'email',
                 'label'         => 'Email Notification',
                 'active'        => true,
-                'email_to'      => $admin_email,
+                'to'            => $admin_email,
                 'from_name'     => get_bloginfo( 'name' ),
                 'from_address'  => $admin_email,
                 'reply_to'      => '{field:email}',
                 'email_subject' => 'New ' . $spec['title'] . ' submission',
-                'email_message' => '{all_fields}',
-            ) ),
-            array( 'settings' => array(
-                'type'            => 'successmessage',
-                'label'           => 'Success Message',
-                'active'          => true,
-                'success_message' => 'Thanks — we\'ve received your submission and will be in touch shortly.',
-            ) ),
+                'email_format'  => 'html',
+                'email_message' => '{all_fields_table}',
+            ),
+            array(
+                'type'       => 'successmessage',
+                'label'      => 'Success Message',
+                'active'     => true,
+                'success_msg'=> 'Thanks — we\'ve received your submission and will be in touch shortly.',
+            ),
         ),
         'settings' => array(
             'title'            => $spec['title'],
@@ -238,14 +251,19 @@ add_action( 'wp_loaded', function () {
         }
 
         try {
-            $data    = six_nf_build_import_data( $key, $spec );
-            $form_id = Ninja_Forms()->form()->import_data( $data )->save()->get_id();
+            $data = six_nf_build_import_data( $key, $spec );
+            // Ninja Forms' real, verified import entry point — see
+            // six_nf_build_import_data()'s docblock. import_form() returns
+            // the new form's numeric ID directly (it saves the form, its
+            // fields, and its actions internally); there is no further
+            // ->save()/->get_id() to chain.
+            $form_id = Ninja_Forms()->form()->import_form( $data, false, false );
             if ( $form_id && intval( $form_id ) > 0 ) {
                 mk_update_opt( 'ninja_' . $key, '[ninja_form id="' . intval( $form_id ) . '"]' );
                 $done[ $key ]   = intval( $form_id );
                 $report[ $key ] = 'created form #' . intval( $form_id );
             } else {
-                $report[ $key ] = 'FAILED — Ninja_Forms()->form()->import_data()->save() did not return a form id';
+                $report[ $key ] = 'FAILED — Ninja_Forms()->form()->import_form() did not return a form id (got: ' . var_export( $form_id, true ) . ')';
             }
         } catch ( \Throwable $e ) {
             $report[ $key ] = 'FAILED — ' . $e->getMessage();
