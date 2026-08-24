@@ -279,9 +279,22 @@ add_action( 'admin_notices', function () {
 } );
 
 /* ── Admin screen: view / override each form's shortcode ────────────────── */
+// Priority 20 — the '6ix Portal' parent menu itself is registered by
+// six_admin_menu() (portal/admin-settings.php) on the default priority 10.
+// functions.php requires marketing/marketing.php (which loads this file)
+// BEFORE portal/admin-settings.php, so at the default priority this
+// callback would run first and call add_submenu_page('six-portal', …)
+// before add_menu_page(…, 'six-portal', …) has created that parent slug at
+// all. WordPress doesn't error on that — it still lists the item — but
+// without a resolved parent it can't build a correct admin.php?page=…
+// link (the sidebar link comes out as the bare slug, e.g. /wp-admin/
+// six-portal-forms instead of /wp-admin/admin.php?page=six-portal-forms,
+// a real 404 on click) and direct navigation to the page fails as
+// "Sorry, you are not allowed to access this page." Running this after
+// the parent exists fixes both.
 add_action( 'admin_menu', function () {
     add_submenu_page( 'six-portal', 'Website Forms', 'Website Forms', 'manage_options', 'six-portal-forms', 'six_nf_admin_page' );
-} );
+}, 20 );
 
 function six_nf_admin_page() {
     if ( ! current_user_can( 'manage_options' ) ) return;
