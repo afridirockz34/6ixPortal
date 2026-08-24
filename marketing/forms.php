@@ -18,10 +18,21 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  *
  * @param string $key  One of: eligibility, audit, calc, quote, contact.
  * @param array  $args Optional overrides (heading, sub, goal_options, etc.).
+ *                      $args['id'], when set, also becomes the override
+ *                      lookup key (see below) — used by 'quote', which
+ *                      renders with different copy on four different
+ *                      service pages and needs each to be independently
+ *                      swappable rather than all four collapsing onto one
+ *                      shared "quote" override.
  */
 function mk_form( $key, $args = array() ) {
 	// 1) Ninja Forms (or any shortcode) override — set once WP mail is wired.
-	$override = mk_opt( 'ninja_' . $key, '' );
+	// Looked up by $args['id'] when the caller passed one (e.g. each service
+	// page's distinct quote-form variant), else by the plain $key — see
+	// marketing/ninja-forms.php, which provisions the real Ninja Forms and
+	// sets these automatically via mk_update_opt( 'ninja_' . $override_key, … ).
+	$override_key = $args['id'] ?? $key;
+	$override      = mk_opt( 'ninja_' . $override_key, '' );
 	if ( $override ) {
 		echo '<div class="mk-form-embed">' . do_shortcode( $override ) . '</div>';
 		return;

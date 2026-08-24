@@ -26,6 +26,7 @@ function six_service_pages() {
             'subtitle' => 'Make Your Dream Website a Reality',
             'lead'     => 'Get the website that pays for itself — a 24/7 online salesperson working for you.',
             'form_quote' => array(
+                'id'           => 'quote-website-design',
                 'heading'      => 'Get Quote Now',
                 'sub'          => 'Tell us about your website project and we\'ll send you a quote within one business day.',
                 'goal_label'   => 'What kind of website do you need?',
@@ -331,6 +332,7 @@ function six_service_pages() {
             'subtitle' => 'Hire Us & Start Seeing Results in 30 Days!',
             'lead'     => 'Increase your organic ranking with proven Search Engine Optimization services.',
             'form_quote' => array(
+                'id'           => 'quote-seo',
                 'heading'      => 'Schedule SEO Call Today',
                 'sub'          => 'Book a call with our SEO team and start seeing results in 30 days.',
                 'goal_label'   => 'What are your SEO goals?',
@@ -374,6 +376,7 @@ function six_service_pages() {
             'subtitle' => 'Building Brands with Passion',
             'lead'     => 'Get your brand into everybody\'s palms.',
             'form_quote' => array(
+                'id'           => 'quote-social-media',
                 'heading'      => 'Get Quote Now',
                 'sub'          => 'Tell us about your brand and our social media team will put a plan together for you.',
                 'goal_label'   => 'Social Media Inquiry',
