@@ -92,15 +92,17 @@ header( 'Content-Type: text/html; charset=utf-8' );
       </div>
       <div class="mk-grid mk-grid-4">
         <?php foreach ( (array) $svc_cards as $c ) : ?>
-        <a class="mk-card mk-card-accent mk-svc-card" href="<?php echo esc_url( home_url( $c['link'] ?? '#' ) ); ?>">
+        <a class="mk-svc-card" href="<?php echo esc_url( home_url( $c['link'] ?? '#' ) ); ?>">
           <?php if ( ! empty( $c['image'] ) ) : ?>
-          <div class="mk-card-img"><img src="<?php echo esc_url( $c['image'] ); ?>" alt="<?php echo esc_attr( $c['title'] ?? '' ); ?>"></div>
+          <div class="mk-svc-img"><img src="<?php echo esc_url( $c['image'] ); ?>" alt="<?php echo esc_attr( $c['title'] ?? '' ); ?>"></div>
           <?php endif; ?>
-          <h3><?php echo esc_html( $c['title'] ?? '' ); ?></h3>
-          <p><?php echo esc_html( $c['text'] ?? '' ); ?></p>
-          <span class="mk-card-link">Learn More
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-          </span>
+          <div class="mk-svc-text">
+            <h3><?php echo esc_html( $c['title'] ?? '' ); ?></h3>
+            <p><?php echo esc_html( $c['text'] ?? '' ); ?></p>
+            <span class="mk-card-link">Learn More
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </span>
+          </div>
         </a>
         <?php endforeach; ?>
       </div>

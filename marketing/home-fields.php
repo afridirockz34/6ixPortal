@@ -36,11 +36,16 @@ function six_home_defaults() {
 
         'svc_heading' => 'How 6ix Developers Can Help Your Business',
         'svc_intro'   => "6ix Developers is a full stack digital marketing agency with experienced and Google-certified staff. Our team members are specialized in Website Designs that are optimized for lead generation and lead capturing. We have Google Ads (aka. PPC) experts who are Google certified and experienced enough to take your business to another level. Our SEO team can help your business with organic ranking on Google and other search engines. Our Social Media team can show your business the opportunities it deserves. Secret to your success is in our expert team's hands who is fully invested in learning and understanding your business to help it grow exponentially.",
+        // Verbatim from the original site's "How 6ix Developers Can Help Your
+        // Business" boxes — note these are a *different* icon set from the
+        // "We Can Help Your Business With" deep-dive section further down
+        // (which does use ps-web/ps-ads/ps-seo/ps-smm); copied into the
+        // theme's own assets rather than hotlinked from the live domain.
         'svc_cards'   => array(
-            array( 'image' => $orig . 'media/icons/ps-web.png', 'title' => 'Website Design', 'text' => 'Professional websites designed to run optimally across all devices', 'link' => '/website-design-agency-toronto' ),
-            array( 'image' => $orig . 'media/icons/ps-ads.png', 'title' => 'Google Ads/PPC', 'text' => 'Managed by Google Ads specialists to help your business rank #1', 'link' => '/ppc-google-ads-management-toronto' ),
-            array( 'image' => $orig . 'media/icons/ps-seo.png', 'title' => 'SEO', 'text' => 'Rank higher in organic search results and drive more traffic to your website', 'link' => '/seo-agency-toronto' ),
-            array( 'image' => $orig . 'media/icons/ps-smm.png', 'title' => 'Social Media', 'text' => 'Customized campaigns and blogs to grow your online presence', 'link' => '/social-media-marketing-agency-toronto' ),
+            array( 'image' => SIX_MK_URL . 'assets/img/home-svc-website-design.png', 'title' => 'Website Design', 'text' => 'Professional websites designed to run optimally across all devices', 'link' => '/website-design-agency-toronto' ),
+            array( 'image' => SIX_MK_URL . 'assets/img/home-svc-ppc.png', 'title' => 'Google Ads/PPC', 'text' => 'Managed by Google Ads specialists to help your business rank #1', 'link' => '/ppc-google-ads-management-toronto' ),
+            array( 'image' => SIX_MK_URL . 'assets/img/home-svc-seo.png', 'title' => 'SEO', 'text' => 'Rank higher in organic search results and drive more traffic to your website', 'link' => '/seo-agency-toronto' ),
+            array( 'image' => SIX_MK_URL . 'assets/img/home-svc-social-media.png', 'title' => 'Social Media', 'text' => 'Customized campaigns and blogs to grow your online presence', 'link' => '/social-media-marketing-agency-toronto' ),
         ),
 
         'cstudy_eyebrow' => 'Proven Results',

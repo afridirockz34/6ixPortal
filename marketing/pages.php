@@ -460,9 +460,40 @@ function six_service_pages() {
     $dm['eyebrow']       = 'Digital Marketing';
     $dm['title']         = "North America's Highly Regarded Digital Marketing & PPC Management Agency";
     $dm['intro_heading'] = 'Digital Marketing Agency Toronto';
+    $dm['intro']         = array(
+        'Unlock the power of Digital Marketing with our expert PPC management services tailored specifically for your industry. With a proven track record of maximizing ROI for over 2000 businesses across Canada and the USA, our dedicated team of Google Ads PPC Certified experts oversees more than $5 Million in monthly Digital Marketing spending.',
+        'Our extensive experience spans various industries, equipping us with the insights and strategies to elevate your online presence effectively. As one of the fastest-growing Digital Marketing agencies in Canada, headquartered in the vibrant city of Toronto, 6ix Developers is your trusted partner for driving unparalleled success in the competitive digital landscape.',
+        'Gain the competitive edge over your competitors — partner with us for unparalleled Digital Marketing experience!',
+    );
     $dm['audit_checklist_heading'] = "What's included in our comprehensive Digital Marketing Audit";
-    $dm['features_heading'] = 'Strategic Digital Marketing Management';
-    $dm['results'] = $ppc['results'];
+    // Verbatim narrative sections (real Digital Marketing-specific copy — not
+    // just the Google Ads wording carried over by the array copy above).
+    // Same alternating-row images as the Google Ads page: confirmed via the
+    // original site's own CSS, both pages load the identical stylesheet
+    // (scripts/ppc-management-styles.css) and reuse the same icon files.
+    $dm['sections'] = array(
+        array( 'icon' => 'rocket', 'image' => SIX_MK_URL . 'assets/img/gads-strategic-management.jpg', 'title' => 'Maximize Your ROI with Strategic Digital Marketing Management', 'paras' => array(
+            "Running a search marketing campaign on Google, regardless of your business size, can quickly become costly without a solid strategy in place. Google Ads' broad targeting capabilities often lead to overspending on irrelevant keywords, resulting in wasted budget and minimal leads.",
+            'At 6ix Developers, we specialize in crafting tailored digital marketing strategies based on your business type, goals, competition, and other critical factors. Our meticulous approach ensures that every dollar spent on Digital Marketing is strategically allocated to keywords that drive tangible leads and maximum ROI. Trust us to transform your Digital Marketing investment into a powerful revenue generator. Partner with 6ix Developers for comprehensive strategy and planning that delivers results.',
+        ) ),
+        array( 'icon' => 'trending', 'image' => SIX_MK_URL . 'assets/img/gads-search-trends.png', 'title' => 'Stay Ahead of Evolving Search Trends with Our Digital Marketing Award Winning Team', 'paras' => array(
+            "In today's dynamic digital landscape, the way people search for services is constantly evolving. That's why our Digital Marketing Google Ads certified team of specialists is dedicated to keeping your digital advertising strategy finely tuned to capture maximum leads. With our expertise, you'll pay only for the keywords directly relevant to your business, ensuring every click counts towards driving high-quality leads.",
+            'We understand that every click comes with a cost, which is why we focus on optimizing your keywords for maximum conversion rates. Stay ahead of the curve and maximize your advertising investment with our dedicated team. Partner with us to ensure your business thrives in the ever-changing world of online search.',
+        ) ),
+        array( 'icon' => 'globe', 'image' => SIX_MK_URL . 'assets/img/gads-geo-targeting.jpg', 'title' => 'Unlock Precision Targeting with GEO Digital Marketing Strategy', 'paras' => array(
+            'At 6ix Developers, we prioritize precision in targeting by implementing a Digital GEO marketing strategy for your Google Adword PPC campaigns. By focusing on specific geographic locations, we ensure that your ads are shown only to users within your target audience, maximizing relevance and driving desired actions on your website.',
+            'With GEO optimization, you can rest assured that your Google ads are reaching the right people in the right place at the right time. Trust us to help your business thrive by ensuring every ad impression counts. Experience the power of targeted advertising with our GEO marketing strategy. Partner with us to elevate your Google Adword campaigns and drive meaningful results for your business.',
+        ) ),
+        array( 'icon' => 'gauge', 'image' => SIX_MK_URL . 'assets/img/gads-website-speed.png', 'title' => 'Don\'t Underestimate the Impact of Website Speed on Your Ad Performance', 'paras' => array(
+            "The speed of your website's landing page is often underestimated, yet it plays a crucial role in determining your cost per click on Google Ads. A slow-loading page can result in higher costs per click compared to your competitors, even if they rank below you.",
+            "At 6ix Developers, our in-house developers recognize the importance of website speed optimization. We specialize in optimizing landing pages used for Google Ads to load quickly and minimize bounce rates. By ensuring a seamless user experience, we help maximize your ad performance and ROI. Don't let website speed hinder your ad success. Trust our expertise to optimize your landing pages and stay ahead of the competition in the fast-paced world of online advertising.",
+        ) ),
+    );
+    $dm['results'] = array(
+        array( 'icon' => 'website', 'title' => 'Get Website Visits',    'text' => 'Grow online sales, booking forms, leads, or newsletter signups with Google Ads that direct people to your website.' ),
+        array( 'icon' => 'ads',     'title' => 'Get More Phone Calls',  'text' => 'Increase calls that actually convert using Google Ads call button feature that allows clients to click your phone number.' ),
+        array( 'icon' => 'target',  'title' => 'Increase Store Visits', 'text' => 'Get more customers at your store with Google Ads. Show up on Google Maps when customers need you.' ),
+    );
     $pages['digital-marketing-agency-toronto'] = $dm;
 
     return $pages;
