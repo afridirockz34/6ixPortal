@@ -951,12 +951,38 @@ function six_generate_ai_suggestions( $user_id, $step1, $services ) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 8b. SERVER-SIDE ABANDON CRON — runs every 15 min
-// Catches users who left without the JS beacon firing (mobile, browser crash, etc.)
-// Fires abandon flow for any user who:
-//   - Has a userId (step 0 done)
+// Catches users who left without the JS beacon firing (closed the laptop lid,
+// locked their phone, lost connectivity, browser crash, backgrounded tab that
+// never re-activates, etc.) — the client-side paths (beforeunload/pagehide/
+// 3-minute inactivity timer in onboarding.php) all require the tab to still be
+// alive and resumed to fire; this cron is the only thing that catches someone
+// who simply never comes back to that tab.
+//
+// FIX (see PR history / conversation): this cron was previously disabled —
+// both unscheduled AND its handler body replaced with an unconditional
+// `continue`, deferring to a "six_stale_lead_check_v2" that was never actually
+// implemented anywhere in this codebase (only ever referenced as a string in
+// an unrelated diagnostic tool in class-odoo.php). Net effect: there was NO
+// working server-side fallback at all, so anyone whose tab didn't cleanly
+// fire the JS beacon never got their abandonment processed — no SMS, no
+// email, no Odoo lead update — until they happened to reopen that exact
+// browser tab again, which in practice showed up as the reported "12-24
+// hours later" (whenever someone next thought to check that tab), not the
+// intended ~30 minutes.
+//
+// Re-enabled: scheduled again below, and the handler now actually calls the
+// same consolidated Six_Growth_Engine::on_abandon() path the real-time JS
+// beacon uses (Six_Odoo lead creation/update, SMS, email — all of it), so
+// behavior is identical regardless of which path catches the abandonment.
+//
+// Timing: fires for any user who:
 //   - Has NOT completed onboarding
-//   - Has NOT been abandon-triggered in last 10 min
+//   - Registered more than 5 minutes ago (skip brand-new signups)
 //   - Has been inactive for more than 10 minutes (last event > 10 min ago)
+//   - Has NOT already been abandon-triggered in the last 24h (guarded again,
+//     independently, inside on_abandon() itself)
+// Worst case detection latency = 10 min threshold + up to 15 min until the
+// next cron tick ≈ 25 min — comfortably inside the intended 30-minute window.
 // ─────────────────────────────────────────────────────────────────────────────
 add_filter( 'cron_schedules', 'six_add_15min_schedule' );
 function six_add_15min_schedule( $schedules ) {
@@ -966,13 +992,12 @@ function six_add_15min_schedule( $schedules ) {
     return $schedules;
 }
 
-// six_stale_lead_cron disabled — handled by six_stale_lead_check_v2
-// if ( ! wp_next_scheduled( 'six_stale_lead_cron' ) ) {
-//     wp_schedule_event( time(), 'six_15min', 'six_stale_lead_cron' );
-// }
+if ( ! wp_next_scheduled( 'six_stale_lead_cron' ) ) {
+    wp_schedule_event( time(), 'six_15min', 'six_stale_lead_cron' );
+}
 add_action( 'six_stale_lead_cron', 'six_process_stale_leads' );
 function six_process_stale_leads() {
-    if ( ! class_exists('Six_Odoo') ) return;
+    if ( ! class_exists('Six_Odoo') || ! class_exists('Six_Growth_Engine') ) return;
 
     // Find customers who started onboarding but haven't completed
     $users = get_users( array(
@@ -996,8 +1021,10 @@ function six_process_stale_leads() {
         if ( in_array($u->ID, $seen) ) continue;
         $seen[] = $u->ID;
 
-        // Skip if already abandon-triggered in last 24 hours
-        $last_abandon = get_user_meta( $u->ID, 'six_last_abandon_odoo', true );
+        // Skip if already abandon-triggered in last 24 hours (on_abandon() has
+        // its own independent copy of this guard too — belt and suspenders,
+        // and this one avoids the DB round-trips below for the common case).
+        $last_abandon = get_user_meta( $u->ID, 'six_last_abandon_trigger', true );
         if ( $last_abandon && ( time() - intval($last_abandon) ) < 86400 ) continue;
 
         // Skip if no lead created yet (user just registered, < 5 min ago)
@@ -1013,16 +1040,12 @@ function six_process_stale_leads() {
 
         // Skip if they only just registered (step 0, < 10 min ago — welcome already sent)
         // Stale = they went past step 0 and haven't touched it in 10+ min
-        if ( $step === 0 ) {
-            $registered = strtotime( $u->user_registered );
-            if ( ( time() - $registered ) < 600 ) {
-                continue; // too recent, not stale yet
-            }
+        if ( $step === 0 && ( time() - $registered ) < 600 ) {
+            continue; // too recent, not stale yet
         }
 
-        // Handled by six_stale_lead_check_v2 (every 5min) — skip here to avoid duplicates
-        // error_log( "6ix StaleLeadCron: skip uid={$u->ID} — handled by StaleV2" );
-        continue;
+        error_log( "6ix StaleLeadCron: firing on_abandon for uid={$u->ID} step={$step} score={$score}" );
+        Six_Growth_Engine::on_abandon( $u->ID, $step, $score );
     }
 }
 
