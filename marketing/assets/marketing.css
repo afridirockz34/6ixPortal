@@ -355,14 +355,14 @@
 .six-mk .mk-card p { color: var(--mk-t2); font-size: .98rem; margin-bottom: 14px; }
 .six-mk .mk-card-link { font-weight: 700; color: var(--mk-purple); display: inline-flex; align-items: center; gap: 6px; margin-top: auto; }
 
-/* Service cards ("How 6ix Developers Can Help Your Business") — matches
-   the reference screenshot exactly: a full-bleed icon panel (no side
-   padding — flush to the card's own edges) that fills solid pink on
-   hover (.4s linear, same colour/timing as the original site), sitting
-   above a plain white, center-aligned text panel that never changes
-   colour. The icon stays centered at all times (no movement) — only the
-   panel's background and the "Learn More" button (opacity only, always
-   in flow so nothing shifts) change on hover. */
+/* Service cards ("How 6ix Developers Can Help Your Business") — a
+   full-bleed icon panel (no side padding — flush to the card's own
+   edges) that fills solid pink on hover via a top-down wipe bounded to
+   the panel's own height (never the whole card), sitting above a plain
+   white, center-aligned text panel that never changes colour. The icon
+   stays centered at all times (no movement). The "Learn More" button is
+   always visible, matching the original site's icon/title/text/button
+   layout. */
 .six-mk .mk-svc-card {
   display: flex; flex-direction: column; align-items: stretch;
   background: var(--mk-surface); border: 1px solid var(--mk-border); border-radius: var(--mk-r);
@@ -370,23 +370,23 @@
 }
 .six-mk .mk-svc-img {
   display: flex; align-items: center; justify-content: center;
-  padding: 34px 24px; min-height: 128px; transition: background-color .4s linear;
+  padding: 34px 24px; min-height: 128px; position: relative; overflow: hidden;
 }
-.six-mk .mk-svc-card:hover .mk-svc-img { background-color: var(--mk-pink); }
-.six-mk .mk-svc-img img { max-height: 66px; width: auto; }
+.six-mk .mk-svc-img::before {
+  content: ''; position: absolute; inset: 0; z-index: 0;
+  background: var(--mk-pink); transform: scaleY(0); transform-origin: top;
+  transition: transform .4s linear;
+}
+.six-mk .mk-svc-card:hover .mk-svc-img::before { transform: scaleY(1); }
+.six-mk .mk-svc-img img { max-height: 66px; width: auto; position: relative; z-index: 1; }
 
 .six-mk .mk-svc-text { padding: 6px 26px 28px; text-align: center; }
 .six-mk .mk-svc-text h3 { font-size: 1.1rem; margin-bottom: 8px; }
 .six-mk .mk-svc-text p { color: var(--mk-t2); font-size: .95rem; margin-bottom: 0; }
 .six-mk .mk-svc-btn {
-  display: inline-block; padding: 0 26px; border-radius: 100px;
+  display: inline-block; padding: 11px 26px; border-radius: 100px; margin-top: 16px;
   background: var(--mk-grad); color: #fff; font-weight: 700; font-size: .8rem;
   text-transform: uppercase; letter-spacing: .06em;
-  opacity: 0; max-height: 0; overflow: hidden; margin-top: 0;
-  transition: opacity .3s ease .1s, max-height .3s ease, margin-top .3s ease, padding .3s ease;
-}
-.six-mk .mk-svc-card:hover .mk-svc-btn {
-  opacity: 1; max-height: 44px; margin-top: 16px; padding-top: 11px; padding-bottom: 11px;
 }
 
 /* ── Portal CTA band ────────────────────────────────────── */
