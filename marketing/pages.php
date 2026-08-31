@@ -22,9 +22,10 @@ function six_service_pages() {
         'website-design-agency-toronto' => array(
             'menu'     => 'Website Design',
             'eyebrow'  => 'Website Design',
-            'title'    => 'Toronto Website Design Agency',
-            'subtitle' => 'Make Your Dream Website a Reality',
-            'lead'     => 'Get the website that pays for itself — a 24/7 online salesperson working for you.',
+            'title'    => 'Make Your Dream Website a Reality',
+            'lead'     => 'Get your FREE online marketing consultation',
+            'hero_image'     => SIX_MK_URL . 'assets/img/website-design-header.jpg',
+            'intro_heading' => 'Toronto Website Design Agency',
             'form_quote' => array(
                 'id'           => 'quote-website-design',
                 'heading'      => 'Get Quote Now',
@@ -40,9 +41,21 @@ function six_service_pages() {
             'packages_heading' => 'Website Packages',
             'packages_intro'   => "No matter the size of your business, a website is essential to make an impact with customers. To ensure your website is successful and easy to find, it needs to be fast, easy-to-use, and visually appealing on all devices. Any website that doesn't meet these criteria will not be effective anymore.",
             'packages' => array(
-                array( 'badge' => 'Starter',              'size' => '1 to 5 Pages' ),
-                array( 'badge' => 'Standard',             'size' => '6 to 12 Pages' ),
-                array( 'badge' => 'Advanced / E-Commerce','size' => '13+ Pages' ),
+                array( 'badge' => 'Starter', 'size' => '1 to 5 Pages', 'color' => 'blue', 'rows' => array(
+                    array( 'Site Analytics', 'Yes' ), array( 'Mobile Friendly', 'Yes' ), array( 'Stock Images', 'Yes' ),
+                    array( 'Blog Integration', 'Yes' ), array( 'SEO Consulting', '1 Hour' ), array( 'Design Revisions', '2' ),
+                    array( 'Additional Work', '$110 per Hour' ), array( 'Ecommerce Features', 'No' ),
+                ) ),
+                array( 'badge' => 'Standard', 'size' => '6 to 12 Pages', 'color' => 'red', 'rows' => array(
+                    array( 'Site Analytics', 'Yes' ), array( 'Mobile Friendly', 'Yes' ), array( 'Stock Images', 'Yes' ),
+                    array( 'Blog Integration', 'Yes' ), array( 'SEO Consulting', '1 Hour' ), array( 'Design Revisions', '2' ),
+                    array( 'Additional Work', '$110 per Hour' ), array( 'Ecommerce Features', 'No' ),
+                ) ),
+                array( 'badge' => 'Advanced / E-Commerce', 'size' => '13+ Pages', 'color' => 'gold', 'rows' => array(
+                    array( 'Site Analytics', 'Yes' ), array( 'Mobile Friendly', 'Yes' ), array( 'Stock Images', 'Yes' ),
+                    array( 'Blog Integration', 'Yes' ), array( 'SEO Consulting', '1 Hour' ), array( 'Design Revisions', '2' ),
+                    array( 'Additional Work', '$110 per Hour' ), array( 'Ecommerce Features', 'Yes' ),
+                ) ),
             ),
             // "What website is right for me?" (verbatim)
             'packages_guide' => array(
