@@ -20,6 +20,15 @@
         ],
         "createdAt": "2026-08-31T15:10:57.373Z",
         "reason": "Two pre-existing, out-of-scope carousel animations: viewport height transition (functional — JS sets height to match the active slide's natural content height, no non-JS way to animate that smoothly) and a small 8px active-dot width transition (negligible, decorative pagination indicator). Neither was touched by this redesign pass."
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "marketing/assets/marketing.css"
+        ],
+        "createdAt": "2026-08-31T17:04:29.495Z",
+        "reason": "The pink left-border accordion row is a literal, verified match to the original 6ixdevelopers.com site's own FAQ/accordion design (confirmed this session by fetching and locally rendering the real site's live HTML+CSS and screenshotting it) — the user explicitly asked this page be rebuilt to match that old design exactly. Not a generic AI-slop default; it's a deliberate reproduction of a real, pre-existing design the client already had."
       }
     ]
   }

@@ -320,6 +320,7 @@
 .six-mk .mk-hero h1 .mk-grad-text { -webkit-text-fill-color: transparent; }
 .six-mk .mk-hero .mk-lead { font-size: 1.3rem; color: rgba(255,255,255,.86); margin-bottom: 32px; }
 .six-mk .mk-hero-cta { display: flex; flex-wrap: wrap; gap: 14px; }
+.six-mk .mk-hero-cta.mk-center { justify-content: center; }
 .six-mk .mk-hero .mk-btn-ghost { color: #fff; border-color: rgba(255,255,255,.35); }
 .six-mk .mk-hero .mk-btn-ghost:hover { background: rgba(255,255,255,.12); border-color: #fff; color: #fff; }
 .six-mk .mk-typing { font-weight: 800; color: #fff; }
@@ -554,6 +555,15 @@
 .six-mk .mk-hero-sm h1 { font-size: clamp(2.1rem, 4.4vw, 3.3rem); }
 .six-mk .mk-hero-eyebrow { color: var(--mk-cyan); }
 
+/* ── Photo hero — a plain full-bleed background photo with a dark overlay
+   and centered content, matching the original site's page headers (a
+   nature/stock photo, not the aurora gradient). The overlay gradient is
+   supplied inline per-page (see template-service.php) so each page can use
+   its own photo without a new CSS rule. */
+.six-mk .mk-hero-photo { background-size: cover; background-position: center; }
+.six-mk .mk-hero-photo::before { content: none; } /* no grid mesh over a photo */
+.six-mk .mk-hero-photo .mk-hero-inner { max-width: 780px; margin: 0 auto; }
+
 /* ── Gradient icon chip (feature cards) ─────────────────── */
 .six-mk .mk-ic {
   width: 52px; height: 52px; border-radius: 15px; display: inline-flex; align-items: center; justify-content: center;
@@ -574,41 +584,67 @@
 .six-mk .mk-benefit { text-align: left; }
 .six-mk .mk-benefit h3 { font-size: 1.12rem; margin-bottom: 6px; }
 
-/* ── Pricing / package cards ────────────────────────────── */
-/* The colour bar is a ::after clipped by overflow:hidden (not a thicker
-   border-top) so it follows the card's border-radius cleanly — same
-   reasoning as .mk-feature-card above. ::after (not ::before) so it doesn't
-   collide with .mk-card-accent's own ::before gradient-outline pseudo. */
-.six-mk .mk-price-card { text-align: center; display: flex; flex-direction: column; align-items: center; overflow: hidden; }
-.six-mk .mk-price-card::after { content: ''; position: absolute; z-index: 1; top: 0; left: 0; right: 0; height: 4px; background: var(--mk-blue); }
-.six-mk .mk-grid-3 .mk-price-card:nth-child(1)::after { background: var(--mk-blue); }
-.six-mk .mk-grid-3 .mk-price-card:nth-child(2)::after { background: var(--mk-pink); }
-.six-mk .mk-grid-3 .mk-price-card:nth-child(3)::after { background: #F0A93E; }
-.six-mk .mk-price-badge { font-family: var(--mk-num); font-size: .78rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--mk-t3); }
-.six-mk .mk-price-size { font-family: var(--mk-head); font-size: 1.9rem; font-weight: 800; margin: 8px 0 12px; }
-.six-mk .mk-price-size .mk-grad-text { display: inline; }
-.six-mk .mk-price-card p { color: var(--mk-t2); font-size: .95rem; }
-
-/* ── Numbered process steps ─────────────────────────────── */
-.six-mk .mk-steps { display: flex; flex-direction: column; gap: 16px; counter-reset: mkstep; list-style: none; padding: 0; margin: 0; }
-.six-mk .mk-steps li { display: grid; grid-template-columns: 44px 1fr; gap: 16px; align-items: start; }
-.six-mk .mk-steps li::before {
-  counter-increment: mkstep; content: counter(mkstep);
-  width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
-  font-family: var(--mk-num); font-weight: 800; color: #fff; background: var(--mk-grad);
+/* ── Pricing / package cards — full colour header block + a plain
+   comparison-row body, matching the original site's package tables. ───── */
+.six-mk .mk-price-card {
+  text-align: left; background: var(--mk-surface); border: 1px solid var(--mk-border);
+  border-radius: 12px; overflow: hidden; display: flex; flex-direction: column;
 }
-.six-mk .mk-steps li strong { display: block; color: var(--mk-t1); font-family: var(--mk-head); font-size: 1.02rem; margin-bottom: 2px; }
-.six-mk .mk-steps li p { margin: 0; color: var(--mk-t2); font-size: .95rem; }
+.six-mk .mk-price-head { padding: 22px 20px; text-align: center; color: #fff; }
+.six-mk .mk-price-card--blue .mk-price-head { background: #3D7FE0; }
+.six-mk .mk-price-card--red  .mk-price-head,
+.six-mk .mk-price-card--pink .mk-price-head { background: #E8493D; }
+.six-mk .mk-price-card--gold .mk-price-head { background: #F2A93E; }
+.six-mk .mk-price-badge { display: block; font-family: var(--mk-head); font-weight: 800; font-size: 1.15rem; text-transform: uppercase; letter-spacing: .02em; }
+.six-mk .mk-price-size { display: block; font-size: .92rem; font-weight: 600; opacity: .92; margin-top: 3px; }
+.six-mk .mk-price-body { padding: 20px 22px 26px; display: flex; flex-direction: column; flex: 1; }
+.six-mk .mk-price-row { display: flex; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--mk-border); font-size: .92rem; }
+.six-mk .mk-price-row:last-of-type { border-bottom: 0; margin-bottom: 16px; }
+.six-mk .mk-price-row span { color: var(--mk-t2); }
+.six-mk .mk-price-row strong { color: var(--mk-t1); font-weight: 700; white-space: nowrap; }
+.six-mk .mk-price-card p { color: var(--mk-t2); font-size: .95rem; }
+.six-mk .mk-price-body .mk-btn { margin-top: auto; align-self: center; }
 
-/* ── FAQ (native details, no JS) ────────────────────────── */
-.six-mk .mk-faq { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
-.six-mk .mk-faq details { background: var(--mk-surface); border: 1px solid var(--mk-border); border-radius: 14px; padding: 4px 20px; transition: border-color .18s; }
-.six-mk .mk-faq details[open] { border-color: var(--mk-border2); }
-.six-mk .mk-faq summary { list-style: none; cursor: pointer; padding: 16px 0; font-family: var(--mk-head); font-weight: 700; color: var(--mk-t1); font-size: 1.04rem; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+/* ── Numbered process steps — plain "N. text" paragraphs, matching the
+   original site (no coloured badge/counter chip). ───────────────────── */
+.six-mk .mk-steps { display: flex; flex-direction: column; gap: 14px; }
+.six-mk .mk-steps p { margin: 0; color: var(--mk-t2); font-size: .97rem; line-height: 1.6; }
+
+/* Centered sub-heading (used above the "How It Works" two columns), with
+   the same short pink underline device as the main section headings. */
+.six-mk .mk-how-h { text-align: center; position: relative; padding-bottom: 16px; margin-bottom: 18px !important; }
+.six-mk .mk-how-h::after { content: ''; position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); width: 44px; height: 3px; border-radius: 2px; background: var(--mk-pink); }
+.six-mk .mk-need-item { margin: 0 0 14px; color: var(--mk-t2); font-size: .97rem; line-height: 1.6; }
+.six-mk .mk-need-item strong { color: var(--mk-t1); }
+
+/* ── FAQ (native details, no JS) — plain white rows with a pink left rule,
+   matching the original site; used both for the bottom FAQ (2 columns) and
+   the single "What website is right for me?" accordion under Packages
+   (.mk-faq-1col forces one column there). ─────────────────────────────── */
+.six-mk .mk-faq { max-width: none; display: grid; grid-template-columns: 1fr 1fr; gap: 14px 24px; align-items: start; }
+.six-mk .mk-faq.mk-faq-1col { grid-template-columns: 1fr; }
+.six-mk .mk-faq details {
+  background: var(--mk-surface); border: 0; border-left: 4px solid var(--mk-pink); border-radius: 4px;
+  padding: 2px 20px; box-shadow: 0 2px 10px rgba(15,25,40,.05);
+}
+.six-mk .mk-faq summary { list-style: none; cursor: pointer; padding: 15px 0; font-family: var(--mk-head); font-weight: 700; color: var(--mk-t1); font-size: 1rem; }
 .six-mk .mk-faq summary::-webkit-details-marker { display: none; }
-.six-mk .mk-faq summary::after { content: ''; width: 12px; height: 12px; flex-shrink: 0; border-right: 2px solid var(--mk-purple); border-bottom: 2px solid var(--mk-purple); transform: rotate(45deg); transition: transform .2s; margin-right: 4px; }
-.six-mk .mk-faq details[open] summary::after { transform: rotate(-135deg); }
-.six-mk .mk-faq details p { color: var(--mk-t2); font-size: .97rem; margin: 0 0 16px; }
+.six-mk .mk-faq details p { color: var(--mk-t2); font-size: .95rem; margin: 0 0 16px; }
+.six-mk .mk-faq details p:first-of-type { margin-top: -4px; }
+@media (max-width: 760px) { .six-mk .mk-faq { grid-template-columns: 1fr; } }
+
+/* ── Narrative feature rows — full-bleed alternating image/text, matching
+   the original site's plain (no card, no grid) layout. ────────────────── */
+.six-mk .mk-feature-row-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; align-items: center; }
+.six-mk .mk-feature-row-media { display: flex; align-items: center; justify-content: center; }
+.six-mk .mk-feature-row-ic { width: 170px; height: 170px; display: flex; align-items: center; justify-content: center; border-radius: 24px; background: var(--mk-grad-soft); }
+.six-mk .mk-feature-row-ic svg { width: 76px; height: 76px; color: var(--mk-pink); }
+.six-mk .mk-feature-row-text h3 { margin-bottom: 14px; }
+.six-mk .mk-feature-row-text p { color: var(--mk-t2); }
+@media (max-width: 820px) {
+  .six-mk .mk-feature-row-grid { grid-template-columns: 1fr; gap: 22px; }
+  .six-mk .mk-feature-row-media { order: -1 !important; }
+}
 
 /* ── Team / roles grid (About) ──────────────────────────── */
 .six-mk .mk-team-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
@@ -749,43 +785,6 @@
 /* Subtle brand-tinted border on hover (no glow shadow). */
 .six-mk .mk-card:hover { border-color: rgba(255,102,153,.28); }
 
-/* ── Designed feature cards (gradient, balanced masonry) ──
-   Cards keep their natural height and stack like the original site. JS
-   (marketing.js) distributes them into the shortest column so both columns
-   end level; CSS column layout is the no-JS fallback. */
-.six-mk .mk-feature-grid { column-count: 2; column-gap: 24px; column-fill: balance; }
-.six-mk .mk-feature-grid.mk-fg-js { column-count: auto; display: flex; gap: 24px; align-items: flex-start; }
-.six-mk .mk-feature-grid.mk-fg-js .mk-feature-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 24px; }
-@media (max-width: 760px) { .six-mk .mk-feature-grid { column-count: 1; } }
-.six-mk .mk-feature-card {
-  break-inside: avoid; -webkit-column-break-inside: avoid; page-break-inside: avoid;
-  display: block; width: 100%; margin: 0 0 24px; padding: 26px 28px; border-radius: 14px;
-  color: var(--mk-t1); position: relative; overflow: hidden;
-  background: var(--mk-surface); border: 1px solid var(--mk-border);
-  box-shadow: 0 2px 10px rgba(15,25,40,.05);
-  transition: transform .18s ease, box-shadow .18s ease;
-}
-.six-mk .mk-feature-grid.mk-fg-js .mk-feature-card { margin: 0; }
-.six-mk .mk-feature-card:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(15,25,40,.08); }
-/* Rotating accent colour so cards feel intentional, not identical — a top
-   rule rather than a full-bleed tint, matching the flat, plain-card style of
-   the original site. Drawn as a pseudo-element clipped by the card's own
-   overflow:hidden (not a differently-sized border side) so the accent's
-   corners follow the card's border-radius cleanly instead of mitring
-   against the thinner 1px side borders. */
-.six-mk .mk-feature-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--mk-pink); }
-.six-mk .mk-feature-card--0::before { background: var(--mk-pink); }
-.six-mk .mk-feature-card--1::before { background: var(--mk-purple); }
-.six-mk .mk-feature-card--2::before { background: var(--mk-blue); }
-.six-mk .mk-feature-card--3::before { background: var(--mk-lime); }
-.six-mk .mk-feature-card h3 { color: var(--mk-t1); font-size: 1.15rem; margin: 4px 0 10px; }
-.six-mk .mk-feature-card p { color: var(--mk-t2); font-size: .96rem; line-height: 1.62; margin: 0 0 12px; }
-.six-mk .mk-feature-card p:last-child { margin-bottom: 0; }
-.six-mk .mk-feature-ic {
-  width: 50px; height: 50px; border-radius: 13px; display: inline-flex; align-items: center; justify-content: center;
-  background: var(--mk-grad-soft); border: 1px solid var(--mk-border); margin-bottom: 14px;
-}
-.six-mk .mk-feature-ic svg { width: 24px; height: 24px; color: var(--mk-pink); }
 
 /* Benefit / results cards: number-free but distinct — brand icon chip sits in
    a tinted well, heading in ink, generous rhythm. */
