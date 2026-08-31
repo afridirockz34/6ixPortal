@@ -369,14 +369,14 @@ function six_service_pages() {
                 "SEO (Search Engine Optimization) places your website under the organic results section of search engines like Google, Bing or Yahoo. Being found organically by ranking on the first page of Google is one of the best ways to grow your business consistently. Leads coming from organically ranked websites are always more likely to convert and they do not cost anything. Our Certified team of SEO experts are here to provide affordable SEO packages to small and large businesses. Whether you need local small business SEO or large enterprise SEO services, our team of SEO experts apply proven strategies and best practices across all businesses. Though there are many SEO companies in Toronto and the GTA offering SEO services, you can certainly trust us and let us help you rank on the 1st page of Google because we have done it all.",
             ),
             'sections' => array(
-                array( 'icon' => 'search', 'title' => 'Website SEO Analysis', 'paras' => array(
+                array( 'icon' => 'search', 'image' => SIX_MK_URL . 'assets/img/seo-website-analysis.png', 'title' => 'Website SEO Analysis', 'paras' => array(
                     "Before starting the actual SEO of your business website, we need to understand your client base, industry requirement and your business goal. SEO team at 6ix Developers specializes in gathering all the industry benchmarks for your business. Our SEO team develops a comprehensive SEO strategy based on your initial website analysis and predicts the performance and the timeline. Our analytical audit covers all major and minor SEO aspects of our client's website.",
                 ) ),
-                array( 'icon' => 'website', 'title' => 'On-Page SEO', 'paras' => array(
+                array( 'icon' => 'website', 'image' => SIX_MK_URL . 'assets/img/seo-on-page.png', 'title' => 'On-Page SEO', 'paras' => array(
                     'On-Page SEO is where rankings are won or lost. Before building your strategy, our team runs a full technical diagnosis of your website and fixes every internal issue holding you back — page speed, mobile responsiveness, crawlability and a clean, logical site structure.',
                     'We then optimise the elements search engines rely on most: your titles, meta descriptions, headers, image tags, URLs and internal links — all aligned to the keywords your customers are actually searching, so Google understands exactly what each page is about.',
                 ) ),
-                array( 'icon' => 'link', 'title' => 'Off-Page SEO Link Building', 'paras' => array(
+                array( 'icon' => 'link', 'image' => SIX_MK_URL . 'assets/img/seo-off-page-link-building.png', 'title' => 'Off-Page SEO Link Building', 'paras' => array(
                     "Our premium SEO writer works to include you in the news cycle. Our news desk identifies high quality news publishers in your industry and creates news stories that include your business's research on facts in the story.",
                 ) ),
             ),
@@ -414,19 +414,19 @@ function six_service_pages() {
                 "Social Media is changing the face of marketing. How your audience interacts with your brand is how you present yourself in Social Media these days. Most of your potential audience has Facebook and Instagram in their hands but they don't have your brand name. You can use these channels to get your brand in everybody's palms.",
             ),
             'sections' => array(
-                array( 'icon' => 'users', 'title' => 'How 6ix Developers can help your Business be seen on Social Media', 'paras' => array(
+                array( 'icon' => 'users', 'image' => SIX_MK_URL . 'assets/img/social-community.png', 'title' => 'How 6ix Developers can help your Business be seen on Social Media', 'paras' => array(
                     'The Social Media team at 6ix Developers is actively helping over 150 businesses in Canada with their Social Media marketing. We help you build a community that shares the same ideas as your business on social media platforms. With the latest and greatest tools and lots of experience, our qualified team of Social Media experts can take your business to the next level and make your potential audience remember your name when they need services you offer.',
                 ) ),
-                array( 'icon' => 'rocket', 'title' => 'Accelerated Marketing & Countable Results', 'paras' => array(
+                array( 'icon' => 'rocket', 'image' => SIX_MK_URL . 'assets/img/social-accelerated-marketing.png', 'title' => 'Accelerated Marketing & Countable Results', 'paras' => array(
                     "We take your stagnant business growth and revenue to a consistently and gradually growing pace. If you're looking to expand your reach to your potential audience, Social Media Accelerated marketing is the best way to go. We can help your business get all those bounced visitors on your website back and turn them into solid leads/sales using Social Media Accelerated Marketing strategies.",
                 ) ),
-                array( 'icon' => 'social', 'title' => 'Instagram and Facebook Engagement Campaigns', 'paras' => array(
+                array( 'icon' => 'social', 'image' => SIX_MK_URL . 'assets/img/social-instagram-facebook.png', 'title' => 'Instagram and Facebook Engagement Campaigns', 'paras' => array(
                     'If your business is located within Canada, we have proven strategies for many industries on growing the engagement on social media channels. With constant growth and engagement your business will thrive and it will provide the best possible returns on $ invested on marketing.',
                 ) ),
-                array( 'icon' => 'ads', 'title' => 'Social Media Paid Advertising', 'paras' => array(
+                array( 'icon' => 'ads', 'image' => SIX_MK_URL . 'assets/img/social-paid-advertising.png', 'title' => 'Social Media Paid Advertising', 'paras' => array(
                     'Do not stop at organic growth. Although organic growth is constant and consistent, you most likely want to make use of paid marketing on Social Media. These paid marketing campaigns can bring you active and warm leads that are ready to convert. Our paid marketing strategies are designed to interact with an audience that has interacted with your business or a similar business as yours in the past. Ask us how we can help your business with paid social media marketing campaigns.',
                 ) ),
-                array( 'icon' => 'spark', 'title' => 'Branding and Media', 'paras' => array(
+                array( 'icon' => 'spark', 'image' => SIX_MK_URL . 'assets/img/social-branding-media.png', 'title' => 'Branding and Media', 'paras' => array(
                     'Use Social Media to build your brand and let your potential clients interact with it how you envisioned it. 6ix Developers can help your vision come to life and get your brand under the spotlight.',
                 ) ),
             ),
