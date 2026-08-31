@@ -22,10 +22,9 @@ function six_service_pages() {
         'website-design-agency-toronto' => array(
             'menu'     => 'Website Design',
             'eyebrow'  => 'Website Design',
-            'title'    => 'Make Your Dream Website a Reality',
-            'lead'     => 'Get your FREE online marketing consultation',
-            'hero_image'     => SIX_MK_URL . 'assets/img/website-design-header.jpg',
-            'intro_heading' => 'Toronto Website Design Agency',
+            'title'    => 'Toronto Website Design Agency',
+            'subtitle' => 'Make Your Dream Website a Reality',
+            'lead'     => 'Get the website that pays for itself — a 24/7 online salesperson working for you.',
             'form_quote' => array(
                 'id'           => 'quote-website-design',
                 'heading'      => 'Get Quote Now',
@@ -72,27 +71,27 @@ function six_service_pages() {
             ),
             // Verbatim feature sections (were condensed cards before)
             'sections' => array(
-                array( 'icon' => 'target', 'title' => 'Website Designs Optimized for Lead Generation', 'paras' => array(
+                array( 'icon' => 'target', 'image' => SIX_MK_URL . 'assets/img/lead-generation.png', 'title' => 'Website Designs Optimized for Lead Generation', 'paras' => array(
                     "In today's business landscape, making a significant impact is essential for success, regardless of your business's size.",
                     'Website designs that are slow to load, poorly designed, or difficult to navigate simply won\'t work anymore. Additionally, if they are not mobile responsive, they will not be effective. These website designs are extremely difficult to rank on the first page of Google, even with extraordinary SEO efforts.',
                     'Website designs that are optimized for lead generation and lead capturing are essential to run a successful and modern business. Let our team at 6ix Developers design a website optimized for lead generation. We\'ll tailor it to your industry, considering how your potential clients interact with websites. Our goal is to make your website the final destination for their search.',
                 ) ),
-                array( 'icon' => 'layers', 'title' => 'Flexible Website Designs', 'paras' => array(
+                array( 'icon' => 'layers', 'image' => SIX_MK_URL . 'assets/img/flexible-website-designs.png', 'title' => 'Flexible Website Designs', 'paras' => array(
                     'Our website designs are fully customizable to ensure your vision is realized without limitations. We bring your dream website design to life. All website designs are developed under the supervision of our marketing team. This ensures the highest level of returns and longer user interaction.',
                 ) ),
-                array( 'icon' => 'globe', 'title' => 'Beautiful across all Devices', 'paras' => array(
+                array( 'icon' => 'globe', 'image' => SIX_MK_URL . 'assets/img/beautiful-across-devices.png', 'title' => 'Beautiful across all Devices', 'paras' => array(
                     'We exclusively offer responsive website designs. Our website design team adheres to industry standards to ensure the best user experience across all devices, including mobile phones, tablets, computers, and projectors.',
                 ) ),
-                array( 'icon' => 'gauge', 'title' => 'Web Designs with Fast Google PageSpeed', 'paras' => array(
+                array( 'icon' => 'gauge', 'image' => SIX_MK_URL . 'assets/img/fast-pagespeed.png', 'title' => 'Web Designs with Fast Google PageSpeed', 'paras' => array(
                     "Over half of all visitors will leave your website if it fails to load within 3 seconds. Do you know how long your website takes to load? Check its speed here. If your website's bounce rate is over 40% and it takes over 5 seconds to load, don't hesitate to call us. Every second counts. Every single second, people are bouncing off of your website because it's taking too long to load. Website designs at 6ix Developers are optimized for the fastest Google PageSpeed. Since May 4th, 2020, the top 3 factors for ranking #1 on Google are related to your website's PageSpeed. Don't waste time & contact us now. Each day you're losing 100s of potential clients who can take your business to the next level.",
                 ) ),
-                array( 'icon' => 'search', 'title' => 'SEO Friendly Website Designs (Search Engine Optimization)', 'paras' => array(
+                array( 'icon' => 'search', 'image' => SIX_MK_URL . 'assets/img/seo-friendly.png', 'title' => 'SEO Friendly Website Designs (Search Engine Optimization)', 'paras' => array(
                     'Our website designs ensure customers find your website once launched. All of our website design packages include expert SEO consultation. We ensure your website is launched with the best SEO practices. This includes incorporating high-quality, industry-related keywords in titles, descriptions, meta tags, URLs, etc., to quickly rank your website on the 1st page of Google.',
                 ) ),
-                array( 'icon' => 'pen', 'title' => 'Easy to Manage Website Designs', 'paras' => array(
+                array( 'icon' => 'pen', 'image' => SIX_MK_URL . 'assets/img/easy-to-manage.png', 'title' => 'Easy to Manage Website Designs', 'paras' => array(
                     "Website designs done by 6ix Developers are made to ensure you can make small changes on your website after its launch. Our website editor lets you drag and drop items around the page where you want. Adding new content and images couldn't be easier.",
                 ) ),
-                array( 'icon' => 'trending', 'title' => 'Conversion Tracking on your Website', 'paras' => array(
+                array( 'icon' => 'trending', 'image' => SIX_MK_URL . 'assets/img/conversion-tracking.png', 'title' => 'Conversion Tracking on your Website', 'paras' => array(
                     'To find out how your potential customers are interacting with your website, all website designs from 6ix Developers come with Google Analytics integration. We set up custom goals and conversion tracking on your website for you to learn and improve your website for the best user experience, ensuring constant and gradual growth and improvement in your business.',
                 ) ),
             ),
