@@ -159,11 +159,11 @@ function six_service_pages() {
             'offer_tiers' => array(
                 'heading' => 'Choose a sign-up offer to jumpstart your first Google Ads campaign',
                 'intro'   => 'Select an offer that fits your monthly Google Ads budget. Terms and conditions apply.',
-                'cta'     => 'Check your eligibility for up to $1800 in credit',
+                'cta'     => 'Claim Now',
                 'tiers'   => array(
                     array( 'credit' => '$600',  'text' => 'Spend $600 with Google Ads in the first 60 days to unlock the credit.' ),
-                    array( 'credit' => '$1200', 'text' => 'Spend $1200 with Google Ads in the first 60 days to unlock the credit.', 'featured' => true ),
-                    array( 'credit' => '$1800', 'text' => 'Spend $1800 with Google Ads in the first 60 days to unlock the credit.' ),
+                    array( 'credit' => '$1200', 'text' => 'Spend $1800 with Google Ads in the first 60 days to unlock the credit.' ),
+                    array( 'credit' => '$1800', 'text' => 'Spend $3600 with Google Ads in the first 60 days to unlock the credit.' ),
                 ),
             ),
 
@@ -248,12 +248,25 @@ function six_service_pages() {
             ),
             'form_audit' => true,
 
-            'features_heading' => 'Strategic Google Ads Management',
-            'features' => array(
-                array( 'icon' => 'rocket', 'title' => 'Maximize Your ROI with Strategic Google Ads Management', 'text' => "Running a search marketing campaign on Google can quickly become costly without a solid strategy in place. At 6ix Developers, we craft tailored strategies based on your business type, goals, competition, and other critical factors, ensuring every dollar spent is strategically allocated to keywords that drive tangible leads and maximum ROI." ),
-                array( 'icon' => 'trending', 'title' => 'Stay Ahead of Evolving Search Trends', 'text' => "The way people search for services is constantly evolving. Our Google Ads certified team keeps your strategy finely tuned to capture maximum leads — you'll pay only for the keywords directly relevant to your business, ensuring every click counts towards driving high-quality leads." ),
-                array( 'icon' => 'globe', 'title' => 'Unlock Precision Targeting with GEO Strategy', 'text' => 'We implement a GEO marketing strategy for your campaigns, focusing on specific geographic locations so your ads are shown only to users within your target audience — reaching the right people, in the right place, at the right time, so every impression counts.' ),
-                array( 'icon' => 'gauge', 'title' => "Don't Underestimate the Impact of Website Speed", 'text' => 'A slow-loading landing page can result in higher costs per click than your competitors, even if they rank below you. Our in-house developers optimize the landing pages used for Google Ads to load quickly and minimize bounce rates, maximizing your ad performance and ROI.' ),
+            // Verbatim narrative sections (alternating full-bleed rows, matching the
+            // original site — no separate heading above them there).
+            'sections' => array(
+                array( 'icon' => 'rocket', 'image' => SIX_MK_URL . 'assets/img/gads-strategic-management.jpg', 'title' => 'Maximize Your ROI with Strategic Google Ads Management', 'paras' => array(
+                    'Running a search marketing campaign on Google, regardless of your business size, can quickly become costly without a solid strategy in place. Google Ads\' broad targeting capabilities often lead to overspending on irrelevant keywords, resulting in wasted budget and minimal leads.',
+                    'At 6ix Developers, we specialize in crafting tailored strategies based on your business type, goals, competition, and other critical factors. Our meticulous approach ensures that every dollar spent on Google Ads is strategically allocated to keywords that drive tangible leads and maximum ROI. Trust us to transform your Google Ads investment into a powerful revenue generator. Partner with 6ix Developers for comprehensive strategy and planning that delivers results.',
+                ) ),
+                array( 'icon' => 'trending', 'image' => SIX_MK_URL . 'assets/img/gads-search-trends.png', 'title' => 'Stay Ahead of Evolving Search Trends with Our Google Ads Certified Team', 'paras' => array(
+                    "In today's dynamic digital landscape, the way people search for services is constantly evolving. That's why our Google Ads certified team of specialists is dedicated to keeping your advertising strategy finely tuned to capture maximum leads. With our expertise, you'll pay only for the keywords directly relevant to your business, ensuring every click counts towards driving high-quality leads.",
+                    'We understand that every click comes with a cost, which is why we focus on optimizing your keywords for maximum conversion rates. Stay ahead of the curve and maximize your advertising investment with our dedicated team. Partner with us to ensure your business thrives in the ever-changing world of online search.',
+                ) ),
+                array( 'icon' => 'globe', 'image' => SIX_MK_URL . 'assets/img/gads-geo-targeting.jpg', 'title' => 'Unlock Precision Targeting with GEO Google Ads Marketing Strategy', 'paras' => array(
+                    'At 6ix Developers, we prioritize precision in targeting by implementing a GEO marketing strategy for your Google Adword campaigns. By focusing on specific geographic locations, we ensure that your ads are shown only to users within your target audience, maximizing relevance and driving desired actions on your website.',
+                    'With GEO optimization, you can rest assured that your Google ads are reaching the right people in the right place at the right time. Trust us to help your business thrive by ensuring every ad impression counts. Experience the power of targeted advertising with our GEO marketing strategy. Partner with us to elevate your Google Adword campaigns and drive meaningful results for your business.',
+                ) ),
+                array( 'icon' => 'gauge', 'image' => SIX_MK_URL . 'assets/img/gads-website-speed.png', 'title' => "Don't Underestimate the Impact of Website Speed on Your Google Ad Performance", 'paras' => array(
+                    "The speed of your website's landing page is often underestimated, yet it plays a crucial role in determining your cost per click on Google Ads. A slow-loading page can result in higher costs per click compared to your competitors, even if they rank below you.",
+                    "At 6ix Developers, our in-house developers recognize the importance of website speed optimization. We specialize in optimizing landing pages used for Google Ads to load quickly and minimize bounce rates. By ensuring a seamless user experience, we help maximize your ad performance and ROI. Don't let website speed hinder your ad success — trust our expertise to optimize your landing pages and stay ahead of the competition in the fast-paced world of online advertising.",
+                ) ),
             ),
 
             'results_heading' => 'Get the Results That Matter to You',
@@ -356,14 +369,14 @@ function six_service_pages() {
                 "SEO (Search Engine Optimization) places your website under the organic results section of search engines like Google, Bing or Yahoo. Being found organically by ranking on the first page of Google is one of the best ways to grow your business consistently. Leads coming from organically ranked websites are always more likely to convert and they do not cost anything. Our Certified team of SEO experts are here to provide affordable SEO packages to small and large businesses. Whether you need local small business SEO or large enterprise SEO services, our team of SEO experts apply proven strategies and best practices across all businesses. Though there are many SEO companies in Toronto and the GTA offering SEO services, you can certainly trust us and let us help you rank on the 1st page of Google because we have done it all.",
             ),
             'sections' => array(
-                array( 'icon' => 'search', 'title' => 'Website SEO Analysis', 'paras' => array(
+                array( 'icon' => 'search', 'image' => SIX_MK_URL . 'assets/img/seo-website-analysis.png', 'title' => 'Website SEO Analysis', 'paras' => array(
                     "Before starting the actual SEO of your business website, we need to understand your client base, industry requirement and your business goal. SEO team at 6ix Developers specializes in gathering all the industry benchmarks for your business. Our SEO team develops a comprehensive SEO strategy based on your initial website analysis and predicts the performance and the timeline. Our analytical audit covers all major and minor SEO aspects of our client's website.",
                 ) ),
-                array( 'icon' => 'website', 'title' => 'On-Page SEO', 'paras' => array(
+                array( 'icon' => 'website', 'image' => SIX_MK_URL . 'assets/img/seo-on-page.png', 'title' => 'On-Page SEO', 'paras' => array(
                     'On-Page SEO is where rankings are won or lost. Before building your strategy, our team runs a full technical diagnosis of your website and fixes every internal issue holding you back — page speed, mobile responsiveness, crawlability and a clean, logical site structure.',
                     'We then optimise the elements search engines rely on most: your titles, meta descriptions, headers, image tags, URLs and internal links — all aligned to the keywords your customers are actually searching, so Google understands exactly what each page is about.',
                 ) ),
-                array( 'icon' => 'link', 'title' => 'Off-Page SEO Link Building', 'paras' => array(
+                array( 'icon' => 'link', 'image' => SIX_MK_URL . 'assets/img/seo-off-page-link-building.png', 'title' => 'Off-Page SEO Link Building', 'paras' => array(
                     "Our premium SEO writer works to include you in the news cycle. Our news desk identifies high quality news publishers in your industry and creates news stories that include your business's research on facts in the story.",
                 ) ),
             ),
@@ -401,19 +414,19 @@ function six_service_pages() {
                 "Social Media is changing the face of marketing. How your audience interacts with your brand is how you present yourself in Social Media these days. Most of your potential audience has Facebook and Instagram in their hands but they don't have your brand name. You can use these channels to get your brand in everybody's palms.",
             ),
             'sections' => array(
-                array( 'icon' => 'users', 'title' => 'How 6ix Developers can help your Business be seen on Social Media', 'paras' => array(
+                array( 'icon' => 'users', 'image' => SIX_MK_URL . 'assets/img/social-community.png', 'title' => 'How 6ix Developers can help your Business be seen on Social Media', 'paras' => array(
                     'The Social Media team at 6ix Developers is actively helping over 150 businesses in Canada with their Social Media marketing. We help you build a community that shares the same ideas as your business on social media platforms. With the latest and greatest tools and lots of experience, our qualified team of Social Media experts can take your business to the next level and make your potential audience remember your name when they need services you offer.',
                 ) ),
-                array( 'icon' => 'rocket', 'title' => 'Accelerated Marketing & Countable Results', 'paras' => array(
+                array( 'icon' => 'rocket', 'image' => SIX_MK_URL . 'assets/img/social-accelerated-marketing.png', 'title' => 'Accelerated Marketing & Countable Results', 'paras' => array(
                     "We take your stagnant business growth and revenue to a consistently and gradually growing pace. If you're looking to expand your reach to your potential audience, Social Media Accelerated marketing is the best way to go. We can help your business get all those bounced visitors on your website back and turn them into solid leads/sales using Social Media Accelerated Marketing strategies.",
                 ) ),
-                array( 'icon' => 'social', 'title' => 'Instagram and Facebook Engagement Campaigns', 'paras' => array(
+                array( 'icon' => 'social', 'image' => SIX_MK_URL . 'assets/img/social-instagram-facebook.png', 'title' => 'Instagram and Facebook Engagement Campaigns', 'paras' => array(
                     'If your business is located within Canada, we have proven strategies for many industries on growing the engagement on social media channels. With constant growth and engagement your business will thrive and it will provide the best possible returns on $ invested on marketing.',
                 ) ),
-                array( 'icon' => 'ads', 'title' => 'Social Media Paid Advertising', 'paras' => array(
+                array( 'icon' => 'ads', 'image' => SIX_MK_URL . 'assets/img/social-paid-advertising.png', 'title' => 'Social Media Paid Advertising', 'paras' => array(
                     'Do not stop at organic growth. Although organic growth is constant and consistent, you most likely want to make use of paid marketing on Social Media. These paid marketing campaigns can bring you active and warm leads that are ready to convert. Our paid marketing strategies are designed to interact with an audience that has interacted with your business or a similar business as yours in the past. Ask us how we can help your business with paid social media marketing campaigns.',
                 ) ),
-                array( 'icon' => 'spark', 'title' => 'Branding and Media', 'paras' => array(
+                array( 'icon' => 'spark', 'image' => SIX_MK_URL . 'assets/img/social-branding-media.png', 'title' => 'Branding and Media', 'paras' => array(
                     'Use Social Media to build your brand and let your potential clients interact with it how you envisioned it. 6ix Developers can help your vision come to life and get your brand under the spotlight.',
                 ) ),
             ),

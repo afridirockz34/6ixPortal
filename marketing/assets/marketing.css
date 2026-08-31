@@ -444,9 +444,13 @@
 @media (max-width: 640px) { .six-mk .mk-logos { gap: 22px 30px; } .six-mk .mk-logo-item { height: 46px; } .six-mk .mk-logo-item img { max-height: 46px; max-width: 116px; } }
 
 /* ── Google Ads: sign-up offer tiers ─────────────────────── */
-.six-mk .mk-offer-card { text-align: center; align-items: center; position: relative; }
-.six-mk .mk-offer-featured { border-color: var(--mk-pink); }
-.six-mk .mk-offer-tag { position: absolute; top: -11px; left: 50%; transform: translateX(-50%); background: var(--mk-grad); color: #fff; font-size: 11px; font-weight: 700; letter-spacing: .4px; padding: 3px 12px; border-radius: 100px; white-space: nowrap; }
+/* Selectable offer cards — a real radio input per card (first one checked
+   by default) so a visitor can pick the offer that matches their budget
+   before hitting the single "Claim Now" button below, matching the
+   original site's click-to-select cards. */
+.six-mk .mk-offer-card { text-align: center; align-items: center; position: relative; cursor: pointer; display: flex; flex-direction: column; }
+.six-mk .mk-offer-input { position: absolute; top: 14px; right: 14px; width: 18px; height: 18px; accent-color: var(--mk-pink); cursor: pointer; }
+.six-mk .mk-offer-card:has(.mk-offer-input:checked) { border-color: var(--mk-pink); box-shadow: 0 0 0 3px rgba(255,102,153,.14); }
 .six-mk .mk-offer-credit { font-family: 'Syne', sans-serif; font-weight: 800; font-size: clamp(1.9rem, 3.4vw, 2.6rem); line-height: 1.1; display: block; }
 .six-mk .mk-offer-label { display: block; font-size: .85rem; color: var(--mk-t2); margin: 2px 0 10px; text-transform: uppercase; letter-spacing: .6px; }
 
