@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "montserrat",
+        "files": [
+          "marketing/assets/marketing.css"
+        ],
+        "createdAt": "2026-08-31T15:10:36.162Z",
+        "reason": "Pre-existing site-wide brand heading font (mk-head/.mk-login-box h3), set before this redesign pass and used sitewide intentionally — not introduced or in scope for this change."
+      },
+      {
+        "rule": "layout-transition",
+        "value": "*",
+        "files": [
+          "marketing/assets/marketing.css"
+        ],
+        "createdAt": "2026-08-31T15:10:57.373Z",
+        "reason": "Two pre-existing, out-of-scope carousel animations: viewport height transition (functional — JS sets height to match the active slide's natural content height, no non-JS way to animate that smoothly) and a small 8px active-dot width transition (negligible, decorative pagination indicator). Neither was touched by this redesign pass."
+      }
+    ]
+  }
+}

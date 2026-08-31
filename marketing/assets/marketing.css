@@ -575,10 +575,15 @@
 .six-mk .mk-benefit h3 { font-size: 1.12rem; margin-bottom: 6px; }
 
 /* ── Pricing / package cards ────────────────────────────── */
-.six-mk .mk-price-card { text-align: center; display: flex; flex-direction: column; align-items: center; border-top: 4px solid var(--mk-blue); }
-.six-mk .mk-grid-3 .mk-price-card:nth-child(1) { border-top-color: var(--mk-blue); }
-.six-mk .mk-grid-3 .mk-price-card:nth-child(2) { border-top-color: var(--mk-pink); }
-.six-mk .mk-grid-3 .mk-price-card:nth-child(3) { border-top-color: #F0A93E; }
+/* The colour bar is a ::after clipped by overflow:hidden (not a thicker
+   border-top) so it follows the card's border-radius cleanly — same
+   reasoning as .mk-feature-card above. ::after (not ::before) so it doesn't
+   collide with .mk-card-accent's own ::before gradient-outline pseudo. */
+.six-mk .mk-price-card { text-align: center; display: flex; flex-direction: column; align-items: center; overflow: hidden; }
+.six-mk .mk-price-card::after { content: ''; position: absolute; z-index: 1; top: 0; left: 0; right: 0; height: 4px; background: var(--mk-blue); }
+.six-mk .mk-grid-3 .mk-price-card:nth-child(1)::after { background: var(--mk-blue); }
+.six-mk .mk-grid-3 .mk-price-card:nth-child(2)::after { background: var(--mk-pink); }
+.six-mk .mk-grid-3 .mk-price-card:nth-child(3)::after { background: #F0A93E; }
 .six-mk .mk-price-badge { font-family: var(--mk-num); font-size: .78rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--mk-t3); }
 .six-mk .mk-price-size { font-family: var(--mk-head); font-size: 1.9rem; font-weight: 800; margin: 8px 0 12px; }
 .six-mk .mk-price-size .mk-grad-text { display: inline; }
@@ -756,7 +761,7 @@
   break-inside: avoid; -webkit-column-break-inside: avoid; page-break-inside: avoid;
   display: block; width: 100%; margin: 0 0 24px; padding: 26px 28px; border-radius: 14px;
   color: var(--mk-t1); position: relative; overflow: hidden;
-  background: var(--mk-surface); border: 1px solid var(--mk-border); border-top: 3px solid var(--mk-pink);
+  background: var(--mk-surface); border: 1px solid var(--mk-border);
   box-shadow: 0 2px 10px rgba(15,25,40,.05);
   transition: transform .18s ease, box-shadow .18s ease;
 }
@@ -764,11 +769,15 @@
 .six-mk .mk-feature-card:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(15,25,40,.08); }
 /* Rotating accent colour so cards feel intentional, not identical — a top
    rule rather than a full-bleed tint, matching the flat, plain-card style of
-   the original site. */
-.six-mk .mk-feature-card--0 { border-top-color: var(--mk-pink); }
-.six-mk .mk-feature-card--1 { border-top-color: var(--mk-purple); }
-.six-mk .mk-feature-card--2 { border-top-color: var(--mk-blue); }
-.six-mk .mk-feature-card--3 { border-top-color: var(--mk-lime); }
+   the original site. Drawn as a pseudo-element clipped by the card's own
+   overflow:hidden (not a differently-sized border side) so the accent's
+   corners follow the card's border-radius cleanly instead of mitring
+   against the thinner 1px side borders. */
+.six-mk .mk-feature-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--mk-pink); }
+.six-mk .mk-feature-card--0::before { background: var(--mk-pink); }
+.six-mk .mk-feature-card--1::before { background: var(--mk-purple); }
+.six-mk .mk-feature-card--2::before { background: var(--mk-blue); }
+.six-mk .mk-feature-card--3::before { background: var(--mk-lime); }
 .six-mk .mk-feature-card h3 { color: var(--mk-t1); font-size: 1.15rem; margin: 4px 0 10px; }
 .six-mk .mk-feature-card p { color: var(--mk-t2); font-size: .96rem; line-height: 1.62; margin: 0 0 12px; }
 .six-mk .mk-feature-card p:last-child { margin-bottom: 0; }
