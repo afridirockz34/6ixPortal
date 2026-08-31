@@ -109,16 +109,16 @@ header( 'Content-Type: text/html; charset=utf-8' );
       </div>
       <div class="mk-grid mk-grid-3">
         <?php foreach ( (array) $d['offer_tiers']['tiers'] as $i => $tier ) : ?>
-        <div class="mk-card mk-card-accent mk-offer-card<?php echo ! empty( $tier['featured'] ) ? ' mk-offer-featured' : ''; ?>">
-          <?php if ( ! empty( $tier['featured'] ) ) : ?><span class="mk-offer-tag">Most Popular</span><?php endif; ?>
+        <label class="mk-card mk-card-accent mk-offer-card">
+          <input type="radio" name="mk-offer-pick" class="mk-offer-input" value="<?php echo esc_attr( $tier['credit'] ); ?>"<?php echo $i === 0 ? ' checked' : ''; ?>>
           <span class="mk-offer-credit mk-grad-text"><?php echo esc_html( $tier['credit'] ); ?></span>
           <span class="mk-offer-label">in Google Ads credit</span>
           <p><?php echo esc_html( $tier['text'] ); ?></p>
-        </div>
+        </label>
         <?php endforeach; ?>
       </div>
       <div class="mk-center" style="margin-top:24px">
-        <a class="mk-btn mk-btn-primary mk-btn-lg" href="<?php echo esc_url( mk_portal_url() ); ?>"><?php echo esc_html( $d['offer_tiers']['cta'] ?? 'Check your eligibility' ); ?> <?php echo $arrow; ?></a>
+        <a class="mk-btn mk-btn-primary mk-btn-lg" href="#eligibility"><?php echo esc_html( $d['offer_tiers']['cta'] ?? 'Claim Now' ); ?> <?php echo $arrow; ?></a>
       </div>
     </div>
   </section>
@@ -261,36 +261,6 @@ header( 'Content-Type: text/html; charset=utf-8' );
   </section>
   <?php endif; ?>
 
-  <!-- NARRATIVE SECTIONS — alternating full-width rows (matching the
-       original site: plain white/grey bands, icon on one side, copy on the
-       other, sides swapping each item; verbatim copy). -->
-  <?php if ( ! empty( $d['sections'] ) ) : ?>
-    <?php if ( ! empty( $d['sections_heading'] ) ) : ?>
-    <section class="mk-section-sm">
-      <div class="mk-wrap"><div class="mk-sec-head mk-center mk-full"><h2><?php echo esc_html( $d['sections_heading'] ); ?></h2></div></div>
-    </section>
-    <?php endif; ?>
-    <?php foreach ( (array) $d['sections'] as $si => $sec ) : $alt = (bool) ( $si % 2 ); ?>
-    <section class="mk-section mk-feature-row<?php echo $alt ? '' : ' mk-section-tint'; ?>">
-      <div class="mk-wrap">
-        <div class="mk-feature-row-grid">
-          <div class="mk-feature-row-media" style="<?php echo $alt ? 'order:2' : ''; ?>">
-            <?php if ( ! empty( $sec['image'] ) ) : ?>
-            <img src="<?php echo esc_url( $sec['image'] ); ?>" alt="<?php echo esc_attr( $sec['title'] ?? '' ); ?>" loading="lazy">
-            <?php else : ?>
-            <span class="mk-feature-row-ic"><?php echo mk_icon( $sec['icon'] ?? 'spark' ); ?></span>
-            <?php endif; ?>
-          </div>
-          <div class="mk-feature-row-text" style="<?php echo $alt ? 'order:1' : ''; ?>">
-            <h3><?php echo esc_html( $sec['title'] ); ?></h3>
-            <?php foreach ( (array) $sec['paras'] as $p ) : ?><p><?php echo esc_html( $p ); ?></p><?php endforeach; ?>
-          </div>
-        </div>
-      </div>
-    </section>
-    <?php endforeach; ?>
-  <?php endif; ?>
-
   <!-- FEATURES (narrative stack) -->
   <?php if ( ! empty( $d['features'] ) ) : ?>
   <section class="mk-section">
@@ -331,9 +301,6 @@ header( 'Content-Type: text/html; charset=utf-8' );
     </div>
   </section>
   <?php endif; ?>
-
-  <!-- CLIENT SUCCESS — default position (when not pinned under Results) -->
-  <?php if ( empty( $d['success_after_results'] ) ) echo $success_html; ?>
 
   <!-- AUDIT intro blocks (Google Ads) -->
   <?php if ( ! empty( $d['audit_blocks'] ) ) : ?>
@@ -389,6 +356,46 @@ header( 'Content-Type: text/html; charset=utf-8' );
     <div class="mk-wrap"><?php mk_form( 'audit' ); ?></div>
   </section>
   <?php endif; ?>
+
+  <!-- NARRATIVE SECTIONS — alternating full-width rows (matching the
+       original site: plain white/grey bands, icon on one side, copy on the
+       other, sides swapping each item; verbatim copy). Positioned here
+       (after the audit form) so it lands in the same relative spot as the
+       original site's own copy, which sits right after its audit checklist
+       (Google Ads). The default-position Client Success echo moved down
+       here too, right after — Website Design has no audit_blocks/checklist/
+       form (all no-ops there), so this still renders as Packages Guide →
+       Sections → Client Success, same order as before this page had audit
+       content of its own to skip past. -->
+  <?php if ( ! empty( $d['sections'] ) ) : ?>
+    <?php if ( ! empty( $d['sections_heading'] ) ) : ?>
+    <section class="mk-section-sm">
+      <div class="mk-wrap"><div class="mk-sec-head mk-center mk-full"><h2><?php echo esc_html( $d['sections_heading'] ); ?></h2></div></div>
+    </section>
+    <?php endif; ?>
+    <?php foreach ( (array) $d['sections'] as $si => $sec ) : $alt = (bool) ( $si % 2 ); ?>
+    <section class="mk-section mk-feature-row<?php echo $alt ? '' : ' mk-section-tint'; ?>">
+      <div class="mk-wrap">
+        <div class="mk-feature-row-grid">
+          <div class="mk-feature-row-media" style="<?php echo $alt ? 'order:2' : ''; ?>">
+            <?php if ( ! empty( $sec['image'] ) ) : ?>
+            <img src="<?php echo esc_url( $sec['image'] ); ?>" alt="<?php echo esc_attr( $sec['title'] ?? '' ); ?>" loading="lazy">
+            <?php else : ?>
+            <span class="mk-feature-row-ic"><?php echo mk_icon( $sec['icon'] ?? 'spark' ); ?></span>
+            <?php endif; ?>
+          </div>
+          <div class="mk-feature-row-text" style="<?php echo $alt ? 'order:1' : ''; ?>">
+            <h3><?php echo esc_html( $sec['title'] ); ?></h3>
+            <?php foreach ( (array) $sec['paras'] as $p ) : ?><p><?php echo esc_html( $p ); ?></p><?php endforeach; ?>
+          </div>
+        </div>
+      </div>
+    </section>
+    <?php endforeach; ?>
+  <?php endif; ?>
+
+  <!-- CLIENT SUCCESS — default position (when not pinned under Results) -->
+  <?php if ( empty( $d['success_after_results'] ) ) echo $success_html; ?>
 
   <!-- HIGHLIGHT (pricing / offer) -->
   <?php if ( ! empty( $d['highlight'] ) ) : ?>

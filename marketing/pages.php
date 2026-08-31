@@ -159,11 +159,11 @@ function six_service_pages() {
             'offer_tiers' => array(
                 'heading' => 'Choose a sign-up offer to jumpstart your first Google Ads campaign',
                 'intro'   => 'Select an offer that fits your monthly Google Ads budget. Terms and conditions apply.',
-                'cta'     => 'Check your eligibility for up to $1800 in credit',
+                'cta'     => 'Claim Now',
                 'tiers'   => array(
                     array( 'credit' => '$600',  'text' => 'Spend $600 with Google Ads in the first 60 days to unlock the credit.' ),
-                    array( 'credit' => '$1200', 'text' => 'Spend $1200 with Google Ads in the first 60 days to unlock the credit.', 'featured' => true ),
-                    array( 'credit' => '$1800', 'text' => 'Spend $1800 with Google Ads in the first 60 days to unlock the credit.' ),
+                    array( 'credit' => '$1200', 'text' => 'Spend $1800 with Google Ads in the first 60 days to unlock the credit.' ),
+                    array( 'credit' => '$1800', 'text' => 'Spend $3600 with Google Ads in the first 60 days to unlock the credit.' ),
                 ),
             ),
 
@@ -248,12 +248,25 @@ function six_service_pages() {
             ),
             'form_audit' => true,
 
-            'features_heading' => 'Strategic Google Ads Management',
-            'features' => array(
-                array( 'icon' => 'rocket', 'title' => 'Maximize Your ROI with Strategic Google Ads Management', 'text' => "Running a search marketing campaign on Google can quickly become costly without a solid strategy in place. At 6ix Developers, we craft tailored strategies based on your business type, goals, competition, and other critical factors, ensuring every dollar spent is strategically allocated to keywords that drive tangible leads and maximum ROI." ),
-                array( 'icon' => 'trending', 'title' => 'Stay Ahead of Evolving Search Trends', 'text' => "The way people search for services is constantly evolving. Our Google Ads certified team keeps your strategy finely tuned to capture maximum leads — you'll pay only for the keywords directly relevant to your business, ensuring every click counts towards driving high-quality leads." ),
-                array( 'icon' => 'globe', 'title' => 'Unlock Precision Targeting with GEO Strategy', 'text' => 'We implement a GEO marketing strategy for your campaigns, focusing on specific geographic locations so your ads are shown only to users within your target audience — reaching the right people, in the right place, at the right time, so every impression counts.' ),
-                array( 'icon' => 'gauge', 'title' => "Don't Underestimate the Impact of Website Speed", 'text' => 'A slow-loading landing page can result in higher costs per click than your competitors, even if they rank below you. Our in-house developers optimize the landing pages used for Google Ads to load quickly and minimize bounce rates, maximizing your ad performance and ROI.' ),
+            // Verbatim narrative sections (alternating full-bleed rows, matching the
+            // original site — no separate heading above them there).
+            'sections' => array(
+                array( 'icon' => 'rocket', 'image' => SIX_MK_URL . 'assets/img/gads-strategic-management.jpg', 'title' => 'Maximize Your ROI with Strategic Google Ads Management', 'paras' => array(
+                    'Running a search marketing campaign on Google, regardless of your business size, can quickly become costly without a solid strategy in place. Google Ads\' broad targeting capabilities often lead to overspending on irrelevant keywords, resulting in wasted budget and minimal leads.',
+                    'At 6ix Developers, we specialize in crafting tailored strategies based on your business type, goals, competition, and other critical factors. Our meticulous approach ensures that every dollar spent on Google Ads is strategically allocated to keywords that drive tangible leads and maximum ROI. Trust us to transform your Google Ads investment into a powerful revenue generator. Partner with 6ix Developers for comprehensive strategy and planning that delivers results.',
+                ) ),
+                array( 'icon' => 'trending', 'image' => SIX_MK_URL . 'assets/img/gads-search-trends.png', 'title' => 'Stay Ahead of Evolving Search Trends with Our Google Ads Certified Team', 'paras' => array(
+                    "In today's dynamic digital landscape, the way people search for services is constantly evolving. That's why our Google Ads certified team of specialists is dedicated to keeping your advertising strategy finely tuned to capture maximum leads. With our expertise, you'll pay only for the keywords directly relevant to your business, ensuring every click counts towards driving high-quality leads.",
+                    'We understand that every click comes with a cost, which is why we focus on optimizing your keywords for maximum conversion rates. Stay ahead of the curve and maximize your advertising investment with our dedicated team. Partner with us to ensure your business thrives in the ever-changing world of online search.',
+                ) ),
+                array( 'icon' => 'globe', 'image' => SIX_MK_URL . 'assets/img/gads-geo-targeting.jpg', 'title' => 'Unlock Precision Targeting with GEO Google Ads Marketing Strategy', 'paras' => array(
+                    'At 6ix Developers, we prioritize precision in targeting by implementing a GEO marketing strategy for your Google Adword campaigns. By focusing on specific geographic locations, we ensure that your ads are shown only to users within your target audience, maximizing relevance and driving desired actions on your website.',
+                    'With GEO optimization, you can rest assured that your Google ads are reaching the right people in the right place at the right time. Trust us to help your business thrive by ensuring every ad impression counts. Experience the power of targeted advertising with our GEO marketing strategy. Partner with us to elevate your Google Adword campaigns and drive meaningful results for your business.',
+                ) ),
+                array( 'icon' => 'gauge', 'image' => SIX_MK_URL . 'assets/img/gads-website-speed.png', 'title' => "Don't Underestimate the Impact of Website Speed on Your Google Ad Performance", 'paras' => array(
+                    "The speed of your website's landing page is often underestimated, yet it plays a crucial role in determining your cost per click on Google Ads. A slow-loading page can result in higher costs per click compared to your competitors, even if they rank below you.",
+                    "At 6ix Developers, our in-house developers recognize the importance of website speed optimization. We specialize in optimizing landing pages used for Google Ads to load quickly and minimize bounce rates. By ensuring a seamless user experience, we help maximize your ad performance and ROI. Don't let website speed hinder your ad success — trust our expertise to optimize your landing pages and stay ahead of the competition in the fast-paced world of online advertising.",
+                ) ),
             ),
 
             'results_heading' => 'Get the Results That Matter to You',
