@@ -358,27 +358,25 @@
 /* Service cards ("How 6ix Developers Can Help Your Business") — icon
    top-left, title, then the full description (no clipping/line-clamp;
    the grid's default row-stretch keeps all four cards equal height
-   regardless). No button in the resting state. On hover: the icon glides
-   to the horizontal center (left/transform both animate — see .mk-svc-img
-   img — a standard, container-independent centering-in-motion trick), a
-   full brand-gradient wash fades in behind everything, text switches to
-   white, and the "Learn More" link fades in — it's always in flow (so
-   nothing else moves when it appears), just invisible until hovered. */
+   regardless). No button in the resting state. No card-level flourish
+   (no lift, no shadow) — same as the original, which only ever animated
+   the background-color, not the card itself.
+
+   Hover, matching the original site's background colour + timing exactly
+   (solid pink, .4s linear — see the original's .box:hover .box-img-section
+   rule) plus the two things that ARE new here: the icon glides to the
+   horizontal centre (left/transform animate together — see .mk-svc-img
+   img — a standard, container-independent centering-in-motion trick that
+   self-corrects for each icon's own width), and "Learn More" fades in —
+   always in flow (so nothing shifts position when it appears), just
+   invisible until hovered. */
 .six-mk .mk-svc-card {
   display: flex; flex-direction: column; align-items: flex-start;
   background: var(--mk-surface); border: 1px solid var(--mk-border); border-radius: var(--mk-r);
   padding: 28px; position: relative; overflow: hidden; height: 100%; box-sizing: border-box;
-  transition: transform .35s ease, border-color .35s ease, box-shadow .35s ease;
+  transition: background-color .4s linear;
 }
-.six-mk .mk-svc-card:hover {
-  transform: translateY(-4px); border-color: transparent;
-  box-shadow: 0 18px 40px -14px rgba(255,102,153,.5);
-}
-.six-mk .mk-svc-card::before { /* gradient wash */
-  content: ''; position: absolute; inset: 0; background: var(--mk-grad); opacity: 0;
-  transition: opacity .4s ease; z-index: 0;
-}
-.six-mk .mk-svc-card:hover::before { opacity: 1; }
+.six-mk .mk-svc-card:hover { background-color: var(--mk-pink); border-color: var(--mk-pink); }
 .six-mk .mk-svc-card > * { position: relative; z-index: 1; width: 100%; }
 
 .six-mk .mk-svc-img { position: relative; height: 66px; margin-bottom: 16px; }
