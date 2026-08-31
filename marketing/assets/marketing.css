@@ -785,43 +785,6 @@
 /* Subtle brand-tinted border on hover (no glow shadow). */
 .six-mk .mk-card:hover { border-color: rgba(255,102,153,.28); }
 
-/* ── Designed feature cards (gradient, balanced masonry) ──
-   Cards keep their natural height and stack like the original site. JS
-   (marketing.js) distributes them into the shortest column so both columns
-   end level; CSS column layout is the no-JS fallback. */
-.six-mk .mk-feature-grid { column-count: 2; column-gap: 24px; column-fill: balance; }
-.six-mk .mk-feature-grid.mk-fg-js { column-count: auto; display: flex; gap: 24px; align-items: flex-start; }
-.six-mk .mk-feature-grid.mk-fg-js .mk-feature-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 24px; }
-@media (max-width: 760px) { .six-mk .mk-feature-grid { column-count: 1; } }
-.six-mk .mk-feature-card {
-  break-inside: avoid; -webkit-column-break-inside: avoid; page-break-inside: avoid;
-  display: block; width: 100%; margin: 0 0 24px; padding: 26px 28px; border-radius: 14px;
-  color: var(--mk-t1); position: relative; overflow: hidden;
-  background: var(--mk-surface); border: 1px solid var(--mk-border);
-  box-shadow: 0 2px 10px rgba(15,25,40,.05);
-  transition: transform .18s ease, box-shadow .18s ease;
-}
-.six-mk .mk-feature-grid.mk-fg-js .mk-feature-card { margin: 0; }
-.six-mk .mk-feature-card:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(15,25,40,.08); }
-/* Rotating accent colour so cards feel intentional, not identical — a top
-   rule rather than a full-bleed tint, matching the flat, plain-card style of
-   the original site. Drawn as a pseudo-element clipped by the card's own
-   overflow:hidden (not a differently-sized border side) so the accent's
-   corners follow the card's border-radius cleanly instead of mitring
-   against the thinner 1px side borders. */
-.six-mk .mk-feature-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--mk-pink); }
-.six-mk .mk-feature-card--0::before { background: var(--mk-pink); }
-.six-mk .mk-feature-card--1::before { background: var(--mk-purple); }
-.six-mk .mk-feature-card--2::before { background: var(--mk-blue); }
-.six-mk .mk-feature-card--3::before { background: var(--mk-lime); }
-.six-mk .mk-feature-card h3 { color: var(--mk-t1); font-size: 1.15rem; margin: 4px 0 10px; }
-.six-mk .mk-feature-card p { color: var(--mk-t2); font-size: .96rem; line-height: 1.62; margin: 0 0 12px; }
-.six-mk .mk-feature-card p:last-child { margin-bottom: 0; }
-.six-mk .mk-feature-ic {
-  width: 50px; height: 50px; border-radius: 13px; display: inline-flex; align-items: center; justify-content: center;
-  background: var(--mk-grad-soft); border: 1px solid var(--mk-border); margin-bottom: 14px;
-}
-.six-mk .mk-feature-ic svg { width: 24px; height: 24px; color: var(--mk-pink); }
 
 /* Benefit / results cards: number-free but distinct — brand icon chip sits in
    a tinted well, heading in ink, generous rhythm. */
