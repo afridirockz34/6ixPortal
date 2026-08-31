@@ -99,9 +99,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
           <div class="mk-svc-text">
             <h3><?php echo esc_html( $c['title'] ?? '' ); ?></h3>
             <p><?php echo esc_html( $c['text'] ?? '' ); ?></p>
-            <span class="mk-card-link">Learn More
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-            </span>
+            <span class="mk-svc-btn">Learn More</span>
           </div>
         </a>
         <?php endforeach; ?>

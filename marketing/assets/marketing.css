@@ -355,48 +355,39 @@
 .six-mk .mk-card p { color: var(--mk-t2); font-size: .98rem; margin-bottom: 14px; }
 .six-mk .mk-card-link { font-weight: 700; color: var(--mk-purple); display: inline-flex; align-items: center; gap: 6px; margin-top: auto; }
 
-/* Service cards ("How 6ix Developers Can Help Your Business") — icon
-   top-left, title, then the full description (no clipping/line-clamp;
-   the grid's default row-stretch keeps all four cards equal height
-   regardless). No button in the resting state. On hover: the icon glides
-   to the horizontal center (left/transform both animate — see .mk-svc-img
-   img — a standard, container-independent centering-in-motion trick), a
-   full brand-gradient wash fades in behind everything, text switches to
-   white, and the "Learn More" link fades in — it's always in flow (so
-   nothing else moves when it appears), just invisible until hovered. */
+/* Service cards ("How 6ix Developers Can Help Your Business") — matches
+   the reference screenshot exactly: a full-bleed icon panel (no side
+   padding — flush to the card's own edges) that fills solid pink on
+   hover (.4s linear, same colour/timing as the original site), sitting
+   above a plain white, center-aligned text panel that never changes
+   colour. The icon stays centered at all times (no movement) — only the
+   panel's background and the "Learn More" button (opacity only, always
+   in flow so nothing shifts) change on hover. */
 .six-mk .mk-svc-card {
-  display: flex; flex-direction: column; align-items: flex-start;
+  display: flex; flex-direction: column; align-items: stretch;
   background: var(--mk-surface); border: 1px solid var(--mk-border); border-radius: var(--mk-r);
-  padding: 28px; position: relative; overflow: hidden; height: 100%; box-sizing: border-box;
-  transition: transform .35s ease, border-color .35s ease, box-shadow .35s ease;
+  padding: 0; position: relative; overflow: hidden; height: 100%; box-sizing: border-box;
 }
-.six-mk .mk-svc-card:hover {
-  transform: translateY(-4px); border-color: transparent;
-  box-shadow: 0 18px 40px -14px rgba(255,102,153,.5);
+.six-mk .mk-svc-img {
+  display: flex; align-items: center; justify-content: center;
+  padding: 34px 24px; min-height: 128px; transition: background-color .4s linear;
 }
-.six-mk .mk-svc-card::before { /* gradient wash */
-  content: ''; position: absolute; inset: 0; background: var(--mk-grad); opacity: 0;
-  transition: opacity .4s ease; z-index: 0;
-}
-.six-mk .mk-svc-card:hover::before { opacity: 1; }
-.six-mk .mk-svc-card > * { position: relative; z-index: 1; width: 100%; }
+.six-mk .mk-svc-card:hover .mk-svc-img { background-color: var(--mk-pink); }
+.six-mk .mk-svc-img img { max-height: 66px; width: auto; }
 
-.six-mk .mk-svc-img { position: relative; height: 66px; margin-bottom: 16px; }
-.six-mk .mk-svc-img img {
-  position: absolute; top: 0; left: 0; max-height: 66px; width: auto;
-  transform: translateX(0); transition: left .45s ease, transform .45s ease;
+.six-mk .mk-svc-text { padding: 6px 26px 28px; text-align: center; }
+.six-mk .mk-svc-text h3 { font-size: 1.1rem; margin-bottom: 8px; }
+.six-mk .mk-svc-text p { color: var(--mk-t2); font-size: .95rem; margin-bottom: 0; }
+.six-mk .mk-svc-btn {
+  display: inline-block; padding: 0 26px; border-radius: 100px;
+  background: var(--mk-grad); color: #fff; font-weight: 700; font-size: .8rem;
+  text-transform: uppercase; letter-spacing: .06em;
+  opacity: 0; max-height: 0; overflow: hidden; margin-top: 0;
+  transition: opacity .3s ease .1s, max-height .3s ease, margin-top .3s ease, padding .3s ease;
 }
-.six-mk .mk-svc-card:hover .mk-svc-img img { left: 50%; transform: translateX(-50%); }
-
-.six-mk .mk-svc-text h3 { font-size: 1.1rem; margin-bottom: 8px; transition: color .35s ease; }
-.six-mk .mk-svc-text p { color: var(--mk-t2); font-size: .95rem; margin-bottom: 14px; transition: color .35s ease; }
-.six-mk .mk-svc-card:hover .mk-svc-text h3 { color: #fff; }
-.six-mk .mk-svc-card:hover .mk-svc-text p { color: rgba(255,255,255,.92); }
-.six-mk .mk-svc-text .mk-card-link {
-  font-weight: 700; color: #fff; display: inline-flex; align-items: center; gap: 6px;
-  opacity: 0; transition: opacity .3s ease .1s;
+.six-mk .mk-svc-card:hover .mk-svc-btn {
+  opacity: 1; max-height: 44px; margin-top: 16px; padding-top: 11px; padding-bottom: 11px;
 }
-.six-mk .mk-svc-card:hover .mk-svc-text .mk-card-link { opacity: 1; }
 
 /* ── Portal CTA band ────────────────────────────────────── */
 .six-mk .mk-portal-band {
