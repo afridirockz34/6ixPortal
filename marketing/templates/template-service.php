@@ -245,14 +245,14 @@ header( 'Content-Type: text/html; charset=utf-8' );
     <div class="mk-wrap">
       <div class="mk-faq mk-faq-1col">
         <details>
-          <summary><?php echo esc_html( $d['packages_guide']['heading'] ?? 'What website is right for me?' ); ?></summary>
+          <summary><span><?php echo esc_html( $d['packages_guide']['heading'] ?? 'What website is right for me?' ); ?></span><span class="mk-faq-toggle" aria-hidden="true"></span></summary>
           <?php foreach ( (array) ( $d['packages_guide']['items'] ?? array() ) as $g ) : ?>
           <p><strong><?php echo esc_html( $g['title'] ); ?></strong><br><?php echo esc_html( $g['text'] ); ?></p>
           <?php endforeach; ?>
         </details>
         <?php foreach ( (array) ( $d['packages_guide']['qa'] ?? array() ) as $qa ) : ?>
         <details>
-          <summary><?php echo esc_html( $qa['q'] ); ?></summary>
+          <summary><span><?php echo esc_html( $qa['q'] ); ?></span><span class="mk-faq-toggle" aria-hidden="true"></span></summary>
           <p><?php echo esc_html( $qa['a'] ); ?></p>
         </details>
         <?php endforeach; ?>
@@ -275,7 +275,11 @@ header( 'Content-Type: text/html; charset=utf-8' );
       <div class="mk-wrap">
         <div class="mk-feature-row-grid">
           <div class="mk-feature-row-media" style="<?php echo $alt ? 'order:2' : ''; ?>">
+            <?php if ( ! empty( $sec['image'] ) ) : ?>
+            <img src="<?php echo esc_url( $sec['image'] ); ?>" alt="<?php echo esc_attr( $sec['title'] ?? '' ); ?>" loading="lazy">
+            <?php else : ?>
             <span class="mk-feature-row-ic"><?php echo mk_icon( $sec['icon'] ?? 'spark' ); ?></span>
+            <?php endif; ?>
           </div>
           <div class="mk-feature-row-text" style="<?php echo $alt ? 'order:1' : ''; ?>">
             <h3><?php echo esc_html( $sec['title'] ); ?></h3>
@@ -556,7 +560,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
       <div class="mk-faq">
         <?php foreach ( (array) $d['faq'] as $q ) : ?>
         <details>
-          <summary><?php echo esc_html( $q['q'] ); ?></summary>
+          <summary><span><?php echo esc_html( $q['q'] ); ?></span><span class="mk-faq-toggle" aria-hidden="true"></span></summary>
           <p><?php echo esc_html( $q['a'] ); ?></p>
         </details>
         <?php endforeach; ?>
