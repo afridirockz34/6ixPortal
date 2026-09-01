@@ -582,7 +582,18 @@
 /* Actions: button underneath the fields, centered, sensible size */
 .six-mk .mk-form-actions { text-align: center; margin-top: 26px; }
 .six-mk .mk-form-submit { min-width: 240px; }
+.six-mk .mk-form-submit:disabled { opacity: .6; cursor: default; }
 .six-mk .mk-form-note { font-size: .78rem; color: var(--mk-t3, var(--mk-t2)); margin: 14px auto 0; max-width: 46ch; }
+.six-mk .mk-form-error { color: #d93b3b; font-size: .88rem; text-align: center; margin: 14px 0 0; }
+.six-mk .mk-form-success { text-align: center; padding: 30px 10px; font-size: 1.08rem; font-weight: 700; color: var(--mk-t1); }
+
+/* Multi-step forms (marketing/forms.php's mk_step_open()/mk_step_close(),
+   toggled by marketing.js) — only the active step's fields render; the
+   Previous/Next bar persists underneath every step. */
+.six-mk .mk-form-step { display: none; }
+.six-mk .mk-form-step.mk-form-step-active { display: block; }
+.six-mk .mk-form-stepnav { display: flex; justify-content: space-between; gap: 12px; margin-top: 22px; }
+.six-mk .mk-step-prev:disabled { opacity: .45; cursor: default; }
 .six-mk .mk-calc-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .six-mk .mk-calc-row input { flex: 1; min-width: 200px; box-sizing: border-box; padding: 12px 16px; font: inherit;
 	color: var(--mk-t1); background: #fff; border: 1.5px solid var(--mk-border2, #d7dce4); border-radius: 8px; }
@@ -955,6 +966,11 @@
 }
 .six-mk .mk-cstudy-body { padding: 20px 22px 24px; display: flex; flex-direction: column; flex: 1; }
 .six-mk .mk-cstudy-body .mk-eyebrow { margin-bottom: 8px; font-size: .72rem; }
+/* No leading dash/bar directly above the card's title — the eyebrow's
+   ::before accent (a small horizontal bar, used sitewide) reads as a stray
+   dash sitting right above "Sterling & Cole LLP" etc. on these compact
+   cards, so it's suppressed here only (the rest of the site keeps it). */
+.six-mk .mk-cstudy-body .mk-eyebrow::before { content: none; }
 .six-mk .mk-cstudy-body h3 { font-size: 1.16rem; margin: 0 0 8px; }
 .six-mk .mk-cstudy-body p { color: var(--mk-t2); font-size: .95rem; margin-bottom: 16px; }
 .six-mk .mk-cstudy-body .mk-card-link { margin-top: auto; }
