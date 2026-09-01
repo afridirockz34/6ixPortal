@@ -586,6 +586,20 @@
 .six-mk .mk-post h3 { font-size: 1.12rem; margin: 0; }
 .six-mk .mk-post p { font-size: .93rem; color: var(--mk-t2); margin: 0; }
 
+/* ── Single blog post hero — featured image (or the brand gradient when
+   there isn't one) as a full-bleed background, title + excerpt/meta
+   description over it, white text throughout. A dark scrim sits between
+   the photo and the text so it stays readable regardless of the image;
+   the gradient fallback needs no scrim since white text already reads
+   fine on it (same combination .mk-band uses elsewhere). */
+.six-mk .mk-blog-hero { position: relative; padding: 154px 0 60px; background-size: cover; background-position: center; color: #fff; }
+.six-mk .mk-blog-hero-inner { max-width: 780px; }
+.six-mk .mk-blog-hero .mk-eyebrow { color: rgba(255,255,255,.85); }
+.six-mk .mk-blog-hero .mk-eyebrow::before { background: rgba(255,255,255,.75); }
+.six-mk .mk-blog-hero h1 { color: #fff; margin: 10px 0 16px; font-size: clamp(1.9rem,4vw,3rem); }
+.six-mk .mk-blog-hero-desc { color: rgba(255,255,255,.9); font-size: 1.1rem; line-height: 1.65; max-width: 680px; margin: 0; }
+@media (max-width: 620px) { .six-mk .mk-blog-hero { padding: 130px 0 40px; } }
+
 /* ── Interior page hero (shorter than the homepage hero) ── */
 .six-mk .mk-hero-sm { padding: 270px 0 96px; }
 .six-mk .mk-hero-sm h1 { font-size: clamp(2.1rem, 4.4vw, 3.3rem); }
