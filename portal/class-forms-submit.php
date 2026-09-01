@@ -117,7 +117,7 @@ function six_forms_log_submission( $form, $data, $status, $owner_status, $owner_
 	$flat = array();
 	foreach ( (array) $data as $k => $f ) $flat[ $k ] = array( 'label' => $f['label'] ?? $k, 'value' => $f['value'] ?? '' );
 
-	$wpdb->insert( $wpdb->prefix . 'six_form_submissions', array(
+	$row = array(
 		'form_id'               => intval( $form['id'] ?? 0 ),
 		'form_key'              => (string) ( $form['key'] ?? '' ),
 		'form_title'            => (string) ( $form['title'] ?? '' ),
@@ -132,8 +132,20 @@ function six_forms_log_submission( $form, $data, $status, $owner_status, $owner_
 		'source_url'            => isset( $_POST['source_url'] ) ? esc_url_raw( wp_unslash( $_POST['source_url'] ) ) : '',
 		'lead_status'           => 'new',
 		'created_at'            => current_time( 'mysql' ),
-	) );
-	return $wpdb->insert_id;
+	);
+	$wpdb->insert( $wpdb->prefix . 'six_form_submissions', $row );
+	$submission_id = $wpdb->insert_id;
+
+	// Let other systems (Odoo sync, advisor notifications) react to a logged
+	// submission without this file needing to know about them. Skipped for
+	// 'blocked' (failed-captcha / spam) submissions — those aren't real leads.
+	if ( $submission_id && $status !== 'blocked' ) {
+		$row['id']   = $submission_id;
+		$row['data'] = $flat; // structured array, not the JSON string, for hook consumers
+		do_action( 'six_form_submission_logged', $submission_id, $row );
+	}
+
+	return $submission_id;
 }
 
 /** Best-effort real client IP, respecting a trusted reverse-proxy header when present. */
