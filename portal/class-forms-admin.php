@@ -290,6 +290,16 @@ function six_forms_render_submission_detail( $id ) {
 		$row->lead_status = sanitize_key( $_POST['six_forms_lead_status'] );
 		echo '<div class="notice notice-success is-dismissible"><p>Updated.</p></div>';
 	}
+
+	if ( isset( $_POST['six_forms_resync_odoo'] ) && check_admin_referer( 'six_forms_resync_odoo_' . $id ) && function_exists( 'six_forms_resync_odoo' ) ) {
+		$resync = six_forms_resync_odoo( $id );
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}six_form_submissions WHERE id=%d", $id ) );
+		if ( ( $resync['odoo_sync_status'] ?? '' ) === 'synced' ) {
+			echo '<div class="notice notice-success is-dismissible"><p>Resynced to Odoo — lead #' . intval( $row->odoo_lead_id ) . '.</p></div>';
+		} else {
+			echo '<div class="notice notice-error is-dismissible"><p>Odoo resync failed: ' . esc_html( $resync['odoo_sync_error'] ?? 'Unknown error.' ) . '</p></div>';
+		}
+	}
 	?>
 	<div class="wrap">
 		<p><a href="<?php echo esc_url( $back ); ?>">&larr; Back to Form Submissions</a></p>
@@ -328,6 +338,20 @@ function six_forms_render_submission_detail( $id ) {
 			</select>
 			<button type="submit" class="button button-primary">Update</button>
 		</form>
+
+		<h2 style="margin-top:28px">Odoo CRM</h2>
+		<?php if ( $row->odoo_lead_id ) : ?>
+		<p>Synced — a contact and CRM lead were created, and a follow-up task was scheduled for the owner to reach out within 24 hours.<?php if ( get_option( 'six_odoo_url' ) ) : ?> <a href="<?php echo esc_url( rtrim( get_option( 'six_odoo_url' ), '/' ) . '/odoo/crm/' . intval( $row->odoo_lead_id ) ); ?>" target="_blank" rel="noopener">Open lead in Odoo &rarr;</a><?php endif; ?></p>
+		<?php else : ?>
+		<p style="color:#666">Not synced to Odoo yet.</p>
+		<?php if ( ! empty( $row->odoo_sync_error ) ) : ?>
+		<p style="color:#b32d2e;font-size:12px"><strong>Last error:</strong> <?php echo esc_html( $row->odoo_sync_error ); ?></p>
+		<?php endif; ?>
+		<form method="post">
+			<?php wp_nonce_field( 'six_forms_resync_odoo_' . $id ); ?>
+			<button type="submit" name="six_forms_resync_odoo" value="1" class="button">Resync to Odoo</button>
+		</form>
+		<?php endif; ?>
 
 		<p style="margin-top:24px;color:#888;font-size:12px">Source page: <?php echo esc_html( $row->source_url ); ?><br>User agent: <?php echo esc_html( $row->user_agent ); ?></p>
 	</div>

@@ -26,6 +26,11 @@ if ( $view_submission_id ) :
 			$wpdb->update( $sub_table, array( 'lead_status' => $new_status ), array( 'id' => $sub->id ) );
 			$sub->lead_status = $new_status;
 		}
+		$odoo_resync_result = null;
+		if ( isset( $_POST['six_fs_resync_odoo'] ) && check_admin_referer( 'six_fs_resync_odoo_' . $sub->id ) && function_exists( 'six_forms_resync_odoo' ) ) {
+			$odoo_resync_result = six_forms_resync_odoo( $sub->id );
+			$sub = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$sub_table} WHERE id=%d", $sub->id ) );
+		}
 		?>
 	<div class="six-page-header">
 		<div>
@@ -75,13 +80,26 @@ if ( $view_submission_id ) :
 
 	<div class="six-card" style="padding:24px;margin-bottom:20px">
 		<h3 style="margin:0 0 14px;font-size:14px">Odoo CRM</h3>
+		<?php if ( $odoo_resync_result ) : ?>
+		<div style="margin-bottom:12px;padding:10px 12px;border-radius:8px;font-size:12.5px;background:<?php echo ( $odoo_resync_result['odoo_sync_status'] ?? '' ) === 'synced' ? 'rgba(27,158,82,.12)' : 'rgba(220,38,38,.1)'; ?>">
+			<?php echo ( $odoo_resync_result['odoo_sync_status'] ?? '' ) === 'synced' ? 'Resynced successfully.' : 'Resync failed: ' . esc_html( $odoo_resync_result['odoo_sync_error'] ?? '' ); ?>
+		</div>
+		<?php endif; ?>
+
 		<?php if ( $sub->odoo_lead_id ) : ?>
 		<p style="font-size:13px">Synced to Odoo — a contact and CRM lead were created, and a follow-up task was scheduled for the owner to reach out within 24 hours.</p>
 		<?php if ( get_option( 'six_odoo_url' ) ) : ?>
 		<a class="six-btn six-btn-secondary six-btn-sm" target="_blank" rel="noopener" href="<?php echo esc_url( rtrim( get_option( 'six_odoo_url' ), '/' ) . '/odoo/crm/' . intval( $sub->odoo_lead_id ) ); ?>">Open lead in Odoo &rarr;</a>
 		<?php endif; ?>
 		<?php else : ?>
-		<p style="font-size:13px;color:var(--text3)">Not synced to Odoo (Odoo may not be configured, or the sync hasn't run yet).</p>
+		<p style="font-size:13px;color:var(--text3)">Not synced to Odoo yet.</p>
+		<?php if ( ! empty( $sub->odoo_sync_error ) ) : ?>
+		<p style="font-size:12.5px;color:var(--danger,#dc2626);margin-top:6px"><strong>Last error:</strong> <?php echo esc_html( $sub->odoo_sync_error ); ?></p>
+		<?php endif; ?>
+		<form method="post" style="margin-top:10px">
+			<?php wp_nonce_field( 'six_fs_resync_odoo_' . $sub->id ); ?>
+			<button type="submit" name="six_fs_resync_odoo" value="1" class="six-btn six-btn-secondary six-btn-sm">Resync to Odoo</button>
+		</form>
 		<?php endif; ?>
 	</div>
 
@@ -176,7 +194,15 @@ if ( $view_submission_id ) :
 				<td><a href="<?php echo esc_url( $url ); ?>"><?php echo esc_html( $preview ); ?></a></td>
 				<td><?php echo six_fs_status_badge( $r->status ); ?></td>
 				<td><?php echo esc_html( ucfirst( $r->lead_status ) ); ?></td>
-				<td><?php echo $r->odoo_lead_id ? '<span style="color:var(--success,#1b9e52)">Synced</span>' : '<span style="color:var(--text3)">—</span>'; ?></td>
+				<td><?php
+				if ( $r->odoo_lead_id ) {
+					echo '<span style="color:var(--success,#1b9e52)">Synced</span>';
+				} elseif ( ( $r->odoo_sync_status ?? '' ) === 'failed' ) {
+					echo '<span style="color:var(--danger,#dc2626)" title="' . esc_attr( $r->odoo_sync_error ?? '' ) . '">Failed</span>';
+				} else {
+					echo '<span style="color:var(--text3)">—</span>';
+				}
+			?></td>
 				<td><a class="six-btn six-btn-secondary six-btn-sm" href="<?php echo esc_url( $url ); ?>">View</a></td>
 			</tr>
 			<?php endforeach; ?>

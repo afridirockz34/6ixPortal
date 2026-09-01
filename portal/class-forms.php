@@ -74,6 +74,8 @@ function six_forms_create_table() {
 		lead_status varchar(20) NOT NULL DEFAULT 'new',
 		odoo_lead_id bigint(20) NOT NULL DEFAULT 0,
 		odoo_partner_id bigint(20) NOT NULL DEFAULT 0,
+		odoo_sync_status varchar(20) NOT NULL DEFAULT 'pending',
+		odoo_sync_error text,
 		created_at datetime DEFAULT CURRENT_TIMESTAMP,
 		PRIMARY KEY (id),
 		KEY form_key (form_key),
@@ -84,11 +86,12 @@ function six_forms_create_table() {
 // Runs automatically the first time this code is live — not gated behind a
 // manual admin visit, since a missing table would silently drop every
 // submission until someone noticed. Guarded so it only ever runs once.
-// Bumped to v2 to add odoo_lead_id/odoo_partner_id on existing installs —
-// dbDelta() is additive-safe, so this just adds the two new columns.
+// Bumped to v3 to add odoo_sync_status/odoo_sync_error on existing installs
+// (v2 added odoo_lead_id/odoo_partner_id) — dbDelta() is additive-safe, so
+// each bump just adds the new columns without touching existing rows.
 add_action( 'wp_loaded', function () {
-	if ( get_option( 'six_forms_table_v2' ) ) return;
-	update_option( 'six_forms_table_v2', 1 );
+	if ( get_option( 'six_forms_table_v3' ) ) return;
+	update_option( 'six_forms_table_v3', 1 );
 	six_forms_create_table();
 } );
 
