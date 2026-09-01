@@ -81,7 +81,6 @@ header( 'Content-Type: text/html; charset=utf-8' );
   <!-- CONTACT FORM -->
   <section class="mk-section mk-section-sm mk-glow" id="contact-form-section">
     <div class="mk-wrap">
-      <div class="mk-sec-head mk-center"><h2>Send Us a Message</h2></div>
       <?php mk_form( 'contact' ); ?>
     </div>
   </section>
