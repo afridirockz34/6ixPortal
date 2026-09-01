@@ -214,8 +214,12 @@ header( 'Content-Type: text/html; charset=utf-8' );
   </section>
   <?php endif; ?>
 
-  <!-- WHAT OUR CLIENTS SAY — testimonial slider (editable via CPT) -->
-  <section id="six-sec-testimonials" class="mk-section mk-section-sm mk-glow">
+  <!-- WHAT OUR CLIENTS SAY — testimonial slider (editable via CPT). Uses the
+       soft brand-gradient band (mk-section-grad), not the plain grey tint
+       Case Studies uses right above it (mk-glow resolves to that same flat
+       grey outside the hero — see marketing.css) — two flat-grey sections
+       back to back would read as one continuous block with no seam. -->
+  <section id="six-sec-testimonials" class="mk-section mk-section-sm mk-section-grad">
     <div class="mk-wrap">
       <div class="mk-sec-head mk-center">
         <h2><?php echo esc_html( mk_field( 'tst_heading', $home_defaults['tst_heading'] ) ); ?></h2>
