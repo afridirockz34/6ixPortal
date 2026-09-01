@@ -34,9 +34,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .ob-side{background:linear-gradient(160deg,#F0F2F5 0%,#fff 100%);border-right:1px solid var(--bdr);
   padding:48px 40px;display:flex;flex-direction:column;justify-content:space-between;
   position:sticky;top:0;height:100vh;overflow:hidden;}
-.ob-logo{font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:800;
-  background:linear-gradient(135deg,#FF6699 0%,#8781BA 55%,#6ACAFD 100%);
-  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:var(--pk);}
+.ob-logo{display:inline-block;}
 .ob-side-content{flex:1;display:flex;flex-direction:column;justify-content:center;}
 .ob-side-hl{font-family:'Bricolage Grotesque',sans-serif;font-size:26px;font-weight:800;line-height:1.2;margin-bottom:14px;}
 .ob-side-hl span{color:var(--pk);}
@@ -464,7 +462,21 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 
 <div class="ob-wrap">
 <aside class="ob-side">
-  <a class="ob-logo" href="<?php echo esc_url( home_url( '/' ) ); ?>" style="text-decoration:none;cursor:pointer">6ix Developers</a>
+  <?php
+  // The real logo file from the WP media library, with its near-white
+  // "6ix" mark (the numeral + CN Tower + "x") recoloured to navy #031523
+  // so it reads on this sidebar's light background — the brackets and
+  // "DEVELOPERS" wordmark were already in the brand's colours and are
+  // untouched. An admin-set logo (WP Admin → 6ix Site → Logo image, same
+  // field the main site header uses) still takes priority when set.
+  $ob_logo_navy   = SIX_MK_URL . 'assets/img/logo-navy.png';
+  $ob_logo_default = 'https://6ixdevelopers.com/media/logo/new-logo.png';
+  $ob_logo_custom  = mk_opt( 'brand_logo', '' );
+  $ob_logo_src     = $ob_logo_custom && $ob_logo_custom !== $ob_logo_default ? $ob_logo_custom : $ob_logo_navy;
+  ?>
+  <a class="ob-logo" href="<?php echo esc_url( home_url( '/' ) ); ?>" style="text-decoration:none;cursor:pointer">
+    <img src="<?php echo esc_url( $ob_logo_src ); ?>" alt="6ix Developers" style="height:36px;width:auto;display:block">
+  </a>
   <div class="ob-side-content">
     <h2 class="ob-side-hl">Your <span>marketing strategy</span> starts here.</h2>
     <p class="ob-side-desc">Tell us about your business, pick your services, and we'll build a personalised growth plan in minutes.</p>

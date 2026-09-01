@@ -34,17 +34,35 @@ add_action( 'wp_head', function () {
 <body <?php body_class( 'six-mk-body' ); ?>>
 
 <div class="six-mk">
-  <?php include SIX_MK_DIR . 'partials/header.php'; ?>
+  <?php
+  // A single post opens straight into the hero band below with no
+  // separate dark section above it, so the header must render solid from
+  // the start (see the note in header.php) instead of the usual
+  // transparent-until-scroll behaviour.
+  if ( is_singular() ) $six_mk_header_solid = true;
+  include SIX_MK_DIR . 'partials/header.php';
+  ?>
 
-  <?php if ( is_singular() ) : while ( have_posts() ) : the_post(); ?>
-  <!-- SINGLE POST / PAGE -->
-  <article class="mk-section mk-glow" style="padding-top:64px">
+  <?php if ( is_singular() ) : while ( have_posts() ) : the_post();
+    $mk_blog_thumb = has_post_thumbnail() ? get_the_post_thumbnail_url( get_the_ID(), 'full' ) : '';
+    $mk_blog_hero_bg = $mk_blog_thumb
+        ? 'linear-gradient(180deg,rgba(3,21,35,.45),rgba(3,21,35,.82)),url(\'' . esc_url( $mk_blog_thumb ) . '\')'
+        : 'var(--mk-grad)';
+    $mk_blog_desc = get_the_excerpt() ?: wp_trim_words( get_the_content(), 30 );
+  ?>
+  <!-- SINGLE POST / PAGE — featured image as hero background, title +
+       meta description over it, body content in a plain section below. -->
+  <section class="mk-blog-hero" style="background-image:<?php echo esc_attr( $mk_blog_hero_bg ); ?>">
+    <div class="mk-wrap">
+      <div class="mk-blog-hero-inner">
+        <span class="mk-eyebrow"><?php echo esc_html( get_the_date() ); ?></span>
+        <h1><?php the_title(); ?></h1>
+        <?php if ( $mk_blog_desc ) : ?><p class="mk-blog-hero-desc"><?php echo esc_html( $mk_blog_desc ); ?></p><?php endif; ?>
+      </div>
+    </div>
+  </section>
+  <article class="mk-section">
     <div class="mk-wrap" style="max-width:820px">
-      <span class="mk-eyebrow"><?php echo esc_html( get_the_date() ); ?></span>
-      <h1 style="font-size:clamp(1.9rem,4vw,3rem)"><?php the_title(); ?></h1>
-      <?php if ( has_post_thumbnail() ) : ?>
-      <div style="border-radius:18px;overflow:hidden;margin:26px 0"><?php the_post_thumbnail( 'large' ); ?></div>
-      <?php endif; ?>
       <div class="mk-post-content" style="font-size:1.05rem;line-height:1.75">
         <?php the_content(); ?>
       </div>

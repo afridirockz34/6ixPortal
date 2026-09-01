@@ -98,6 +98,32 @@ function mk_f_textarea( $name, $label, $req = false, $ph = '' ) {
 		esc_html( $label ), $req ? ' <span class="mk-req">*</span>' : '', esc_attr( $name ), esc_attr( $ph ), $req ? ' required' : ''
 	);
 }
+/** A <select> whose first option is a disabled placeholder (matches the original site's "Website Type" picker) rather than a labelled field. */
+function mk_f_select_placeholder( $name, $placeholder, $options ) {
+	echo '<div class="mk-field mk-field-full"><select name="' . esc_attr( $name ) . '">';
+	echo '<option disabled selected value="">' . esc_html( $placeholder ) . '</option>';
+	foreach ( (array) $options as $value => $label ) {
+		$value = is_int( $value ) ? $label : $value;
+		echo '<option value="' . esc_attr( $value ) . '">' . esc_html( $label ) . '</option>';
+	}
+	echo '</select></div>';
+}
+/** A single standalone checkbox with its own label (e.g. an upsell opt-in). */
+function mk_f_checkbox( $name, $label, $value = '1' ) {
+	echo '<div class="mk-field mk-field-full mk-field-check">';
+	echo '<label class="mk-check"><input type="checkbox" name="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '"> ' . esc_html( $label ) . '</label>';
+	echo '</div>';
+}
+/** A titled group of checkboxes sharing one array field name (e.g. "Social Media Inquiry"). */
+function mk_f_checkbox_group( $name, $title, $options ) {
+	echo '<div class="mk-field mk-field-full mk-field-checkgroup">';
+	if ( $title ) echo '<label>' . esc_html( $title ) . '</label>';
+	echo '<div class="mk-check-grid">';
+	foreach ( (array) $options as $o ) {
+		echo '<label class="mk-check"><input type="checkbox" name="' . esc_attr( $name ) . '[]" value="' . esc_attr( $o ) . '"> ' . esc_html( $o ) . '</label>';
+	}
+	echo '</div></div>';
+}
 
 /* ── 1. Google Ads $1800 credit eligibility ─────────────────────────────── */
 function mk_form_eligibility( $args = array() ) {
@@ -106,14 +132,18 @@ function mk_form_eligibility( $args = array() ) {
 		$args['sub'] ?? 'Fill out the form below to apply the offer to your account.' );
 	echo '<div class="mk-form-grid">';
 	mk_f_text( 'company1', 'Business name', true );
-	mk_f_select( 'inquiry-typed', 'Choose a sign-up offer', array( 'Up to $600 credit', 'Up to $1800 credit', 'Up to $3600 credit' ), true );
+	mk_f_select( 'inquiry-typed', 'Choose a sign-up offer', array(
+		'$600 in ad credit (Spend $600 with Google Ads in the first 60 days to unlock the credit)',
+		'$1200 in ad credit (Spend $1800 with Google Ads in the first 60 days to unlock the credit)',
+		'$1800 in ad credit (Spend $3600 with Google Ads in the first 60 days to unlock the credit)',
+	), true );
 	mk_f_select( 'account-type', 'Do you already have a Google Ads account?', array( 'Yes', 'No' ), true );
 	mk_f_text( 'website1', 'Provide website URL', true, 'https://' );
 	mk_f_text( 'email1', 'Email address', true, '', 'email' );
 	mk_f_text( 'username1', 'Full name', true, 'Name' );
 	mk_f_text( 'phone1', 'Phone number', false, 'Phone', 'tel' );
 	echo '</div>';
-	echo mk_form_close( 'Claim Now' );
+	echo mk_form_close( 'Check Eligibility' );
 }
 
 /* ── 2. Google Ads audit request ────────────────────────────────────────── */
@@ -122,6 +152,7 @@ function mk_form_audit( $args = array() ) {
 		$args['heading'] ?? 'Google Ads Audit Request',
 		$args['sub'] ?? 'Tell us about your account and our certified specialists will audit it for you.' );
 	echo '<div class="mk-form-grid">';
+	mk_f_select( 'audit-inquiry-type', 'Are you requesting an account audit for your business or someone else?', array( 'My Business', "Someone Else's Business" ), true );
 	mk_f_text( 'aboutbusiness', 'Tell us about your Business / Industry', true );
 	mk_f_text( 'audit-company-name', 'Business name', true );
 	mk_f_text( 'audit-website', 'Provide website URL', true, 'https://' );
@@ -137,7 +168,7 @@ function mk_form_audit( $args = array() ) {
 	mk_f_text( 'audit-email', 'Email address', true, 'Email', 'email' );
 	mk_f_text( 'audit-phone', 'Phone number', false, 'Phone', 'tel' );
 	echo '</div>';
-	echo mk_form_close( 'Request My Audit' );
+	echo mk_form_close( 'SEND MESSAGE' );
 }
 
 /* ── 3. Monthly management cost calculator ──────────────────────────────── */
@@ -146,7 +177,7 @@ function mk_form_calc( $args = array() ) { ?>
 		<h3 class="mk-form-title"><?php echo esc_html( $args['heading'] ?? 'Find out your monthly management cost' ); ?></h3>
 		<div class="mk-calc-row">
 			<input type="text" id="mk-calc-field" inputmode="numeric" placeholder="Enter your monthly Google Ads budget">
-			<button type="button" class="mk-btn mk-btn-primary" onclick="mkCalcManagement()">Calculate</button>
+			<button type="button" class="mk-btn mk-btn-primary" onclick="mkCalcManagement()">Calculate Now</button>
 		</div>
 		<div class="mk-calc-out" id="mk-calc-out"></div>
 		<p class="mk-form-note">Our management fee is $799/month or 15% of your monthly Google Ads budget, whichever is greater.</p>
@@ -164,33 +195,87 @@ function mk_form_calc( $args = array() ) { ?>
 	<?php
 }
 
-/* ── 4. Quote / consultation (used across service pages) ────────────────── */
+/* ── 4. Quote / consultation (used across service pages) ─────────────────
+   Each service page's quote form on the original site is genuinely a
+   different form, not one generic template — Website Design has a
+   package picker + a Google Ads upsell checkbox, SEO has a keywords
+   field, Social Media has a checkbox group instead of a dropdown, and
+   none of their fields are marked required (unlike the Eligibility/Audit
+   forms). $args['variant'] picks which of those exact field sets to
+   render; anything else (currently just the Google Ads page's
+   consultation form, which has no live counterpart on the original site
+   to copy) falls back to a generic goal-select form. */
 function mk_form_quote( $args = array() ) {
-	$goals = $args['goal_options'] ?? array( 'Google Ads / PPC', 'SEO', 'Website Design', 'Social Media', 'Not sure yet' );
 	echo mk_form_open( $args['id'] ?? 'quote-form',
 		$args['heading'] ?? 'Get Your Free Quote',
 		$args['sub'] ?? 'Tell us what you need and a specialist will get back to you within one business day.' );
 	echo '<div class="mk-form-grid">';
-	mk_f_select( 'inquiry-type', $args['goal_label'] ?? 'Choose your marketing goal', $goals, true );
-	mk_f_text( 'website', 'Provide website URL', false, 'Current website' );
-	mk_f_text( 'company', 'Business name', true );
-	mk_f_text( 'username', 'Full name', true );
-	mk_f_text( 'email', 'Email address', true, '', 'email' );
-	mk_f_text( 'phone', 'Phone number', false, '', 'tel' );
+
+	switch ( $args['variant'] ?? '' ) {
+	case 'website-design':
+		mk_f_text( 'username', 'Full name', false, 'Name' );
+		mk_f_text( 'email', 'Email address', false, 'Email', 'email' );
+		mk_f_text( 'phone', 'Phone number', false, 'Phone', 'tel' );
+		mk_f_text( 'website', 'Provide website URL', false, 'Current Website' );
+		mk_f_select_placeholder( 'package', 'Website Type', array(
+			'Starter'  => 'Starter (1 to 5 Pages)',
+			'Standard' => 'Standard (6 to 12 Pages)',
+			'Advanced' => 'Advanced / E-Commerce (13+ Pages)',
+		) );
+		mk_f_textarea( 'textarea', 'Additional information', false, 'Message' );
+		mk_f_checkbox( 'claim-google-ads', 'Claim Free Google Ads Setup Valued $1500' );
+		break;
+
+	case 'seo':
+		mk_f_text( 'username', 'Full name', false, 'Name' );
+		mk_f_text( 'email', 'Email address', false, 'Email', 'email' );
+		mk_f_text( 'phone', 'Phone number', false, 'Phone', 'tel' );
+		mk_f_text( 'company', 'Business name', false, 'Company' );
+		mk_f_text( 'website', 'Provide website URL', false, 'Current Website' );
+		mk_f_text( 'keywords', 'Keywords', false, 'Enter keywords separated by comma' );
+		mk_f_textarea( 'textarea', 'Additional information', false, 'Message' );
+		break;
+
+	case 'social-media':
+		mk_f_text( 'username', 'Full name', false, 'Name' );
+		mk_f_text( 'email', 'Email address', false, 'Email', 'email' );
+		mk_f_text( 'phone', 'Phone number', false, 'Phone', 'tel' );
+		mk_f_text( 'company', 'Business name', false, 'Company' );
+		mk_f_text( 'website', 'Provide website URL', false, 'Current Website' );
+		mk_f_checkbox_group( 'chk', 'Social Media Inquiry', array(
+			'Social Media Management', 'Social Media Paid Advertising', 'Social Media Organic Engagement', 'Social Media Brand Awareness',
+		) );
+		mk_f_textarea( 'textarea', 'Additional information', false, 'Message' );
+		break;
+
+	default: // Google Ads consultation — no live original-site form to copy; generic goal-select form.
+		$goals = $args['goal_options'] ?? array( 'Google Ads / PPC', 'SEO', 'Website Design', 'Social Media', 'Not sure yet' );
+		mk_f_select( 'inquiry-type', $args['goal_label'] ?? 'Choose your marketing goal', $goals, true );
+		mk_f_text( 'website', 'Provide website URL', false, 'Current website' );
+		mk_f_text( 'company', 'Business name', true );
+		mk_f_text( 'username', 'Full name', true );
+		mk_f_text( 'email', 'Email address', true, '', 'email' );
+		mk_f_text( 'phone', 'Phone number', false, '', 'tel' );
+		echo '</div>';
+		mk_f_textarea( 'textarea', 'Additional information', false, 'Message' );
+		echo mk_form_close( $args['submit'] ?? 'Get My Quote' );
+		return;
+	}
+
 	echo '</div>';
-	mk_f_textarea( 'textarea', 'Additional information', false, 'Message' );
-	echo mk_form_close( $args['submit'] ?? 'Get My Quote' );
+	echo mk_form_close( $args['submit'] ?? 'SEND MESSAGE' );
 }
 
 /* ── 5. Contact form ────────────────────────────────────────────────────── */
 function mk_form_contact( $args = array() ) {
-	echo mk_form_open( 'contact-form', $args['heading'] ?? '', $args['sub'] ?? '' );
+	echo mk_form_open( 'contact-form', $args['heading'] ?? 'Book a Call', $args['sub'] ?? '' );
 	echo '<div class="mk-form-grid">';
-	mk_f_text( 'username', 'Full name', true );
-	mk_f_text( 'email', 'Email address', true, '', 'email' );
-	mk_f_text( 'phone', 'Phone number', false, '', 'tel' );
-	mk_f_text( 'company', 'Business name', false );
+	mk_f_text( 'username', 'Full name', false, 'Name' );
+	mk_f_text( 'email', 'Email address', false, 'Email', 'email' );
+	mk_f_text( 'phone', 'Phone number', false, 'Phone', 'tel' );
+	mk_f_text( 'company', 'Business name', false, 'Company' );
+	mk_f_text( 'website', 'Provide website URL', false, 'Current Website' );
 	echo '</div>';
-	mk_f_textarea( 'textarea', 'How can we help?', true, 'Your message' );
-	echo mk_form_close( 'Send Message' );
+	mk_f_textarea( 'textarea', 'How can we help?', false, 'Message' );
+	echo mk_form_close( 'SEND MESSAGE' );
 }

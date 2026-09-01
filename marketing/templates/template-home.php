@@ -214,8 +214,12 @@ header( 'Content-Type: text/html; charset=utf-8' );
   </section>
   <?php endif; ?>
 
-  <!-- WHAT OUR CLIENTS SAY — testimonial slider (editable via CPT) -->
-  <section id="six-sec-testimonials" class="mk-section mk-section-sm mk-glow">
+  <!-- WHAT OUR CLIENTS SAY — testimonial slider (editable via CPT). Uses the
+       soft brand-gradient band (mk-section-grad), not the plain grey tint
+       Case Studies uses right above it (mk-glow resolves to that same flat
+       grey outside the hero — see marketing.css) — two flat-grey sections
+       back to back would read as one continuous block with no seam. -->
+  <section id="six-sec-testimonials" class="mk-section mk-section-sm mk-section-grad">
     <div class="mk-wrap">
       <div class="mk-sec-head mk-center">
         <h2><?php echo esc_html( mk_field( 'tst_heading', $home_defaults['tst_heading'] ) ); ?></h2>
@@ -272,12 +276,14 @@ header( 'Content-Type: text/html; charset=utf-8' );
   <?php endif; ?>
 
   <!-- FINAL CTA (original copy) -->
-  <section id="six-sec-finalcta" class="mk-section mk-glow">
-    <div class="mk-wrap mk-center" style="max-width:760px">
-      <h2 class="mk-grad-text"><?php echo esc_html( mk_field( 'final_heading', $home_defaults['final_heading'] ) ); ?></h2>
-      <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:10px">
-        <a class="mk-btn mk-btn-primary mk-btn-lg" href="<?php echo esc_url( home_url( mk_field( 'final_cta_url', $home_defaults['final_cta_url'] ) ) ); ?>"><?php mk_e( 'final_cta_label', $home_defaults['final_cta_label'] ); ?></a>
-        <a class="mk-btn mk-btn-ghost mk-btn-lg" href="<?php echo esc_url( mk_portal_url() ); ?>">See where your business can grow</a>
+  <section id="six-sec-finalcta" class="mk-section-sm">
+    <div class="mk-wrap">
+      <div class="mk-band">
+        <div class="mk-band-text"><h2 style="font-size:clamp(1.4rem,2.6vw,1.9rem)"><?php echo esc_html( mk_field( 'final_heading', $home_defaults['final_heading'] ) ); ?></h2></div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <a class="mk-btn mk-btn-primary mk-btn-lg" href="<?php echo esc_url( home_url( mk_field( 'final_cta_url', $home_defaults['final_cta_url'] ) ) ); ?>"><?php mk_e( 'final_cta_label', $home_defaults['final_cta_label'] ); ?></a>
+          <a class="mk-btn mk-btn-lg" style="background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.4)" href="<?php echo esc_url( mk_portal_url() ); ?>">See where your business can grow</a>
+        </div>
       </div>
     </div>
   </section>

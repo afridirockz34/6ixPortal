@@ -66,6 +66,12 @@
    section above/below it without a hard border, e.g. Case Studies sitting
    between two otherwise-white sections. */
 .six-mk .mk-section-tint { background: var(--mk-surface2); }
+/* Soft brand-gradient wash — a second, visually distinct band for a section
+   that itself sits directly against a .mk-section-tint band (e.g.
+   Testimonials right after Case Studies): flat grey next to flat grey would
+   read as one continuous block with no seam, so this uses the brand
+   gradient instead of repeating the same greyscale tint. */
+.six-mk .mk-section-grad { background: var(--mk-grad-soft); }
 .six-mk .mk-glow { position: relative; overflow: hidden; }
 .six-mk .mk-glow::before {
   content: ''; position: absolute; inset: -20% -10% auto -10%; height: 520px;
@@ -564,6 +570,15 @@
 	background-repeat: no-repeat; background-position: right 14px center; padding-right: 38px; }
 /* Captcha = a normal, constrained field */
 .six-mk .mk-field-captcha { max-width: 260px; margin: 20px auto 0; }
+/* Checkbox fields (single upsell opt-in, or a titled multi-select group) */
+.six-mk .mk-field-checkgroup > label { display: block; margin-bottom: 4px; }
+.six-mk .mk-check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; }
+.six-mk .mk-check {
+	display: flex; align-items: center; gap: 9px; font-size: .92rem; color: var(--mk-t2);
+	font-weight: 400; cursor: pointer;
+}
+.six-mk .mk-check input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--mk-pink); flex-shrink: 0; cursor: pointer; }
+@media (max-width: 480px) { .six-mk .mk-check-grid { grid-template-columns: 1fr; } }
 /* Actions: button underneath the fields, centered, sensible size */
 .six-mk .mk-form-actions { text-align: center; margin-top: 26px; }
 .six-mk .mk-form-submit { min-width: 240px; }
@@ -577,6 +592,39 @@
 	.six-mk .mk-form-submit { width: 100%; min-width: 0; }
 }
 
+/* Ninja Forms embed (mk_form()'s Ninja Forms override path) — Ninja
+   Forms' own default frontend markup/classes, restyled to match the
+   built-in form clones above so a swapped-in form still looks native and
+   its title/submit button are never invisible. Selectors are kept broad
+   (multiple plausible NF class names) since this is styled without a
+   live Ninja Forms install to verify the exact markup against — see the
+   caveat in marketing/ninja-forms.php. */
+.six-mk .mk-form-embed { max-width: 640px; margin: 0 auto; }
+.six-mk .mk-form-embed .nf-form-title,
+.six-mk .mk-form-embed .nf-form-fields-required { display: block; text-align: center; }
+.six-mk .mk-form-embed .nf-form-title h3 { font-size: clamp(1.4rem, 2.6vw, 1.9rem); margin: 0 0 6px; }
+.six-mk .mk-form-embed input[type="text"],
+.six-mk .mk-form-embed input[type="email"],
+.six-mk .mk-form-embed input[type="tel"],
+.six-mk .mk-form-embed input[type="number"],
+.six-mk .mk-form-embed select,
+.six-mk .mk-form-embed textarea {
+	width: 100%; box-sizing: border-box; padding: 12px 16px; font: inherit; color: var(--mk-t1);
+	background: #fff; border: 1.5px solid var(--mk-border2, #d7dce4); border-radius: 8px; transition: border-color .15s;
+}
+.six-mk .mk-form-embed input:focus,
+.six-mk .mk-form-embed select:focus,
+.six-mk .mk-form-embed textarea:focus { outline: none; border-color: var(--mk-pink); }
+.six-mk .mk-form-embed label { font-size: .82rem; font-weight: 600; color: var(--mk-t2); }
+.six-mk .mk-form-embed .nf-field-container { margin-bottom: 18px; }
+.six-mk .mk-form-embed input[type="submit"],
+.six-mk .mk-form-embed button[type="submit"] {
+	display: block; margin: 26px auto 0; min-width: 240px; padding: 15px 32px; border: none; border-radius: 100px;
+	background: var(--mk-grad); color: #fff; font-weight: 700; font-size: 1rem; cursor: pointer;
+}
+.six-mk .mk-form-embed input[type="submit"]:hover,
+.six-mk .mk-form-embed button[type="submit"]:hover { opacity: .92; }
+
 /* ── Blog cards ─────────────────────────────────────────── */
 .six-mk .mk-post { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
 .six-mk .mk-post-thumb { aspect-ratio: 16/9; background: var(--mk-grad-soft); }
@@ -585,6 +633,20 @@
 .six-mk .mk-post-date { font-size: .8rem; color: var(--mk-t3); font-family: var(--mk-num); }
 .six-mk .mk-post h3 { font-size: 1.12rem; margin: 0; }
 .six-mk .mk-post p { font-size: .93rem; color: var(--mk-t2); margin: 0; }
+
+/* ── Single blog post hero — featured image (or the brand gradient when
+   there isn't one) as a full-bleed background, title + excerpt/meta
+   description over it, white text throughout. A dark scrim sits between
+   the photo and the text so it stays readable regardless of the image;
+   the gradient fallback needs no scrim since white text already reads
+   fine on it (same combination .mk-band uses elsewhere). */
+.six-mk .mk-blog-hero { position: relative; padding: 154px 0 60px; background-size: cover; background-position: center; color: #fff; }
+.six-mk .mk-blog-hero-inner { max-width: 780px; }
+.six-mk .mk-blog-hero .mk-eyebrow { color: rgba(255,255,255,.85); }
+.six-mk .mk-blog-hero .mk-eyebrow::before { background: rgba(255,255,255,.75); }
+.six-mk .mk-blog-hero h1 { color: #fff; margin: 10px 0 16px; font-size: clamp(1.9rem,4vw,3rem); }
+.six-mk .mk-blog-hero-desc { color: rgba(255,255,255,.9); font-size: 1.1rem; line-height: 1.65; max-width: 680px; margin: 0; }
+@media (max-width: 620px) { .six-mk .mk-blog-hero { padding: 130px 0 40px; } }
 
 /* ── Interior page hero (shorter than the homepage hero) ── */
 .six-mk .mk-hero-sm { padding: 270px 0 96px; }

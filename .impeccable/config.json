@@ -29,6 +29,15 @@
         ],
         "createdAt": "2026-08-31T17:04:29.495Z",
         "reason": "The pink left-border accordion row is a literal, verified match to the original 6ixdevelopers.com site's own FAQ/accordion design (confirmed this session by fetching and locally rendering the real site's live HTML+CSS and screenshotting it) — the user explicitly asked this page be rebuilt to match that old design exactly. Not a generic AI-slop default; it's a deliberate reproduction of a real, pre-existing design the client already had."
+      },
+      {
+        "rule": "codex-grid-background",
+        "value": "*",
+        "files": [
+          "marketing/assets/marketing.css"
+        ],
+        "createdAt": "2026-09-01T16:34:17.283Z",
+        "reason": "Deliberate grid-mesh overlay on the homepage's dark aurora hero (.mk-hero::before) — part of the intentional 'AI/tech first impression' hero design built and tuned earlier this session (incl. a dedicated mobile-perf pass on the aurora effect), not an accidental generated-UI artifact."
       }
     ]
   }

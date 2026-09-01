@@ -59,11 +59,14 @@ function six_nf_form_specs() {
     return array(
         'eligibility' => array(
             'title'  => 'Google Ads $1800 Credit Eligibility',
-            'submit' => 'Claim Now',
+            'submit' => 'Check Eligibility',
             'fields' => array(
                 array( 'type' => 'textbox',    'key' => 'company1',       'label' => 'Business name', 'required' => true ),
-                array( 'type' => 'listselect', 'key' => 'inquiry-typed',  'label' => 'Choose a sign-up offer', 'required' => true,
-                    'options' => array( 'Up to $600 credit', 'Up to $1800 credit', 'Up to $3600 credit' ) ),
+                array( 'type' => 'listselect', 'key' => 'inquiry-typed',  'label' => 'Choose a sign-up offer', 'required' => true, 'options' => array(
+                    '$600 in ad credit (Spend $600 with Google Ads in the first 60 days to unlock the credit)',
+                    '$1200 in ad credit (Spend $1800 with Google Ads in the first 60 days to unlock the credit)',
+                    '$1800 in ad credit (Spend $3600 with Google Ads in the first 60 days to unlock the credit)',
+                ) ),
                 array( 'type' => 'listselect', 'key' => 'account-type',   'label' => 'Do you already have a Google Ads account?', 'required' => true,
                     'options' => array( 'Yes', 'No' ) ),
                 array( 'type' => 'textbox',    'key' => 'website1',       'label' => 'Provide website URL', 'required' => true, 'placeholder' => 'https://' ),
@@ -74,8 +77,10 @@ function six_nf_form_specs() {
         ),
         'audit' => array(
             'title'  => 'Google Ads Audit Request',
-            'submit' => 'Request My Audit',
+            'submit' => 'SEND MESSAGE',
             'fields' => array(
+                array( 'type' => 'listselect', 'key' => 'audit-inquiry-type', 'label' => 'Are you requesting an account audit for your business or someone else?', 'required' => true,
+                    'options' => array( 'My Business', "Someone Else's Business" ) ),
                 array( 'type' => 'textbox', 'key' => 'aboutbusiness',       'label' => 'Tell us about your Business / Industry', 'required' => true ),
                 array( 'type' => 'textbox', 'key' => 'audit-company-name',  'label' => 'Business name', 'required' => true ),
                 array( 'type' => 'textbox', 'key' => 'audit-website',       'label' => 'Provide website URL', 'required' => true, 'placeholder' => 'https://' ),
@@ -93,13 +98,27 @@ function six_nf_form_specs() {
             ),
         ),
 
-        // The four service pages' Quote/consultation forms — same field set,
-        // different goal question + options + submit label per page, and
-        // each independently swappable (see mk_form()'s $args['id'] lookup).
+        // The four service pages' Quote/consultation forms — each genuinely
+        // a different form on the original site (not one shared template):
+        // Website Design has a package picker + a Google Ads upsell
+        // checkbox, SEO has a keywords field, Social Media has a checkbox
+        // group instead of a dropdown, and none of their fields are
+        // required (unlike Eligibility/Audit above). The Google Ads page's
+        // "consultation" form has no live original-site counterpart to
+        // copy, so it keeps the earlier generic goal-select shape.
         'quote-website-design' => array(
-            'title'  => 'Get Quote Now — Website Design',
-            'submit' => 'Get My Quote',
-            'fields' => $quote_fields( 'What kind of website do you need?', array( 'New website', 'Website redesign', 'E-commerce store', 'Landing page', 'Not sure yet' ) ),
+            'title'  => 'Get Quote Now',
+            'submit' => 'SEND MESSAGE',
+            'fields' => array(
+                array( 'type' => 'textbox',    'key' => 'username', 'label' => 'Full name', 'required' => false, 'placeholder' => 'Name' ),
+                array( 'type' => 'email',      'key' => 'email',    'label' => 'Email address', 'required' => false, 'placeholder' => 'Email' ),
+                array( 'type' => 'phone',      'key' => 'phone',    'label' => 'Phone number', 'required' => false, 'placeholder' => 'Phone' ),
+                array( 'type' => 'textbox',    'key' => 'website',  'label' => 'Provide website URL', 'required' => false, 'placeholder' => 'Current Website' ),
+                array( 'type' => 'listselect', 'key' => 'package',  'label' => 'Website Type', 'required' => false,
+                    'options' => array( 'Starter (1 to 5 Pages)', 'Standard (6 to 12 Pages)', 'Advanced / E-Commerce (13+ Pages)' ) ),
+                array( 'type' => 'textarea',   'key' => 'textarea', 'label' => 'Additional information', 'required' => false, 'placeholder' => 'Message' ),
+                array( 'type' => 'checkbox',   'key' => 'claim-google-ads', 'label' => 'Claim Free Google Ads Setup Valued $1500', 'required' => false ),
+            ),
         ),
         'consultation-form' => array(
             'title'  => 'Book Your Google Ads Consultation',
@@ -108,24 +127,47 @@ function six_nf_form_specs() {
         ),
         'quote-seo' => array(
             'title'  => 'Schedule SEO Call Today',
-            'submit' => 'Schedule My Call',
-            'fields' => $quote_fields( 'What are your SEO goals?', array( 'Rank higher on Google', 'More organic traffic', 'Local SEO / Google Maps', 'Recover lost rankings', 'Not sure yet' ) ),
+            'submit' => 'SEND MESSAGE',
+            'fields' => array(
+                array( 'type' => 'textbox', 'key' => 'username', 'label' => 'Full name', 'required' => false, 'placeholder' => 'Name' ),
+                array( 'type' => 'email',   'key' => 'email',    'label' => 'Email address', 'required' => false, 'placeholder' => 'Email' ),
+                array( 'type' => 'phone',   'key' => 'phone',    'label' => 'Phone number', 'required' => false, 'placeholder' => 'Phone' ),
+                array( 'type' => 'textbox', 'key' => 'company',  'label' => 'Business name', 'required' => false, 'placeholder' => 'Company' ),
+                array( 'type' => 'textbox', 'key' => 'website',  'label' => 'Provide website URL', 'required' => false, 'placeholder' => 'Current Website' ),
+                array( 'type' => 'textbox', 'key' => 'keywords', 'label' => 'Keywords', 'required' => false, 'placeholder' => 'Enter keywords separated by comma' ),
+                array( 'type' => 'textarea','key' => 'textarea', 'label' => 'Additional information', 'required' => false, 'placeholder' => 'Message' ),
+            ),
         ),
         'quote-social-media' => array(
-            'title'  => 'Get Quote Now — Social Media',
-            'submit' => 'Get My Quote',
-            'fields' => $quote_fields( 'Social Media Inquiry', array( 'Grow my following', 'Social media management', 'Paid social advertising', 'Branding & content', 'Not sure yet' ) ),
+            'title'  => 'Get Quote Now',
+            'submit' => 'SEND MESSAGE',
+            'fields' => array(
+                array( 'type' => 'textbox',  'key' => 'username', 'label' => 'Full name', 'required' => false, 'placeholder' => 'Name' ),
+                array( 'type' => 'email',    'key' => 'email',    'label' => 'Email address', 'required' => false, 'placeholder' => 'Email' ),
+                array( 'type' => 'phone',    'key' => 'phone',    'label' => 'Phone number', 'required' => false, 'placeholder' => 'Phone' ),
+                array( 'type' => 'textbox',  'key' => 'company',  'label' => 'Business name', 'required' => false, 'placeholder' => 'Company' ),
+                array( 'type' => 'textbox',  'key' => 'website',  'label' => 'Provide website URL', 'required' => false, 'placeholder' => 'Current Website' ),
+                // The original site groups these as one "Social Media Inquiry"
+                // checkbox set sharing an array field name — Ninja Forms has
+                // no native equivalent, so each is its own checkbox field here.
+                array( 'type' => 'checkbox', 'key' => 'chk-management', 'label' => 'Social Media Management', 'required' => false ),
+                array( 'type' => 'checkbox', 'key' => 'chk-paid',       'label' => 'Social Media Paid Advertising', 'required' => false ),
+                array( 'type' => 'checkbox', 'key' => 'chk-organic',    'label' => 'Social Media Organic Engagement', 'required' => false ),
+                array( 'type' => 'checkbox', 'key' => 'chk-brand',      'label' => 'Social Media Brand Awareness', 'required' => false ),
+                array( 'type' => 'textarea', 'key' => 'textarea', 'label' => 'Additional information', 'required' => false, 'placeholder' => 'Message' ),
+            ),
         ),
 
         'contact' => array(
-            'title'  => 'Contact Form',
-            'submit' => 'Send Message',
+            'title'  => 'Book a Call',
+            'submit' => 'SEND MESSAGE',
             'fields' => array(
-                array( 'type' => 'textbox',  'key' => 'username', 'label' => 'Full name', 'required' => true ),
-                array( 'type' => 'email',    'key' => 'email',    'label' => 'Email address', 'required' => true ),
-                array( 'type' => 'phone',    'key' => 'phone',    'label' => 'Phone number', 'required' => false ),
-                array( 'type' => 'textbox',  'key' => 'company',  'label' => 'Business name', 'required' => false ),
-                array( 'type' => 'textarea', 'key' => 'textarea', 'label' => 'How can we help?', 'required' => true, 'placeholder' => 'Your message' ),
+                array( 'type' => 'textbox',  'key' => 'username', 'label' => 'Full name', 'required' => false, 'placeholder' => 'Name' ),
+                array( 'type' => 'email',    'key' => 'email',    'label' => 'Email address', 'required' => false, 'placeholder' => 'Email' ),
+                array( 'type' => 'phone',    'key' => 'phone',    'label' => 'Phone number', 'required' => false, 'placeholder' => 'Phone' ),
+                array( 'type' => 'textbox',  'key' => 'company',  'label' => 'Business name', 'required' => false, 'placeholder' => 'Company' ),
+                array( 'type' => 'textbox',  'key' => 'website',  'label' => 'Provide website URL', 'required' => false, 'placeholder' => 'Current Website' ),
+                array( 'type' => 'textarea', 'key' => 'textarea', 'label' => 'How can we help?', 'required' => false, 'placeholder' => 'Message' ),
             ),
         ),
     );
@@ -215,7 +257,12 @@ function six_nf_build_import_data( $key, $spec ) {
             'title'            => $spec['title'],
             'key'              => 'six_' . str_replace( '-', '_', $key ),
             'default_label_pos'=> 'above',
-            'show_title'       => false,
+            // Was false — every form section on the site is meant to open
+            // with a real heading (matching the original site's <h2>/<h3>
+            // above each form); leaving Ninja Forms' own title suppressed
+            // made every swapped-in form open straight into fields with no
+            // heading at all.
+            'show_title'       => true,
             'clear_complete'   => 1,
             'hide_complete'    => 0,
         ),
