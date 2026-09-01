@@ -89,11 +89,13 @@ header( 'Content-Type: text/html; charset=utf-8' );
   <?php mk_portal_band( array( 'heading' => 'Prefer to see your numbers first?' ) ); ?>
 
   <!-- FINAL CTA -->
-  <section class="mk-section mk-glow">
-    <div class="mk-wrap mk-center" style="max-width:760px">
-      <h2 class="mk-grad-text">Ready to find out what sets 6ix Developers apart?</h2>
-      <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:10px">
-        <a class="mk-btn mk-btn-primary mk-btn-lg" href="<?php echo esc_url( mk_portal_url() ); ?>">Get free consultation now</a>
+  <section class="mk-section-sm">
+    <div class="mk-wrap">
+      <div class="mk-band">
+        <div class="mk-band-text"><h2 style="font-size:clamp(1.4rem,2.6vw,1.9rem)">Ready to find out what sets 6ix Developers apart?</h2></div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <a class="mk-btn mk-btn-primary mk-btn-lg" href="<?php echo esc_url( mk_portal_url() ); ?>">Get free consultation now</a>
+        </div>
       </div>
     </div>
   </section>

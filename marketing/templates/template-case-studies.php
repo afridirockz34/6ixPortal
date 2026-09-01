@@ -60,12 +60,14 @@ header( 'Content-Type: text/html; charset=utf-8' );
   <?php mk_portal_band( array( 'heading' => 'Could your business be our next success story?' ) ); ?>
 
   <!-- FINAL CTA -->
-  <section class="mk-section mk-glow">
-    <div class="mk-wrap mk-center" style="max-width:760px">
-      <h2 class="mk-grad-text">Ready to find out what sets 6ix Developers apart?</h2>
-      <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:10px">
-        <a class="mk-btn mk-btn-primary mk-btn-lg" href="<?php echo esc_url( home_url( '/contact-us' ) ); ?>">Get free consultation now</a>
-        <a class="mk-btn mk-btn-ghost mk-btn-lg" href="<?php echo esc_url( mk_portal_url() ); ?>">Find out how your business is doing</a>
+  <section class="mk-section-sm">
+    <div class="mk-wrap">
+      <div class="mk-band">
+        <div class="mk-band-text"><h2 style="font-size:clamp(1.4rem,2.6vw,1.9rem)">Ready to find out what sets 6ix Developers apart?</h2></div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <a class="mk-btn mk-btn-primary mk-btn-lg" href="<?php echo esc_url( home_url( '/contact-us' ) ); ?>">Get free consultation now</a>
+          <a class="mk-btn mk-btn-lg" style="background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.4)" href="<?php echo esc_url( mk_portal_url() ); ?>">Find out how your business is doing</a>
+        </div>
       </div>
     </div>
   </section>
