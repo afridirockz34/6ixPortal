@@ -34,7 +34,9 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .ob-side{background:linear-gradient(160deg,#F0F2F5 0%,#fff 100%);border-right:1px solid var(--bdr);
   padding:48px 40px;display:flex;flex-direction:column;justify-content:space-between;
   position:sticky;top:0;height:100vh;overflow:hidden;}
-.ob-logo{font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:800;color:var(--pk);}
+.ob-logo{font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:800;
+  background:linear-gradient(135deg,#FF6699 0%,#8781BA 55%,#6ACAFD 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:var(--pk);}
 .ob-side-content{flex:1;display:flex;flex-direction:column;justify-content:center;}
 .ob-side-hl{font-family:'Bricolage Grotesque',sans-serif;font-size:26px;font-weight:800;line-height:1.2;margin-bottom:14px;}
 .ob-side-hl span{color:var(--pk);}
