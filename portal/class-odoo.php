@@ -1923,6 +1923,175 @@ Best,
 
         return $results;
     }
+
+    // ═════════════════════════════════════════════════════════════════════
+    // SECTION 16 — WEBSITE FORM SUBMISSIONS (six_form_submissions → CRM)
+    //
+    // Unlike sync_lead()/create_or_update_contact() above, a form submission
+    // has NO WordPress user — it's an anonymous visitor filling out a lead
+    // form. This section creates the res.partner + crm.lead + follow-up
+    // task directly from the submitted field data, with no user_id anywhere
+    // in the chain. Called from portal/class-forms-integrations.php right
+    // after a submission is logged.
+    // ═════════════════════════════════════════════════════════════════════
+
+    /**
+     * Best-effort extraction of name / email / phone / company / website out
+     * of a submission's flattened field data ({key: {label, value}}). Field
+     * keys differ per form, so this matches on label text rather than key.
+     */
+    private static function extract_contact_fields( array $data ) {
+        $out = array( 'name' => '', 'email' => '', 'phone' => '', 'company' => '', 'website' => '' );
+        foreach ( $data as $f ) {
+            $label = strtolower( (string) ( $f['label'] ?? '' ) );
+            $value = trim( (string) ( $f['value'] ?? '' ) );
+            if ( $value === '' ) continue;
+
+            if ( ! $out['email'] && is_email( $value ) ) {
+                $out['email'] = $value;
+                continue;
+            }
+            if ( ! $out['phone'] && preg_match( '/phone|tel|mobile|contact number/', $label ) ) {
+                $out['phone'] = $value;
+                continue;
+            }
+            if ( ! $out['website'] && ( preg_match( '/website|url|domain/', $label ) || preg_match( '#^https?://#i', $value ) ) ) {
+                $out['website'] = $value;
+                continue;
+            }
+            if ( ! $out['company'] && preg_match( '/business|company|organi[sz]ation/', $label ) ) {
+                $out['company'] = $value;
+                continue;
+            }
+            if ( ! $out['name'] && preg_match( '/^(your\s+)?(full\s+)?name$|first\s*name|contact\s*name/', $label ) ) {
+                $out['name'] = $value;
+                continue;
+            }
+        }
+        // Fallback: no field explicitly labelled "name" — use the first
+        // short, letters-only value that isn't already claimed as something else.
+        if ( ! $out['name'] ) {
+            foreach ( $data as $f ) {
+                $value = trim( (string) ( $f['value'] ?? '' ) );
+                if ( $value !== '' && $value !== $out['email'] && $value !== $out['phone']
+                    && $value !== $out['company'] && $value !== $out['website']
+                    && preg_match( '/^[A-Za-z ,.\'-]{2,60}$/', $value ) ) {
+                    $out['name'] = $value;
+                    break;
+                }
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Sync one website form submission into Odoo:
+     *  1. Create/update a res.partner (by email if we found one).
+     *  2. Create a crm.lead in the "Website Form Submission" stage with every
+     *     submitted field, plus when/where it was submitted, in the description.
+     *  3. Schedule a To-Do activity due tomorrow telling the owner to contact
+     *     the lead within 24 hours (Odoo's date_deadline is date-only, so the
+     *     "within 24 hours" instruction is spelled out in the activity text).
+     *
+     * @param array $sub Associative: form_title, form_key, data (array of
+     *                   {label,value} keyed by field key), created_at,
+     *                   source_url, ip.
+     * @return array|false array('lead_id'=>int, 'partner_id'=>int) or false
+     *                      if Odoo isn't configured / the sync failed.
+     */
+    public static function sync_form_submission( array $sub ) {
+        $c = self::creds();
+        if ( ! $c['url'] || ! $c['db'] || ! $c['user'] || ! $c['api_key'] ) return false;
+
+        $data = is_array( $sub['data'] ?? null ) ? $sub['data'] : array();
+        $contact = self::extract_contact_fields( $data );
+        $form_title = (string) ( $sub['form_title'] ?? '' ) ?: (string) ( $sub['form_key'] ?? 'Website form' );
+        $display_name = $contact['name'] ?: ( $contact['email'] ?: 'Website visitor' );
+
+        // ── 1. Contact (res.partner) — only if we have an email to key on ──
+        $partner_id = 0;
+        if ( $contact['email'] ) {
+            $pdata = array_filter( array(
+                'name'    => $display_name,
+                'email'   => $contact['email'],
+                'phone'   => $contact['phone'],
+                'website' => $contact['website'],
+            ) );
+            if ( $contact['company'] ) $pdata['company_name'] = $contact['company'];
+            $pdata['comment'] = 'Source: 6ix Developers website — "' . $form_title . '" form submission';
+
+            $ex = self::execute( 'res.partner', 'search_read',
+                array( array( array( 'email', '=', $contact['email'] ) ) ),
+                array( 'fields' => array( 'id' ), 'limit' => 1 ) );
+            if ( ! empty( $ex[0]['id'] ) ) {
+                $partner_id = intval( $ex[0]['id'] );
+                self::execute( 'res.partner', 'write', array( array( $partner_id ), $pdata ) );
+            } else {
+                $pid = self::execute( 'res.partner', 'create', array( $pdata ) );
+                if ( is_int( $pid ) && $pid > 0 ) $partner_id = $pid;
+            }
+        }
+
+        // ── 2. Lead (crm.lead) ──────────────────────────────────────────
+        $stage_id = self::get_stage_id( 'Website Form Submission' );
+
+        $when  = ! empty( $sub['created_at'] ) ? $sub['created_at'] : current_time( 'mysql' );
+        $where = ! empty( $sub['source_url'] ) ? $sub['source_url'] : '';
+        $ip    = ! empty( $sub['ip'] ) ? $sub['ip'] : '';
+
+        $lines = array(
+            'Source: 6ix Developers website — "' . $form_title . '" form',
+            'Submitted: ' . $when,
+        );
+        if ( $where ) $lines[] = 'Page: ' . $where;
+        if ( $ip )    $lines[] = 'IP address: ' . $ip;
+        $lines[] = '';
+        $lines[] = 'Submitted fields:';
+        foreach ( $data as $f ) {
+            $label = (string) ( $f['label'] ?? '' );
+            $value = (string) ( $f['value'] ?? '' );
+            if ( $label === '' && $value === '' ) continue;
+            $lines[] = '- ' . ( $label ?: '(field)' ) . ': ' . ( $value !== '' ? $value : '(blank)' );
+        }
+        $description = implode( "\n", $lines );
+
+        $ld = array(
+            'name'        => $display_name . ' — ' . $form_title,
+            'description' => $description,
+            'probability' => 20,
+        );
+        if ( $contact['email'] )   $ld['email_from']   = $contact['email'];
+        if ( $contact['phone'] )   $ld['phone']        = $contact['phone'];
+        if ( $contact['website'] ) $ld['website']      = $contact['website'];
+        if ( $contact['company'] ) $ld['partner_name'] = $contact['company'];
+        if ( $stage_id )   $ld['stage_id']   = intval( $stage_id );
+        if ( $partner_id ) $ld['partner_id'] = intval( $partner_id );
+
+        $lead_id = self::execute( 'crm.lead', 'create', array( $ld ) );
+        if ( ! is_int( $lead_id ) || $lead_id <= 0 ) {
+            error_log( '6ix Odoo: sync_form_submission — crm.lead CREATE failed. form=' . $form_title
+                . ' fault=' . wp_json_encode( self::$last_fault ) );
+            return false;
+        }
+        error_log( '6ix Odoo: sync_form_submission — crm.lead created ID=' . $lead_id . ' for form "' . $form_title . '"' );
+
+        // ── 3. Follow-up task — due tomorrow, "contact within 24 hours" ───
+        self::create_activity(
+            $lead_id,
+            'Contact within 24 hours — new "' . $form_title . '" submission',
+            "New website form submission from {$display_name}.\n"
+            . "Form: {$form_title}\n"
+            . ( $contact['email'] ? "Email: {$contact['email']}\n" : '' )
+            . ( $contact['phone'] ? "Phone: {$contact['phone']}\n" : '' )
+            . "Submitted: {$when}\n"
+            . ( $where ? "Page: {$where}\n" : '' )
+            . "\nACTION REQUIRED: Contact this lead within 24 hours of submission.",
+            'Todo',
+            1
+        );
+
+        return array( 'lead_id' => $lead_id, 'partner_id' => $partner_id );
+    }
 }
 endif;
 

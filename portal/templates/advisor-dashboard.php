@@ -198,6 +198,11 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             <div class="six-nav-label">Mission Control</div>
             <a href="?tab=overview"      class="six-nav-item <?php echo $active_tab==='overview'     ?'active':'';?>"><span class="six-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></span> Overview</a>
             <a href="?tab=clients"       class="six-nav-item <?php echo $active_tab==='clients'      ?'active':'';?>"><span class="six-nav-icon">◈</span> Clients</a>
+            <a href="?tab=form-submissions" class="six-nav-item <?php echo $active_tab==='form-submissions'?'active':'';?>">
+                <span class="six-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M4 4h16v16H4z"/><path d="M4 8h16"/><path d="M8 4v16"/></svg></span> Form Submissions
+                <?php $new_submissions_n = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}six_form_submissions WHERE lead_status='new'" );
+                if ( $new_submissions_n > 0 ) : ?><span class="six-badge"><?php echo $new_submissions_n; ?></span><?php endif; ?>
+            </a>
             <a href="?tab=notifications" class="six-nav-item <?php echo $active_tab==='notifications'?'active':'';?>">
                 <span class="six-nav-icon">◎</span> Alerts
                 <?php $alert_total=intval($unread_n)+intval($unread_msg); if($alert_total>0):?><span class="six-badge"><?php echo $alert_total;?></span><?php endif;?>
@@ -3426,7 +3431,9 @@ function advCompleteOnboarding(clientId){
         if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
     })();
     </script>
-    <?php endif;?>
+    <?php /* ════════════ FORM SUBMISSIONS ════════════ */ elseif($active_tab==='form-submissions'):
+        include SIX_PLUGIN_DIR . 'templates/advisor-tab-form-submissions.php';
+    endif;?>
     </main>
 </div>
 
