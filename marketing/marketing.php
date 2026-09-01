@@ -17,6 +17,7 @@ define( 'SIX_MK_URL', get_stylesheet_directory_uri() . '/marketing/' );
 
 require_once SIX_MK_DIR . 'helpers.php';
 require_once SIX_MK_DIR . 'forms.php';      // lead-capture forms (Ninja-Forms swappable)
+require_once SIX_MK_DIR . 'form-handler.php'; // native AJAX submit handler for the built-in forms
 require_once SIX_MK_DIR . 'ninja-forms.php'; // Ninja Forms auto-provisioning + admin controls
 require_once SIX_MK_DIR . 'pages.php';      // service page content (keyed by slug)
 require_once SIX_MK_DIR . 'cpt.php';        // Client Success + Testimonials (no plugins)
@@ -101,6 +102,10 @@ add_action( 'wp_enqueue_scripts', function () {
 
     $js = SIX_MK_DIR . 'assets/marketing.js';
     wp_enqueue_script( 'six-mk', SIX_MK_URL . 'assets/marketing.js', array(), file_exists( $js ) ? filemtime( $js ) : '1', true );
+    // admin-ajax.php's real path (WordPress may be installed in a
+    // subdirectory, e.g. /6ix-redesign/) for the built-in forms' AJAX
+    // submit handler — see marketing/form-handler.php.
+    wp_localize_script( 'six-mk', 'sixMkAjax', array( 'url' => admin_url( 'admin-ajax.php' ) ) );
 }, 20 );
 
 /**

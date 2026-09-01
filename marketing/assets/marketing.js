@@ -110,3 +110,117 @@
   function init() { balance(); window.addEventListener('resize', onResize); window.addEventListener('load', balance); }
   if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
 })();
+
+/**
+ * Multi-step lead forms (marketing/forms.php's mk_step_open()/mk_step_close()
+ * pairs) — mirrors the original site's step-by-step Eligibility/Audit forms:
+ * only the active step's fields are shown, "Next" validates the active
+ * step's fields (native HTML5 checkValidity/reportValidity) before
+ * advancing, "Previous" goes back with no validation. The real submit
+ * button lives inside the final step (server-rendered), so there's no fake
+ * "submit step" to fake here — Next is simply hidden once that step is
+ * reached.
+ */
+(function () {
+  'use strict';
+  function setup(form) {
+    var steps = Array.prototype.slice.call(form.querySelectorAll('.mk-form-step'));
+    var nav = form.querySelector('.mk-form-stepnav');
+    if (steps.length < 2 || !nav) return;
+    var prev = nav.querySelector('.mk-step-prev');
+    var next = nav.querySelector('.mk-step-next');
+    if (!prev || !next) return;
+    var active = 0;
+
+    function show(i) {
+      steps.forEach(function (s, idx) { s.classList.toggle('mk-form-step-active', idx === i); });
+      prev.disabled = (i === 0);
+      next.style.display = (i === steps.length - 1) ? 'none' : '';
+      active = i;
+    }
+
+    function activeStepInvalid() {
+      var els = Array.prototype.slice.call(steps[active].querySelectorAll('input, select, textarea'));
+      for (var i = 0; i < els.length; i++) {
+        if (!els[i].checkValidity()) { els[i].reportValidity(); return true; }
+      }
+      return false;
+    }
+
+    next.addEventListener('click', function () {
+      if (activeStepInvalid()) return;
+      if (active < steps.length - 1) show(active + 1);
+    });
+    prev.addEventListener('click', function () { if (active > 0) show(active - 1); });
+
+    show(0);
+  }
+
+  function init() {
+    Array.prototype.forEach.call(document.querySelectorAll('form.mk-form'), setup);
+  }
+  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
+})();
+
+/**
+ * Native AJAX submission for every built-in form (data-mk-ajax, set by
+ * mk_form_open() in marketing/forms.php) — posts to
+ * six_mk_handle_form_submit() (marketing/form-handler.php), which emails
+ * the submission via wp_mail(). Replaces the form with a plain confirmation
+ * message on success (the original site's .success-message pattern);
+ * surfaces the server's error message and re-enables the button otherwise.
+ */
+(function () {
+  'use strict';
+  function setup(form) {
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var btn = form.querySelector('.mk-form-submit');
+      var err = form.querySelector('.mk-form-error');
+      if (!err) {
+        err = document.createElement('p');
+        err.className = 'mk-form-error';
+        err.setAttribute('role', 'alert');
+        var actions = form.querySelector('.mk-form-actions');
+        (actions || form).appendChild(err);
+      }
+      err.hidden = true;
+      err.textContent = '';
+      if (btn) {
+        btn.disabled = true;
+        btn.dataset.mkLabel = btn.dataset.mkLabel || btn.textContent;
+        btn.textContent = 'Sending…';
+      }
+
+      var url = (window.sixMkAjax && window.sixMkAjax.url) || '/wp-admin/admin-ajax.php';
+      var fd = new FormData(form);
+      fd.append('action', 'six_mk_form_submit');
+
+      fetch(url, { method: 'POST', credentials: 'same-origin', body: fd })
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+          if (res && res.success) {
+            var wrap = form.closest('.mk-formwrap');
+            var msg = document.createElement('div');
+            msg.className = 'mk-form-success';
+            msg.textContent = (res.data && res.data.message) || "Thanks — we've received your submission.";
+            if (wrap) { wrap.innerHTML = ''; wrap.appendChild(msg); }
+          } else {
+            err.textContent = (res && res.data && res.data.message) || 'Something went wrong — please try again.';
+            err.hidden = false;
+            if (btn) { btn.disabled = false; btn.textContent = btn.dataset.mkLabel; }
+          }
+        })
+        .catch(function () {
+          err.textContent = 'Something went wrong — please try again, or call us directly.';
+          err.hidden = false;
+          if (btn) { btn.disabled = false; btn.textContent = btn.dataset.mkLabel; }
+        });
+    });
+  }
+
+  function init() {
+    Array.prototype.forEach.call(document.querySelectorAll('form.mk-form[data-mk-ajax]'), setup);
+  }
+  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
+})();

@@ -2,10 +2,20 @@
 /**
  * 6ix Developers — Ninja Forms provisioning + admin controls.
  *
- * mk_form() (marketing/forms.php) already supports swapping any built-in
- * form for a Ninja Forms shortcode via a site-wide override option
- * ("ninja_{$key}"), set with mk_update_opt(). This file is what actually
- * turns that on:
+ * OFF by default. The built-in forms (marketing/forms.php) are real,
+ * fully-verified, working forms on their own now — genuine multi-step
+ * behaviour matching the original site exactly (Eligibility, Audit), a
+ * native AJAX submit handler (marketing/form-handler.php) emailing every
+ * submission with no plugin needed at all. This file exists purely as an
+ * optional manual escape hatch (WP Admin → 6ix Portal → Website Forms) for
+ * anyone who deliberately wants a specific form replaced with a real Ninja
+ * Forms (or any other shortcode-based) form instead — auto-provisioning
+ * only ever runs when six_nf_auto_provision_enabled is explicitly turned on
+ * there.
+ *
+ * mk_form() (marketing/forms.php) supports swapping any built-in form for a
+ * shortcode via a site-wide override option ("ninja_{$key}"), set with
+ * mk_update_opt(). This file is what actually turns that on:
  *
  *   1. six_nf_form_specs() — the single source of truth for every lead-form
  *      on the site: fields, labels, options, required-ness, exactly
@@ -270,6 +280,17 @@ function six_nf_build_import_data( $key, $spec ) {
 }
 
 /**
+ * Auto-provisioning is OFF by default (see six_nf_disable_stale_overrides()
+ * below for why) — the built-in forms (marketing/forms.php) are the real,
+ * fully-verified lead forms now, including genuine multi-step behaviour and
+ * a working native submit handler (marketing/form-handler.php) that
+ * doesn't depend on any plugin. This stays available as an explicit opt-in:
+ * flip six_nf_auto_provision_enabled to true (WP Admin → 6ix Portal →
+ * Website Forms sets this, or `update_option('six_nf_auto_provision_enabled', true)`)
+ * if a real Ninja Forms install is ever wanted for one of these forms —
+ * whichever ones get a shortcode here still don't get multi-step behaviour
+ * from Ninja Forms itself without a separate paid add-on.
+ *
  * One-time, idempotent provisioning: create any of the 7 forms that don't
  * exist yet (matched by their settings.key, so re-running never duplicates),
  * and auto-wire the resulting shortcode into mk_opt('ninja_{$key}') so
@@ -281,6 +302,7 @@ function six_nf_build_import_data( $key, $spec ) {
  * own activation routine) shouldn't need a manual re-trigger.
  */
 add_action( 'wp_loaded', function () {
+    if ( ! get_option( 'six_nf_auto_provision_enabled' ) ) return;
     if ( ! class_exists( 'Ninja_Forms' ) ) return;
     if ( ! function_exists( 'Ninja_Forms' ) ) return;
 
@@ -322,6 +344,33 @@ add_action( 'wp_loaded', function () {
         set_transient( 'six_nf_provision_report', $report, 300 );
     }
 }, 40 );
+
+/**
+ * One-time cleanup: clear any 'ninja_*' overrides a PREVIOUS run of the
+ * auto-provisioning above already set (e.g. on the eligibility form),
+ * before this file's own bug is what disables it going forward.
+ *
+ * Those forms were provisioned with show_title => false (fixed in this
+ * same change, but Ninja Forms never re-syncs an already-created form's
+ * settings from a changed spec — provisioning only ever creates once),
+ * so an already-provisioned form kept opening with no visible heading no
+ * matter what the spec said afterwards. Clearing the override here makes
+ * mk_form() fall back to the built-in form immediately — now the real,
+ * fully-verified, multi-step, working one — instead of leaving a stale
+ * Ninja Forms embed in charge. Guarded so it only ever runs once; an
+ * admin who deliberately wants Ninja Forms back can still set the
+ * option(s) again by hand on the Website Forms screen.
+ */
+add_action( 'wp_loaded', function () {
+    if ( get_option( 'six_nf_stale_overrides_cleared_v1' ) ) return;
+    update_option( 'six_nf_stale_overrides_cleared_v1', 1 );
+
+    global $wpdb;
+    $wpdb->query( $wpdb->prepare(
+        "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",
+        $wpdb->esc_like( 'six_field_option_ninja_' ) . '%'
+    ) );
+}, 10 );
 
 /** Admin notice summarising the most recent provisioning run (self-clearing). */
 add_action( 'admin_notices', function () {
@@ -371,27 +420,34 @@ function six_nf_admin_page() {
                 mk_update_opt( $field, sanitize_text_field( wp_unslash( $_POST[ $field ] ) ) );
             }
         }
+        update_option( 'six_nf_auto_provision_enabled', ! empty( $_POST['six_nf_auto_provision_enabled'] ) );
         echo '<div class="notice notice-success is-dismissible"><p>Saved.</p></div>';
     }
 
-    $ninja_active = class_exists( 'Ninja_Forms' );
+    $ninja_active   = class_exists( 'Ninja_Forms' );
+    $auto_enabled   = (bool) get_option( 'six_nf_auto_provision_enabled' );
     ?>
     <div class="wrap">
       <h1>Website Forms</h1>
-      <p>Every lead-capture form on the marketing site (6ixdevelopers.com), and which Ninja Forms shortcode currently replaces its built-in version. Leave a row blank to use the built-in styled form instead.</p>
+      <p>Every lead-capture form on the marketing site is a real, working, built-in form by default — multi-step where the original site's is (Eligibility, Audit), submits via AJAX, and emails the submission through this site's mail setup. No plugin required.</p>
+      <p>Leave every row below blank to keep using those built-in forms (recommended — Ninja Forms and most other WP form plugins don't support multi-step without a separate paid add-on, so swapping a stepped form for one loses that behaviour). Set a row's shortcode only to deliberately replace one specific form with something you built yourself.</p>
       <?php if ( ! $ninja_active ) : ?>
-      <div class="notice notice-warning"><p><strong>Ninja Forms isn\'t active</strong> — activate the plugin and reload this page; the forms below will be created automatically.</p></div>
+      <div class="notice notice-warning"><p><strong>Ninja Forms isn't active.</strong> Auto-provisioning (below) needs it active to create anything.</p></div>
       <?php endif; ?>
       <form method="post">
         <?php wp_nonce_field( 'six_nf_save', 'six_nf_nonce' ); ?>
+        <p>
+          <label><input type="checkbox" name="six_nf_auto_provision_enabled" value="1"<?php checked( $auto_enabled ); ?>>
+          Auto-create these as real Ninja Forms forms and use them in place of the built-in ones (off by default)</label>
+        </p>
         <table class="widefat" style="max-width:900px;margin-top:12px">
-          <thead><tr><th style="width:220px">Form</th><th>Ninja Forms shortcode</th></tr></thead>
+          <thead><tr><th style="width:220px">Form</th><th>Shortcode override</th></tr></thead>
           <tbody>
           <?php foreach ( six_nf_form_specs() as $key => $spec ) :
               $val = mk_opt( 'ninja_' . $key, '' ); ?>
             <tr>
               <td><strong><?php echo esc_html( $spec['title'] ); ?></strong><br><code style="color:#888"><?php echo esc_html( $key ); ?></code></td>
-              <td><input type="text" style="width:100%" name="ninja_<?php echo esc_attr( $key ); ?>" value="<?php echo esc_attr( $val ); ?>" placeholder='e.g. [ninja_form id="3"]'></td>
+              <td><input type="text" style="width:100%" name="ninja_<?php echo esc_attr( $key ); ?>" value="<?php echo esc_attr( $val ); ?>" placeholder='e.g. [ninja_form id="3"] or [contact-form-7 id="3"]'></td>
             </tr>
           <?php endforeach; ?>
           </tbody>
