@@ -29,6 +29,24 @@ add_action( 'after_setup_theme', function () {
     add_theme_support( 'post-thumbnails' );
 } );
 
+// ── FAVICON ──────────────────────────────────────────────────────────────────
+// No Site Icon has ever been set under Settings → General, so no page —
+// onboarding included, since it builds its own <head> and only inherits
+// whatever wp_head() emits — has ever had a browser-tab icon. Emit explicit
+// <link rel="icon"> tags site-wide instead of depending on that admin
+// setting, using the theme's own real favicon files.
+add_action( 'wp_head', function () {
+    $dir = get_stylesheet_directory() . '/marketing/assets/img/favicons/';
+    $url = get_stylesheet_directory_uri() . '/marketing/assets/img/favicons/';
+    if ( ! file_exists( $dir . '192.png' ) ) return;
+    $v = filemtime( $dir . '192.png' );
+    echo '<link rel="icon" type="image/png" sizes="16x16" href="' . esc_url( $url . '16.png?v=' . $v ) . '">' . "\n";
+    echo '<link rel="icon" type="image/png" sizes="96x96" href="' . esc_url( $url . '96.png?v=' . $v ) . '">' . "\n";
+    echo '<link rel="icon" type="image/png" sizes="192x192" href="' . esc_url( $url . '192.png?v=' . $v ) . '">' . "\n";
+    echo '<link rel="shortcut icon" href="' . esc_url( $url . '192.png?v=' . $v ) . '">' . "\n";
+    echo '<link rel="apple-touch-icon" sizes="180x180" href="' . esc_url( $url . '180.png?v=' . $v ) . '">' . "\n";
+}, 2 );
+
 // ── CONSTANTS ───────────────────────────────────────────────────────────────
 define( 'SIX_PORTAL_VERSION', '1.0.0' );
 define( 'SIX_PLUGIN_DIR',     get_stylesheet_directory() . '/portal/' );
