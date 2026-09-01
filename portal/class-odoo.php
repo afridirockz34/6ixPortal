@@ -1996,12 +1996,22 @@ Best,
      * @param array $sub Associative: form_title, form_key, data (array of
      *                   {label,value} keyed by field key), created_at,
      *                   source_url, ip.
-     * @return array|false array('lead_id'=>int, 'partner_id'=>int) or false
-     *                      if Odoo isn't configured / the sync failed.
+     * @return array Always an array — check 'ok'. On success:
+     *                 array('ok'=>true, 'lead_id'=>int, 'partner_id'=>int).
+     *               On failure: array('ok'=>false, 'error'=>string) with a
+     *                 human-readable reason (not configured / auth failed /
+     *                 the specific Odoo fault), so the admin UI can show
+     *                 exactly why a submission never reached Odoo instead of
+     *                 only "not synced".
      */
     public static function sync_form_submission( array $sub ) {
         $c = self::creds();
-        if ( ! $c['url'] || ! $c['db'] || ! $c['user'] || ! $c['api_key'] ) return false;
+        if ( ! $c['url'] || ! $c['db'] || ! $c['user'] || ! $c['api_key'] ) {
+            return array( 'ok' => false, 'error' => 'Odoo isn\'t configured — set the instance URL, database, login email and API key under 6ix Portal → Settings → Odoo.' );
+        }
+        if ( ! self::authenticate() ) {
+            return array( 'ok' => false, 'error' => 'Odoo authentication failed — check the login email and API key under 6ix Portal → Settings → Odoo.' );
+        }
 
         $data = is_array( $sub['data'] ?? null ) ? $sub['data'] : array();
         $contact = self::extract_contact_fields( $data );
@@ -2071,7 +2081,8 @@ Best,
         if ( ! is_int( $lead_id ) || $lead_id <= 0 ) {
             error_log( '6ix Odoo: sync_form_submission — crm.lead CREATE failed. form=' . $form_title
                 . ' fault=' . wp_json_encode( self::$last_fault ) );
-            return false;
+            return array( 'ok' => false, 'error' => 'Could not create the CRM lead in Odoo: '
+                . ( self::$last_fault ? wp_json_encode( self::$last_fault ) : 'unknown error (see server error log for "6ix Odoo: sync_form_submission")' ) );
         }
         error_log( '6ix Odoo: sync_form_submission — crm.lead created ID=' . $lead_id . ' for form "' . $form_title . '"' );
 
@@ -2090,7 +2101,7 @@ Best,
             1
         );
 
-        return array( 'lead_id' => $lead_id, 'partner_id' => $partner_id );
+        return array( 'ok' => true, 'lead_id' => $lead_id, 'partner_id' => $partner_id );
     }
 }
 endif;
