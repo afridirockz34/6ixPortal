@@ -464,7 +464,22 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 
 <div class="ob-wrap">
 <aside class="ob-side">
-  <a class="ob-logo" href="<?php echo esc_url( home_url( '/' ) ); ?>" style="text-decoration:none;cursor:pointer">6ix Developers</a>
+  <?php
+  // Same admin-editable logo the main site header uses (WP Admin → 6ix Site
+  // → Logo image). Only rendered as an <img> when an admin has actually set
+  // one — the built-in fallback is a white logo meant for a dark hero/navy
+  // bar, which would be invisible on this sidebar's light background, so
+  // the gradient wordmark below covers that case instead.
+  $ob_logo_default = 'https://6ixdevelopers.com/media/logo/new-logo.png';
+  $ob_logo_custom  = mk_opt( 'brand_logo', $ob_logo_default );
+  ?>
+  <a class="ob-logo" href="<?php echo esc_url( home_url( '/' ) ); ?>" style="text-decoration:none;cursor:pointer">
+    <?php if ( $ob_logo_custom && $ob_logo_custom !== $ob_logo_default ) : ?>
+    <img src="<?php echo esc_url( $ob_logo_custom ); ?>" alt="6ix Developers" style="height:32px;width:auto;display:block">
+    <?php else : ?>
+    6ix Developers
+    <?php endif; ?>
+  </a>
   <div class="ob-side-content">
     <h2 class="ob-side-hl">Your <span>marketing strategy</span> starts here.</h2>
     <p class="ob-side-desc">Tell us about your business, pick your services, and we'll build a personalised growth plan in minutes.</p>
