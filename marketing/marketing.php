@@ -16,9 +16,9 @@ define( 'SIX_MK_DIR', get_stylesheet_directory() . '/marketing/' );
 define( 'SIX_MK_URL', get_stylesheet_directory_uri() . '/marketing/' );
 
 require_once SIX_MK_DIR . 'helpers.php';
-require_once SIX_MK_DIR . 'forms.php';      // lead-capture forms (Ninja-Forms swappable)
-require_once SIX_MK_DIR . 'form-handler.php'; // native AJAX submit handler for the built-in forms
-require_once SIX_MK_DIR . 'ninja-forms.php'; // Ninja Forms auto-provisioning + admin controls
+// Lead-capture forms live in portal/class-forms*.php now (WP Admin → 6ix
+// Portal → Forms) — see that file's docblock. Templates call
+// six_forms_render( $key ) directly; nothing to require here.
 require_once SIX_MK_DIR . 'pages.php';      // service page content (keyed by slug)
 require_once SIX_MK_DIR . 'cpt.php';        // Client Success + Testimonials (no plugins)
 require_once SIX_MK_DIR . 'cpt-casestudy.php'; // Case Studies (brochure-style stories)
@@ -103,26 +103,10 @@ add_action( 'wp_enqueue_scripts', function () {
     $js = SIX_MK_DIR . 'assets/marketing.js';
     wp_enqueue_script( 'six-mk', SIX_MK_URL . 'assets/marketing.js', array(), file_exists( $js ) ? filemtime( $js ) : '1', true );
     // admin-ajax.php's real path (WordPress may be installed in a
-    // subdirectory, e.g. /6ix-redesign/) for the built-in forms' AJAX
-    // submit handler — see marketing/form-handler.php.
+    // subdirectory, e.g. /6ix-redesign/) for the forms system's AJAX submit
+    // handler — see portal/class-forms-submit.php.
     wp_localize_script( 'six-mk', 'sixMkAjax', array( 'url' => admin_url( 'admin-ajax.php' ) ) );
 }, 20 );
-
-/**
- * Ninja Forms restyle — enqueued late (priority 30, vs. 20 above and
- * Ninja Forms' own default of 10) so it loads after both marketing.css and
- * Ninja Forms' own front-end CSS, and depends on Ninja Forms' main
- * stylesheet handle when present so the load order is guaranteed rather
- * than left to enqueue timing. Every rule in the file is also !important,
- * as a second guarantee regardless of source order.
- */
-add_action( 'wp_enqueue_scripts', function () {
-    if ( ! six_mk_is_marketing_page() ) return;
-    if ( ! class_exists( 'Ninja_Forms' ) ) return;
-    $css  = SIX_MK_DIR . 'assets/ninja-forms-theme.css';
-    $deps = wp_style_is( 'nf-display', 'registered' ) ? array( 'nf-display' ) : array();
-    wp_enqueue_style( 'six-mk-nf-theme', SIX_MK_URL . 'assets/ninja-forms-theme.css', $deps, file_exists( $css ) ? filemtime( $css ) : '1' );
-}, 30 );
 
 // On marketing pages, strip Divi's front-end shell so our template owns the page.
 add_action( 'wp', function () {

@@ -112,8 +112,9 @@
 })();
 
 /**
- * Multi-step lead forms (marketing/forms.php's mk_step_open()/mk_step_close()
- * pairs) — mirrors the original site's step-by-step Eligibility/Audit forms:
+ * Multi-step lead forms (six_forms_render()'s per-field "step" grouping,
+ * portal/class-forms.php) — mirrors the original site's step-by-step
+ * Eligibility/Audit forms:
  * only the active step's fields are shown, "Next" validates the active
  * step's fields (native HTML5 checkValidity/reportValidity) before
  * advancing, "Previous" goes back with no validation. The real submit
@@ -163,12 +164,14 @@
 })();
 
 /**
- * Native AJAX submission for every built-in form (data-mk-ajax, set by
- * mk_form_open() in marketing/forms.php) — posts to
- * six_mk_handle_form_submit() (marketing/form-handler.php), which emails
- * the submission via wp_mail(). Replaces the form with a plain confirmation
- * message on success (the original site's .success-message pattern);
- * surfaces the server's error message and re-enables the button otherwise.
+ * Native AJAX submission for every form rendered by the forms system
+ * (data-mk-ajax, set by six_forms_render() in portal/class-forms.php) —
+ * posts to six_forms_handle_submit() (portal/class-forms-submit.php),
+ * which logs the submission and emails it via wp_mail(). On success,
+ * either redirects to the form's configured redirect URL or replaces the
+ * form with a plain confirmation message (the original site's
+ * .success-message pattern); surfaces the server's error message and
+ * re-enables the button otherwise.
  */
 (function () {
   'use strict';
@@ -194,12 +197,13 @@
 
       var url = (window.sixMkAjax && window.sixMkAjax.url) || '/wp-admin/admin-ajax.php';
       var fd = new FormData(form);
-      fd.append('action', 'six_mk_form_submit');
+      fd.append('action', 'six_forms_submit');
 
       fetch(url, { method: 'POST', credentials: 'same-origin', body: fd })
         .then(function (r) { return r.json(); })
         .then(function (res) {
           if (res && res.success) {
+            if (res.data && res.data.redirect) { window.location.href = res.data.redirect; return; }
             var wrap = form.closest('.mk-formwrap');
             var msg = document.createElement('div');
             msg.className = 'mk-form-success';

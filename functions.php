@@ -58,6 +58,14 @@ require_once SIX_PLUGIN_DIR . 'class-icons.php';      // SVG icon library
 require_once SIX_PLUGIN_DIR . 'class-questionnaire.php';
 require_once SIX_PLUGIN_DIR . 'ajax-onboarding.php';
 
+// Forms system — every lead-capture form on the site (custom post type +
+// submission log + admin builder + AJAX handler), replacing the old
+// marketing/forms.php + ninja-forms.php. See class-forms.php's docblock.
+require_once SIX_PLUGIN_DIR . 'class-forms.php';
+require_once SIX_PLUGIN_DIR . 'class-forms-submit.php';
+require_once SIX_PLUGIN_DIR . 'class-forms-admin.php';
+require_once SIX_PLUGIN_DIR . 'data-forms-seed.php';
+
 $optional_files = array(
     'class-odoo.php',          // must load before growth engine
     'class-estimate-engine.php', // Estimate Engine — real data growth plans
