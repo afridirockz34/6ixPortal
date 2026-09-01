@@ -127,7 +127,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
   <!-- ELIGIBILITY FORM (Google Ads $1800 credit) -->
   <?php if ( ! empty( $d['form_eligibility'] ) ) : ?>
   <section class="mk-section mk-section-sm mk-glow" id="eligibility">
-    <div class="mk-wrap"><?php mk_form( 'eligibility' ); ?></div>
+    <div class="mk-wrap"><?php six_forms_render( 'eligibility' ); ?></div>
   </section>
   <?php endif; ?>
 
@@ -353,7 +353,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
   <!-- AUDIT REQUEST FORM -->
   <?php if ( ! empty( $d['form_audit'] ) ) : ?>
   <section class="mk-section mk-section-sm" id="audit">
-    <div class="mk-wrap"><?php mk_form( 'audit' ); ?></div>
+    <div class="mk-wrap"><?php six_forms_render( 'audit' ); ?></div>
   </section>
   <?php endif; ?>
 
@@ -520,7 +520,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
   <!-- QUOTE / CONSULTATION FORM -->
   <?php if ( ! empty( $d['form_quote'] ) ) : ?>
   <section class="mk-section mk-section-sm mk-glow" id="quote">
-    <div class="mk-wrap"><?php mk_form( 'quote', (array) $d['form_quote'] ); ?></div>
+    <div class="mk-wrap"><?php six_forms_render( $d['form_quote']['id'] ?? 'quote-form' ); ?></div>
   </section>
   <?php endif; ?>
 

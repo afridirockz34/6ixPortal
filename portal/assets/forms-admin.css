@@ -1,0 +1,37 @@
+/**
+ * 6ix Portal — Forms system admin styling (the Fields repeater on the
+ * six_form editor screen). Pairs with marketing/assets/admin-marketing.css
+ * (the .six-adm-* field/hint classes used in the other meta boxes here).
+ */
+.six-forms-builder { margin-top: 4px; }
+.six-forms-rows { display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; }
+
+.six-forms-row {
+	border: 1px solid #e2e4ea; border-radius: 10px; background: #fff;
+	padding: 14px 16px 10px;
+}
+.six-forms-row-grid {
+	display: grid; grid-template-columns: 1fr 1fr 90px 110px; gap: 12px;
+	margin-bottom: 10px; align-items: end;
+}
+.six-forms-row-grid:nth-child(2) { grid-template-columns: 1.3fr 1fr; }
+.six-forms-row label {
+	display: flex; flex-direction: column; gap: 4px;
+	font-size: 12px; font-weight: 600; color: #4a5064;
+}
+.six-forms-row input[type="text"],
+.six-forms-row input[type="number"],
+.six-forms-row select,
+.six-forms-row textarea {
+	font-size: 13px; padding: 7px 9px; border: 1px solid #d7dae2; border-radius: 6px;
+}
+.six-forms-required { flex-direction: row !important; align-items: center; gap: 6px !important; padding-bottom: 8px; }
+.six-forms-required input { width: auto; }
+
+.sf-options-wrap { margin: 4px 0 8px; }
+.sf-options-wrap textarea { width: 100%; box-sizing: border-box; font-family: monospace; font-size: 12.5px; }
+
+.sf-remove { color: #b32d2e; font-size: 12px; }
+.sf-remove:hover { color: #7a1e1e; }
+
+.six-forms-add-field { margin-top: 4px; }

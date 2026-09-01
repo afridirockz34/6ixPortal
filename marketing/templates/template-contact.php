@@ -81,7 +81,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
   <!-- CONTACT FORM -->
   <section class="mk-section mk-section-sm mk-glow" id="contact-form-section">
     <div class="mk-wrap">
-      <?php mk_form( 'contact' ); ?>
+      <?php six_forms_render( 'contact' ); ?>
     </div>
   </section>
 
