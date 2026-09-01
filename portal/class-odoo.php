@@ -1936,6 +1936,24 @@ Best,
     // ═════════════════════════════════════════════════════════════════════
 
     /**
+     * Odoo context that suppresses automatic mail notifications on create/
+     * write. Without this, creating a record can synchronously try to email
+     * followers or an assigned user, and if any one of THEIR addresses is
+     * invalid, Odoo raises a fault like "N invalid recipients" that aborts
+     * the whole create — even though the record being created is fine. Only
+     * used for API-driven writes here; explicit create_activity()/
+     * post_note() calls afterward are unaffected and still notify normally.
+     */
+    private static function no_notify_context() {
+        return array(
+            'tracking_disable'        => true,
+            'mail_create_nolog'       => true,
+            'mail_create_nosubscribe' => true,
+            'mail_notrack'            => true,
+        );
+    }
+
+    /**
      * Best-effort extraction of name / email / phone / company / website out
      * of a submission's flattened field data ({key: {label, value}}). Field
      * keys differ per form, so this matches on label text rather than key.
@@ -2035,9 +2053,9 @@ Best,
                 array( 'fields' => array( 'id' ), 'limit' => 1 ) );
             if ( ! empty( $ex[0]['id'] ) ) {
                 $partner_id = intval( $ex[0]['id'] );
-                self::execute( 'res.partner', 'write', array( array( $partner_id ), $pdata ) );
+                self::execute( 'res.partner', 'write', array( array( $partner_id ), $pdata ), array( 'context' => self::no_notify_context() ) );
             } else {
-                $pid = self::execute( 'res.partner', 'create', array( $pdata ) );
+                $pid = self::execute( 'res.partner', 'create', array( $pdata ), array( 'context' => self::no_notify_context() ) );
                 if ( is_int( $pid ) && $pid > 0 ) $partner_id = $pid;
             }
         }
@@ -2077,7 +2095,12 @@ Best,
         if ( $stage_id )   $ld['stage_id']   = intval( $stage_id );
         if ( $partner_id ) $ld['partner_id'] = intval( $partner_id );
 
-        $lead_id = self::execute( 'crm.lead', 'create', array( $ld ) );
+        // Suppress Odoo's automatic mail notifications on create (context
+        // below) — otherwise a record create can synchronously try to email
+        // followers/assignees and abort with a fault like "N invalid
+        // recipients" if any of THEIR addresses are bad, which has nothing
+        // to do with whether the lead itself is valid.
+        $lead_id = self::execute( 'crm.lead', 'create', array( $ld ), array( 'context' => self::no_notify_context() ) );
         if ( ! is_int( $lead_id ) || $lead_id <= 0 ) {
             error_log( '6ix Odoo: sync_form_submission — crm.lead CREATE failed. form=' . $form_title
                 . ' fault=' . wp_json_encode( self::$last_fault ) );
