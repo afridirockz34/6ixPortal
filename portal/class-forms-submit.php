@@ -98,9 +98,9 @@ function six_forms_handle_submit() {
 		foreach ( $data as $f ) {
 			if ( is_email( $f['value'] ) ) { $headers[] = 'Reply-To: ' . sanitize_email( $f['value'] ); break; }
 		}
-		$owner_sent   = wp_mail( six_admin_notify_emails(), $subject, $owner_html, $headers );
-		$owner_status = $owner_sent ? 'sent' : 'failed';
-		$owner_err    = $owner_sent ? '' : 'wp_mail() returned false — check the SMTP plugin\'s configuration and its own log.';
+		$owner_out    = six_wp_mail( six_admin_notify_emails(), $subject, $owner_html, $headers );
+		$owner_status = $owner_out['sent'] ? 'sent' : 'failed';
+		$owner_err    = $owner_out['error'];
 
 		// ── Customer confirmation (optional, same branded shell) ───────────
 		$customer_status = 'skipped';
@@ -119,9 +119,9 @@ function six_forms_handle_submit() {
 					'heading'   => $csubject,
 					'body_html' => nl2br( esc_html( $cbody ) ),
 				) );
-				$csent    = wp_mail( $customer_email, $csubject, $chtml, array( 'Content-Type: text/html; charset=UTF-8' ) );
-				$customer_status = $csent ? 'sent' : 'failed';
-				$customer_err    = $csent ? '' : 'wp_mail() returned false.';
+				$customer_out    = six_wp_mail( $customer_email, $csubject, $chtml, array( 'Content-Type: text/html; charset=UTF-8' ) );
+				$customer_status = $customer_out['sent'] ? 'sent' : 'failed';
+				$customer_err    = $customer_out['error'];
 			} else {
 				$customer_status = 'skipped';
 				$customer_err    = 'No valid email address found in the submission to confirm to.';
