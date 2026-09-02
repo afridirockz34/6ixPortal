@@ -3,13 +3,20 @@
  * 6ix Portal — Forms system: submission handling.
  *
  * Every submission is logged to {$wpdb->prefix}six_form_submissions BEFORE
- * this handler returns, regardless of whether the notification email(s)
- * actually sent — the whole point of the log is to be the record of a lead
- * that survives an SMTP outage, a wrong "to" address, or anything else
- * going wrong with email. The insert only ever gets skipped if the request
- * fails a basic security check (bad nonce, unknown form) — even a failed
- * CAPTCHA still gets logged (status 'blocked'), rather than silently
- * disappearing.
+ * this handler sends either notification email — the whole point of the log
+ * is to be the record of a lead that survives an SMTP outage, a wrong "to"
+ * address, or anything else going wrong with email. The insert only ever
+ * gets skipped if the request fails a basic security check (bad nonce,
+ * unknown form) — even a failed CAPTCHA still gets logged (status
+ * 'blocked'), rather than silently disappearing.
+ *
+ * Logging happens FIRST (six_forms_insert_submission()), then the owner and
+ * customer emails are composed and sent, then the row is updated with the
+ * actual delivery outcome (six_forms_finalize_submission()) — logging first
+ * is what lets the owner email link to "Open in Odoo" / "Open in Dashboard"
+ * for this exact submission, since six_forms_insert_submission() fires the
+ * six_form_submission_logged action that runs the Odoo sync synchronously
+ * before this file builds the email.
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
@@ -51,19 +58,51 @@ function six_forms_handle_submit() {
 			wp_send_json_error( array( 'message' => 'The security check answer is incorrect — please try again.' ) );
 		}
 
-		// ── Owner notification ──────────────────────────────────────────
-		$to      = get_option( 'admin_email' );
-		$subject = six_forms_merge_tags( $form['owner_subject'] ?: ( 'New ' . $form['title'] . ' submission' ), $data, $form );
-		$body    = six_forms_merge_tags( $form['owner_body'] ?: "{all_fields}", $data, $form );
-		$headers = array( 'Content-Type: text/plain; charset=UTF-8' );
+		// ── Log first: durable record, plus triggers the Odoo sync + advisor
+		// in-app notification (class-forms-integrations.php) before we build
+		// the owner email below, so it can link straight to both. ──────────
+		$submission_id = six_forms_insert_submission( $form, $data );
+		$odoo_lead_id  = 0;
+		if ( $submission_id ) {
+			global $wpdb;
+			$odoo_lead_id = (int) $wpdb->get_var( $wpdb->prepare(
+				"SELECT odoo_lead_id FROM {$wpdb->prefix}six_form_submissions WHERE id=%d", $submission_id
+			) );
+		}
+		$dashboard_url = $submission_id ? home_url( '/advisor-portal/?tab=form-submissions&submission=' . $submission_id ) : '';
+		$submitted_at  = current_time( 'F j, Y g:i a' );
+		$source_page   = isset( $_POST['source_url'] ) ? esc_url_raw( wp_unslash( $_POST['source_url'] ) ) : '';
+
+		// ── Owner notification — branded, sent to six_admin_notify_emails() ─
+		$subject = six_forms_merge_tags( $form['owner_subject'] ?: ( 'New ' . $form['title'] . ' submission' ), $data, $form )
+			. ' — ' . $submitted_at;
+		$intro   = six_forms_merge_tags( $form['owner_body'] ?: 'A new {form_title} submission was just received on the website.', $data, $form );
+
+		$links = array();
+		if ( $dashboard_url ) $links[] = array( 'label' => 'Open in Dashboard', 'url' => $dashboard_url );
+		if ( $odoo_lead_id && get_option( 'six_odoo_url' ) ) {
+			$links[] = array( 'label' => 'Open in Odoo', 'url' => rtrim( get_option( 'six_odoo_url' ), '/' ) . '/odoo/crm/' . $odoo_lead_id );
+		}
+		$info_rows = array();
+		foreach ( $data as $f ) $info_rows[ $f['label'] ] = $f['value'];
+
+		$owner_html = six_email_chrome( array(
+			'preheader' => wp_strip_all_tags( $intro ),
+			'heading'   => $form['title'] . ' — new submission',
+			'body_html' => '<p>' . nl2br( esc_html( $intro ) ) . '</p><p style="color:#627080;font-size:12.5px">Submitted ' . esc_html( $submitted_at ) . ( $source_page ? ' from <span style="word-break:break-all">' . esc_html( $source_page ) . '</span>' : '' ) . '.</p>',
+			'info_rows' => $info_rows,
+			'links'     => $links,
+		) );
+
+		$headers = array( 'Content-Type: text/html; charset=UTF-8' );
 		foreach ( $data as $f ) {
 			if ( is_email( $f['value'] ) ) { $headers[] = 'Reply-To: ' . sanitize_email( $f['value'] ); break; }
 		}
-		$owner_sent   = wp_mail( $to, $subject, $body, $headers );
+		$owner_sent   = wp_mail( six_admin_notify_emails(), $subject, $owner_html, $headers );
 		$owner_status = $owner_sent ? 'sent' : 'failed';
 		$owner_err    = $owner_sent ? '' : 'wp_mail() returned false — check the SMTP plugin\'s configuration and its own log.';
 
-		// ── Customer confirmation (optional) ────────────────────────────
+		// ── Customer confirmation (optional, same branded shell) ───────────
 		$customer_status = 'skipped';
 		$customer_err    = '';
 		if ( $form['customer_enabled'] ) {
@@ -75,7 +114,12 @@ function six_forms_handle_submit() {
 			if ( $customer_email && is_email( $customer_email ) ) {
 				$csubject = six_forms_merge_tags( $form['customer_subject'] ?: 'Thanks for reaching out!', $data, $form );
 				$cbody    = six_forms_merge_tags( $form['customer_body'] ?: "Thanks — we've received your submission and will be in touch shortly.", $data, $form );
-				$csent    = wp_mail( $customer_email, $csubject, $cbody, array( 'Content-Type: text/plain; charset=UTF-8' ) );
+				$chtml    = six_email_chrome( array(
+					'preheader' => wp_strip_all_tags( $cbody ),
+					'heading'   => $csubject,
+					'body_html' => nl2br( esc_html( $cbody ) ),
+				) );
+				$csent    = wp_mail( $customer_email, $csubject, $chtml, array( 'Content-Type: text/html; charset=UTF-8' ) );
 				$customer_status = $csent ? 'sent' : 'failed';
 				$customer_err    = $csent ? '' : 'wp_mail() returned false.';
 			} else {
@@ -85,7 +129,7 @@ function six_forms_handle_submit() {
 		}
 
 		$overall = ( $owner_status === 'failed' ) ? 'partial' : 'success'; // logged either way — never dropped
-		six_forms_log_submission( $form, $data, $overall, $owner_status, $owner_err, $customer_status, $customer_err );
+		if ( $submission_id ) six_forms_finalize_submission( $submission_id, $overall, $owner_status, $owner_err, $customer_status, $customer_err );
 
 		$resp = array(
 			'message' => $owner_status === 'sent'
@@ -111,7 +155,63 @@ function six_forms_handle_submit() {
 	}
 }
 
-/** Inserts one row into six_form_submissions. Never throws on its own — callers can rely on it being safe to call from a catch block. */
+/**
+ * Inserts one row into six_form_submissions with the email-delivery columns
+ * left as 'pending', and fires six_form_submission_logged (Odoo sync +
+ * advisor notification) — used by the normal (non-blocked) submit path so
+ * the row and its Odoo lead exist before the owner email is composed. Pair
+ * with six_forms_finalize_submission() once the emails have actually sent.
+ */
+function six_forms_insert_submission( $form, $data ) {
+	global $wpdb;
+	$flat = array();
+	foreach ( (array) $data as $k => $f ) $flat[ $k ] = array( 'label' => $f['label'] ?? $k, 'value' => $f['value'] ?? '' );
+
+	$row = array(
+		'form_id'               => intval( $form['id'] ?? 0 ),
+		'form_key'              => (string) ( $form['key'] ?? '' ),
+		'form_title'            => (string) ( $form['title'] ?? '' ),
+		'data'                  => wp_json_encode( $flat ),
+		'status'                => 'success', // corrected by six_forms_finalize_submission() once email results are known
+		'owner_email_status'    => 'pending',
+		'owner_email_error'     => '',
+		'customer_email_status' => 'pending',
+		'customer_email_error'  => '',
+		'ip'                    => six_forms_client_ip(),
+		'user_agent'            => isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( substr( $_SERVER['HTTP_USER_AGENT'], 0, 490 ) ) : '',
+		'source_url'            => isset( $_POST['source_url'] ) ? esc_url_raw( wp_unslash( $_POST['source_url'] ) ) : '',
+		'lead_status'           => 'new',
+		'created_at'            => current_time( 'mysql' ),
+	);
+	$wpdb->insert( $wpdb->prefix . 'six_form_submissions', $row );
+	$submission_id = $wpdb->insert_id;
+
+	if ( $submission_id ) {
+		$row['id']   = $submission_id;
+		$row['data'] = $flat; // structured array, not the JSON string, for hook consumers
+		do_action( 'six_form_submission_logged', $submission_id, $row );
+	}
+
+	return $submission_id;
+}
+
+/** Updates a row inserted by six_forms_insert_submission() with the actual email delivery outcome. */
+function six_forms_finalize_submission( $submission_id, $status, $owner_status, $owner_err, $customer_status, $customer_err ) {
+	global $wpdb;
+	$wpdb->update( $wpdb->prefix . 'six_form_submissions', array(
+		'status'                => $status,
+		'owner_email_status'    => $owner_status,
+		'owner_email_error'     => $owner_err,
+		'customer_email_status' => $customer_status,
+		'customer_email_error'  => $customer_err,
+	), array( 'id' => $submission_id ) );
+}
+
+/**
+ * Single-call insert used by paths that already know the final outcome up
+ * front — the blocked-captcha path, and the last-resort exception handler
+ * above. Never throws on its own — safe to call from a catch block.
+ */
 function six_forms_log_submission( $form, $data, $status, $owner_status, $owner_err, $customer_status, $customer_err ) {
 	global $wpdb;
 	$flat = array();

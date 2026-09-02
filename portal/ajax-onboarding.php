@@ -735,19 +735,48 @@ function six_complete_onboarding() {
         );
     }
 
-    // Send welcome email with login info
+    // Admin notification (musab/faheem) — separate from the advisor-specific
+    // email above, which only fires if a specific advisor is assigned.
+    if ( function_exists( 'six_send_system_email' ) ) {
+        $onb_user = get_userdata( $user_id );
+        if ( $onb_user ) {
+            six_send_system_email( 'onboarding_completed', array(
+                'client_name'  => $onb_user->display_name,
+                'client_email' => $onb_user->user_email,
+                'services'     => implode( ', ', $svc_names ),
+                'total_budget' => '$' . number_format( $total_budget, 0 ) . '/mo',
+                'score'        => $score . '/100',
+                'submitted_at' => current_time( 'F j, Y g:i a' ),
+            ), array(
+                'send_customer' => false, // the login-details email below already confirms this to the customer
+                'dashboard_url' => admin_url( 'admin.php?page=six-clients' ),
+                'odoo_lead_id'  => intval( get_user_meta( $user_id, 'six_odoo_lead_id', true ) ),
+            ) );
+        }
+    }
+
+    // Send welcome email with login info — content is code-controlled (not
+    // the editable "System: Onboarding Completed" template) since it carries
+    // the customer's actual temporary password; only its visual chrome is
+    // shared with the rest of the branded email system.
     $temp_pass = get_user_meta( $user_id, 'six_temp_password', true );
     $user      = get_userdata( $user_id );
     if ( $temp_pass ) {
-        wp_mail(
-            $user->user_email,
-            'Welcome to 6ix Developers — Your Account Details',
-            '<p>Hi ' . esc_html($user->first_name ?: $user->display_name) . ',</p>'
+        $welcome_body = '<p>Hi ' . esc_html($user->first_name ?: $user->display_name) . ',</p>'
             . '<p>Welcome! Your account is ready. Here are your login details:</p>'
             . '<ul><li><strong>Email:</strong> ' . esc_html($user->user_email) . '</li>'
             . '<li><strong>Temporary Password:</strong> ' . esc_html($temp_pass) . '</li></ul>'
-            . '<p><a href="' . home_url('/portal/') . '">Go to My Dashboard →</a></p>'
-            . '<p>Your advisor will reach out within one business day.</p>',
+            . '<p>Your advisor will reach out within one business day.</p>';
+        $welcome_html = function_exists( 'six_email_chrome' ) ? six_email_chrome( array(
+            'preheader' => 'Your 6ix Developers account is ready.',
+            'heading'   => 'Welcome to 6ix Developers',
+            'body_html' => $welcome_body,
+            'links'     => array( array( 'label' => 'Go to My Dashboard', 'url' => home_url( '/portal/' ) ) ),
+        ) ) : ( $welcome_body . '<p><a href="' . home_url('/portal/') . '">Go to My Dashboard →</a></p>' );
+        wp_mail(
+            $user->user_email,
+            'Welcome to 6ix Developers — Your Account Details',
+            $welcome_html,
             array('Content-Type: text/html; charset=UTF-8')
         );
         delete_user_meta( $user_id, 'six_temp_password' );

@@ -11,9 +11,6 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 function six_forms_seed_defaults() {
-	$owner_body    = "{all_fields}";
-	$customer_body = "Thanks — we've received your submission and will be in touch shortly.\n\nThe 6ix Developers team";
-
 	return array(
 		// ── 1. Google Ads $1800 credit eligibility — 3 steps ────────────
 		array(
@@ -192,9 +189,131 @@ add_action( 'wp_loaded', function () {
 		update_post_meta( $post_id, 'six_form_submit_label', $f['submit_label'] );
 		update_post_meta( $post_id, 'six_form_fields_json', wp_json_encode( $f['fields'] ) );
 		update_post_meta( $post_id, 'six_form_owner_subject', $f['owner_subject'] );
-		update_post_meta( $post_id, 'six_form_owner_body', "{all_fields}" );
+		// One intro sentence — the submitted fields render as their own clean
+		// table below it (see six_forms_handle_submit()), so the body itself
+		// stays a short line rather than duplicating {all_fields} as text.
+		update_post_meta( $post_id, 'six_form_owner_body', 'A new {form_title} submission was just received on the website — see the details below.' );
 		update_post_meta( $post_id, 'six_form_customer_enabled', 0 );
 		update_post_meta( $post_id, 'six_form_customer_subject', 'Thanks for reaching out!' );
 		update_post_meta( $post_id, 'six_form_customer_body', "Thanks — we've received your submission and will be in touch shortly.\n\nThe 6ix Developers team" );
 	}
 }, 20 );
+
+/**
+ * System-generated notification templates — NOT visitor-facing forms (no
+ * shortcode, no fields, never rendered by six_forms_render()). Reuses the
+ * exact same six_form post type + Emails meta box as the 7 real lead forms
+ * above, purely so every email template in the system — form or event —
+ * lives in one editable list with one familiar editor, per the "under all
+ * forms admin dashboard have all the forms for system forms/notifications"
+ * request. Distinguished by six_form_is_system=1 (checked by
+ * class-forms-admin.php to hide the irrelevant Fields/Settings UI and by
+ * the "Type" admin-list column).
+ *
+ * Sent via six_send_system_email() in class-system-emails.php, which merge-
+ * tags {snake_case_key} placeholders the same way form submissions do —
+ * see each event's call site (class-odoo.php, ajax-onboarding.php,
+ * ajax-handlers.php) for exactly which merge keys it passes.
+ */
+function six_system_email_seed_defaults() {
+	return array(
+		array(
+			'key'             => 'onboarding_abandoned',
+			'title'           => 'System: Onboarding Abandoned',
+			'owner_subject'   => 'Onboarding Abandoned — {client_name} (stopped at {stopped_at_step})',
+			'owner_body'      => "{client_name} started onboarding but didn't finish.\n\n{all_fields}\n\nOur automated nurture email and SMS have already gone out — this is for visibility. Reach out personally if this looks like a high-value lead.",
+			'customer_enabled'=> 0, // The existing automated nurture email/SMS already covers the customer for this event — this template is admin-only unless enabled.
+			'customer_subject'=> "Let's finish setting up your account",
+			'customer_body'   => "Hi {client_name},\n\nWe noticed you didn't finish onboarding with 6ix Developers. Pick up right where you left off whenever you're ready — it only takes a couple of minutes.\n\nQuestions in the meantime? Just reply to this email.\n\nThe 6ix Developers team",
+		),
+		array(
+			'key'             => 'onboarding_completed',
+			'title'           => 'System: Onboarding Completed',
+			'owner_subject'   => 'Onboarding Completed — {client_name}',
+			'owner_body'      => "{client_name} finished onboarding and is now a client.\n\n{all_fields}",
+			'customer_enabled'=> 0, // The account-creation email (with login details) already confirms this to the customer — enable here only if you want a SEPARATE welcome email in addition to it.
+			'customer_subject'=> 'Welcome to 6ix Developers — you\'re all set!',
+			'customer_body'   => "Hi {client_name},\n\nThanks for completing your onboarding with 6ix Developers! Your services ({services}) are now being set up, and your advisor will be in touch shortly to get started.\n\nThe 6ix Developers team",
+		),
+		array(
+			'key'             => 'budget_change',
+			'title'           => 'System: Budget Change',
+			'owner_subject'   => 'Budget Change Request — {client_name} ({service_name})',
+			'owner_body'      => "{client_name} requested a budget change.\n\n{all_fields}",
+			'customer_enabled'=> 1,
+			'customer_subject'=> 'Your {service_name} budget has been updated',
+			'customer_body'   => "Hi {client_name},\n\nYour monthly budget for {service_name} has been updated to \${new_budget}/mo, effective now.\n\nQuestions about this change? Just reply to this email or reach out to your advisor.\n\nThe 6ix Developers team",
+		),
+		array(
+			'key'             => 'service_added',
+			'title'           => 'System: New Service Requested',
+			'owner_subject'   => 'New Service Request — {client_name} ({service_name})',
+			'owner_body'      => "{client_name} requested a new service.\n\n{all_fields}",
+			'customer_enabled'=> 1,
+			'customer_subject'=> "We've received your request for {service_name}",
+			'customer_body'   => "Hi {client_name},\n\nThanks for requesting {service_name} — we've received it and your advisor will review it shortly. We'll follow up as soon as it's ready to go.\n\nThe 6ix Developers team",
+		),
+		array(
+			'key'             => 'service_activated',
+			'title'           => 'System: Service Activated',
+			'owner_subject'   => 'Service Activated — {client_name} ({service_name})',
+			'owner_body'      => "{service_name} was activated for {client_name}.\n\n{all_fields}",
+			'customer_enabled'=> 1,
+			'customer_subject'=> 'Your {service_name} is now active!',
+			'customer_body'   => "Hi {client_name},\n\nGreat news — {service_name} is now active on your account at \${budget}/mo. Your advisor will be in touch with next steps.\n\nYou can track progress anytime from your dashboard.\n\nThe 6ix Developers team",
+		),
+	);
+}
+
+add_action( 'wp_loaded', function () {
+	if ( get_option( 'six_system_emails_seeded_v1' ) ) return;
+	update_option( 'six_system_emails_seeded_v1', 1 );
+
+	foreach ( six_system_email_seed_defaults() as $f ) {
+		if ( get_posts( array( 'post_type' => 'six_form', 'meta_key' => 'six_form_key', 'meta_value' => $f['key'], 'post_status' => 'any', 'numberposts' => 1, 'fields' => 'ids' ) ) ) continue;
+
+		$post_id = wp_insert_post( array(
+			'post_title'  => $f['title'],
+			'post_type'   => 'six_form',
+			'post_status' => 'publish',
+			'post_name'   => $f['key'],
+		) );
+		if ( ! $post_id || is_wp_error( $post_id ) ) continue;
+
+		update_post_meta( $post_id, 'six_form_key', $f['key'] );
+		update_post_meta( $post_id, 'six_form_is_system', 1 );
+		update_post_meta( $post_id, 'six_form_fields_json', wp_json_encode( array() ) );
+		update_post_meta( $post_id, 'six_form_owner_subject', $f['owner_subject'] );
+		update_post_meta( $post_id, 'six_form_owner_body', $f['owner_body'] );
+		update_post_meta( $post_id, 'six_form_customer_enabled', $f['customer_enabled'] );
+		update_post_meta( $post_id, 'six_form_customer_subject', $f['customer_subject'] );
+		update_post_meta( $post_id, 'six_form_customer_body', $f['customer_body'] );
+	}
+}, 21 );
+
+/**
+ * One-time upgrade for the 7 real lead-capture forms above, now that emails
+ * are branded (see class-email-chrome.php):
+ *   1. Switch on the customer confirmation email — previously defaulted OFF.
+ *   2. Replace a still-default "{all_fields}" owner body with a proper intro
+ *      sentence, since the submitted fields now render as their own table
+ *      below it (see six_forms_handle_submit()) rather than as inline text.
+ * Both only touch a form still at its untouched original default, so a form
+ * an admin already customized in its Emails box is never overridden.
+ */
+add_action( 'wp_loaded', function () {
+	if ( get_option( 'six_forms_customer_email_default_on_v1' ) ) return;
+	update_option( 'six_forms_customer_email_default_on_v1', 1 );
+
+	foreach ( six_forms_seed_defaults() as $f ) {
+		$posts = get_posts( array( 'post_type' => 'six_form', 'meta_key' => 'six_form_key', 'meta_value' => $f['key'], 'post_status' => 'any', 'numberposts' => 1, 'fields' => 'ids' ) );
+		if ( ! $posts ) continue;
+		$post_id = $posts[0];
+		if ( ! get_post_meta( $post_id, 'six_form_customer_enabled', true ) ) {
+			update_post_meta( $post_id, 'six_form_customer_enabled', 1 );
+		}
+		if ( trim( (string) get_post_meta( $post_id, 'six_form_owner_body', true ) ) === '{all_fields}' ) {
+			update_post_meta( $post_id, 'six_form_owner_body', 'A new {form_title} submission was just received on the website — see the details below.' );
+		}
+	}
+}, 22 );

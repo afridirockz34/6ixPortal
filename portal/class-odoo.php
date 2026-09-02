@@ -1282,6 +1282,26 @@ Anastasia
             error_log("6ix Odoo: Abandon email sent to user {$user_id} email={$user->user_email}");
         }
 
+        // Admin notification (musab/faheem) — separate from, and in addition
+        // to, the "Anastasia" nurture email/SMS the customer already got
+        // above; this is the internal FYI copy.
+        if ( function_exists( 'six_send_system_email' ) ) {
+            six_send_system_email( 'onboarding_abandoned', array(
+                'client_name'    => $display,
+                'client_email'   => $user->user_email,
+                'client_phone'   => $phone ?: 'not provided',
+                'stopped_at_step'=> $step_label,
+                'business_name'  => $biz_name ?: 'not provided',
+                'industry'       => $industry ?: 'not provided',
+                'abandon_count'  => $abandon_count,
+                'submitted_at'   => current_time( 'F j, Y g:i a' ),
+            ), array(
+                'send_customer' => false, // the nurture email above already covers the customer
+                'dashboard_url' => $advisor_url,
+                'odoo_lead_id'  => $lead_id,
+            ) );
+        }
+
         error_log("6ix Odoo: Abandon flow complete for user {$user_id} lead {$lead_id}");
         return $lead_id;
     }

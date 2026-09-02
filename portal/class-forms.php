@@ -134,6 +134,7 @@ function six_forms_get( $key_or_id ) {
 		'id'                   => $id,
 		'key'                  => get_post_meta( $id, 'six_form_key', true ) ?: $post->post_name,
 		'title'                => $post->post_title,
+		'is_system'            => (bool) get_post_meta( $id, 'six_form_is_system', true ),
 		'heading'              => get_post_meta( $id, 'six_form_heading', true ),
 		'sub'                  => get_post_meta( $id, 'six_form_sub', true ),
 		'submit_label'         => get_post_meta( $id, 'six_form_submit_label', true ) ?: 'Submit',

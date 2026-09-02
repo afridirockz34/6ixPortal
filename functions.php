@@ -58,6 +58,13 @@ require_once SIX_PLUGIN_DIR . 'class-icons.php';      // SVG icon library
 require_once SIX_PLUGIN_DIR . 'class-questionnaire.php';
 require_once SIX_PLUGIN_DIR . 'ajax-onboarding.php';
 
+// Branded HTML email shell + the system-generated notification templates
+// (onboarding abandonment/completion, budget change, service request/
+// activation) — loaded before the forms system since class-forms-submit.php
+// uses both to send its owner/customer emails.
+require_once SIX_PLUGIN_DIR . 'class-email-chrome.php';
+require_once SIX_PLUGIN_DIR . 'class-system-emails.php';
+
 // Forms system — every lead-capture form on the site (custom post type +
 // submission log + admin builder + AJAX handler), replacing the old
 // marketing/forms.php + ninja-forms.php. See class-forms.php's docblock.
