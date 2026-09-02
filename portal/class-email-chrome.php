@@ -11,6 +11,39 @@
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+/**
+ * wp_mail() wrapper that captures the REAL failure reason instead of just a
+ * true/false. wp_mail() itself only tells you it couldn't hand the message
+ * to PHPMailer; it stays silent about *why* unless you separately listen
+ * for the 'wp_mail_failed' action, which is exactly what this does — a
+ * temporary, single-use listener around one send so the caller can log the
+ * actual PHPMailer/SMTP exception text (auth failure, rejected recipient,
+ * connection refused, …) instead of the generic "wp_mail() returned false".
+ *
+ * Note this only ever fires when WordPress itself detects the failure. A
+ * `true` return still only means "handed off to the mail server" — not
+ * that it reached an inbox. A message that's silently spam-filtered or
+ * dropped by the receiving server after acceptance looks identical to a
+ * real success from here; that has to be diagnosed from the SMTP plugin's
+ * own delivery/activity log, not from this return value.
+ *
+ * @return array array('sent'=>bool, 'error'=>string)
+ */
+function six_wp_mail( $to, $subject, $body, $headers = array() ) {
+	$captured = null;
+	$catch = function ( $wp_error ) use ( &$captured ) {
+		$captured = is_wp_error( $wp_error ) ? $wp_error->get_error_message() : 'Unknown mail error.';
+	};
+	add_action( 'wp_mail_failed', $catch );
+	$sent = wp_mail( $to, $subject, $body, $headers );
+	remove_action( 'wp_mail_failed', $catch );
+
+	return array(
+		'sent'  => (bool) $sent,
+		'error' => $sent ? '' : ( $captured ?: 'wp_mail() returned false — check the SMTP plugin\'s configuration and its own send/activity log (a "false" with no specific reason usually means the SMTP plugin itself blocked or misrouted it before WordPress could tell).' ),
+	);
+}
+
 /** Brand palette, matching marketing/assets/marketing.css's --mk-* tokens. */
 function six_email_palette() {
 	return array(

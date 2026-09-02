@@ -92,9 +92,9 @@ function six_send_system_email( $type_key, array $merge, array $opts = array() )
 			'footer_note' => 'System notification: ' . $type_key,
 		) );
 
-		$to   = six_admin_notify_emails();
-		$sent = wp_mail( $to, $subject, $html, array( 'Content-Type: text/html; charset=UTF-8' ) );
-		$result['admin'] = array( 'sent' => (bool) $sent, 'skipped' => false, 'error' => $sent ? '' : 'wp_mail() returned false — check the SMTP plugin\'s configuration.' );
+		$to  = six_admin_notify_emails();
+		$out = six_wp_mail( $to, $subject, $html, array( 'Content-Type: text/html; charset=UTF-8' ) );
+		$result['admin'] = array( 'sent' => $out['sent'], 'skipped' => false, 'error' => $out['error'] );
 	}
 
 	if ( $send_customer ) {
@@ -111,8 +111,8 @@ function six_send_system_email( $type_key, array $merge, array $opts = array() )
 				'heading'   => $subject,
 				'body_html' => nl2br( esc_html( $body ) ),
 			) );
-			$sent = wp_mail( $customer_email, $subject, $html, array( 'Content-Type: text/html; charset=UTF-8' ) );
-			$result['customer'] = array( 'sent' => (bool) $sent, 'skipped' => false, 'error' => $sent ? '' : 'wp_mail() returned false — check the SMTP plugin\'s configuration.' );
+			$out = six_wp_mail( $customer_email, $subject, $html, array( 'Content-Type: text/html; charset=UTF-8' ) );
+			$result['customer'] = array( 'sent' => $out['sent'], 'skipped' => false, 'error' => $out['error'] );
 		}
 	}
 

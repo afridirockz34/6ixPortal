@@ -116,6 +116,24 @@ function six_admin_settings() {
         echo '<div class="notice notice-success is-dismissible"><p>✓ Settings saved.</p></div>';
     }
 
+    // "Send test email" — isolates whether mail delivery itself works from
+    // whether a specific event's template/data is the problem. Uses the
+    // exact same six_wp_mail()/six_email_chrome() path every real
+    // notification uses, so a failure here means every notification email
+    // is affected, not just one event.
+    if ( isset( $_POST['six_send_test_email'] ) && check_admin_referer( 'six_settings' ) && function_exists( 'six_wp_mail' ) ) {
+        $test_html = function_exists( 'six_email_chrome' ) ? six_email_chrome( array(
+            'heading'   => 'Test email from 6ix Portal',
+            'body_html' => '<p>If you\'re reading this, outgoing mail from 6ix Portal is working.</p><p>Sent ' . esc_html( current_time( 'F j, Y g:i a' ) ) . ' to confirm the addresses under Notifications → Recipients are receiving mail.</p>',
+        ) ) : '<p>Test email from 6ix Portal.</p>';
+        $test_result = six_wp_mail( six_admin_notify_emails(), '[6ix Portal] Test email — ' . current_time( 'g:i:s a' ), $test_html, array( 'Content-Type: text/html; charset=UTF-8' ) );
+        if ( $test_result['sent'] ) {
+            echo '<div class="notice notice-success is-dismissible"><p>✓ Test email handed off successfully to: ' . esc_html( implode( ', ', six_admin_notify_emails() ) ) . '. If it doesn\'t arrive within a few minutes, check spam/junk first, then your SMTP plugin\'s own delivery log — a successful hand-off here doesn\'t guarantee it reached an inbox.</p></div>';
+        } else {
+            echo '<div class="notice notice-error is-dismissible"><p><strong>✗ Test email failed to send.</strong> ' . esc_html( $test_result['error'] ) . '</p></div>';
+        }
+    }
+
     // Helper: masked display of sensitive options
     $mask = str_repeat( '•', 12 );
     $s = function($key, $is_secret=false) use ($mask) {
@@ -187,6 +205,10 @@ function six_admin_settings() {
                 <div class="six-int-body">
                     <div class="hint">Every admin/owner copy of a notification email — form submissions, onboarding abandonment/completion, budget changes, service requests and activations — is sent to these addresses. Edit the email templates themselves under 6ix Portal → Forms (each one, including the "System Generated" entries, has its own editable Subject/Body).</div>
                     <div class="six-fld"><label>Recipients</label><input type="text" name="six_admin_notify_emails" value="<?php echo $s('six_admin_notify_emails'); ?>" placeholder="musab@6ixdevelopers.com, faheem@6ixdevelopers.com"><div class="desc">Comma-separated. Leave blank to use the default (musab@6ixdevelopers.com, faheem@6ixdevelopers.com).</div></div>
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                        <button type="submit" name="six_send_test_email" value="1" class="button">Send test email</button>
+                        <span class="desc" style="margin:0">Sends to the recipients above using the exact same branded template + delivery path as every real notification — the fastest way to check if mail is actually getting through. Save your recipients first if you just changed them.</span>
+                    </div>
                 </div>
             </div>
 
