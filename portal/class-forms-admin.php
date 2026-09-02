@@ -29,11 +29,34 @@ add_action( 'admin_enqueue_scripts', function ( $hook ) {
 } );
 
 /* ── Meta boxes ──────────────────────────────────────────────────────────── */
+// System-generated entries (six_form_is_system=1 — onboarding abandonment,
+// budget change, etc.) aren't visitor-facing forms: no shortcode, no field
+// builder, no redirect URL. They only need the About box (what fires this
+// email, and its merge tags) + the same Email Notifications box every real
+// form uses, so their subject/body stay editable in the same familiar place.
 add_action( 'add_meta_boxes', function () {
-	add_meta_box( 'six_form_settings', 'Form Settings', 'six_forms_mb_settings', 'six_form', 'normal', 'high' );
-	add_meta_box( 'six_form_fields', 'Fields', 'six_forms_mb_fields', 'six_form', 'normal', 'high' );
+	global $post;
+	$is_system = $post && get_post_meta( $post->ID, 'six_form_is_system', true );
+
+	if ( $is_system ) {
+		add_meta_box( 'six_form_system_about', 'System-Generated Notification', 'six_forms_mb_system_about', 'six_form', 'normal', 'high' );
+	} else {
+		add_meta_box( 'six_form_settings', 'Form Settings', 'six_forms_mb_settings', 'six_form', 'normal', 'high' );
+		add_meta_box( 'six_form_fields', 'Fields', 'six_forms_mb_fields', 'six_form', 'normal', 'high' );
+	}
 	add_meta_box( 'six_form_emails', 'Email Notifications', 'six_forms_mb_emails', 'six_form', 'normal', 'default' );
 } );
+
+function six_forms_mb_system_about( $post ) {
+	wp_nonce_field( 'six_forms_save', 'six_forms_nonce' );
+	$key = get_post_meta( $post->ID, 'six_form_key', true ) ?: $post->post_name;
+	echo '<p class="six-adm-hint" style="margin-top:0">This is a <strong>system-generated notification</strong> — the app sends it automatically when this event happens (not a form a visitor fills out, so there\'s no shortcode or field builder). Edit its Subject/Body below in the <strong>Email Notifications</strong> box; the admin copy goes to the addresses set under 6ix Portal → Settings → Notifications, and the customer copy (if enabled) goes to whichever customer the event is about.</p>';
+	echo '<p class="six-adm-hint"><strong>Event key:</strong> <code>' . esc_html( $key ) . '</code></p>';
+	// Preserve the fields the save handler already expects, without exposing
+	// a builder UI for them.
+	echo '<input type="hidden" name="six_form_fields_json" value="' . esc_attr( wp_json_encode( array() ) ) . '">';
+	echo '<input type="hidden" name="six_form_key" value="' . esc_attr( $key ) . '">';
+}
 
 function six_forms_field( $key, $label, $val, $hint = '', $ph = '' ) {
 	echo '<div class="six-adm-field"><label class="six-adm-field-label">' . esc_html( $label ) . '</label>';
@@ -169,21 +192,24 @@ function six_forms_field_row( $f, $types ) {
 
 function six_forms_mb_emails( $post ) {
 	$g = fn( $k ) => get_post_meta( $post->ID, $k, true );
+	$is_system = (bool) $g( 'six_form_is_system' );
 	?>
-	<p class="six-adm-hint" style="margin-top:0">Merge tags: <code>{field_key}</code> for one field's value, <code>{all_fields}</code> for every submitted field as a readable list, <code>{form_title}</code> for this form's title.</p>
+	<p class="six-adm-hint" style="margin-top:0">Merge tags: <code>{field_key}</code> for one field's value, <code>{all_fields}</code> for every <?php echo $is_system ? 'piece of event info' : 'submitted field'; ?> as a readable list, <code>{form_title}</code> for this <?php echo $is_system ? "notification's name" : "form's title"; ?>.</p>
 
 	<h4 style="margin:18px 0 6px">To you (the business)</h4>
 	<?php
 	six_forms_field( 'six_form_owner_subject', 'Subject', $g( 'six_form_owner_subject' ), '', 'e.g. New {form_title} submission' );
 	six_forms_textarea( 'six_form_owner_body', 'Body', $g( 'six_form_owner_body' ) ?: '{all_fields}', '', 8 );
 	?>
-	<h4 style="margin:22px 0 6px">To the customer (optional confirmation)</h4>
+	<h4 style="margin:22px 0 6px">To the customer<?php echo $is_system ? '' : ' (optional confirmation)'; ?></h4>
 	<div class="six-adm-field">
-		<label><input type="checkbox" name="six_form_customer_enabled" value="1"<?php checked( (bool) $g( 'six_form_customer_enabled' ) ); ?>> Send a confirmation email to whoever filled out this form</label>
+		<label><input type="checkbox" name="six_form_customer_enabled" value="1"<?php checked( (bool) $g( 'six_form_customer_enabled' ) ); ?>> Send this email to the customer<?php echo $is_system ? " this event is about" : " who filled out this form"; ?></label>
 	</div>
 	<?php
-	six_forms_field( 'six_form_customer_email_field', 'Which field holds their email address', $g( 'six_form_customer_email_field' ),
-		'Match this to one of the field keys above (e.g. "email1"). If left blank, the first field the visitor filled in with a valid email address is used.', 'e.g. email1' );
+	if ( ! $is_system ) {
+		six_forms_field( 'six_form_customer_email_field', 'Which field holds their email address', $g( 'six_form_customer_email_field' ),
+			'Match this to one of the field keys above (e.g. "email1"). If left blank, the first field the visitor filled in with a valid email address is used.', 'e.g. email1' );
+	}
 	six_forms_field( 'six_form_customer_subject', 'Subject', $g( 'six_form_customer_subject' ), '', "Thanks for reaching out!" );
 	six_forms_textarea( 'six_form_customer_body', 'Body', $g( 'six_form_customer_body' ) ?: "Thanks — we've received your submission and will be in touch shortly.", '', 6 );
 }
@@ -237,6 +263,27 @@ add_action( 'save_post_six_form', function ( $post_id ) {
 		update_post_meta( $post_id, 'six_form_fields_json', wp_json_encode( $clean ) );
 	}
 } );
+
+/* ── "Type" column on the Forms list (WP Admin → 6ix Portal → Forms) ────
+ * Distinguishes shortcode-based lead forms from system-generated
+ * notifications at a glance, per the "just write system generated" request. */
+add_filter( 'manage_six_form_posts_columns', function ( $columns ) {
+	$new = array();
+	foreach ( $columns as $k => $label ) {
+		$new[ $k ] = $label;
+		if ( $k === 'title' ) $new['six_form_type'] = 'Type';
+	}
+	return $new;
+} );
+add_action( 'manage_six_form_posts_custom_column', function ( $column, $post_id ) {
+	if ( $column !== 'six_form_type' ) return;
+	if ( get_post_meta( $post_id, 'six_form_is_system', true ) ) {
+		echo '<span style="display:inline-block;padding:2px 9px;border-radius:100px;font-size:11px;font-weight:700;color:#fff;background:#627080">System Generated</span>';
+	} else {
+		$key = get_post_meta( $post_id, 'six_form_key', true );
+		echo $key ? '<code>[six_form key="' . esc_html( $key ) . '"]</code>' : '—';
+	}
+}, 10, 2 );
 
 /* ── Submissions list (WP Admin → 6ix Portal → Form Submissions) ───────── */
 // Priority 20 so the 'six-portal' parent menu (registered at the default

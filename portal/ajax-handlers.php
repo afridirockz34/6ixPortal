@@ -220,18 +220,33 @@ add_action( 'wp_ajax_six_request_service', function() {
         'service_name' => $names[ $service ] ?? ucwords( str_replace( '-', ' ', $service ) ),
         'status' => 'pending', 'budget' => 0,
     ) );
+    $client      = get_userdata( $client_id );
+    $service_nm  = $names[ $service ] ?? ucwords( str_replace( '-', ' ', $service ) );
+
     // Prefer that service's dedicated advisor (if one is assigned), else the
     // client's General advisor.
     $role_map   = array( 'google-ads' => 'google-ads', 'seo' => 'seo', 'social-media' => 'smm' );
     $advisor_id = six_get_client_advisor_id( $client_id, $role_map[ $service ] ?? '' );
     if ( $advisor_id ) {
-        $client = get_userdata( $client_id );
         Six_Notifications::create( array(
             'user_id' => $advisor_id, 'type' => 'service_request',
             'title' => 'New Service Request',
-            'message' => $client->display_name . ' requested ' . ( $names[ $service ] ?? $service ),
+            'message' => $client->display_name . ' requested ' . $service_nm,
         ) );
     }
+
+    if ( function_exists( 'six_send_system_email' ) && $client ) {
+        six_send_system_email( 'service_added', array(
+            'client_name'  => $client->display_name,
+            'client_email' => $client->user_email,
+            'service_name' => $service_nm,
+            'submitted_at' => current_time( 'F j, Y g:i a' ),
+        ), array(
+            'customer_email' => $client->user_email,
+            'dashboard_url'  => home_url( '/advisor-portal/?tab=clients&client=' . $client_id ),
+        ) );
+    }
+
     wp_send_json_success( array( 'status' => 'pending' ) );
 } );
 
@@ -309,6 +324,7 @@ function six_approve_service(){
     $svc = $wpdb->get_row($wpdb->prepare(
         "SELECT * FROM {$wpdb->prefix}six_client_services WHERE id=%d", $svc_id));
     if(!$svc) wp_send_json_error('Service not found');
+    if ( ! $client_id ) $client_id = intval( $svc->client_id ?? 0 ); // authoritative fallback — the row always knows its own client
     // Write ONLY columns that exist. The v7 migration adds advisor_id +
     // updated_at to this table for exactly this handler; approved_by/approved_at
     // were never created, so writing them made the whole update fail and the
@@ -330,6 +346,25 @@ function six_approve_service(){
         $lead_id = intval(get_user_meta($client_id,'six_odoo_lead_id',true));
         if ($lead_id) Six_Odoo::update_lead_stage($lead_id,'Customer');
     }
+
+    if ( $client_id && function_exists( 'six_send_system_email' ) ) {
+        $client = get_userdata( $client_id );
+        $activator = wp_get_current_user();
+        if ( $client ) {
+            six_send_system_email( 'service_activated', array(
+                'client_name'  => $client->display_name,
+                'client_email' => $client->user_email,
+                'service_name' => $svc->service_name,
+                'budget'       => number_format( floatval( $svc->budget ), 0 ),
+                'activated_by' => $activator ? $activator->display_name : '',
+                'activated_at' => current_time( 'F j, Y g:i a' ),
+            ), array(
+                'customer_email' => $client->user_email,
+                'dashboard_url'  => home_url( '/advisor-portal/?tab=clients&client=' . $client_id ),
+            ) );
+        }
+    }
+
     wp_send_json_success(array('message'=>'Service approved.','service_name'=>$svc->service_name));
 }
 
@@ -380,6 +415,22 @@ add_action( 'wp_ajax_six_request_budget_change', function() {
                  . '<p><a href="' . home_url( '/advisor-portal/?tab=approvals' ) . '">Review in Portal →</a></p>';
         wp_mail( $advisor->user_email, $subject, $body, array( 'Content-Type: text/html; charset=UTF-8' ) );
     }
+
+    if ( function_exists( 'six_send_system_email' ) ) {
+        $client = $client ?? get_userdata( $client_id );
+        six_send_system_email( 'budget_change', array(
+            'client_name'      => $client->display_name,
+            'client_email'     => $client->user_email,
+            'service_name'     => $service->service_name,
+            'current_budget'   => number_format( floatval( $service->budget ), 0 ),
+            'requested_budget' => number_format( $new_budget, 0 ),
+            'submitted_at'     => current_time( 'F j, Y g:i a' ),
+        ), array(
+            'send_customer' => false, // customer copy of this template is sent on approval instead, once the change is actually live
+            'dashboard_url' => home_url( '/advisor-portal/?tab=approvals' ),
+        ) );
+    }
+
     wp_send_json_success( array( 'message' => 'Budget change request sent to your advisor for approval.' ) );
 } );
 
@@ -425,6 +476,22 @@ add_action( 'wp_ajax_six_approve_budget_change', function() {
             );
         }
     }
+
+    if ( function_exists( 'six_send_system_email' ) ) {
+        $client_user = $client_user ?? get_userdata( $client_id );
+        if ( $client_user ) {
+            six_send_system_email( 'budget_change', array(
+                'client_name' => $client_user->display_name,
+                'service_name'=> $service->service_name ?? 'Service',
+                'new_budget'  => number_format( $final_budget, 0 ),
+            ), array(
+                'send_admin'     => false, // admin already got the request-time copy above
+                'customer_email' => $client_user->user_email,
+                'dashboard_url'  => home_url( '/advisor-portal/?tab=clients&client=' . $client_id ),
+            ) );
+        }
+    }
+
     wp_send_json_success( array( 'budget' => $final_budget ) );
 } );
 

@@ -86,6 +86,8 @@ function six_admin_settings() {
         'six_ga4_property_id', 'six_meta_app_id', 'six_meta_ad_account_id',
         // Twilio SMS
         'six_twilio_account_sid', 'six_twilio_auth_token', 'six_twilio_from_number',
+        // Notification email recipients
+        'six_admin_notify_emails',
     );
 
     if ( isset( $_POST['six_save_settings'] ) && check_admin_referer( 'six_settings' ) ) {
@@ -178,6 +180,15 @@ function six_admin_settings() {
             <?php wp_nonce_field( 'six_settings' ); ?>
 
             <div class="six-int-grid">
+
+            <!-- ═══ NOTIFICATIONS ══════════════════════════════════════ -->
+            <div class="six-int-card wide">
+                <div class="six-int-head"><span class="dot" style="background:#031523"></span> Notifications <?php echo $badge( true, 'Active' ); ?></div>
+                <div class="six-int-body">
+                    <div class="hint">Every admin/owner copy of a notification email — form submissions, onboarding abandonment/completion, budget changes, service requests and activations — is sent to these addresses. Edit the email templates themselves under 6ix Portal → Forms (each one, including the "System Generated" entries, has its own editable Subject/Body).</div>
+                    <div class="six-fld"><label>Recipients</label><input type="text" name="six_admin_notify_emails" value="<?php echo $s('six_admin_notify_emails'); ?>" placeholder="musab@6ixdevelopers.com, faheem@6ixdevelopers.com"><div class="desc">Comma-separated. Leave blank to use the default (musab@6ixdevelopers.com, faheem@6ixdevelopers.com).</div></div>
+                </div>
+            </div>
 
             <!-- ═══ ODOO CRM ═══════════════════════════════════════════ -->
             <div class="six-int-card wide">
