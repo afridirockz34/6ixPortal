@@ -1970,6 +1970,18 @@ Best,
             'mail_create_nolog'       => true,
             'mail_create_nosubscribe' => true,
             'mail_notrack'            => true,
+            // Belt-and-suspenders: tracking_disable etc. only suppress Odoo's
+            // OWN built-in follower notifications on mail.thread models. If
+            // the "invalid recipients" fault is instead coming from a custom
+            // Automation Rule (Settings -> Technical -> Automation Rules)
+            // that sends mail unconditionally on crm.lead creation, that
+            // send still goes through Odoo's mail-queue layer, which DOES
+            // respect this flag: instead of sending synchronously (and
+            // raising right here if the recipient is bad), it queues the
+            // message as mail.mail so the create() call succeeds regardless
+            // and the bad-recipient failure shows up in Odoo's own mail
+            // queue/log instead of blocking the API call.
+            'mail_notify_force_send'  => false,
         );
     }
 
