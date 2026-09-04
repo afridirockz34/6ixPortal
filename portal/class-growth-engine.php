@@ -474,9 +474,10 @@ class Six_Growth_Engine {
         }
 
         // Seed the shared recovery sequence: an SMS reminder at 1h, then a
-        // final touch at 3 days (class-lead-pipeline.php's cron). Skips the
-        // 24h touch website-form leads get — kept minimal per instruction,
-        // since this flow already has its own immediate reach-out above.
+        // final touch at 3 days (class-lead-pipeline.php's cron). The 24h
+        // slot is deliberately NOT part of this seeding — it's covered by
+        // cron_abandon_followup() below instead (this journey's own tuned
+        // 24h email, already written — it just wasn't being scheduled).
         if ( ! get_user_meta( $user_id, 'six_recovery_active', true ) ) {
             update_user_meta( $user_id, 'six_recovery_active', 1 );
             update_user_meta( $user_id, 'six_recovery_stage', 1 );
@@ -488,6 +489,12 @@ class Six_Growth_Engine {
             wp_schedule_single_event(time()+600, 'six_abandon_sms', array($user_id,$step,$score)); // 10 minutes
         if ( ! wp_next_scheduled('six_abandon_email', array($user_id,$step,$score)) )
             wp_schedule_single_event(time()+720, 'six_abandon_email', array($user_id,$step,$score));
+        // 24h follow-up — cron_abandon_followup() already existed with real
+        // content (its own tuned "Still thinking it over?" email, logged to
+        // Odoo chatter via send_email_odoo()) but was never actually
+        // scheduled anywhere, so it silently never ran. Wiring it up here.
+        if ( ! wp_next_scheduled('six_abandon_followup', array($user_id)) )
+            wp_schedule_single_event(time()+86400, 'six_abandon_followup', array($user_id)); // 24 hours
 
         // Trigger WP-Cron to run the scheduled events immediately
         if ( ! defined('DOING_CRON') ) {
