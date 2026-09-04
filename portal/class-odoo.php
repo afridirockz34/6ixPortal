@@ -1302,6 +1302,19 @@ Anastasia
             ) );
         }
 
+        // Seed the SHARED recovery sequence for touches 1-3 — touch 0 already
+        // just happened above (the SMS+email a few lines up). class-lead-
+        // pipeline.php's cron picks up any user with six_recovery_active=1
+        // the same way it processes website-form leads, firing the same
+        // templates (lead_recovery_touch1/2/3) at +1h/+24h/+3d. Guarded so a
+        // repeat abandonment within the sequence doesn't restart it from
+        // scratch.
+        if ( ! get_user_meta( $user_id, 'six_recovery_active', true ) ) {
+            update_user_meta( $user_id, 'six_recovery_active', 1 );
+            update_user_meta( $user_id, 'six_recovery_stage', 1 );
+            update_user_meta( $user_id, 'six_recovery_next_at', date( 'Y-m-d H:i:s', current_time( 'timestamp' ) + HOUR_IN_SECONDS ) );
+        }
+
         error_log("6ix Odoo: Abandon flow complete for user {$user_id} lead {$lead_id}");
         return $lead_id;
     }
@@ -1400,6 +1413,15 @@ Anastasia
         if ( ! $lead_id ) {
             error_log( "6ix Odoo: on_onboarding_completed — sync_lead failed for user {$user_id}" );
             return false;
+        }
+
+        // "Card or call?" fork, per the Lead Automation Flow: a saved
+        // payment method means onboarding finished with the customer
+        // already paying — an instant self-serve client, Won immediately,
+        // no advisor gate. (No card saved falls to on_call_requested()
+        // instead, a separate advisor-owned "Call Requested" stage.)
+        if ( $payment_saved ) {
+            self::update_lead_stage( $lead_id, 'Customer' );
         }
 
         $advisor_uid = self::get_advisor_odoo_uid( $user_id );
@@ -1805,6 +1827,18 @@ Best,
                 'limit'=>200)) ?: array();
     }
 
+    /**
+     * Odoo's own "Lost" leads (active=false — the ORM's implicit active=true
+     * filter has to be explicitly overridden with an 'active' domain clause
+     * to see them at all). Not tracked anywhere in WordPress; read straight
+     * from Odoo for the quarterly win-back pass (class-lead-pipeline.php).
+     */
+    public static function get_lost_leads( $limit = 200 ) {
+        return self::execute('crm.lead','search_read',
+            array(array(array('active','=',false))),
+            array('fields'=>array('id','name','email_from','phone','partner_name'),'limit'=>$limit)) ?: array();
+    }
+
     // ═════════════════════════════════════════════════════════════════════
     // SECTION 15 — SETUP (one-time, /wp-admin/?six_odoo_setup=1)
     // ═════════════════════════════════════════════════════════════════════
@@ -2092,8 +2126,10 @@ Best,
             }
         }
 
-        // ── 2. Lead (crm.lead) ──────────────────────────────────────────
-        $stage_id = self::get_stage_id( 'Website Form Submission' );
+        // ── 2. Lead (crm.lead) — "New Auto": the shared entry stage for
+        // every paid/website lead (Meta Ads + Website Form), per the Lead
+        // Automation Flow. ─────────────────────────────────────────────
+        $stage_id = self::get_stage_id( 'New Auto' );
 
         $when  = ! empty( $sub['created_at'] ) ? $sub['created_at'] : current_time( 'mysql' );
         $where = ! empty( $sub['source_url'] ) ? $sub['source_url'] : '';
@@ -2141,20 +2177,36 @@ Best,
         }
         error_log( '6ix Odoo: sync_form_submission — crm.lead created ID=' . $lead_id . ' for form "' . $form_title . '"' );
 
-        // ── 3. Follow-up task — due tomorrow, "contact within 24 hours" ───
+        // ── 3. Call Reminder task — Odoo's date_deadline is date-only (no
+        // time-of-day), so the actual 10-minute urgency is spelled out in
+        // the activity text/summary; the WordPress side additionally tracks
+        // response_due_at on the submission row itself (minute-precision)
+        // for the dashboard countdown + six_lead_pipeline.php's cron sweep
+        // that moves an unanswered lead to Abandoned after the window.
         self::create_activity(
             $lead_id,
-            'Contact within 24 hours — new "' . $form_title . '" submission',
+            'CALL WITHIN 10 MINUTES — new "' . $form_title . '" submission',
             "New website form submission from {$display_name}.\n"
             . "Form: {$form_title}\n"
             . ( $contact['email'] ? "Email: {$contact['email']}\n" : '' )
             . ( $contact['phone'] ? "Phone: {$contact['phone']}\n" : '' )
             . "Submitted: {$when}\n"
             . ( $where ? "Page: {$where}\n" : '' )
-            . "\nACTION REQUIRED: Contact this lead within 24 hours of submission.",
+            . "\nACTION REQUIRED: Call this lead within 10 minutes of submission.",
             'Todo',
-            1
+            0
         );
+
+        // ── 4. Auto SMS to the lead — "New Auto" stage sends auto email +
+        // SMS the moment a paid/website lead lands in the CRM. The email
+        // side is the form's own customer-confirmation email (already sent
+        // by class-forms-submit.php); this is the SMS half.
+        if ( $contact['phone'] ) {
+            $sms_first_name = $contact['name'] ? explode( ' ', trim( $contact['name'] ) )[0] : 'there';
+            $sms = "Hi {$sms_first_name}, thanks for reaching out to 6ix Developers about {$form_title}! "
+                 . "One of our specialists will be calling you shortly to help you get started.";
+            self::send_sms_twilio( $contact['phone'], $sms, $lead_id );
+        }
 
         return array( 'ok' => true, 'lead_id' => $lead_id, 'partner_id' => $partner_id );
     }

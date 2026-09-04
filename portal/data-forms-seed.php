@@ -292,6 +292,112 @@ add_action( 'wp_loaded', function () {
 }, 21 );
 
 /**
+ * Lead recovery sequence — 4 touches fired by class-lead-pipeline.php for
+ * any lead that goes quiet (didn't answer the 10-minute call reminder, or
+ * abandoned onboarding), per the Lead Automation Flow: email+SMS
+ * immediately, an SMS-only reminder at 1 hour, an email with an offer at
+ * 24 hours, and a final offer at 3 days. Same six_form-post pattern as the
+ * other system templates, plus the sms_body field (see class-forms-admin.php)
+ * for the SMS half of each touch. No admin copy is sent per touch (would be
+ * 4x noise per lead) — class-lead-pipeline.php always calls these with
+ * send_admin=false, but the owner fields are still filled in below in case
+ * that's ever turned on.
+ *
+ * IMPORTANT: the 24h/3d touches below have a PLACEHOLDER offer — edit
+ * "lead_recovery_touch2" and "lead_recovery_touch3" under 6ix Portal →
+ * Forms with your actual promotion before this goes live.
+ */
+function six_lead_recovery_seed_defaults() {
+	return array(
+		array(
+			'key'   => 'lead_recovery_touch0',
+			'title' => 'System: Lead Recovery — Touch 1 (immediate)',
+			'owner_subject' => 'Recovery touch 1 sent — {client_name}',
+			'owner_body'    => 'Immediate recovery email+SMS sent to {client_name}.',
+			'customer_enabled' => 1,
+			'customer_subject' => "Still there? We'd love to help.",
+			'customer_body'    => "Hi {client_name},\n\nWe tried reaching you but couldn't connect — no worries, these things happen! If now's not a good time, just reply to this email or give us a call whenever works for you.\n\nThe 6ix Developers team",
+			'sms_body'         => "Hi {client_name}, this is 6ix Developers — we tried calling but missed you! Reply here or call us back whenever's convenient.",
+		),
+		array(
+			'key'   => 'lead_recovery_touch1',
+			'title' => 'System: Lead Recovery — Touch 2 (1 hour, SMS only)',
+			'owner_subject' => 'Recovery touch 2 sent — {client_name}',
+			'owner_body'    => '1-hour SMS reminder sent to {client_name}.',
+			'customer_enabled' => 0, // SMS-only touch — leave the email off
+			'customer_subject' => '',
+			'customer_body'    => '',
+			'sms_body'         => "Hi {client_name}, just following up — we're here whenever you're ready to chat about growing your business. Call or reply anytime!",
+		),
+		array(
+			'key'   => 'lead_recovery_touch2',
+			'title' => 'System: Lead Recovery — Touch 3 (24 hours, offer)',
+			'owner_subject' => 'Recovery touch 3 sent — {client_name}',
+			'owner_body'    => '24-hour recovery email (with offer) sent to {client_name}.',
+			'customer_enabled' => 1,
+			'customer_subject' => 'A little something to help you get started, {client_name}',
+			'customer_body'    => "Hi {client_name},\n\nStill thinking it over? Here's something to help make the decision easier: [EDIT ME — add your current offer/promo here].\n\nWe'd love to help your business grow — reply or call anytime.\n\nThe 6ix Developers team",
+			'sms_body'         => '',
+		),
+		array(
+			'key'   => 'lead_recovery_touch3',
+			'title' => 'System: Lead Recovery — Touch 4 (3 days, final offer)',
+			'owner_subject' => 'Recovery touch 4 (final) sent — {client_name}',
+			'owner_body'    => '3-day final-offer email+SMS sent to {client_name}.',
+			'customer_enabled' => 1,
+			'customer_subject' => "Last call, {client_name} — this offer won't stay open",
+			'customer_body'    => "Hi {client_name},\n\nThis is our last check-in — [EDIT ME — add your final offer/promo + any deadline here].\n\nIf you'd still like to talk, we're just a reply or call away.\n\nThe 6ix Developers team",
+			'sms_body'         => "Hi {client_name}, last call from 6ix Developers — [EDIT ME: final offer]. Reply or call if you'd like to chat!",
+		),
+	);
+}
+
+/**
+ * Quarterly win-back — one touch, fired by class-lead-pipeline.php against
+ * everyone who finished the recovery sequence with no response (Nurture
+ * list) plus Lost leads, every quarter.
+ */
+function six_lead_winback_seed_defaults() {
+	return array( array(
+		'key'   => 'lead_quarterly_winback',
+		'title' => 'System: Quarterly Win-Back',
+		'owner_subject' => 'Quarterly win-back sent — {client_name}',
+		'owner_body'    => 'Quarterly win-back email sent to {client_name}.',
+		'customer_enabled' => 1,
+		'customer_subject' => "It's been a while, {client_name} — worth another look?",
+		'customer_body'    => "Hi {client_name},\n\nIt's been a few months since we last connected — we've grown a lot since then, and we'd love another chance to show you what 6ix Developers can do for your business: [EDIT ME — add a current offer or recent win/case study here].\n\nJust reply or call if you'd like to reconnect.\n\nThe 6ix Developers team",
+		'sms_body'         => '',
+	) );
+}
+
+add_action( 'wp_loaded', function () {
+	if ( get_option( 'six_lead_recovery_seeded_v1' ) ) return;
+	update_option( 'six_lead_recovery_seeded_v1', 1 );
+
+	foreach ( array_merge( six_lead_recovery_seed_defaults(), six_lead_winback_seed_defaults() ) as $f ) {
+		if ( get_posts( array( 'post_type' => 'six_form', 'meta_key' => 'six_form_key', 'meta_value' => $f['key'], 'post_status' => 'any', 'numberposts' => 1, 'fields' => 'ids' ) ) ) continue;
+
+		$post_id = wp_insert_post( array(
+			'post_title'  => $f['title'],
+			'post_type'   => 'six_form',
+			'post_status' => 'publish',
+			'post_name'   => $f['key'],
+		) );
+		if ( ! $post_id || is_wp_error( $post_id ) ) continue;
+
+		update_post_meta( $post_id, 'six_form_key', $f['key'] );
+		update_post_meta( $post_id, 'six_form_is_system', 1 );
+		update_post_meta( $post_id, 'six_form_fields_json', wp_json_encode( array() ) );
+		update_post_meta( $post_id, 'six_form_owner_subject', $f['owner_subject'] );
+		update_post_meta( $post_id, 'six_form_owner_body', $f['owner_body'] );
+		update_post_meta( $post_id, 'six_form_customer_enabled', $f['customer_enabled'] );
+		update_post_meta( $post_id, 'six_form_customer_subject', $f['customer_subject'] );
+		update_post_meta( $post_id, 'six_form_customer_body', $f['customer_body'] );
+		update_post_meta( $post_id, 'six_form_sms_body', $f['sms_body'] );
+	}
+}, 21 );
+
+/**
  * One-time upgrade for the 7 real lead-capture forms above, now that emails
  * are branded (see class-email-chrome.php):
  *   1. Switch on the customer confirmation email — previously defaulted OFF.

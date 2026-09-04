@@ -31,6 +31,10 @@ if ( $view_submission_id ) :
 			$odoo_resync_result = six_forms_resync_odoo( $sub->id );
 			$sub = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$sub_table} WHERE id=%d", $sub->id ) );
 		}
+		if ( isset( $_POST['six_fs_mark_responded'] ) && check_admin_referer( 'six_fs_mark_responded_' . $sub->id ) && function_exists( 'six_lead_mark_responded' ) && six_lead_can_mark_responded() ) {
+			six_lead_mark_responded( $sub->id );
+			$sub = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$sub_table} WHERE id=%d", $sub->id ) );
+		}
 		?>
 	<div class="six-page-header">
 		<div>
@@ -39,6 +43,19 @@ if ( $view_submission_id ) :
 			<p class="six-page-sub"><?php echo esc_html( date_i18n( 'F j, Y \a\t g:i a', strtotime( $sub->created_at ) ) ); ?></p>
 		</div>
 		<?php echo six_fs_status_badge( $sub->status ); ?>
+	</div>
+
+	<div class="six-card" style="padding:24px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px">
+		<div>
+			<h3 style="margin:0 0 6px;font-size:14px">Response</h3>
+			<?php echo six_fs_response_badge( $sub ); ?>
+		</div>
+		<?php if ( $sub->response_status === 'pending' && function_exists( 'six_lead_can_mark_responded' ) && six_lead_can_mark_responded() ) : ?>
+		<form method="post">
+			<?php wp_nonce_field( 'six_fs_mark_responded_' . $sub->id ); ?>
+			<button type="submit" name="six_fs_mark_responded" value="1" class="six-btn six-btn-primary six-btn-sm">Mark Responded</button>
+		</form>
+		<?php endif; ?>
 	</div>
 
 	<div class="six-card" style="padding:24px;margin-bottom:20px">
@@ -87,7 +104,7 @@ if ( $view_submission_id ) :
 		<?php endif; ?>
 
 		<?php if ( $sub->odoo_lead_id ) : ?>
-		<p style="font-size:13px">Synced to Odoo — a contact and CRM lead were created, and a follow-up task was scheduled for the owner to reach out within 24 hours.</p>
+		<p style="font-size:13px">Synced to Odoo — a contact and CRM lead were created, and a "Call Within 10 Minutes" task was scheduled.</p>
 		<?php if ( get_option( 'six_odoo_url' ) ) : ?>
 		<a class="six-btn six-btn-secondary six-btn-sm" target="_blank" rel="noopener" href="<?php echo esc_url( rtrim( get_option( 'six_odoo_url' ), '/' ) . '/odoo/crm/' . intval( $sub->odoo_lead_id ) ); ?>">Open lead in Odoo &rarr;</a>
 		<?php endif; ?>
@@ -178,10 +195,10 @@ if ( $view_submission_id ) :
 
 	<div class="six-card" style="overflow-x:auto">
 		<table class="six-table">
-			<thead><tr><th>Date</th><th>Form</th><th>Submitted by</th><th>Status</th><th>Lead status</th><th>Odoo</th><th></th></tr></thead>
+			<thead><tr><th>Date</th><th>Form</th><th>Submitted by</th><th>Status</th><th>Response</th><th>Lead status</th><th>Odoo</th><th></th></tr></thead>
 			<tbody>
 			<?php if ( ! $rows ) : ?>
-			<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:30px">No submissions match these filters yet.</td></tr>
+			<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:30px">No submissions match these filters yet.</td></tr>
 			<?php endif; ?>
 			<?php foreach ( $rows as $r ) :
 				$data = json_decode( $r->data, true );
@@ -193,6 +210,7 @@ if ( $view_submission_id ) :
 				<td><?php echo esc_html( $r->form_title ?: $r->form_key ); ?></td>
 				<td><a href="<?php echo esc_url( $url ); ?>"><?php echo esc_html( $preview ); ?></a></td>
 				<td><?php echo six_fs_status_badge( $r->status ); ?></td>
+				<td><?php echo six_fs_response_badge( $r ); ?></td>
 				<td><?php echo esc_html( ucfirst( $r->lead_status ) ); ?></td>
 				<td><?php
 				if ( $r->odoo_lead_id ) {
@@ -221,6 +239,27 @@ function six_fs_status_badge( $status ) {
 	);
 	$c = $colors[ $status ] ?? '#888';
 	return '<span style="display:inline-block;padding:2px 10px;border-radius:100px;font-size:11.5px;font-weight:700;color:#fff;background:' . esc_attr( $c ) . '">' . esc_html( ucfirst( $status ) ) . '</span>';
+}
+/** Response-window / recovery-sequence status, for the Lead Automation Flow's "Responds?" step. */
+function six_fs_response_badge( $sub ) {
+	$status = $sub->response_status ?? 'pending';
+	if ( $status === 'responded' ) {
+		return '<span style="display:inline-block;padding:2px 10px;border-radius:100px;font-size:11.5px;font-weight:700;color:#fff;background:#1b9e52">Responded</span>';
+	}
+	if ( $status === 'abandoned' ) {
+		$stage = intval( $sub->recovery_stage ?? 0 );
+		return '<span style="display:inline-block;padding:2px 10px;border-radius:100px;font-size:11.5px;font-weight:700;color:#fff;background:#c17b1a">Abandoned — recovery ' . $stage . '/4</span>';
+	}
+	if ( $status === 'nurture' ) {
+		return '<span style="display:inline-block;padding:2px 10px;border-radius:100px;font-size:11.5px;font-weight:700;color:#fff;background:#888">Nurture list</span>';
+	}
+	// 'pending' — still inside the call-reminder window (or the sweep just hasn't run yet).
+	$due = ! empty( $sub->response_due_at ) ? strtotime( $sub->response_due_at ) : 0;
+	$mins_left = $due ? round( ( $due - current_time( 'timestamp' ) ) / 60 ) : null;
+	if ( $mins_left !== null && $mins_left > 0 ) {
+		return '<span style="display:inline-block;padding:2px 10px;border-radius:100px;font-size:11.5px;font-weight:700;color:#fff;background:#2f8f8a">' . $mins_left . 'm left to respond</span>';
+	}
+	return '<span style="display:inline-block;padding:2px 10px;border-radius:100px;font-size:11.5px;font-weight:700;color:#fff;background:#c17b1a">Window passed — pending sweep</span>';
 }
 function six_fs_preview( $data ) {
 	$bits = array();

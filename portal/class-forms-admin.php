@@ -212,6 +212,9 @@ function six_forms_mb_emails( $post ) {
 	}
 	six_forms_field( 'six_form_customer_subject', 'Subject', $g( 'six_form_customer_subject' ), '', "Thanks for reaching out!" );
 	six_forms_textarea( 'six_form_customer_body', 'Body', $g( 'six_form_customer_body' ) ?: "Thanks — we've received your submission and will be in touch shortly.", '', 6 );
+
+	six_forms_textarea( 'six_form_sms_body', 'SMS text (optional)', $g( 'six_form_sms_body' ),
+		'Leave blank to skip SMS entirely. Only sent when a phone number is available. Keep it short — this is a text message, not an email.', 3 );
 }
 
 /* ── Save ────────────────────────────────────────────────────────────── */
@@ -234,7 +237,7 @@ add_action( 'save_post_six_form', function ( $post_id ) {
 	if ( isset( $_POST['six_form_redirect_url'] ) ) {
 		update_post_meta( $post_id, 'six_form_redirect_url', esc_url_raw( wp_unslash( $_POST['six_form_redirect_url'] ) ) );
 	}
-	foreach ( array( 'six_form_sub', 'six_form_owner_body', 'six_form_customer_body' ) as $k ) {
+	foreach ( array( 'six_form_sub', 'six_form_owner_body', 'six_form_customer_body', 'six_form_sms_body' ) as $k ) {
 		if ( isset( $_POST[ $k ] ) ) update_post_meta( $post_id, $k, sanitize_textarea_field( wp_unslash( $_POST[ $k ] ) ) );
 	}
 	update_post_meta( $post_id, 'six_form_customer_enabled', ! empty( $_POST['six_form_customer_enabled'] ) ? 1 : 0 );
