@@ -122,6 +122,15 @@ function six_forms_handle_submit() {
 				$customer_out    = six_wp_mail( $customer_email, $csubject, $chtml, array( 'Content-Type: text/html; charset=UTF-8' ) );
 				$customer_status = $customer_out['sent'] ? 'sent' : 'failed';
 				$customer_err    = $customer_out['error'];
+
+				if ( $odoo_lead_id && class_exists( 'Six_Odoo' ) ) {
+					Six_Odoo::log_communication(
+						$odoo_lead_id, 'Email',
+						$customer_out['sent'] ? 'Sent' : 'Failed',
+						$csubject,
+						$customer_out['sent'] ? "To: {$customer_email}" : "To: {$customer_email}\nError: {$customer_out['error']}"
+					);
+				}
 			} else {
 				$customer_status = 'skipped';
 				$customer_err    = 'No valid email address found in the submission to confirm to.';

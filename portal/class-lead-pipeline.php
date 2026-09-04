@@ -206,6 +206,7 @@ function six_lead_pipeline_fire_touch( $stage, $name, $email, $phone, $lead_id_o
 			'send_admin'     => false, // one admin email per touch per lead would be noisy — the lead's already visible in Form Submissions
 			'send_customer'  => true,
 			'customer_email' => $email,
+			'odoo_lead_id'   => $lead_id_odoo,
 		) );
 	}
 	if ( $phone ) {

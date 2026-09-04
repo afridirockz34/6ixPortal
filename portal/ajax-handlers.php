@@ -244,6 +244,7 @@ add_action( 'wp_ajax_six_request_service', function() {
         ), array(
             'customer_email' => $client->user_email,
             'dashboard_url'  => home_url( '/advisor-portal/?tab=clients&client=' . $client_id ),
+            'odoo_lead_id'   => intval( get_user_meta( $client_id, 'six_odoo_lead_id', true ) ),
         ) );
     }
 
@@ -361,11 +362,48 @@ function six_approve_service(){
             ), array(
                 'customer_email' => $client->user_email,
                 'dashboard_url'  => home_url( '/advisor-portal/?tab=clients&client=' . $client_id ),
+                'odoo_lead_id'   => intval( get_user_meta( $client_id, 'six_odoo_lead_id', true ) ),
             ) );
         }
     }
 
     wp_send_json_success(array('message'=>'Service approved.','service_name'=>$svc->service_name));
+}
+
+// ── Log a call (advisor dashboard "Log Call" button) ────────────────────────
+// The manual half of the communication-history request: there's no
+// telephony integration to auto-detect calls, so an advisor/sales rep
+// records what happened and it's posted straight to the client's Odoo
+// chatter via Six_Odoo::log_communication() — the same unified log every
+// email and portal message already goes through.
+add_action( 'wp_ajax_six_log_call', 'six_log_call' );
+function six_log_call() {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    $is_allowed = ( class_exists( 'Six_Roles' ) && ( Six_Roles::is_advisor() || Six_Roles::is_sales() ) ) || current_user_can( 'manage_options' );
+    if ( ! $is_allowed ) wp_send_json_error( 'Permission denied' );
+
+    $client_id = intval( $_POST['client_id'] ?? 0 );
+    if ( ! $client_id ) wp_send_json_error( 'Missing client' );
+    $client = get_userdata( $client_id );
+    if ( ! $client ) wp_send_json_error( 'Client not found' );
+
+    $direction = sanitize_text_field( wp_unslash( $_POST['direction'] ?? 'Made' ) );
+    if ( ! in_array( $direction, array( 'Made', 'Received', 'Missed' ), true ) ) $direction = 'Made';
+    $outcome = sanitize_text_field( wp_unslash( $_POST['outcome'] ?? '' ) );
+    $notes   = sanitize_textarea_field( wp_unslash( $_POST['notes'] ?? '' ) );
+
+    $lead_id = intval( get_user_meta( $client_id, 'six_odoo_lead_id', true ) );
+    if ( ! $lead_id ) wp_send_json_error( 'This client has no Odoo lead yet — nothing to log the call against.' );
+
+    $logger = wp_get_current_user();
+    $detail = 'Logged by: ' . ( $logger ? $logger->display_name : 'unknown' );
+    if ( $notes !== '' ) $detail .= "\nNotes: " . $notes;
+
+    if ( class_exists( 'Six_Odoo' ) ) {
+        Six_Odoo::log_communication( $lead_id, 'Call', $direction, $outcome ?: $direction, $detail );
+    }
+
+    wp_send_json_success( array( 'message' => 'Call logged.' ) );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -488,6 +526,7 @@ add_action( 'wp_ajax_six_approve_budget_change', function() {
                 'send_admin'     => false, // admin already got the request-time copy above
                 'customer_email' => $client_user->user_email,
                 'dashboard_url'  => home_url( '/advisor-portal/?tab=clients&client=' . $client_id ),
+                'odoo_lead_id'   => intval( get_user_meta( $client_id, 'six_odoo_lead_id', true ) ),
             ) );
         }
     }

@@ -41,7 +41,13 @@ function six_admin_notify_emails() {
  *   @type bool   $send_customer   Default true (still gated by the
  *                                 template's own "customer_enabled" toggle).
  *   @type string $customer_email  Required for the customer copy to send.
- *   @type int    $odoo_lead_id    Adds an "Open in Odoo" button to the admin copy.
+ *   @type int    $odoo_lead_id    Adds an "Open in Odoo" button to the admin copy,
+ *                                 and — when the customer copy actually sends —
+ *                                 logs it to that lead's Odoo chatter via
+ *                                 Six_Odoo::log_communication() (see class-odoo.php),
+ *                                 so Odoo keeps the full customer-communication
+ *                                 history regardless of which part of the site
+ *                                 triggered the email.
  *   @type string $dashboard_url   Adds an "Open in Dashboard" button to the admin copy.
  * }
  * @return array array('admin'=>array('sent','skipped','error'), 'customer'=>array(...))
@@ -113,6 +119,15 @@ function six_send_system_email( $type_key, array $merge, array $opts = array() )
 			) );
 			$out = six_wp_mail( $customer_email, $subject, $html, array( 'Content-Type: text/html; charset=UTF-8' ) );
 			$result['customer'] = array( 'sent' => $out['sent'], 'skipped' => false, 'error' => $out['error'] );
+
+			if ( ! empty( $opts['odoo_lead_id'] ) && class_exists( 'Six_Odoo' ) ) {
+				Six_Odoo::log_communication(
+					intval( $opts['odoo_lead_id'] ), 'Email',
+					$out['sent'] ? 'Sent' : 'Failed',
+					$subject,
+					$out['sent'] ? "To: {$customer_email}" : "To: {$customer_email}\nError: {$out['error']}"
+				);
+			}
 		}
 	}
 

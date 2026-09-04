@@ -876,6 +876,29 @@ class Six_Odoo {
         return $result;
     }
 
+    /**
+     * Unified communication-history logger — every email, SMS, in-portal
+     * message, and phone call the site sends/receives/logs gets posted to
+     * the lead's Odoo chatter in one consistent format, so Odoo is the
+     * single source of truth for "everything sent/received with this
+     * customer" (a HubSpot-style timeline on every lead). Thin wrapper
+     * around post_note(); no-ops safely if $lead_id is falsy, so every call
+     * site can call this unconditionally without its own guard.
+     *
+     * @param int    $lead_id   Odoo crm.lead ID.
+     * @param string $channel   'Email' | 'SMS' | 'Portal Message' | 'Call'
+     * @param string $direction 'Sent' | 'Received' | 'Made' | 'Missed'
+     * @param string $summary   One-line summary (subject line, or the
+     *                          message/call outcome).
+     * @param string $detail    Optional fuller body/notes below the summary.
+     */
+    public static function log_communication( $lead_id, $channel, $direction, $summary, $detail = '' ) {
+        if ( ! $lead_id ) return false;
+        $body = '[' . strtoupper( $channel ) . ' ' . strtoupper( $direction ) . '] ' . $summary;
+        if ( $detail ) $body .= "\n" . $detail;
+        return self::post_note( $lead_id, $body );
+    }
+
     // ═════════════════════════════════════════════════════════════════════
     // SECTION 7 — EMAIL VIA ODOO (logged in chatter)
     // ═════════════════════════════════════════════════════════════════════
@@ -2212,6 +2235,79 @@ Best,
     }
 }
 endif;
+
+// ═════════════════════════════════════════════════════════════════════════════
+// INBOUND SMS — Twilio webhook, logs a customer's reply to their Odoo lead
+// chatter. Configure this URL as the phone number's "A message comes in"
+// webhook in the Twilio console: https://<site>/wp-admin/admin-ajax.php
+// ?action=six_twilio_inbound_sms (no nonce — Twilio is an external caller;
+// see the docblock below for what that trades off).
+// ═════════════════════════════════════════════════════════════════════════════
+add_action( 'wp_ajax_nopriv_six_twilio_inbound_sms', 'six_twilio_inbound_sms_webhook' );
+add_action( 'wp_ajax_six_twilio_inbound_sms', 'six_twilio_inbound_sms_webhook' );
+
+/**
+ * Twilio POSTs From/To/Body (+MessageSid) here the moment someone texts the
+ * business number back. No nonce (Twilio can't carry one) — this is
+ * intentionally read-only from our data's perspective: it only ever posts a
+ * chatter note keyed off a phone-number lookup, never writes/authorizes
+ * anything. Returns empty 200 (no TwiML) since we don't auto-reply.
+ */
+function six_twilio_inbound_sms_webhook() {
+	$from = isset( $_POST['From'] ) ? sanitize_text_field( wp_unslash( $_POST['From'] ) ) : '';
+	$body = isset( $_POST['Body'] ) ? sanitize_textarea_field( wp_unslash( $_POST['Body'] ) ) : '';
+	if ( ! $from ) { status_header( 200 ); exit; }
+
+	$lead_id = six_lookup_odoo_lead_by_phone( $from );
+	if ( $lead_id && class_exists( 'Six_Odoo' ) ) {
+		Six_Odoo::log_communication( $lead_id, 'SMS', 'Received', wp_trim_words( $body, 12 ), "From: {$from}\n{$body}" );
+	} else {
+		error_log( "6ix Odoo: inbound SMS from {$from} — no matching lead found. Body: {$body}" );
+	}
+
+	status_header( 200 );
+	header( 'Content-Type: text/xml' );
+	echo '<?xml version="1.0" encoding="UTF-8"?><Response></Response>';
+	exit;
+}
+
+/**
+ * Best-effort phone -> Odoo lead lookup: WP users first (billing_phone,
+ * covers onboarding leads), then Odoo directly by phone (covers website-form
+ * leads, which have no WP user). Matches on the last 10 digits so formatting
+ * differences (+1, spaces, dashes, parens) between what Twilio sends and
+ * what was typed into a form don't cause a false miss.
+ */
+function six_lookup_odoo_lead_by_phone( $phone ) {
+	$digits = preg_replace( '/\D/', '', $phone );
+	$last10 = substr( $digits, -10 );
+	if ( strlen( $last10 ) < 7 ) return 0; // too short to match reliably
+
+	$users = get_users( array(
+		'meta_key'     => 'billing_phone',
+		'meta_compare' => 'EXISTS',
+		'number'       => 500,
+		'fields'       => array( 'ID' ),
+	) );
+	foreach ( $users as $u ) {
+		$their_phone = get_user_meta( $u->ID, 'billing_phone', true );
+		$their_digits = preg_replace( '/\D/', '', (string) $their_phone );
+		if ( $their_digits && substr( $their_digits, -10 ) === $last10 ) {
+			$lead_id = intval( get_user_meta( $u->ID, 'six_odoo_lead_id', true ) );
+			if ( $lead_id ) return $lead_id;
+		}
+	}
+
+	if ( class_exists( 'Six_Odoo' ) ) {
+		$matches = Six_Odoo::execute_public( 'crm.lead', 'search_read',
+			array( array( array( 'phone', 'like', $last10 ) ) ),
+			array( 'fields' => array( 'id' ), 'limit' => 1 )
+		);
+		if ( ! empty( $matches[0]['id'] ) ) return intval( $matches[0]['id'] );
+	}
+
+	return 0;
+}
 
 // ═════════════════════════════════════════════════════════════════════════════
 // ADMIN: Setup page — /wp-admin/?six_odoo_setup=1

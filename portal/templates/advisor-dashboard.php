@@ -829,15 +829,70 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                     <?php endif; ?>
                 </div>
             </div>
+            <div style="margin-left:auto;align-self:center;display:flex;gap:8px">
+            <button class="six-btn six-btn-ghost six-btn-sm" id="adv-log-call-btn"
+                    data-client="<?php echo intval($view_client_id); ?>"
+                    data-name="<?php echo esc_attr($view_client->display_name); ?>"
+                    style="white-space:nowrap;display:inline-flex;align-items:center;gap:6px">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                Log Call
+            </button>
             <button class="six-btn six-btn-primary six-btn-sm" id="adv-schedule-meeting-btn"
                     data-client="<?php echo intval($view_client_id); ?>" data-advisor="<?php echo intval($advisor_id); ?>"
                     data-name="<?php echo esc_attr($view_client->display_name); ?>"
-                    style="margin-left:auto;align-self:center;white-space:nowrap;display:inline-flex;align-items:center;gap:6px">
+                    style="white-space:nowrap;display:inline-flex;align-items:center;gap:6px">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 Schedule Meeting
             </button>
+            </div>
         </div>
 
+        <script>
+        (function(){
+          var lcBtn=document.getElementById('adv-log-call-btn');
+          if(lcBtn && !lcBtn._bound){
+            lcBtn._bound=1;
+            lcBtn.addEventListener('click',function(){
+              var clientId=lcBtn.dataset.client, name=lcBtn.dataset.name||'client';
+              var ov=document.getElementById('adv-logcall-ov'); if(ov) ov.remove();
+              ov=document.createElement('div'); ov.id='adv-logcall-ov'; ov.className='six-modal-ov';
+              ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px';
+              ov.innerHTML='<div style="background:var(--dark2,#15151c);border:1px solid var(--border,#2a2a35);border-radius:16px;width:100%;max-width:420px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden">'
+                +'<div style="padding:18px 20px;border-bottom:1px solid var(--border,#2a2a35);display:flex;align-items:center;justify-content:space-between;gap:10px"><div style="font-size:14px;font-weight:700">Log a call with '+name+'</div><button id="alc-x" style="background:none;border:none;color:var(--text3,#8a8a99);font-size:24px;cursor:pointer;line-height:1">&times;</button></div>'
+                +'<div style="padding:20px;overflow-y:auto">'
+                  +'<label style="display:block;font-size:11px;font-weight:600;color:var(--text2,#b5b5c5);margin-bottom:5px">Direction</label>'
+                  +'<select id="alc-direction" class="six-input" style="width:100%;font-size:13px;padding:9px 11px;margin-bottom:14px"><option value="Made">Call made (outbound)</option><option value="Received">Call received (inbound)</option><option value="Missed">Missed call</option></select>'
+                  +'<label style="display:block;font-size:11px;font-weight:600;color:var(--text2,#b5b5c5);margin-bottom:5px">Outcome</label>'
+                  +'<select id="alc-outcome" class="six-input" style="width:100%;font-size:13px;padding:9px 11px;margin-bottom:14px"><option>Connected</option><option>No answer</option><option>Left voicemail</option><option>Rescheduled</option><option>Not interested</option><option>Other</option></select>'
+                  +'<label style="display:block;font-size:11px;font-weight:600;color:var(--text2,#b5b5c5);margin-bottom:5px">Notes (optional)</label>'
+                  +'<textarea id="alc-notes" rows="3" class="six-input" placeholder="What was discussed…" style="width:100%;font-size:12px;padding:9px 11px;resize:vertical"></textarea>'
+                  +'<div id="alc-msg" style="font-size:12px;margin-top:10px;min-height:16px"></div></div>'
+                +'<div style="padding:14px 20px;border-top:1px solid var(--border,#2a2a35);display:flex;justify-content:flex-end;gap:10px"><button id="alc-cancel" class="six-btn six-btn-ghost six-btn-sm" style="font-size:12px">Cancel</button><button id="alc-save" class="six-btn six-btn-primary six-btn-sm" style="font-size:12px">Log call</button></div></div>';
+              document.body.appendChild(ov);
+              function close(){ ov.remove(); }
+              ov.querySelector('#alc-x').addEventListener('click',close);
+              ov.querySelector('#alc-cancel').addEventListener('click',close);
+              ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
+              ov.querySelector('#alc-save').addEventListener('click',function(){
+                var saveBtn=ov.querySelector('#alc-save'), msg=ov.querySelector('#alc-msg');
+                saveBtn.disabled=true; saveBtn.textContent='Saving…'; msg.style.color='var(--text3,#8a8a99)'; msg.textContent='';
+                fetch(AJAX,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({
+                  action:'six_log_call', nonce:NONCE, client_id:String(clientId),
+                  direction: ov.querySelector('#alc-direction').value,
+                  outcome: ov.querySelector('#alc-outcome').value,
+                  notes: ov.querySelector('#alc-notes').value
+                })})
+                .then(function(r){ return r.json(); })
+                .then(function(res){
+                  if(res && res.success){ msg.style.color='#4ade80'; msg.textContent='Logged.'; setTimeout(close,700); }
+                  else { saveBtn.disabled=false; saveBtn.textContent='Log call'; msg.style.color='#f87171'; msg.textContent=(res&&res.data)||'Could not log this call.'; }
+                })
+                .catch(function(){ saveBtn.disabled=false; saveBtn.textContent='Log call'; msg.style.color='#f87171'; msg.textContent='Network error.'; });
+              });
+            });
+          }
+        })();
+        </script>
         <script>
         (function(){
           var btn=document.getElementById('adv-schedule-meeting-btn');
@@ -1181,7 +1236,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             kpi_key: key,
             kpi_value: val
         });
-        fetch(AJAX_URL, {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:params.toString()})
+        fetch(AJAX, {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:params.toString()})
         .then(r=>r.json()).then(function(r){
             btn.textContent = r.success ? 'Saved' : 'Error';
             if (msg) { msg.style.display='block'; msg.textContent = r.success ? 'Saved — customer dashboard updated.' : (r.data||'Error saving'); }
