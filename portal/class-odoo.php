@@ -1140,6 +1140,19 @@ Fix: Verify this number at console.twilio.com → Verified Caller IDs";
      * Stage: always Abandoned.
      * Activity: clean plain text, no HTML, no emojis.
      * Messages: exact wording per spec.
+     *
+     * NOT the production path. six_track_abandoned_checkout() (ajax-onboarding.php)
+     * — the real-time JS beacon's handler — delegates to
+     * Six_Growth_Engine::on_abandon() instead, which is the single
+     * authoritative abandonment handler live on the site (SMS/email
+     * cadence, the admin notification, and the recovery-sequence handoff
+     * all live there — see class-growth-engine.php). This method is only
+     * reachable manually via /wp-admin/?six_test_abandon=USER_ID as a
+     * fallback for when Six_Growth_Engine isn't loaded, and via the
+     * backwards-compat create_abandoned_task() wrapper below, which
+     * nothing in this codebase currently calls. Kept for that manual/
+     * fallback use — do not add production logic here; add it to
+     * Six_Growth_Engine::on_abandon() instead, or it won't run.
      */
     public static function handle_abandoned_checkout( $user_id, $step, $score ) {
         $user = get_userdata( $user_id );
@@ -1305,38 +1318,11 @@ Anastasia
             error_log("6ix Odoo: Abandon email sent to user {$user_id} email={$user->user_email}");
         }
 
-        // Admin notification (musab/faheem) — separate from, and in addition
-        // to, the "Anastasia" nurture email/SMS the customer already got
-        // above; this is the internal FYI copy.
-        if ( function_exists( 'six_send_system_email' ) ) {
-            six_send_system_email( 'onboarding_abandoned', array(
-                'client_name'    => $display,
-                'client_email'   => $user->user_email,
-                'client_phone'   => $phone ?: 'not provided',
-                'stopped_at_step'=> $step_label,
-                'business_name'  => $biz_name ?: 'not provided',
-                'industry'       => $industry ?: 'not provided',
-                'abandon_count'  => $abandon_count,
-                'submitted_at'   => current_time( 'F j, Y g:i a' ),
-            ), array(
-                'send_customer' => false, // the nurture email above already covers the customer
-                'dashboard_url' => $advisor_url,
-                'odoo_lead_id'  => $lead_id,
-            ) );
-        }
-
-        // Seed the SHARED recovery sequence for touches 1-3 — touch 0 already
-        // just happened above (the SMS+email a few lines up). class-lead-
-        // pipeline.php's cron picks up any user with six_recovery_active=1
-        // the same way it processes website-form leads, firing the same
-        // templates (lead_recovery_touch1/2/3) at +1h/+24h/+3d. Guarded so a
-        // repeat abandonment within the sequence doesn't restart it from
-        // scratch.
-        if ( ! get_user_meta( $user_id, 'six_recovery_active', true ) ) {
-            update_user_meta( $user_id, 'six_recovery_active', 1 );
-            update_user_meta( $user_id, 'six_recovery_stage', 1 );
-            update_user_meta( $user_id, 'six_recovery_next_at', date( 'Y-m-d H:i:s', current_time( 'timestamp' ) + HOUR_IN_SECONDS ) );
-        }
+        // NOTE: the admin notification email + recovery-sequence handoff
+        // used to live here, but this function isn't the production path
+        // (see the docblock above) — they were moved to
+        // Six_Growth_Engine::on_abandon(), the function that's actually
+        // called on a real abandonment, so they'd actually run.
 
         error_log("6ix Odoo: Abandon flow complete for user {$user_id} lead {$lead_id}");
         return $lead_id;

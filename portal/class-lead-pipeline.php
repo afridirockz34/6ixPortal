@@ -15,11 +15,15 @@
  *    response_due_at; if nobody marks it responded in time, the sweep cron
  *    marks it 'abandoned' and starts the recovery sequence at touch 0.
  *  - Onboarding-abandonment leads: WP user meta (six_recovery_active/
- *    _stage/_next_at) on the WP user account. Six_Odoo::
- *    handle_abandoned_checkout() already sends its own tuned "touch 0"
- *    (SMS+email) the moment a checkout is abandoned — left untouched here
- *    — and seeds this usermeta so THIS file's cron picks the user up for
- *    touches 1-3, sharing the same templates/timing as website-form leads.
+ *    _stage/_next_at) on the WP user account, seeded by
+ *    Six_Growth_Engine::on_abandon() — the actual live abandonment handler
+ *    (class-growth-engine.php; NOT Six_Odoo::handle_abandoned_checkout(),
+ *    which nothing in production calls). on_abandon() already sends its
+ *    own tuned immediate SMS+email and an admin notification, so this
+ *    file only picks these leads up for 2 touches instead of the website-
+ *    form lead's 4: a 1h SMS reminder (touch 1) and a 3-day final touch
+ *    (touch 3) — touch 2 (the 24h "offer" email) is deliberately skipped
+ *    for this journey (see six_lead_pipeline_fire_due_touches_onboarding()).
  *
  * Meta Ads lead ingestion is NOT built here — there's no Meta Lead Ads
  * webhook integration in this codebase yet, so those leads can't reach
@@ -173,7 +177,12 @@ function six_lead_pipeline_fire_due_touches_onboarding() {
 
 		six_lead_pipeline_fire_touch( $stage, $name, $user->user_email, $phone, $lead_id_odoo );
 
-		$next_stage = $stage + 1;
+		// Onboarding leads get only 2 touches, not the website-form lead's
+		// full 4: a 1h SMS reminder (stage 1), then straight to the 3-day
+		// final touch (stage 3) — skipping stage 2's 24h "offer" email,
+		// since Six_Growth_Engine::on_abandon() already does its own
+		// immediate reach-out for this journey (see class-growth-engine.php).
+		$next_stage = ( $stage === 1 ) ? 3 : 4;
 		update_user_meta( $user->ID, 'six_recovery_stage', $next_stage );
 		if ( $next_stage >= 4 ) {
 			update_user_meta( $user->ID, 'six_recovery_active', 0 );
@@ -181,7 +190,9 @@ function six_lead_pipeline_fire_due_touches_onboarding() {
 			delete_user_meta( $user->ID, 'six_recovery_next_at' );
 			if ( class_exists( 'Six_Odoo' ) && $lead_id_odoo ) Six_Odoo::update_lead_stage( $lead_id_odoo, 'Nurture List' );
 		} else {
-			update_user_meta( $user->ID, 'six_recovery_next_at', date( 'Y-m-d H:i:s', current_time( 'timestamp' ) + six_lead_pipeline_next_delay( $stage ) ) );
+			// stage 1 -> stage 3: land on the 3-day mark from abandonment
+			// (1h already elapsed, so the remaining delay is 3d minus 1h).
+			update_user_meta( $user->ID, 'six_recovery_next_at', date( 'Y-m-d H:i:s', current_time( 'timestamp' ) + 3 * DAY_IN_SECONDS - HOUR_IN_SECONDS ) );
 		}
 	}
 }

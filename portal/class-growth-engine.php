@@ -443,6 +443,46 @@ class Six_Growth_Engine {
             }
         }
 
+        // Admin notification (musab/faheem) — separate from, and in addition
+        // to, the "Anastasia" nurture email/SMS this function already sends
+        // to the customer above; this is the internal FYI copy. This is the
+        // single live abandonment entry point (six_track_abandoned_checkout()
+        // delegates here) — Six_Odoo::handle_abandoned_checkout() is NOT
+        // called in production; don't duplicate this logic there.
+        if ( function_exists( 'six_send_system_email' ) ) {
+            $abandon_user = get_userdata( $user_id );
+            if ( $abandon_user ) {
+                global $wpdb;
+                $abandon_co = $wpdb->get_row( $wpdb->prepare(
+                    "SELECT business_name, industry FROM {$wpdb->prefix}six_checkout_progress WHERE user_id=%d", $user_id
+                ) );
+                $step_labels_admin = array( 0=>'Login / Email entry', 1=>'Account Creation', 2=>'Service Selection', 3=>'Questionnaire', 4=>'AI Strategy Review', 5=>'Agreement & Payment' );
+                six_send_system_email( 'onboarding_abandoned', array(
+                    'client_name'     => $abandon_user->display_name ?: $abandon_user->user_email,
+                    'client_email'    => $abandon_user->user_email,
+                    'client_phone'    => get_user_meta( $user_id, 'billing_phone', true ) ?: 'not provided',
+                    'stopped_at_step' => $step_labels_admin[ $step ] ?? "Step {$step}",
+                    'business_name'   => $abandon_co->business_name ?? 'not provided',
+                    'industry'        => $abandon_co->industry ?? 'not provided',
+                    'submitted_at'    => current_time( 'F j, Y g:i a' ),
+                ), array(
+                    'send_customer' => false, // the Anastasia nurture email above already covers the customer
+                    'dashboard_url' => home_url( '/advisor-portal/?tab=clients&client=' . $user_id ),
+                    'odoo_lead_id'  => $lead_id ?? 0,
+                ) );
+            }
+        }
+
+        // Seed the shared recovery sequence: an SMS reminder at 1h, then a
+        // final touch at 3 days (class-lead-pipeline.php's cron). Skips the
+        // 24h touch website-form leads get — kept minimal per instruction,
+        // since this flow already has its own immediate reach-out above.
+        if ( ! get_user_meta( $user_id, 'six_recovery_active', true ) ) {
+            update_user_meta( $user_id, 'six_recovery_active', 1 );
+            update_user_meta( $user_id, 'six_recovery_stage', 1 );
+            update_user_meta( $user_id, 'six_recovery_next_at', date( 'Y-m-d H:i:s', current_time( 'timestamp' ) + HOUR_IN_SECONDS ) );
+        }
+
         // Schedule the single abandon SMS for +10 minutes (guards prevent double-send)
         if ( ! wp_next_scheduled('six_abandon_sms', array($user_id,$step,$score)) )
             wp_schedule_single_event(time()+600, 'six_abandon_sms', array($user_id,$step,$score)); // 10 minutes
@@ -490,6 +530,12 @@ class Six_Growth_Engine {
         delete_user_meta( $user_id, 'six_last_abandon_odoo' );
         delete_user_meta( $user_id, 'six_abandon_fired_sms' );
         delete_user_meta( $user_id, 'six_abandon_fired_email' );
+        // Reset the recovery sequence too, so a later abandonment restarts
+        // cleanly at touch 1 rather than resuming a stale stage/timer.
+        delete_user_meta( $user_id, 'six_recovery_active' );
+        delete_user_meta( $user_id, 'six_recovery_stage' );
+        delete_user_meta( $user_id, 'six_recovery_next_at' );
+        delete_user_meta( $user_id, 'six_recovery_nurture' );
 
         if ( ! class_exists('Six_Odoo') ) return;
 
