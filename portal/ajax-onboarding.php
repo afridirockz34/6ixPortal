@@ -1850,10 +1850,18 @@ function six_schedule_onboarding_call() {
     $table = $wpdb->prefix . 'six_checkout_progress';
 
     // A requested call supersedes any earlier abandonment — clear the abandon
-    // state so the abandoned-checkout follow-up cron does not nag this lead.
+    // state AND cancel whatever on_abandon() already queued for this lead
+    // (the +30min combined message, the +24h resume check), so nobody who
+    // just booked a live call still gets a "come back and finish!" text.
+    $pending_step  = intval( get_user_meta( $user_id, 'six_abandoned_at_step', true ) );
+    $pending_score = intval( get_user_meta( $user_id, 'six_abandoned_score',   true ) );
+    wp_clear_scheduled_hook( 'six_abandon_initial_message', array( $user_id, $pending_step, $pending_score ) );
+    wp_clear_scheduled_hook( 'six_abandon_24h_check', array( $user_id ) );
     delete_user_meta( $user_id, 'six_abandoned_at_step' );
     delete_user_meta( $user_id, 'six_abandoned_score' );
     delete_user_meta( $user_id, 'six_abandoned_at' );
+    delete_user_meta( $user_id, 'six_abandon_fired_initial' );
+    delete_user_meta( $user_id, 'six_abandon_escalated' );
     update_user_meta( $user_id, 'six_call_requested_at', current_time('mysql') );
 
     // Save call scheduling to DB

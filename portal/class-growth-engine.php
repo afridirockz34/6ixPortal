@@ -345,6 +345,17 @@ class Six_Growth_Engine {
         // NOTE: do NOT reset fired_sms/fired_email here.
         // They are set to 0 only when a new session starts (account creation / re-entry).
         // Resetting here would allow infinite re-sends from repeated cron fires.
+        //
+        // six_abandon_fired_initial / six_abandon_escalated ARE reset here,
+        // deliberately unlike the legacy flags above: this line only runs
+        // once the 24h-cooldown gate above has already passed, so it's
+        // genuinely a new abandonment cycle, not a repeated cron fire within
+        // the same one. Without this reset, a lead who abandons a SECOND
+        // time (days later, after re-engaging and coming back) would keep
+        // last cycle's "already sent" flags and silently never get this
+        // cycle's +30min message or +24h escalation.
+        update_user_meta( $user_id, 'six_abandon_fired_initial',   0 );
+        update_user_meta( $user_id, 'six_abandon_escalated',       0 );
 
         self::track_event( $user_id, 'step_abandon', array( 'step' => $step, 'score' => $score ) );
 
@@ -527,6 +538,18 @@ class Six_Growth_Engine {
         // Recalculate score with return visit bonus
         $new_score = self::calculate_score( $user_id );
         $priority  = self::classify_lead( $new_score );
+
+        // Cancel whatever's still queued from the abandonment we're undoing —
+        // without this, a lead who comes back before the +30min message or
+        // +24h check fires still gets them anyway: WP-Cron has no idea they
+        // returned, and simply deleting the "already fired" guard flags
+        // below (the old behavior here, despite this docblock's claim)
+        // actually makes it WORSE by removing the one thing that would have
+        // made the callback skip itself.
+        $pending_step  = intval( get_user_meta( $user_id, 'six_abandoned_at_step', true ) );
+        $pending_score = intval( get_user_meta( $user_id, 'six_abandoned_score',   true ) );
+        wp_clear_scheduled_hook( 'six_abandon_initial_message', array( $user_id, $pending_step, $pending_score ) );
+        wp_clear_scheduled_hook( 'six_abandon_24h_check', array( $user_id ) );
 
         // Keep abandoned meta — user is still considered abandoned until completion
         // Just reset the cooldown so they can be triggered again if they leave again
