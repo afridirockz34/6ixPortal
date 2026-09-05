@@ -35,6 +35,10 @@ if ( $view_submission_id ) :
 			six_lead_mark_responded( $sub->id );
 			$sub = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$sub_table} WHERE id=%d", $sub->id ) );
 		}
+		if ( isset( $_POST['six_fs_mark_abandoned'] ) && check_admin_referer( 'six_fs_mark_abandoned_' . $sub->id ) && function_exists( 'six_lead_mark_abandoned' ) && six_lead_can_mark_responded() ) {
+			six_lead_mark_abandoned( $sub->id );
+			$sub = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$sub_table} WHERE id=%d", $sub->id ) );
+		}
 		?>
 	<div class="six-page-header">
 		<div>
@@ -51,10 +55,16 @@ if ( $view_submission_id ) :
 			<?php echo six_fs_response_badge( $sub ); ?>
 		</div>
 		<?php if ( $sub->response_status === 'pending' && function_exists( 'six_lead_can_mark_responded' ) && six_lead_can_mark_responded() ) : ?>
-		<form method="post">
-			<?php wp_nonce_field( 'six_fs_mark_responded_' . $sub->id ); ?>
-			<button type="submit" name="six_fs_mark_responded" value="1" class="six-btn six-btn-primary six-btn-sm">Mark Responded</button>
-		</form>
+		<div style="display:flex;gap:10px">
+			<form method="post">
+				<?php wp_nonce_field( 'six_fs_mark_responded_' . $sub->id ); ?>
+				<button type="submit" name="six_fs_mark_responded" value="1" class="six-btn six-btn-primary six-btn-sm">Mark Responded</button>
+			</form>
+			<form method="post" onsubmit="return confirm('Mark this lead Abandoned? The recovery sequence (email + SMS) starts right away.');">
+				<?php wp_nonce_field( 'six_fs_mark_abandoned_' . $sub->id ); ?>
+				<button type="submit" name="six_fs_mark_abandoned" value="1" class="six-btn six-btn-secondary six-btn-sm">Mark Abandoned</button>
+			</form>
+		</div>
 		<?php endif; ?>
 	</div>
 
@@ -248,7 +258,7 @@ function six_fs_response_badge( $sub ) {
 	}
 	if ( $status === 'abandoned' ) {
 		$stage = intval( $sub->recovery_stage ?? 0 );
-		return '<span style="display:inline-block;padding:2px 10px;border-radius:100px;font-size:11.5px;font-weight:700;color:#fff;background:#c17b1a">Abandoned — recovery ' . $stage . '/4</span>';
+		return '<span style="display:inline-block;padding:2px 10px;border-radius:100px;font-size:11.5px;font-weight:700;color:#fff;background:#c17b1a">Abandoned — recovery ' . $stage . '/3</span>';
 	}
 	if ( $status === 'nurture' ) {
 		return '<span style="display:inline-block;padding:2px 10px;border-radius:100px;font-size:11.5px;font-weight:700;color:#fff;background:#888">Nurture list</span>';

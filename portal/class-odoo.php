@@ -2368,6 +2368,8 @@ add_action('admin_init', function() {
         'six_checkout_completed', 'six_abandoned_at_step', 'six_abandoned_at',
         'six_abandoned_score', 'six_abandon_fired_sms', 'six_abandon_fired_email',
         'six_abandon_fired_activity', 'six_abandon_fired_followup',
+        'six_abandon_fired_initial', 'six_abandon_escalated',
+        'six_recovery_active', 'six_recovery_stage', 'six_recovery_next_at', 'six_recovery_nurture',
         'six_high_intent_fired', 'six_last_event', 'six_odoo_lead_id',
         'six_last_activity',
     );
@@ -2385,6 +2387,7 @@ add_action('admin_init', function() {
 add_action('admin_init', function() {
     if (!current_user_can('manage_options') || empty($_GET['six_clear_abandon_crons'])) return;
     $hooks = array(
+        'six_abandon_initial_message', 'six_abandon_24h_check',
         'six_abandon_sms', 'six_abandon_email', 'six_abandon_activity',
         'six_abandon_followup', 'six_stale_lead_check', 'six_stale_lead_check_v2',
         'six_stale_lead_cron',
@@ -2420,6 +2423,8 @@ add_action('admin_init', function() {
     delete_user_meta($uid, 'six_last_abandon_trigger');
     delete_user_meta($uid, 'six_abandon_fired_sms');
     delete_user_meta($uid, 'six_abandon_fired_email');
+    delete_user_meta($uid, 'six_abandon_fired_initial');
+    delete_user_meta($uid, 'six_abandon_escalated');
     $step  = intval(get_user_meta($uid, 'six_checkout_step', true) ?: 1);
     $score = intval(get_user_meta($uid, 'six_checkout_score', true) ?: 15);
     $user  = get_userdata($uid);

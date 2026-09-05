@@ -22,10 +22,13 @@ error_log('6ix Growth Engine v2.0 loaded — abandon-fix build');
  *
  * Layer 3 — AUTOMATION
  *   on_abandon()         Entry point — schedules timed WP-Cron jobs
- *   ├── +1 min  → SMS via Twilio
- *   ├── +10 min → Personalised email via Odoo
- *   ├── +30 min → Advisor activity in Odoo CRM
- *   └── +24 h   → Follow-up email
+ *   ├── (immediate) → Odoo advisor activity + admin FYI email — advisor
+ *   │                 always hears about it right away, not after 24h
+ *   ├── +30 min → ONE combined email+SMS reach-out (Anastasia)
+ *   └── +24 h   → Resume check — if still stuck, escalates the lead to the
+ *                 formal "Abandoned" pipeline stage and starts the SAME
+ *                 shared 3-touch recovery sequence website-form/Meta leads
+ *                 get (see class-lead-pipeline.php)
  *   on_re_engage()       User returns → update score, notify advisor, remove cold
  *   on_high_intent()     Score crosses threshold → urgent advisor activity
  *
@@ -308,14 +311,15 @@ class Six_Growth_Engine {
      * ABANDONMENT FLOW ENTRY POINT.
      * Call this when a user stops progressing through onboarding.
      *
-     * Schedules 4 timed WP-Cron jobs:
-     *   +1 min  → SMS
-     *   +10 min → Email
-     *   +30 min → Advisor Odoo activity
-     *   +24 h   → Follow-up email
+     * Runs the advisor-facing Odoo activity + admin FYI email immediately
+     * (below), then schedules 2 timed WP-Cron jobs:
+     *   +30 min → ONE combined email+SMS reach-out to the lead
+     *   +24 h   → Resume check — escalates to the Abandoned pipeline stage
+     *             + shared 3-touch recovery sequence if still stuck
+     *             (see cron_abandon_24h_check())
      *
      * Uses a single scheduled hook per user to avoid duplicates.
-     * If the user completes before the job fires, a flag prevents execution.
+     * If the user completes before a job fires, a flag prevents execution.
      */
     public static function on_abandon( $user_id, $step, $score ) {
         if ( ! $user_id ) return;
@@ -358,14 +362,14 @@ class Six_Growth_Engine {
             error_log("6ix on_abandon: lead_id={$lead_id} synced=" . ($synced ? 'YES' : 'NO'));
         }
 
-        // ── SMS — NOT immediate. A single event is scheduled below to fire ~10
-        //    minutes after abandonment. Sending here as well caused a second
-        //    text (concurrent beforeunload + pagehide requests race past the
-        //    fired-flag guard before either sets it), and it went out instantly.
-        //    The scheduled path is deduped, so exactly one text goes out. ──────
-
-        // ── Email — fire immediately ──────────────────────────────────────────
-        self::cron_abandon_email( $user_id, $step, $score );
+        // ── Customer message — NOT immediate. One combined email+SMS is
+        //    scheduled below to fire at +30 minutes (cron_abandon_initial_
+        //    message()) — a single touch, not split across separate email/SMS
+        //    sends, per the simplified onboarding-abandonment design. Sending
+        //    here synchronously as well caused a second text in the past
+        //    (concurrent beforeunload + pagehide requests race past the
+        //    fired-flag guard before either sets it); the scheduled path is
+        //    deduped, so exactly one message goes out. ──────────────────────
 
         // ── Odoo activity ─────────────────────────────────────────────────────
         if ( ! empty($lead_id) && class_exists('Six_Odoo') ) {
@@ -427,8 +431,10 @@ class Six_Growth_Engine {
 
 "
                        . "FOLLOW-UP
-  SMS: sent
-  Email: sent
+  Combined email+SMS scheduled for +30 minutes.
+  If still not resumed after 24 hours, this lead escalates to the
+  Abandoned pipeline stage and the shared 3-touch recovery sequence
+  (same one website-form/Meta leads get) begins automatically.
 
 "
                        . "Resume: " . home_url('/get-started/');
@@ -473,28 +479,18 @@ class Six_Growth_Engine {
             }
         }
 
-        // Seed the shared recovery sequence: an SMS reminder at 1h, then a
-        // final touch at 3 days (class-lead-pipeline.php's cron). The 24h
-        // slot is deliberately NOT part of this seeding — it's covered by
-        // cron_abandon_followup() below instead (this journey's own tuned
-        // 24h email, already written — it just wasn't being scheduled).
-        if ( ! get_user_meta( $user_id, 'six_recovery_active', true ) ) {
-            update_user_meta( $user_id, 'six_recovery_active', 1 );
-            update_user_meta( $user_id, 'six_recovery_stage', 1 );
-            update_user_meta( $user_id, 'six_recovery_next_at', date( 'Y-m-d H:i:s', current_time( 'timestamp' ) + HOUR_IN_SECONDS ) );
-        }
+        // Single combined email+SMS at +30 minutes — the onboarding journey's
+        // one automated reach-out before the 24h escalation check below.
+        if ( ! wp_next_scheduled('six_abandon_initial_message', array($user_id,$step,$score)) )
+            wp_schedule_single_event(time()+1800, 'six_abandon_initial_message', array($user_id,$step,$score)); // 30 minutes
 
-        // Schedule the single abandon SMS for +10 minutes (guards prevent double-send)
-        if ( ! wp_next_scheduled('six_abandon_sms', array($user_id,$step,$score)) )
-            wp_schedule_single_event(time()+600, 'six_abandon_sms', array($user_id,$step,$score)); // 10 minutes
-        if ( ! wp_next_scheduled('six_abandon_email', array($user_id,$step,$score)) )
-            wp_schedule_single_event(time()+720, 'six_abandon_email', array($user_id,$step,$score));
-        // 24h follow-up — cron_abandon_followup() already existed with real
-        // content (its own tuned "Still thinking it over?" email, logged to
-        // Odoo chatter via send_email_odoo()) but was never actually
-        // scheduled anywhere, so it silently never ran. Wiring it up here.
-        if ( ! wp_next_scheduled('six_abandon_followup', array($user_id)) )
-            wp_schedule_single_event(time()+86400, 'six_abandon_followup', array($user_id)); // 24 hours
+        // +24h: has this lead resumed at all? If not, escalate to the formal
+        // Abandoned pipeline stage and start the shared 3-touch recovery
+        // sequence (class-lead-pipeline.php) — the same one website-form/
+        // Meta leads get once THEY'RE marked Abandoned. See
+        // cron_abandon_24h_check() for the "did they actually resume" logic.
+        if ( ! wp_next_scheduled('six_abandon_24h_check', array($user_id)) )
+            wp_schedule_single_event(time()+86400, 'six_abandon_24h_check', array($user_id)); // 24 hours
 
         // Trigger WP-Cron to run the scheduled events immediately
         if ( ! defined('DOING_CRON') ) {
@@ -537,6 +533,8 @@ class Six_Growth_Engine {
         delete_user_meta( $user_id, 'six_last_abandon_odoo' );
         delete_user_meta( $user_id, 'six_abandon_fired_sms' );
         delete_user_meta( $user_id, 'six_abandon_fired_email' );
+        delete_user_meta( $user_id, 'six_abandon_fired_initial' );
+        delete_user_meta( $user_id, 'six_abandon_escalated' );
         // Reset the recovery sequence too, so a later abandonment restarts
         // cleanly at touch 1 rather than resuming a stale stage/timer.
         delete_user_meta( $user_id, 'six_recovery_active' );
@@ -828,47 +826,65 @@ class Six_Growth_Engine {
     // ═════════════════════════════════════════════════════════════════════
 
     /**
-     * +1 min: Send SMS if user hasn't completed and hasn't been texted yet.
+     * +30 min: ONE combined email+SMS reach-out — replaces what used to be
+     * separate cron_abandon_sms()/cron_abandon_email() sends (kept as
+     * historical reference below this function, no longer scheduled). This
+     * is the onboarding journey's single automated touch before the +24h
+     * resume check (cron_abandon_24h_check()) decides whether the lead needs
+     * the full recovery sequence.
      */
-    /**
-     * Schedule cron retries for abandon SMS/email.
-     * Called by ajax-onboarding.php after the direct sends.
-     * Guards in cron_abandon_sms/email prevent double-sending.
-     */
-    public static function schedule_abandon_retries( $user_id, $step, $score ) {
-        if ( ! wp_next_scheduled( 'six_abandon_sms', array( $user_id, $step, $score ) ) ) {
-            wp_schedule_single_event( time() + 600, 'six_abandon_sms', array( $user_id, $step, $score ) ); // 10 minutes
-        }
-        if ( ! wp_next_scheduled( 'six_abandon_email', array( $user_id, $step, $score ) ) ) {
-            wp_schedule_single_event( time() + 720, 'six_abandon_email', array( $user_id, $step, $score ) );
-        }
-        // Trigger WP-Cron to run the scheduled events immediately
-        if ( ! defined('DOING_CRON') ) {
-            wp_remote_post( admin_url('admin-ajax.php'), array(
-                'timeout'   => 0.01,
-                'blocking'  => false,
-                'body'      => array('action'=>'six_run_cron'),
-                'sslverify' => apply_filters('https_local_ssl_verify', false),
-            ) );
-        }
-    }
+    public static function cron_abandon_initial_message( $user_id, $step, $score ) {
+        error_log("6ix Abandon Initial Message: START user={$user_id} step={$step}");
 
-    public static function cron_abandon_sms( $user_id, $step, $score ) {
-        error_log("6ix Abandon SMS: START user={$user_id} step={$step}");
-
-        // Guard: completed or already fired
         if ( get_user_meta( $user_id, 'six_checkout_completed', true ) ) {
-            error_log("6ix Abandon SMS: skip — onboarding completed"); return;
+            error_log("6ix Abandon Initial Message: skip — completed"); return;
         }
-        if ( get_user_meta( $user_id, 'six_abandon_fired_sms', true ) ) {
-            error_log("6ix Abandon SMS: skip — already fired"); return;
+        if ( get_user_meta( $user_id, 'six_abandon_fired_initial', true ) ) {
+            error_log("6ix Abandon Initial Message: skip — already fired"); return;
         }
-
-        if ( ! class_exists('Six_Odoo') ) { error_log("6ix Abandon SMS: Six_Odoo missing"); return; }
+        if ( ! class_exists('Six_Odoo') ) { error_log("6ix Abandon Initial Message: Six_Odoo missing"); return; }
 
         $user = get_userdata( $user_id );
-        if ( ! $user ) { error_log("6ix Abandon SMS: user {$user_id} not found"); return; }
+        if ( ! $user ) { error_log("6ix Abandon Initial Message: user {$user_id} not found"); return; }
 
+        // Mark fired NOW (after all guards pass) to prevent duplicates
+        update_user_meta( $user_id, 'six_abandon_fired_initial', 1 );
+
+        // Ensure lead exists
+        $lead_id = intval( get_user_meta( $user_id, 'six_odoo_lead_id', true ) );
+        if ( ! $lead_id ) {
+            Six_Odoo::create_or_update_contact( $user_id );
+            $lead_id = Six_Odoo::sync_lead( array(
+                'user_id' => $user_id, 'status' => 'abandoned', 'score' => $score, 'step' => $step
+            ) );
+        }
+
+        $first_name = trim( $user->first_name ?: '' ) ?: 'there';
+        $cta_url    = home_url('/get-started/');
+
+        // ── Email ──
+        $subject = 'Pick up right where you left off';
+        $body    = "Hi {$first_name},
+
+"
+                 . "It's Anastasia from 6ix Developers — I noticed you started setting up your account "
+                 . "but didn't get a chance to finish.
+
+"
+                 . "Good news: your answers are saved, so it only takes a couple of minutes to pick back "
+                 . "up: {$cta_url}
+
+"
+                 . "If anything was unclear or you had questions, just reply to this email or text me "
+                 . "back — happy to help.
+
+"
+                 . "Best,
+Anastasia
+6ix Developers";
+        Six_Odoo::send_email_odoo( $lead_id, $user->user_email, $subject, $body );
+
+        // ── SMS ──
         // Try billing_phone first, then checkout_progress.phone as fallback
         // (object cache on new users can return empty string for billing_phone)
         $phone = get_user_meta( $user_id, 'billing_phone', true );
@@ -884,198 +900,103 @@ class Six_Growth_Engine {
             wp_cache_delete( $user_id, 'user_meta' );
             $phone = get_user_meta( $user_id, 'billing_phone', true );
         }
-        if ( ! $phone ) {
-            error_log("6ix Abandon SMS: user {$user_id} has no phone in any source — SMS skipped");
-            return;
+        if ( $phone ) {
+            $sms = "Hi {$first_name}, it's Anastasia from 6ix Developers — looks like you got interrupted "
+                 . "setting up your account. Your progress is saved, pick back up here: {$cta_url}";
+            Six_Odoo::send_sms_twilio( $phone, $sms, $lead_id );
+        } else {
+            error_log("6ix Abandon Initial Message: user {$user_id} has no phone in any source — SMS skipped");
         }
 
-        // Mark as fired NOW (after all guards pass) to prevent duplicates
-        update_user_meta( $user_id, 'six_abandon_fired_sms', 1 );
-
-        // Ensure lead exists
-        $lead_id = intval( get_user_meta( $user_id, 'six_odoo_lead_id', true ) );
-        if ( ! $lead_id ) {
-            Six_Odoo::create_or_update_contact( $user_id );
-            $lead_id = Six_Odoo::sync_lead( array(
-                'user_id' => $user_id, 'status' => 'abandoned', 'score' => $score, 'step' => $step
-            ) );
-        }
-
-        $sms = "Checking in again! Complete your onboarding to see where your business stands "
-             . "and how we can help. Feel free to call me if you have any questions: "
-             . home_url('/get-started/');
-        Six_Odoo::send_sms_twilio( $phone, $sms, $lead_id );
-
-        self::track_event( $user_id, 'sms_sent', array( 'trigger' => 'abandon', 'step' => $step ) );
-        error_log("6ix Abandon SMS: SENT to user={$user_id} phone={$phone} step={$step}");
+        self::track_event( $user_id, 'abandon_initial_message', array( 'step' => $step, 'score' => $score ) );
+        error_log( "6ix Growth: Initial abandon message sent to user {$user_id} (email" . ( $phone ? '+SMS' : ' only, no phone on file' ) . ")" );
     }
 
     /**
-     * +10 min: Send personalised email.
+     * +24 h: Has this onboarding lead genuinely progressed since it was
+     * flagged abandoned? If they resumed — checkout step moved forward, or
+     * they completed — leave them alone, nothing to do. If they're still
+     * stuck at the same step, this is a real abandonment: escalate the Odoo
+     * lead to the formal "Abandoned" pipeline stage and hand off to the
+     * shared 3-touch recovery sequence in class-lead-pipeline.php — the same
+     * sequence website-form/Meta leads get once THEY'RE marked abandoned
+     * (immediate / +3d / +10d, {scenario_line} tailored for "onboarding").
      */
-    public static function cron_abandon_email( $user_id, $step, $score ) {
-        error_log("6ix Abandon Email: START user={$user_id} step={$step}");
+    public static function cron_abandon_24h_check( $user_id ) {
+        error_log("6ix Abandon 24h Check: START user={$user_id}");
 
         if ( get_user_meta( $user_id, 'six_checkout_completed', true ) ) {
-            error_log("6ix Abandon Email: skip — completed"); return;
+            error_log("6ix Abandon 24h Check: skip — completed"); return;
         }
-        if ( get_user_meta( $user_id, 'six_abandon_fired_email', true ) ) {
-            error_log("6ix Abandon Email: skip — already fired"); return;
-        }
-        if ( ! class_exists('Six_Odoo') ) { error_log("6ix Abandon Email: Six_Odoo missing"); return; }
-
-        $user = get_userdata( $user_id );
-        if ( ! $user ) { error_log("6ix Abandon Email: user {$user_id} not found"); return; }
-
-        // Mark fired AFTER all guards
-        update_user_meta( $user_id, 'six_abandon_fired_email', 1 );
-
-        // Ensure lead exists
-        if ( ! intval( get_user_meta( $user_id, 'six_odoo_lead_id', true ) ) ) {
-            Six_Odoo::create_or_update_contact( $user_id );
-            Six_Odoo::sync_lead( array( 'user_id' => $user_id, 'status' => 'abandoned', 'score' => $score, 'step' => $step ) );
+        if ( get_user_meta( $user_id, 'six_abandon_escalated', true ) ) {
+            error_log("6ix Abandon 24h Check: skip — already escalated"); return;
         }
 
-        global $wpdb;
-        $co = $wpdb->get_row( $wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}six_checkout_progress WHERE user_id=%d", $user_id
-        ) );
+        $abandoned_step = intval( get_user_meta( $user_id, 'six_abandoned_at_step', true ) );
+        $current_step   = intval( get_user_meta( $user_id, 'six_checkout_step', true ) );
 
-        $first_name = trim( $user->first_name ?: '' ) ?: 'there';
-        $lead_id    = intval( get_user_meta( $user_id, 'six_odoo_lead_id', true ) );
-        $subject    = 'Complete your onboarding with 6ix Developers';
-        $body       = "Hi {$first_name},
-
-"
-                    . "Checking in again! Complete your onboarding to see where your business stands "
-                    . "and how we can help.
-
-"
-                    . "Feel free to call me if you have any questions: "
-                    . home_url('/get-started/') . "
-
-"
-                    . "Best,
-Anastasia
-6ix Developers";
-        Six_Odoo::send_email_odoo( $lead_id, $user->user_email, $subject, $body );
-
-        self::track_event( $user_id, 'email_sent', array( 'trigger' => 'abandon_10min', 'step' => $step ) );
-        error_log( "6ix Growth: Email sent to user {$user_id} (abandon +10min)" );
-    }
-
-    /**
-     * +30 min: Create Odoo advisor activity (the advisor sees this in their CRM queue).
-     */
-    public static function cron_abandon_activity( $user_id, $step, $score ) {
-        if ( get_user_meta( $user_id, 'six_checkout_completed', true ) ) return;
-        if ( get_user_meta( $user_id, 'six_abandon_fired_activity', true ) ) return;
-        update_user_meta( $user_id, 'six_abandon_fired_activity', 1 );
-
-        if ( ! class_exists('Six_Odoo') ) return;
-
-        $lead_id = intval( get_user_meta( $user_id, 'six_odoo_lead_id', true ) );
-        if ( ! $lead_id ) {
-            // Lead wasn't created yet — create it now
-            $lead_id = Six_Odoo::sync_lead( array(
-                'user_id' => $user_id, 'status' => 'abandoned', 'score' => $score, 'step' => $step
-            ) );
+        // They made real progress since the abandonment was recorded — leave them be.
+        if ( $current_step > $abandoned_step ) {
+            error_log("6ix Abandon 24h Check: user {$user_id} progressed ({$abandoned_step}→{$current_step}) — no escalation");
+            return;
         }
-        if ( ! $lead_id ) return;
-
-        $user   = get_userdata( $user_id );
-        $name   = $user ? $user->display_name : "User #{$user_id}";
-        $re_calc= self::calculate_score( $user_id );
-        $ai_rec = Six_Odoo::generate_ai_recommendation( array(
-            'score' => $re_calc, 'step' => $step, 'status' => 'abandoned', 'name' => $name
-        ) );
-        $advisor_uid = self::get_advisor_odoo_uid( $user_id );
-
-        $step_labels = array(
-            0 => 'Email entry', 1 => 'Account creation',
-            2 => 'Service selection', 3 => 'Questionnaire',
-            4 => 'AI strategy review', 5 => 'Agreement & payment',
-        );
-        $step_label = $step_labels[ $step ] ?? "Step {$step}";
-
-        Six_Odoo::create_activity(
-            $lead_id,
-            " Follow Up Required — {$name}",
-            "Client abandoned at: {$step_label} (step {$step}/5).
-"
-            . "Onboarding score: {$re_calc}/100.
-
-"
-            . "Automated SMS was sent at +1 min.
-"
-            . "Automated email was sent at +10 min.
-
-"
-            . "AI Recommendation:
-{$ai_rec}
-
-"
-            . "Resume link: " . home_url('/get-started/'),
-            'Todo', 0, $advisor_uid
-        );
-
-        self::track_event( $user_id, 'advisor_notified', array( 'trigger' => 'abandon_30min', 'step' => $step ) );
-        error_log( "6ix Growth: Advisor activity created for user {$user_id} (abandon +30min)" );
-    }
-
-    /**
-     * +24 h: Send follow-up email if still not completed.
-     */
-    public static function cron_abandon_followup( $user_id ) {
-        if ( get_user_meta( $user_id, 'six_checkout_completed', true ) ) return;
-        if ( get_user_meta( $user_id, 'six_abandon_fired_followup', true ) ) return;
-        update_user_meta( $user_id, 'six_abandon_fired_followup', 1 );
 
         $user = get_userdata( $user_id );
         if ( ! $user || ! class_exists('Six_Odoo') ) return;
 
-        $step    = intval( get_user_meta( $user_id, 'six_abandoned_at_step', true ) );
+        update_user_meta( $user_id, 'six_abandon_escalated', 1 );
+
         $lead_id = intval( get_user_meta( $user_id, 'six_odoo_lead_id', true ) );
+        if ( ! $lead_id ) {
+            Six_Odoo::create_or_update_contact( $user_id );
+            $lead_id = Six_Odoo::sync_lead( array(
+                'user_id' => $user_id, 'status' => 'abandoned',
+                'score'   => self::calculate_score( $user_id ), 'step' => $current_step,
+            ) );
+        }
 
-        global $wpdb;
-        $co = $wpdb->get_row( $wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}six_checkout_progress WHERE user_id=%d", $user_id
-        ) );
+        // Move to the formal Abandoned pipeline stage.
+        if ( $lead_id ) {
+            Six_Odoo::update_lead_stage( $lead_id, 'Abandoned' );
+        }
 
-        // Slightly different copy for the 24h follow-up
-        $name    = explode( ' ', $user->display_name )[0] ?: 'there';
-        $biz     = $co->business_name ?? 'your business';
-        $biz_type= $co->industry ?? 'business';
-        $cta_url = home_url('/get-started/');
+        // Hand off to the shared 3-touch recovery sequence — touch 0 fires
+        // on class-lead-pipeline.php's next 5-minute sweep tick.
+        update_user_meta( $user_id, 'six_recovery_active',   1 );
+        update_user_meta( $user_id, 'six_recovery_stage',    0 );
+        update_user_meta( $user_id, 'six_recovery_next_at',  current_time('mysql') );
 
-        $body = "
-        <div style='font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1A1816'>
-            <h2 style='color:#C0392B'>Still thinking it over, {$name}?</h2>
-            <p>We saved your progress. Your evaluation for <strong>{$biz}</strong> is still waiting.</p>
-            <p>In 10 days, we can show you measurable improvement in your <strong>{$biz_type}</strong>
-               — completely risk-free. No commitment until after your free consultation.</p>
-            <p>We only work with a small number of businesses at a time so we can give each one
-               the attention it deserves. Your spot is still held.</p>
-            <div style='margin:30px 0'>
-                <a href='{$cta_url}' style='background:#C0392B;color:white;padding:14px 28px;
-                   text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block'>
-                    Claim My Free Evaluation →
-                </a>
-            </div>
-            <p style='color:#7A7570;font-size:13px'>
-                6ix Developers · <a href='" . home_url() . "' style='color:#2C5F8A'>6ixdevelopers.com</a>
-            </p>
-        </div>";
+        self::track_event( $user_id, 'abandon_escalated', array( 'step' => $current_step ) );
+        error_log( "6ix Growth: user {$user_id} escalated to Abandoned stage + recovery sequence started (24h check)" );
+    }
 
-        Six_Odoo::send_email_odoo(
-            $lead_id,
-            $user->user_email,
-            "Still thinking it over? Your evaluation is waiting.",
-            $body
-        );
+    // ═════════════════════════════════════════════════════════════════════
+    // ─── RETIRED CRON CALLBACKS (kept for history — nothing schedules
+    // these hooks anymore; see cron_abandon_initial_message() and
+    // cron_abandon_24h_check() above, which replaced this 4-step cascade
+    // with a single +30min touch + a +24h escalation check) ───────────────
+    // ═════════════════════════════════════════════════════════════════════
 
-        self::track_event( $user_id, 'email_sent', array( 'trigger' => 'abandon_24h', 'step' => $step ) );
-        error_log( "6ix Growth: 24h follow-up email sent to user {$user_id}" );
+    /**
+     * @deprecated Not scheduled since the redesign — kept for reference only.
+     */
+    public static function cron_abandon_sms( $user_id, $step, $score ) {
+        error_log("6ix Abandon SMS: retired — cron_abandon_initial_message() replaced this. Ignoring uid={$user_id}");
+    }
+
+    /**
+     * @deprecated Not scheduled since the redesign — kept for reference only.
+     */
+    public static function cron_abandon_email( $user_id, $step, $score ) {
+        error_log("6ix Abandon Email: retired — cron_abandon_initial_message() replaced this. Ignoring uid={$user_id}");
+    }
+
+    /**
+     * @deprecated Not scheduled since the redesign — the advisor activity in
+     * on_abandon() now fires immediately (T0) instead of waiting +30min.
+     */
+    public static function cron_abandon_activity( $user_id, $step, $score ) {
+        error_log("6ix Abandon Activity: retired — on_abandon() creates this activity immediately now. Ignoring uid={$user_id}");
     }
 
     // ═════════════════════════════════════════════════════════════════════
@@ -1137,10 +1058,14 @@ endif; // class_exists
 // Stale-lead cron removed — JS beacon + 24h cooldown is sufficient
 
 
+add_action( 'six_abandon_initial_message', function($uid,$step,$score){ Six_Growth_Engine::cron_abandon_initial_message($uid,$step,$score); }, 10, 3 );
+add_action( 'six_abandon_24h_check',       function($uid){ Six_Growth_Engine::cron_abandon_24h_check($uid); }, 10, 1 );
+// Retired hooks — nothing schedules these anymore, kept registered only so
+// any already-queued event from before this redesign fires into a safe
+// no-op instead of an undefined-callback warning.
 add_action( 'six_abandon_sms',      function($uid,$step,$score){ Six_Growth_Engine::cron_abandon_sms($uid,$step,$score); }, 10, 3 );
 add_action( 'six_abandon_email',    function($uid,$step,$score){ Six_Growth_Engine::cron_abandon_email($uid,$step,$score); }, 10, 3 );
 add_action( 'six_abandon_activity', function($uid,$step,$score){ Six_Growth_Engine::cron_abandon_activity($uid,$step,$score); }, 10, 3 );
-add_action( 'six_abandon_followup', function($uid){ Six_Growth_Engine::cron_abandon_followup($uid); }, 10, 1 );
 
 // =============================================================================
 // AJAX ENDPOINTS

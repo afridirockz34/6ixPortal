@@ -1656,6 +1656,8 @@ function six_create_personal_account() {
     delete_user_meta( $user_id, 'six_last_abandon_odoo' );
     update_user_meta( $user_id, 'six_abandon_fired_sms',   0 );
     update_user_meta( $user_id, 'six_abandon_fired_email', 0 );
+    update_user_meta( $user_id, 'six_abandon_fired_initial', 0 );
+    update_user_meta( $user_id, 'six_abandon_escalated',     0 );
     // Store session_id as fallback identifier for abandon tracking
     if ( ! session_id() ) @session_start();
     $sess = session_id() ?: wp_generate_uuid4();

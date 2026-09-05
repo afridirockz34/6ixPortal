@@ -1,29 +1,39 @@
 <?php
 /**
- * Lead Automation Flow — response-window tracking + the shared 4-touch
- * recovery sequence, per the "Lead Automation Flow" proposal.
+ * Lead Automation Flow — response-window tracking + the shared 3-touch
+ * "Abandoned" recovery sequence.
  *
- * Two lead sources feed this, each with its own storage (they don't share
- * a table — see the design note below) but both fire through the SAME
- * touch templates (data-forms-seed.php's six_lead_recovery_seed_defaults())
- * and the same six_lead_pipeline_fire_touch() sender, so editing a touch's
- * copy in one place updates it everywhere it's used:
+ * Two lead sources feed the same Abandoned-stage sequence, each with its
+ * own storage (they don't share a table — see the design note below) but
+ * both fire through the SAME touch templates
+ * (data-forms-seed.php's six_lead_recovery_seed_defaults()) and the same
+ * six_lead_pipeline_fire_touch() sender, so editing a touch's copy in one
+ * place updates it everywhere it's used:
  *
- *  - Website-form leads: {$wpdb->prefix}six_form_submissions rows
+ *  - Website-form/Meta leads: {$wpdb->prefix}six_form_submissions rows
  *    (response_status/response_due_at/recovery_stage/recovery_next_at
  *    columns, class-forms.php v4). A lead starts 'pending' with a 10-minute
- *    response_due_at; if nobody marks it responded in time, the sweep cron
- *    marks it 'abandoned' and starts the recovery sequence at touch 0.
+ *    response_due_at — the "call reminder" window. It becomes 'abandoned'
+ *    (starting the recovery sequence at touch 0) either automatically, if
+ *    nobody marks it responded before that window closes, OR manually, the
+ *    moment an advisor clicks "Mark Abandoned" after an unanswered call —
+ *    whichever comes first. Both paths call six_lead_mark_abandoned().
  *  - Onboarding-abandonment leads: WP user meta (six_recovery_active/
- *    _stage/_next_at) on the WP user account, seeded by
- *    Six_Growth_Engine::on_abandon() — the actual live abandonment handler
- *    (class-growth-engine.php; NOT Six_Odoo::handle_abandoned_checkout(),
- *    which nothing in production calls). on_abandon() already sends its
- *    own tuned immediate SMS+email and an admin notification, so this
- *    file only picks these leads up for 2 touches instead of the website-
- *    form lead's 4: a 1h SMS reminder (touch 1) and a 3-day final touch
- *    (touch 3) — touch 2 (the 24h "offer" email) is deliberately skipped
- *    for this journey (see six_lead_pipeline_fire_due_touches_onboarding()).
+ *    _stage/_next_at) on the WP user account. Six_Growth_Engine::on_abandon()
+ *    (class-growth-engine.php — the real live abandonment handler; NOT
+ *    Six_Odoo::handle_abandoned_checkout(), which nothing in production
+ *    calls) sends its own single combined email+SMS at +30 minutes and an
+ *    immediate advisor task, but does NOT start this recovery sequence —
+ *    that only happens if the lead is STILL stuck 24 hours later
+ *    (Six_Growth_Engine::cron_abandon_24h_check()), which is what actually
+ *    seeds this usermeta and moves the Odoo lead to the Abandoned stage.
+ *
+ * Once a lead is Abandoned, both sources go through the identical 3-touch
+ * timeline: immediately, +3 days, +10 days (final offer) — see
+ * six_lead_pipeline_next_delay(). No separate handling needed per source at
+ * that point; only the {scenario_line}/{scenario_line_sms} merge tags in
+ * touch 0 differ, since "what happened" reads differently depending on
+ * where the lead came from (see six_lead_pipeline_scenario_lines()).
  *
  * Meta Ads lead ingestion is NOT built here — there's no Meta Lead Ads
  * webhook integration in this codebase yet, so those leads can't reach
@@ -54,8 +64,10 @@ function six_lead_pipeline_start_response_window( $submission_id, $row ) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════
-// 2. "Mark Responded" — advisor/sales action (per the chosen design: a
-// human marks it, rather than guessing from an ambiguous signal).
+// 2. "Mark Responded" / "Mark Abandoned" — advisor/sales actions. A human
+// decides both outcomes rather than guessing from an ambiguous signal; the
+// 10-minute auto-sweep (below) is only a safety net for whenever nobody
+// gets to marking it either way.
 // ═════════════════════════════════════════════════════════════════════════
 function six_lead_can_mark_responded() {
 	return current_user_can( 'manage_options' )
@@ -72,6 +84,34 @@ function six_lead_mark_responded( $submission_id ) {
 	), array( 'id' => intval( $submission_id ) ) );
 }
 
+/**
+ * Marks a website-form/Meta-lead submission Abandoned right now — the
+ * advisor's manual "tried calling, no answer" action — and starts the
+ * shared recovery sequence immediately (touch 0 fires on the next 5-minute
+ * sweep tick). Same end state six_lead_pipeline_abandon_overdue() reaches
+ * automatically after the response window closes; this just lets it happen
+ * sooner, on the advisor's own judgement, instead of waiting out the timer.
+ */
+function six_lead_mark_abandoned( $submission_id ) {
+	global $wpdb;
+	$table = $wpdb->prefix . 'six_form_submissions';
+	$submission_id = intval( $submission_id );
+	$row = $wpdb->get_row( $wpdb->prepare( "SELECT odoo_lead_id FROM {$table} WHERE id=%d", $submission_id ) );
+	if ( ! $row ) return false;
+
+	$wpdb->update( $table, array(
+		'response_status'  => 'abandoned',
+		'recovery_stage'   => 0,
+		'recovery_next_at' => current_time( 'mysql' ), // touch 0 fires on the next sweep tick
+	), array( 'id' => $submission_id ) );
+
+	if ( class_exists( 'Six_Odoo' ) && $row->odoo_lead_id ) {
+		Six_Odoo::update_lead_stage( intval( $row->odoo_lead_id ), 'Abandoned' );
+	}
+	error_log( "6ix Lead Pipeline: submission #{$submission_id} manually marked Abandoned." );
+	return true;
+}
+
 add_action( 'wp_ajax_six_lead_mark_responded', function () {
 	check_ajax_referer( 'six_nonce', 'nonce' );
 	if ( ! six_lead_can_mark_responded() ) wp_send_json_error( 'Permission denied' );
@@ -79,6 +119,15 @@ add_action( 'wp_ajax_six_lead_mark_responded', function () {
 	if ( ! $id ) wp_send_json_error( 'Missing submission id' );
 	six_lead_mark_responded( $id );
 	wp_send_json_success( array( 'message' => 'Marked as responded — removed from the recovery sequence.' ) );
+} );
+
+add_action( 'wp_ajax_six_lead_mark_abandoned', function () {
+	check_ajax_referer( 'six_nonce', 'nonce' );
+	if ( ! six_lead_can_mark_responded() ) wp_send_json_error( 'Permission denied' );
+	$id = intval( $_POST['submission_id'] ?? 0 );
+	if ( ! $id ) wp_send_json_error( 'Missing submission id' );
+	six_lead_mark_abandoned( $id );
+	wp_send_json_success( array( 'message' => 'Marked as Abandoned — the recovery sequence starts now.' ) );
 } );
 
 // ═════════════════════════════════════════════════════════════════════════
@@ -107,34 +156,29 @@ function six_lead_pipeline_run_sweep() {
 	six_lead_pipeline_fire_due_touches_onboarding();
 }
 
-// ── 3a. No response within the window → Abandoned, recovery sequence starts ─
+// ── 3a. No response within the window → Abandoned, recovery sequence starts
+// (the automatic safety-net path — six_lead_mark_abandoned() above is the
+// manual one an advisor can trigger sooner). ────────────────────────────
 function six_lead_pipeline_abandon_overdue() {
 	global $wpdb;
 	$table = $wpdb->prefix . 'six_form_submissions';
 	$rows = $wpdb->get_results( $wpdb->prepare(
-		"SELECT id, odoo_lead_id FROM {$table} WHERE response_status='pending' AND response_due_at IS NOT NULL AND response_due_at <= %s",
+		"SELECT id FROM {$table} WHERE response_status='pending' AND response_due_at IS NOT NULL AND response_due_at <= %s",
 		current_time( 'mysql' )
 	) );
 	foreach ( $rows as $row ) {
-		$wpdb->update( $table, array(
-			'response_status'  => 'abandoned',
-			'recovery_stage'   => 0,
-			'recovery_next_at' => current_time( 'mysql' ), // touch 0 fires on the very next sweep tick
-		), array( 'id' => $row->id ) );
-		if ( class_exists( 'Six_Odoo' ) && $row->odoo_lead_id ) {
-			Six_Odoo::update_lead_stage( intval( $row->odoo_lead_id ), 'Abandoned' );
-		}
+		six_lead_mark_abandoned( $row->id );
 		error_log( "6ix Lead Pipeline: submission #{$row->id} auto-abandoned — no response within " . six_call_reminder_minutes() . " minute window." );
 	}
 }
 
-// ── 3b. Fire due recovery touches — website-form leads ─────────────────────
+// ── 3b. Fire due recovery touches — website-form/Meta leads ────────────────
 function six_lead_pipeline_fire_due_touches_forms() {
 	global $wpdb;
 	$table = $wpdb->prefix . 'six_form_submissions';
 	$now = current_time( 'mysql' );
 	$rows = $wpdb->get_results( $wpdb->prepare(
-		"SELECT * FROM {$table} WHERE response_status='abandoned' AND recovery_stage < 4 AND recovery_next_at IS NOT NULL AND recovery_next_at <= %s",
+		"SELECT * FROM {$table} WHERE response_status='abandoned' AND recovery_stage < 3 AND recovery_next_at IS NOT NULL AND recovery_next_at <= %s",
 		$now
 	) );
 	foreach ( $rows as $row ) {
@@ -142,11 +186,11 @@ function six_lead_pipeline_fire_due_touches_forms() {
 		$contact = six_lead_pipeline_extract_contact( is_array( $decoded ) ? $decoded : array() );
 		$stage   = intval( $row->recovery_stage );
 
-		six_lead_pipeline_fire_touch( $stage, $contact['name'], $contact['email'], $contact['phone'], intval( $row->odoo_lead_id ) );
+		six_lead_pipeline_fire_touch( $stage, $contact['name'], $contact['email'], $contact['phone'], intval( $row->odoo_lead_id ), 'lead' );
 
 		$next_stage = $stage + 1;
 		$update = array( 'recovery_stage' => $next_stage );
-		if ( $next_stage >= 4 ) {
+		if ( $next_stage >= 3 ) {
 			$update['response_status']  = 'nurture';
 			$update['recovery_next_at'] = null;
 			if ( class_exists( 'Six_Odoo' ) && $row->odoo_lead_id ) Six_Odoo::update_lead_stage( intval( $row->odoo_lead_id ), 'Nurture List' );
@@ -157,15 +201,17 @@ function six_lead_pipeline_fire_due_touches_forms() {
 	}
 }
 
-// ── 3c. Fire due recovery touches — onboarding-abandonment leads (touches 1-3;
-// touch 0 already happened in Six_Odoo::handle_abandoned_checkout()) ───────
+// ── 3c. Fire due recovery touches — onboarding-abandonment leads. Only
+// reaches this at all once Six_Growth_Engine::cron_abandon_24h_check() has
+// escalated them to Abandoned (see this file's docblock) — from that point
+// on it's the exact same 3-touch timeline as website-form leads. ──────────
 function six_lead_pipeline_fire_due_touches_onboarding() {
 	$users = get_users( array(
 		'number'     => 50,
 		'meta_query' => array(
 			'relation' => 'AND',
 			array( 'key' => 'six_recovery_active', 'value' => 1 ),
-			array( 'key' => 'six_recovery_stage', 'value' => 4, 'compare' => '<', 'type' => 'NUMERIC' ),
+			array( 'key' => 'six_recovery_stage', 'value' => 3, 'compare' => '<', 'type' => 'NUMERIC' ),
 			array( 'key' => 'six_recovery_next_at', 'value' => current_time( 'mysql' ), 'compare' => '<=', 'type' => 'DATETIME' ),
 		),
 	) );
@@ -175,42 +221,58 @@ function six_lead_pipeline_fire_due_touches_onboarding() {
 		$lead_id_odoo = intval( get_user_meta( $user->ID, 'six_odoo_lead_id', true ) );
 		$name         = trim( (string) $user->first_name ) ?: $user->display_name;
 
-		six_lead_pipeline_fire_touch( $stage, $name, $user->user_email, $phone, $lead_id_odoo );
+		six_lead_pipeline_fire_touch( $stage, $name, $user->user_email, $phone, $lead_id_odoo, 'onboarding' );
 
-		// Onboarding leads get only 2 touches, not the website-form lead's
-		// full 4: a 1h SMS reminder (stage 1), then straight to the 3-day
-		// final touch (stage 3) — skipping stage 2's 24h "offer" email,
-		// since Six_Growth_Engine::on_abandon() already does its own
-		// immediate reach-out for this journey (see class-growth-engine.php).
-		$next_stage = ( $stage === 1 ) ? 3 : 4;
+		$next_stage = $stage + 1;
 		update_user_meta( $user->ID, 'six_recovery_stage', $next_stage );
-		if ( $next_stage >= 4 ) {
+		if ( $next_stage >= 3 ) {
 			update_user_meta( $user->ID, 'six_recovery_active', 0 );
 			update_user_meta( $user->ID, 'six_recovery_nurture', 1 );
 			delete_user_meta( $user->ID, 'six_recovery_next_at' );
 			if ( class_exists( 'Six_Odoo' ) && $lead_id_odoo ) Six_Odoo::update_lead_stage( $lead_id_odoo, 'Nurture List' );
 		} else {
-			// stage 1 -> stage 3: land on the 3-day mark from abandonment
-			// (1h already elapsed, so the remaining delay is 3d minus 1h).
-			update_user_meta( $user->ID, 'six_recovery_next_at', date( 'Y-m-d H:i:s', current_time( 'timestamp' ) + 3 * DAY_IN_SECONDS - HOUR_IN_SECONDS ) );
+			update_user_meta( $user->ID, 'six_recovery_next_at', date( 'Y-m-d H:i:s', current_time( 'timestamp' ) + six_lead_pipeline_next_delay( $stage ) ) );
 		}
 	}
 }
 
-/** Delay, in seconds, from firing touch $stage to when the NEXT touch should fire. 0/1h/24h/3d total from abandonment. */
+/** Delay, in seconds, from firing touch $stage to when the NEXT touch should fire. 0 / +3d / +10d total from entering Abandoned. */
 function six_lead_pipeline_next_delay( $stage ) {
 	$delays = array(
-		0 => HOUR_IN_SECONDS,       // touch 0 -> touch 1 @ +1h
-		1 => 23 * HOUR_IN_SECONDS,  // touch 1 -> touch 2 @ +24h total
-		2 => 2 * DAY_IN_SECONDS,    // touch 2 -> touch 3 @ +3d total
+		0 => 3 * DAY_IN_SECONDS, // touch 0 -> touch 1 @ +3d
+		1 => 7 * DAY_IN_SECONDS, // touch 1 -> touch 2 @ +10d total
 	);
 	return $delays[ $stage ] ?? 0;
 }
 
+/**
+ * One short opener per source, filled into touch 0's {scenario_line}/
+ * {scenario_line_sms} merge tags — the only part of the shared sequence
+ * that needs to read differently depending on where the lead came from.
+ */
+function six_lead_pipeline_scenario_lines( $scenario ) {
+	if ( $scenario === 'onboarding' ) {
+		return array(
+			'line' => "We noticed you started setting up your account with 6ix Developers but didn't get a chance to finish.",
+			'sms'  => "you started setting up your account with us but didn't finish —",
+		);
+	}
+	// 'lead' — a website-form or Meta-ad lead the advisor tried to call.
+	return array(
+		'line' => "We tried calling you after you reached out to us, but haven't been able to connect yet.",
+		'sms'  => "we tried calling but couldn't reach you!",
+	);
+}
+
 /** Sends one recovery touch's email (if it has one) + SMS (if it has one and a phone is available). */
-function six_lead_pipeline_fire_touch( $stage, $name, $email, $phone, $lead_id_odoo = 0 ) {
-	$template_key = 'lead_recovery_touch' . max( 0, min( 3, intval( $stage ) ) );
-	$merge = array( 'client_name' => $name ?: 'there' );
+function six_lead_pipeline_fire_touch( $stage, $name, $email, $phone, $lead_id_odoo = 0, $scenario = 'lead' ) {
+	$template_key = 'lead_recovery_touch' . max( 0, min( 2, intval( $stage ) ) );
+	$scenario_lines = six_lead_pipeline_scenario_lines( $scenario );
+	$merge = array(
+		'client_name'        => $name ?: 'there',
+		'scenario_line'      => $scenario_lines['line'],
+		'scenario_line_sms'  => $scenario_lines['sms'],
+	);
 
 	if ( $email && is_email( $email ) && function_exists( 'six_send_system_email' ) ) {
 		six_send_system_email( $template_key, $merge, array(
@@ -228,7 +290,7 @@ function six_lead_pipeline_fire_touch( $stage, $name, $email, $phone, $lead_id_o
 function six_lead_pipeline_send_sms( $template_key, array $merge, $phone, $lead_id_odoo = 0 ) {
 	if ( ! $phone || ! function_exists( 'six_forms_get' ) ) return false;
 	$tpl = six_forms_get( $template_key );
-	if ( ! $tpl || empty( $tpl['sms_body'] ) ) return false; // touch has no SMS configured — fine, e.g. the 24h email-only touch
+	if ( ! $tpl || empty( $tpl['sms_body'] ) ) return false;
 
 	$data = array();
 	foreach ( $merge as $k => $v ) {

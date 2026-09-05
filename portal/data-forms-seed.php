@@ -292,62 +292,62 @@ add_action( 'wp_loaded', function () {
 }, 21 );
 
 /**
- * Lead recovery sequence — 4 touches fired by class-lead-pipeline.php for
- * any lead that goes quiet (didn't answer the 10-minute call reminder, or
- * abandoned onboarding), per the Lead Automation Flow: email+SMS
- * immediately, an SMS-only reminder at 1 hour, an email with an offer at
- * 24 hours, and a final offer at 3 days. Same six_form-post pattern as the
- * other system templates, plus the sms_body field (see class-forms-admin.php)
- * for the SMS half of each touch. No admin copy is sent per touch (would be
- * 4x noise per lead) — class-lead-pipeline.php always calls these with
- * send_admin=false, but the owner fields are still filled in below in case
- * that's ever turned on.
+ * Lead recovery sequence — the SHARED "Abandoned" stage sequence, fired by
+ * class-lead-pipeline.php for ANY lead that lands in Abandoned, regardless
+ * of source: a website-form/Meta lead the advisor couldn't reach (manually
+ * marked, or auto-swept after the 10-minute call-reminder window), or an
+ * onboarding drop-off still not resumed 24 hours later
+ * (Six_Growth_Engine::cron_abandon_24h_check()). One unified 3-touch
+ * sequence, every touch email+SMS together: immediately on entering
+ * Abandoned, again at 3 days, and a final offer at 10 days — all signed as
+ * "Anastasia" from 6ix Developers, matching the persona already used in the
+ * onboarding flow's own immediate reach-out.
  *
- * IMPORTANT: the 24h/3d touches below have a PLACEHOLDER offer — edit
- * "lead_recovery_touch2" and "lead_recovery_touch3" under 6ix Portal →
+ * {scenario_line} is the one thing that differs by source — callers pass a
+ * short, source-specific opener (e.g. "we tried calling after you reached
+ * out to us" vs "you started setting up your account") so one template set
+ * still reads naturally regardless of where the lead came from, without
+ * needing separate templates to maintain for onboarding vs. lead forms.
+ *
+ * IMPORTANT: touches 2 and 3 below have a PLACEHOLDER offer — edit
+ * "lead_recovery_touch1" and "lead_recovery_touch2" under 6ix Portal →
  * Forms with your actual promotion before this goes live.
+ *
+ * No admin copy is sent per touch (would be 3x noise per lead) —
+ * class-lead-pipeline.php always calls these with send_admin=false, but the
+ * owner fields are still filled in below in case that's ever turned on.
  */
 function six_lead_recovery_seed_defaults() {
 	return array(
 		array(
 			'key'   => 'lead_recovery_touch0',
-			'title' => 'System: Lead Recovery — Touch 1 (immediate)',
-			'owner_subject' => 'Recovery touch 1 sent — {client_name}',
-			'owner_body'    => 'Immediate recovery email+SMS sent to {client_name}.',
+			'title' => 'System: Abandoned — Touch 1 (immediate)',
+			'owner_subject' => 'Abandoned-stage touch 1 sent — {client_name}',
+			'owner_body'    => 'Immediate abandoned-stage email+SMS sent to {client_name}.',
 			'customer_enabled' => 1,
-			'customer_subject' => "Still there? We'd love to help.",
-			'customer_body'    => "Hi {client_name},\n\nWe tried reaching you but couldn't connect — no worries, these things happen! If now's not a good time, just reply to this email or give us a call whenever works for you.\n\nThe 6ix Developers team",
-			'sms_body'         => "Hi {client_name}, this is 6ix Developers — we tried calling but missed you! Reply here or call us back whenever's convenient.",
+			'customer_subject' => "Still there, {client_name}?",
+			'customer_body'    => "Hi {client_name},\n\n{scenario_line}\n\nNo worries — these things happen! If now's not a good time, just reply to this email or give us a call whenever works for you.\n\nBest,\nAnastasia\n6ix Developers",
+			'sms_body'         => "Hi {client_name}, it's Anastasia from 6ix Developers — {scenario_line_sms} Reply here or call us back whenever's convenient!",
 		),
 		array(
 			'key'   => 'lead_recovery_touch1',
-			'title' => 'System: Lead Recovery — Touch 2 (1 hour, SMS only)',
-			'owner_subject' => 'Recovery touch 2 sent — {client_name}',
-			'owner_body'    => '1-hour SMS reminder sent to {client_name}.',
-			'customer_enabled' => 0, // SMS-only touch — leave the email off
-			'customer_subject' => '',
-			'customer_body'    => '',
-			'sms_body'         => "Hi {client_name}, just following up — we're here whenever you're ready to chat about growing your business. Call or reply anytime!",
+			'title' => 'System: Abandoned — Touch 2 (3 days)',
+			'owner_subject' => 'Abandoned-stage touch 2 sent — {client_name}',
+			'owner_body'    => '3-day abandoned-stage email+SMS sent to {client_name}.',
+			'customer_enabled' => 1,
+			'customer_subject' => "Still thinking it over, {client_name}?",
+			'customer_body'    => "Hi {client_name},\n\nJust checking in again — we'd love to help your business grow. [EDIT ME — add a current offer/promo here if you have one, or leave this as a plain check-in].\n\nReply or call anytime — I'm here whenever you're ready.\n\nBest,\nAnastasia\n6ix Developers",
+			'sms_body'         => "Hi {client_name}, Anastasia again from 6ix Developers — still here whenever you're ready to chat about growing your business. Call or reply anytime!",
 		),
 		array(
 			'key'   => 'lead_recovery_touch2',
-			'title' => 'System: Lead Recovery — Touch 3 (24 hours, offer)',
-			'owner_subject' => 'Recovery touch 3 sent — {client_name}',
-			'owner_body'    => '24-hour recovery email (with offer) sent to {client_name}.',
-			'customer_enabled' => 1,
-			'customer_subject' => 'A little something to help you get started, {client_name}',
-			'customer_body'    => "Hi {client_name},\n\nStill thinking it over? Here's something to help make the decision easier: [EDIT ME — add your current offer/promo here].\n\nWe'd love to help your business grow — reply or call anytime.\n\nThe 6ix Developers team",
-			'sms_body'         => '',
-		),
-		array(
-			'key'   => 'lead_recovery_touch3',
-			'title' => 'System: Lead Recovery — Touch 4 (3 days, final offer)',
-			'owner_subject' => 'Recovery touch 4 (final) sent — {client_name}',
-			'owner_body'    => '3-day final-offer email+SMS sent to {client_name}.',
+			'title' => 'System: Abandoned — Touch 3 (10 days, final offer)',
+			'owner_subject' => 'Abandoned-stage touch 3 (final) sent — {client_name}',
+			'owner_body'    => '10-day final-offer email+SMS sent to {client_name}.',
 			'customer_enabled' => 1,
 			'customer_subject' => "Last call, {client_name} — this offer won't stay open",
-			'customer_body'    => "Hi {client_name},\n\nThis is our last check-in — [EDIT ME — add your final offer/promo + any deadline here].\n\nIf you'd still like to talk, we're just a reply or call away.\n\nThe 6ix Developers team",
-			'sms_body'         => "Hi {client_name}, last call from 6ix Developers — [EDIT ME: final offer]. Reply or call if you'd like to chat!",
+			'customer_body'    => "Hi {client_name},\n\nThis is our last check-in — [EDIT ME — add your final offer/promo + any deadline here].\n\nIf you'd still like to talk, I'm just a reply or call away.\n\nBest,\nAnastasia\n6ix Developers",
+			'sms_body'         => "Hi {client_name}, last call from Anastasia at 6ix Developers — [EDIT ME: final offer]. Reply or call if you'd like to chat!",
 		),
 	);
 }
