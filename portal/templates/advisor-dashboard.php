@@ -203,6 +203,9 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 <?php $new_submissions_n = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}six_form_submissions WHERE lead_status='new'" );
                 if ( $new_submissions_n > 0 ) : ?><span class="six-badge"><?php echo $new_submissions_n; ?></span><?php endif; ?>
             </a>
+            <a href="?tab=priority-leads" class="six-nav-item <?php echo $active_tab==='priority-leads'?'active':'';?>">
+                <span class="six-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span> Priority Leads
+            </a>
             <a href="?tab=notifications" class="six-nav-item <?php echo $active_tab==='notifications'?'active':'';?>">
                 <span class="six-nav-icon">◎</span> Alerts
                 <?php $alert_total=intval($unread_n)+intval($unread_msg); if($alert_total>0):?><span class="six-badge"><?php echo $alert_total;?></span><?php endif;?>
@@ -1935,6 +1938,51 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
     <?php elseif($ctab==='activity'): ?>
 
     <?php
+    // Communication history — every email/SMS this lead has actually been
+    // sent, at every stage (onboarding abandon nudge, the shared recovery
+    // sequence, admin notices excluded), read straight from Odoo's chatter —
+    // the same place Six_Odoo::log_communication()/send_email_odoo() already
+    // log every send to, so there's nothing new to keep in sync here.
+    $c_odoo_lead_id = intval( get_user_meta( $view_client_id, 'six_odoo_lead_id', true ) );
+    $c_messages     = ( $c_odoo_lead_id && class_exists( 'Six_Odoo' ) ) ? Six_Odoo::get_lead_messages( $c_odoo_lead_id, 100 ) : array();
+    $c_msg_colors   = array( 'Email' => 'var(--cyan)', 'SMS' => 'var(--success)', 'Portal Message' => 'var(--pink)', 'Call' => 'var(--warning)', 'Note' => 'var(--text3)' );
+    ?>
+    <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px">
+        <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:13px;font-weight:700">Communication History</span>
+            <?php if ( $c_odoo_lead_id && get_option( 'six_odoo_url' ) ) : ?>
+            <a href="<?php echo esc_url( rtrim( get_option( 'six_odoo_url' ), '/' ) . '/odoo/crm/' . $c_odoo_lead_id ); ?>" target="_blank" rel="noopener" style="font-size:11px;color:var(--cyan);text-decoration:none">Full record in Odoo →</a>
+            <?php endif; ?>
+        </div>
+        <?php if ( ! $c_odoo_lead_id ) : ?>
+        <div style="padding:32px;text-align:center;color:var(--text3);font-size:13px">Not synced to Odoo yet — nothing to show.</div>
+        <?php elseif ( empty( $c_messages ) ) : ?>
+        <div style="padding:32px;text-align:center;color:var(--text3);font-size:13px">No emails or texts have gone out to this lead yet.</div>
+        <?php else : ?>
+        <div style="padding:14px 18px;max-height:480px;overflow-y:auto">
+        <?php foreach ( $c_messages as $msg ) :
+            $mcolor = $c_msg_colors[ $msg['channel'] ] ?? 'var(--text3)';
+            $lines  = explode( "\n", $msg['body'] );
+            $first  = array_shift( $lines );
+            $rest   = trim( implode( "\n", $lines ) );
+        ?>
+        <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px">
+            <div style="width:30px;height:30px;border-radius:8px;background:<?php echo $mcolor; ?>15;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:<?php echo $mcolor; ?>;flex-shrink:0"><?php echo esc_html( strtoupper( substr( $msg['channel'], 0, 1 ) ) ); ?></div>
+            <div style="flex:1;min-width:0;padding-top:2px">
+                <div style="font-size:11px;font-weight:700;color:<?php echo $mcolor; ?>"><?php echo esc_html( $msg['channel'] ); ?><?php if ( $msg['direction'] ) : ?> · <?php echo esc_html( $msg['direction'] ); ?><?php endif; ?></div>
+                <div style="font-size:12.5px;line-height:1.6;margin-top:2px"><?php echo esc_html( $first ); ?></div>
+                <?php if ( $rest !== '' ) : ?>
+                <div style="font-size:11.5px;color:var(--text3);line-height:1.6;margin-top:4px;white-space:pre-wrap"><?php echo esc_html( $rest ); ?></div>
+                <?php endif; ?>
+                <div style="font-size:10px;color:var(--text3);margin-top:4px"><?php echo $msg['date'] ? esc_html( date_i18n( 'M j, Y \a\t g:i a', strtotime( $msg['date'] ) ) ) : ''; ?></div>
+            </div>
+        </div>
+        <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+    </div>
+
+    <?php
     // Build unified activity feed
     $activity = array();
     foreach((array)$c_svcs as $s){
@@ -3488,6 +3536,8 @@ function advCompleteOnboarding(clientId){
     </script>
     <?php /* ════════════ FORM SUBMISSIONS ════════════ */ elseif($active_tab==='form-submissions'):
         include SIX_PLUGIN_DIR . 'templates/advisor-tab-form-submissions.php';
+    /* ════════════ PRIORITY LEADS ════════════ */ elseif($active_tab==='priority-leads'):
+        include SIX_PLUGIN_DIR . 'templates/advisor-tab-priority-leads.php';
     endif;?>
     </main>
 </div>

@@ -105,6 +105,39 @@ if ( $view_submission_id ) :
 		</div>
 	</div>
 
+	<?php
+	// Every email/SMS this lead has actually been sent — the response-window
+	// confirmation, the "Call Within 10 Min" follow-through, and every touch
+	// of the shared recovery sequence if it reached Abandoned — read straight
+	// from Odoo's chatter (Six_Odoo::log_communication()/send_email_odoo()
+	// already log every send there; nothing new to keep in sync).
+	$fs_messages = ( $sub->odoo_lead_id && class_exists( 'Six_Odoo' ) ) ? Six_Odoo::get_lead_messages( intval( $sub->odoo_lead_id ), 100 ) : array();
+	?>
+	<div class="six-card" style="padding:24px;margin-bottom:20px">
+		<h3 style="margin:0 0 14px;font-size:14px">Communication History</h3>
+		<?php if ( ! $sub->odoo_lead_id ) : ?>
+		<p style="font-size:13px;color:var(--text3)">Not synced to Odoo yet — nothing to show.</p>
+		<?php elseif ( empty( $fs_messages ) ) : ?>
+		<p style="font-size:13px;color:var(--text3)">No emails or texts have gone out to this lead yet.</p>
+		<?php else : ?>
+		<div style="max-height:420px;overflow-y:auto">
+		<?php foreach ( $fs_messages as $msg ) :
+			$lines = explode( "\n", $msg['body'] );
+			$first = array_shift( $lines );
+			$rest  = trim( implode( "\n", $lines ) );
+		?>
+		<div style="padding:10px 0;border-bottom:1px solid var(--border,rgba(0,0,0,.06))">
+			<div style="font-size:11px;font-weight:700;color:var(--cyan)"><?php echo esc_html( $msg['channel'] ); ?><?php if ( $msg['direction'] ) : ?> · <?php echo esc_html( $msg['direction'] ); ?><?php endif; ?><span style="font-weight:400;color:var(--text3)"> — <?php echo $msg['date'] ? esc_html( date_i18n( 'M j, Y g:i a', strtotime( $msg['date'] ) ) ) : ''; ?></span></div>
+			<div style="font-size:12.5px;line-height:1.6;margin-top:3px"><?php echo esc_html( $first ); ?></div>
+			<?php if ( $rest !== '' ) : ?>
+			<div style="font-size:11.5px;color:var(--text3);line-height:1.6;margin-top:4px;white-space:pre-wrap"><?php echo esc_html( $rest ); ?></div>
+			<?php endif; ?>
+		</div>
+		<?php endforeach; ?>
+		</div>
+		<?php endif; ?>
+	</div>
+
 	<div class="six-card" style="padding:24px;margin-bottom:20px">
 		<h3 style="margin:0 0 14px;font-size:14px">Odoo CRM</h3>
 		<?php if ( $odoo_resync_result ) : ?>
@@ -265,11 +298,26 @@ function six_fs_response_badge( $sub ) {
 	}
 	// 'pending' — still inside the call-reminder window (or the sweep just hasn't run yet).
 	$due = ! empty( $sub->response_due_at ) ? strtotime( $sub->response_due_at ) : 0;
-	$mins_left = $due ? round( ( $due - current_time( 'timestamp' ) ) / 60 ) : null;
-	if ( $mins_left !== null && $mins_left > 0 ) {
-		return '<span style="display:inline-block;padding:2px 10px;border-radius:100px;font-size:11.5px;font-weight:700;color:#fff;background:#2f8f8a">' . $mins_left . 'm left to respond</span>';
+	$secs_left = $due ? ( $due - current_time( 'timestamp' ) ) : null;
+	if ( $secs_left !== null && $secs_left > 0 ) {
+		return '<span style="display:inline-block;padding:2px 10px;border-radius:100px;font-size:11.5px;font-weight:700;color:#fff;background:#2f8f8a">' . esc_html( six_fs_human_duration( $secs_left ) ) . ' left to respond</span>';
 	}
 	return '<span style="display:inline-block;padding:2px 10px;border-radius:100px;font-size:11.5px;font-weight:700;color:#fff;background:#c17b1a">Window passed — pending sweep</span>';
+}
+/** "23h 40m" / "18m" — scales with six_call_reminder_minutes() so this reads sensibly whether the window is minutes, hours, or days. */
+function six_fs_human_duration( $seconds ) {
+	$seconds = max( 0, intval( $seconds ) );
+	if ( $seconds < HOUR_IN_SECONDS ) {
+		return max( 1, round( $seconds / 60 ) ) . 'm';
+	}
+	if ( $seconds < DAY_IN_SECONDS ) {
+		$h = intdiv( $seconds, HOUR_IN_SECONDS );
+		$m = round( ( $seconds % HOUR_IN_SECONDS ) / 60 );
+		return $h . 'h' . ( $m > 0 ? " {$m}m" : '' );
+	}
+	$d = intdiv( $seconds, DAY_IN_SECONDS );
+	$h = round( ( $seconds % DAY_IN_SECONDS ) / HOUR_IN_SECONDS );
+	return $d . 'd' . ( $h > 0 ? " {$h}h" : '' );
 }
 function six_fs_preview( $data ) {
 	$bits = array();

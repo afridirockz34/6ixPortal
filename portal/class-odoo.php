@@ -899,6 +899,59 @@ class Six_Odoo {
         return self::post_note( $lead_id, $body );
     }
 
+    /**
+     * Read a lead's chatter back — every entry log_communication()/post_note()
+     * (and the plain "Email sent to: ..." notes send_email_odoo() writes
+     * directly) has ever posted, newest first. This is the read-side of the
+     * same single source of truth: nothing new to log, nothing to keep in
+     * sync — just fetching what's already there so the WP portal can show a
+     * lead's full send history next to their profile instead of only inside
+     * Odoo.
+     *
+     * @param int $lead_id
+     * @param int $limit
+     * @return array[] Each: ['date'=>'Y-m-d H:i:s' (site time), 'body'=>plain text, 'channel'=>'Email'|'SMS'|'Portal Message'|'Call'|'Note', 'direction'=>'Sent'|'Received'|'Made'|'Missed'|''].
+     */
+    public static function get_lead_messages( $lead_id, $limit = 100 ) {
+        $lead_id = intval( $lead_id );
+        if ( ! $lead_id ) return array();
+
+        $rows = self::execute( 'mail.message', 'search_read',
+            array( array(
+                array( 'model',   '=', 'crm.lead' ),
+                array( 'res_id',  '=', $lead_id ),
+                array( 'message_type', 'in', array( 'comment', 'notification', 'email' ) ),
+            ) ),
+            array( 'fields' => array( 'body', 'date', 'subject', 'message_type', 'email_from' ), 'order' => 'date desc', 'limit' => $limit )
+        );
+        if ( ! is_array( $rows ) ) return array();
+
+        $out = array();
+        foreach ( $rows as $r ) {
+            $plain = trim( wp_strip_all_tags( html_entity_decode( (string) ( $r['body'] ?? '' ), ENT_QUOTES ) ) );
+            if ( $plain === '' ) continue;
+
+            $channel   = 'Note';
+            $direction = '';
+            if ( preg_match( '/^\[(EMAIL|SMS|PORTAL MESSAGE|CALL)\s+(SENT|RECEIVED|MADE|MISSED)\]/i', $plain, $m ) ) {
+                $channel   = ucwords( strtolower( $m[1] ) );
+                $direction = ucfirst( strtolower( $m[2] ) );
+                $plain     = trim( preg_replace( '/^\[[^\]]+\]\s*/', '', $plain ) );
+            } elseif ( stripos( $plain, 'Email sent to:' ) === 0 ) {
+                $channel   = 'Email';
+                $direction = 'Sent';
+            }
+
+            $out[] = array(
+                'date'      => get_date_from_gmt( (string) ( $r['date'] ?? '' ) ),
+                'body'      => $plain,
+                'channel'   => $channel,
+                'direction' => $direction,
+            );
+        }
+        return $out;
+    }
+
     // ═════════════════════════════════════════════════════════════════════
     // SECTION 7 — EMAIL VIA ODOO (logged in chatter)
     // ═════════════════════════════════════════════════════════════════════

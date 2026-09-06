@@ -46,7 +46,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 /** Minutes a paid/website lead has to be marked "Responded" before it's swept to Abandoned. Filterable. */
 function six_call_reminder_minutes() {
-	return max( 1, (int) apply_filters( 'six_call_reminder_minutes', 10 ) );
+	return max( 1, (int) apply_filters( 'six_call_reminder_minutes', 24 * HOUR_IN_SECONDS / MINUTE_IN_SECONDS ) );
 }
 
 // ═════════════════════════════════════════════════════════════════════════
