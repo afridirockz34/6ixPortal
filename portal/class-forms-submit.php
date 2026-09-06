@@ -137,6 +137,23 @@ function six_forms_handle_submit() {
 			}
 		}
 
+		// ── Customer SMS (optional) — independent of the email confirmation
+		// above; sends whenever this form has SMS text configured AND the
+		// submission included a value for one of this form's 'tel' fields.
+		if ( ! empty( $form['sms_body'] ) && class_exists( 'Six_Odoo' ) ) {
+			$phone = '';
+			foreach ( $form['fields'] as $fdef ) {
+				if ( ( $fdef['type'] ?? '' ) === 'tel' && ! empty( $data[ $fdef['key'] ]['value'] ) ) {
+					$phone = $data[ $fdef['key'] ]['value'];
+					break;
+				}
+			}
+			if ( $phone ) {
+				$sms = six_forms_merge_tags( $form['sms_body'], $data, $form );
+				Six_Odoo::send_sms_twilio( $phone, $sms, $odoo_lead_id );
+			}
+		}
+
 		$overall = ( $owner_status === 'failed' ) ? 'partial' : 'success'; // logged either way — never dropped
 		if ( $submission_id ) six_forms_finalize_submission( $submission_id, $overall, $owner_status, $owner_err, $customer_status, $customer_err );
 

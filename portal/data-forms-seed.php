@@ -262,12 +262,45 @@ function six_system_email_seed_defaults() {
 			'customer_subject'=> 'Your {service_name} is now active!',
 			'customer_body'   => "Hi {client_name},\n\nGreat news — {service_name} is now active on your account at \${budget}/mo. Your advisor will be in touch with next steps.\n\nYou can track progress anytime from your dashboard.\n\nThe 6ix Developers team",
 		),
+		array(
+			// Was hardcoded PHP inside Six_Growth_Engine::cron_abandon_initial_message()
+			// — the onboarding journey's one automated +30min reach-out. Made
+			// editable here so it's no longer the one automated message on the
+			// whole site nobody but a developer could change.
+			'key'             => 'onboarding_abandon_initial',
+			'title'           => 'System: Onboarding Abandoned — 30min Reach-Out',
+			'owner_subject'   => '',
+			'owner_body'      => '',
+			'customer_enabled'=> 1, // admin already got their own copy immediately via on_abandon()'s Odoo activity + FYI email — this template is customer-only (send_admin is forced off at the call site)
+			'customer_subject'=> 'Pick up right where you left off',
+			'customer_body'   => "Hi {client_name},\n\nIt's Anastasia from 6ix Developers — I noticed you started setting up your account but didn't get a chance to finish.\n\nGood news: your answers are saved, so it only takes a couple of minutes to pick back up: {resume_url}\n\nIf anything was unclear or you had questions, just reply to this email or text me back — happy to help.\n\nBest,\nAnastasia\n6ix Developers",
+			'sms_body'        => "Hi {client_name}, it's Anastasia from 6ix Developers — looks like you got interrupted setting up your account. Your progress is saved, pick back up here: {resume_url}",
+		),
+		array(
+			// Was hardcoded PHP inside Six_Odoo::sync_form_submission() — the
+			// instant auto-text every new website-form/Meta lead gets the
+			// moment they land in "New Auto". SMS-only: the email side of a
+			// new submission is that form's own confirmation email, sent
+			// separately by class-forms-submit.php.
+			'key'             => 'form_new_lead_sms',
+			'title'           => 'System: New Lead — Instant SMS',
+			'owner_subject'   => '',
+			'owner_body'      => '',
+			'customer_enabled'=> 0, // no email half — see note above
+			'customer_subject'=> '',
+			'customer_body'   => '',
+			// {source_form}, not {form_title} — that tag is reserved by
+			// six_forms_merge_tags() for THIS template's own name ("System:
+			// New Lead — Instant SMS"), not the website form the lead
+			// actually submitted, which is what belongs in this sentence.
+			'sms_body'        => "Hi {client_name}, thanks for reaching out to 6ix Developers about {source_form}! One of our specialists will be calling you shortly to help you get started.",
+		),
 	);
 }
 
 add_action( 'wp_loaded', function () {
-	if ( get_option( 'six_system_emails_seeded_v1' ) ) return;
-	update_option( 'six_system_emails_seeded_v1', 1 );
+	if ( get_option( 'six_system_emails_seeded_v2' ) ) return;
+	update_option( 'six_system_emails_seeded_v2', 1 );
 
 	foreach ( six_system_email_seed_defaults() as $f ) {
 		if ( get_posts( array( 'post_type' => 'six_form', 'meta_key' => 'six_form_key', 'meta_value' => $f['key'], 'post_status' => 'any', 'numberposts' => 1, 'fields' => 'ids' ) ) ) continue;
@@ -288,6 +321,7 @@ add_action( 'wp_loaded', function () {
 		update_post_meta( $post_id, 'six_form_customer_enabled', $f['customer_enabled'] );
 		update_post_meta( $post_id, 'six_form_customer_subject', $f['customer_subject'] );
 		update_post_meta( $post_id, 'six_form_customer_body', $f['customer_body'] );
+		update_post_meta( $post_id, 'six_form_sms_body', $f['sms_body'] ?? '' );
 	}
 }, 21 );
 

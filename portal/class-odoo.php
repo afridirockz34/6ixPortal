@@ -2262,12 +2262,26 @@ Best,
         // ── 4. Auto SMS to the lead — "New Auto" stage sends auto email +
         // SMS the moment a paid/website lead lands in the CRM. The email
         // side is the form's own customer-confirmation email (already sent
-        // by class-forms-submit.php); this is the SMS half.
-        if ( $contact['phone'] ) {
-            $sms_first_name = $contact['name'] ? explode( ' ', trim( $contact['name'] ) )[0] : 'there';
-            $sms = "Hi {$sms_first_name}, thanks for reaching out to 6ix Developers about {$form_title}! "
-                 . "One of our specialists will be calling you shortly to help you get started.";
-            self::send_sms_twilio( $contact['phone'], $sms, $lead_id );
+        // by class-forms-submit.php); this is the SMS half — editable under
+        // 6ix Portal → Automation → SMS ("System: New Lead — Instant SMS").
+        // Skipped when the specific form that was submitted already has its
+        // own SMS text configured (class-forms-submit.php already sent that
+        // one directly), so a lead never gets texted twice for one submission.
+        $form_has_own_sms = false;
+        if ( ! empty( $sub['form_key'] ) && function_exists( 'six_forms_get' ) ) {
+            $form_tpl = six_forms_get( (string) $sub['form_key'] );
+            $form_has_own_sms = $form_tpl && ! empty( $form_tpl['sms_body'] );
+        }
+        if ( $contact['phone'] && ! $form_has_own_sms && function_exists( 'six_send_system_email' ) ) {
+            six_send_system_email( 'form_new_lead_sms', array(
+                'client_name' => $contact['name'] ? explode( ' ', trim( $contact['name'] ) )[0] : 'there',
+                'source_form' => $form_title,
+            ), array(
+                'send_admin'     => false,
+                'send_customer'  => true, // the template's own customer_enabled=0 already skips the (nonexistent) email half — see seed note
+                'customer_phone' => $contact['phone'],
+                'odoo_lead_id'   => $lead_id,
+            ) );
         }
 
         return array( 'ok' => true, 'lead_id' => $lead_id, 'partner_id' => $partner_id );

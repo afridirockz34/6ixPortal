@@ -44,7 +44,15 @@ add_action( 'init', function () {
 		),
 		'public'        => false,
 		'show_ui'       => true,
-		'show_in_menu'  => 'six-portal', // attaches as a submenu of the existing 6ix Portal menu
+		// Not attached to the 6ix Portal menu (was 'six-portal') — its own
+		// "All Forms" list mixed real lead-capture forms with internal
+		// automation-only templates with no visual distinction beyond a
+		// column. 6ix Portal → Automation (class-forms-admin.php) replaces
+		// it: one categorized Emails/SMS view across both, each row linking
+		// to this same post's edit screen (still fully functional with
+		// show_ui alone — WP doesn't require show_in_menu for post.php/
+		// post-new.php to work, only to put a link in the sidebar).
+		'show_in_menu'  => false,
 		'supports'      => array( 'title' ),
 		'has_archive'   => false,
 		'rewrite'       => false,

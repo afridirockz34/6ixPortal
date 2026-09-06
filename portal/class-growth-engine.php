@@ -883,31 +883,7 @@ class Six_Growth_Engine {
         }
 
         $first_name = trim( $user->first_name ?: '' ) ?: 'there';
-        $cta_url    = home_url('/get-started/');
 
-        // ── Email ──
-        $subject = 'Pick up right where you left off';
-        $body    = "Hi {$first_name},
-
-"
-                 . "It's Anastasia from 6ix Developers — I noticed you started setting up your account "
-                 . "but didn't get a chance to finish.
-
-"
-                 . "Good news: your answers are saved, so it only takes a couple of minutes to pick back "
-                 . "up: {$cta_url}
-
-"
-                 . "If anything was unclear or you had questions, just reply to this email or text me "
-                 . "back — happy to help.
-
-"
-                 . "Best,
-Anastasia
-6ix Developers";
-        Six_Odoo::send_email_odoo( $lead_id, $user->user_email, $subject, $body );
-
-        // ── SMS ──
         // Try billing_phone first, then checkout_progress.phone as fallback
         // (object cache on new users can return empty string for billing_phone)
         $phone = get_user_meta( $user_id, 'billing_phone', true );
@@ -923,16 +899,25 @@ Anastasia
             wp_cache_delete( $user_id, 'user_meta' );
             $phone = get_user_meta( $user_id, 'billing_phone', true );
         }
-        if ( $phone ) {
-            $sms = "Hi {$first_name}, it's Anastasia from 6ix Developers — looks like you got interrupted "
-                 . "setting up your account. Your progress is saved, pick back up here: {$cta_url}";
-            Six_Odoo::send_sms_twilio( $phone, $sms, $lead_id );
-        } else {
-            error_log("6ix Abandon Initial Message: user {$user_id} has no phone in any source — SMS skipped");
-        }
+
+        // Editable under 6ix Portal → Automation → Emails/SMS ("System:
+        // Onboarding Abandoned — 30min Reach-Out") instead of hardcoded here.
+        $result = function_exists( 'six_send_system_email' ) ? six_send_system_email( 'onboarding_abandon_initial', array(
+            'client_name'  => $first_name,
+            'client_email' => $user->user_email,
+            'client_phone' => $phone ?: 'not provided',
+            'services'     => self::service_names_from_platforms( $user_id ),
+            'resume_url'   => home_url( '/get-started/' ),
+        ), array(
+            'send_admin'     => false, // advisor already got their own copy immediately, at T0, via on_abandon()'s activity + FYI email
+            'send_customer'  => true,
+            'customer_email' => $user->user_email,
+            'customer_phone' => $phone,
+            'odoo_lead_id'   => $lead_id,
+        ) ) : array( 'customer' => array( 'sent' => false ), 'sms' => array( 'sent' => false ) );
 
         self::track_event( $user_id, 'abandon_initial_message', array( 'step' => $step, 'score' => $score ) );
-        error_log( "6ix Growth: Initial abandon message sent to user {$user_id} (email" . ( $phone ? '+SMS' : ' only, no phone on file' ) . ")" );
+        error_log( "6ix Growth: Initial abandon message to user {$user_id} — email:" . ( $result['customer']['sent'] ? 'sent' : 'not sent' ) . " sms:" . ( $result['sms']['sent'] ? 'sent' : 'not sent' ) . ( $phone ? '' : ' (no phone on file)' ) );
     }
 
     /**
@@ -1037,6 +1022,27 @@ Anastasia
             array( array( array('login','=',$advisor->user_email) ) ),
             array( 'fields'=>array('id'), 'limit'=>1 ) );
         return ! empty($ex[0]['id']) ? intval($ex[0]['id']) : 0;
+    }
+
+    /** Friendly, comma-joined service names for the {services} merge tag — same slug map ajax-onboarding.php uses when onboarding actually completes. Public: also used by class-lead-pipeline.php's onboarding recovery touches. */
+    public static function service_names_from_platforms( $user_id ) {
+        global $wpdb;
+        $platforms = $wpdb->get_var( $wpdb->prepare(
+            "SELECT platforms FROM {$wpdb->prefix}six_checkout_progress WHERE user_id=%d", $user_id
+        ) );
+        if ( ! $platforms ) return 'not selected yet';
+        $svc_nm = array(
+            'google-ads'   => 'Google Ads',
+            'seo'          => 'SEO',
+            'social-media' => 'Social Media Marketing',
+            'brand-dev'    => 'Brand Development',
+            'website'      => 'Website Development',
+        );
+        $names = array();
+        foreach ( array_filter( array_map( 'trim', explode( ',', $platforms ) ) ) as $slug ) {
+            $names[] = $svc_nm[ $slug ] ?? ucwords( str_replace( '-', ' ', $slug ) );
+        }
+        return $names ? implode( ', ', $names ) : 'not selected yet';
     }
 
     // ═════════════════════════════════════════════════════════════════════

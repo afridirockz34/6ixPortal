@@ -186,7 +186,7 @@ function six_lead_pipeline_fire_due_touches_forms() {
 		$contact = six_lead_pipeline_extract_contact( is_array( $decoded ) ? $decoded : array() );
 		$stage   = intval( $row->recovery_stage );
 
-		six_lead_pipeline_fire_touch( $stage, $contact['name'], $contact['email'], $contact['phone'], intval( $row->odoo_lead_id ), 'lead' );
+		six_lead_pipeline_fire_touch( $stage, $contact['name'], $contact['email'], $contact['phone'], intval( $row->odoo_lead_id ), 'lead', $contact['services'] );
 
 		$next_stage = $stage + 1;
 		$update = array( 'recovery_stage' => $next_stage );
@@ -220,8 +220,9 @@ function six_lead_pipeline_fire_due_touches_onboarding() {
 		$phone        = get_user_meta( $user->ID, 'billing_phone', true );
 		$lead_id_odoo = intval( get_user_meta( $user->ID, 'six_odoo_lead_id', true ) );
 		$name         = trim( (string) $user->first_name ) ?: $user->display_name;
+		$services     = class_exists( 'Six_Growth_Engine' ) ? Six_Growth_Engine::service_names_from_platforms( $user->ID ) : '';
 
-		six_lead_pipeline_fire_touch( $stage, $name, $user->user_email, $phone, $lead_id_odoo, 'onboarding' );
+		six_lead_pipeline_fire_touch( $stage, $name, $user->user_email, $phone, $lead_id_odoo, 'onboarding', $services );
 
 		$next_stage = $stage + 1;
 		update_user_meta( $user->ID, 'six_recovery_stage', $next_stage );
@@ -265,11 +266,14 @@ function six_lead_pipeline_scenario_lines( $scenario ) {
 }
 
 /** Sends one recovery touch's email (if it has one) + SMS (if it has one and a phone is available). */
-function six_lead_pipeline_fire_touch( $stage, $name, $email, $phone, $lead_id_odoo = 0, $scenario = 'lead' ) {
+function six_lead_pipeline_fire_touch( $stage, $name, $email, $phone, $lead_id_odoo = 0, $scenario = 'lead', $services = '' ) {
 	$template_key = 'lead_recovery_touch' . max( 0, min( 2, intval( $stage ) ) );
 	$scenario_lines = six_lead_pipeline_scenario_lines( $scenario );
 	$merge = array(
 		'client_name'        => $name ?: 'there',
+		'client_email'       => $email ?: '',
+		'client_phone'       => $phone ?: '',
+		'services'           => $services ?: 'not specified',
 		'scenario_line'      => $scenario_lines['line'],
 		'scenario_line_sms'  => $scenario_lines['sms'],
 	);
@@ -307,7 +311,7 @@ function six_lead_pipeline_send_sms( $template_key, array $merge, $phone, $lead_
  * it for addressing an email/SMS, not for the fuller Odoo sync.
  */
 function six_lead_pipeline_extract_contact( array $data ) {
-	$out = array( 'name' => '', 'email' => '', 'phone' => '' );
+	$out = array( 'name' => '', 'email' => '', 'phone' => '', 'services' => '' );
 	foreach ( $data as $f ) {
 		$label = strtolower( (string) ( $f['label'] ?? '' ) );
 		$value = trim( (string) ( $f['value'] ?? '' ) );
@@ -315,6 +319,7 @@ function six_lead_pipeline_extract_contact( array $data ) {
 		if ( ! $out['email'] && is_email( $value ) ) { $out['email'] = $value; continue; }
 		if ( ! $out['phone'] && preg_match( '/phone|tel|mobile|contact number/', $label ) ) { $out['phone'] = $value; continue; }
 		if ( ! $out['name'] && preg_match( '/^(your\s+)?(full\s+)?name$|first\s*name|contact\s*name/', $label ) ) { $out['name'] = $value; continue; }
+		if ( ! $out['services'] && preg_match( '/service|inquiry|package|platform/', $label ) ) { $out['services'] = $value; continue; }
 	}
 	if ( ! $out['name'] ) {
 		foreach ( $data as $f ) {

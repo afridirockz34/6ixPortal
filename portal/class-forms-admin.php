@@ -391,7 +391,7 @@ function six_forms_render_submission_detail( $id ) {
 
 		<h2 style="margin-top:28px">Odoo CRM</h2>
 		<?php if ( $row->odoo_lead_id ) : ?>
-		<p>Synced — a contact and CRM lead were created, and a follow-up task was scheduled for the owner to reach out within 24 hours.<?php if ( get_option( 'six_odoo_url' ) ) : ?> <a href="<?php echo esc_url( rtrim( get_option( 'six_odoo_url' ), '/' ) . '/odoo/crm/' . intval( $row->odoo_lead_id ) ); ?>" target="_blank" rel="noopener">Open lead in Odoo &rarr;</a><?php endif; ?></p>
+		<p>Synced — a contact and CRM lead were created, and a follow-up task was scheduled for the owner to reach out within <?php echo esc_html( six_forms_admin_human_minutes( function_exists( 'six_call_reminder_minutes' ) ? six_call_reminder_minutes() : 10 ) ); ?>.<?php if ( get_option( 'six_odoo_url' ) ) : ?> <a href="<?php echo esc_url( rtrim( get_option( 'six_odoo_url' ), '/' ) . '/odoo/crm/' . intval( $row->odoo_lead_id ) ); ?>" target="_blank" rel="noopener">Open lead in Odoo &rarr;</a><?php endif; ?></p>
 		<?php else : ?>
 		<p style="color:#666">Not synced to Odoo yet.</p>
 		<?php if ( ! empty( $row->odoo_sync_error ) ) : ?>
@@ -417,4 +417,118 @@ function six_forms_status_badge( $status ) {
 	);
 	$c = $colors[ $status ] ?? '#888';
 	return '<span style="display:inline-block;padding:2px 10px;border-radius:100px;font-size:12px;font-weight:700;color:#fff;background:' . esc_attr( $c ) . '">' . esc_html( ucfirst( $status ) ) . '</span>';
+}
+
+/** "10 minutes" / "24 hours" / "3 days" — six_call_reminder_minutes() reads as a plain number of minutes; this is just for display copy. */
+function six_forms_admin_human_minutes( $minutes ) {
+	$minutes = max( 1, intval( $minutes ) );
+	if ( $minutes < 60 ) return $minutes . ' minute' . ( $minutes === 1 ? '' : 's' );
+	if ( $minutes < 1440 ) { $h = round( $minutes / 60 ); return $h . ' hour' . ( $h === 1 ? '' : 's' ); }
+	$d = round( $minutes / 1440 );
+	return $d . ' day' . ( $d === 1 ? '' : 's' );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * AUTOMATION (WP Admin → 6ix Portal → Automation)
+ *
+ * Replaces the six_form CPT's own "All Forms" list (now show_in_menu=false,
+ * see class-forms.php) with one categorized view of every editable email and
+ * SMS template on the site — real lead-capture forms AND the automation-only
+ * "System:" templates (abandonment, recovery sequence, win-back, high-intent
+ * follow-ups, the new-lead instant text) side by side, split into the two
+ * things they actually are: an Emails tab and an SMS tab. Every row's Edit
+ * button opens that same six_form post's normal edit screen (meta boxes
+ * unchanged) — this page is a directory, not a second editor.
+ * ═══════════════════════════════════════════════════════════════════════ */
+add_action( 'admin_menu', function () {
+	add_submenu_page( 'six-portal', 'Automation', 'Automation', 'manage_options', 'six-portal-automation', 'six_automation_page' );
+}, 20 );
+
+/** Every six_form post, fully resolved via six_forms_get() (post objects alone don't carry the meta fields we need). */
+function six_automation_all_templates() {
+	$posts = get_posts( array( 'post_type' => 'six_form', 'post_status' => array( 'publish', 'draft' ), 'numberposts' => -1, 'orderby' => 'title', 'order' => 'ASC' ) );
+	$out = array();
+	foreach ( $posts as $p ) {
+		$tpl = six_forms_get( $p->ID );
+		if ( $tpl ) $out[] = $tpl;
+	}
+	return $out;
+}
+
+function six_automation_page() {
+	if ( ! current_user_can( 'manage_options' ) ) return;
+
+	$kind = ( isset( $_GET['kind'] ) && $_GET['kind'] === 'sms' ) ? 'sms' : 'email';
+	$all  = six_automation_all_templates();
+
+	$email_rows = array_values( array_filter( $all, function ( $t ) {
+		return ! $t['is_system'] || trim( $t['owner_subject'] . $t['owner_body'] . $t['customer_subject'] . $t['customer_body'] ) !== '';
+	} ) );
+	$sms_rows = array_values( array_filter( $all, fn( $t ) => trim( $t['sms_body'] ) !== '' ) );
+
+	$rows = $kind === 'sms' ? $sms_rows : $email_rows;
+	?>
+	<div class="wrap">
+		<h1 class="wp-heading-inline">Automation</h1>
+		<a href="<?php echo esc_url( admin_url( 'post-new.php?post_type=six_form' ) ); ?>" class="page-title-action">Add New Form</a>
+		<p>Every email and text message the site sends automatically — website forms, the abandoned-lead recovery sequence, win-back, and every other system notification — in one place, split by channel. Click Edit to change any subject, body, or SMS text.</p>
+
+		<h2 class="nav-tab-wrapper">
+			<a href="<?php echo esc_url( admin_url( 'admin.php?page=six-portal-automation&kind=email' ) ); ?>" class="nav-tab <?php echo $kind === 'email' ? 'nav-tab-active' : ''; ?>">Emails (<?php echo count( $email_rows ); ?>)</a>
+			<a href="<?php echo esc_url( admin_url( 'admin.php?page=six-portal-automation&kind=sms' ) ); ?>" class="nav-tab <?php echo $kind === 'sms' ? 'nav-tab-active' : ''; ?>">SMS (<?php echo count( $sms_rows ); ?>)</a>
+		</h2>
+
+		<table class="widefat striped" style="margin-top:16px">
+			<thead>
+			<tr>
+				<th>Name</th>
+				<th>Key</th>
+				<th>Type</th>
+				<?php if ( $kind === 'email' ) : ?>
+				<th>To owner</th>
+				<th>To customer</th>
+				<?php else : ?>
+				<th>Message preview</th>
+				<?php endif; ?>
+				<th></th>
+			</tr>
+			</thead>
+			<tbody>
+			<?php if ( ! $rows ) : ?>
+			<tr><td colspan="6">Nothing here yet.</td></tr>
+			<?php endif; ?>
+			<?php foreach ( $rows as $t ) : ?>
+			<tr>
+				<td><strong><?php echo esc_html( $t['title'] ); ?></strong></td>
+				<td><code><?php echo esc_html( $t['key'] ); ?></code></td>
+				<td><?php echo $t['is_system'] ? '<span style="color:#8781BA;font-weight:600">Automation</span>' : '<span style="color:#1b9e52;font-weight:600">Website Form</span>'; ?></td>
+				<?php if ( $kind === 'email' ) : ?>
+				<td><?php echo trim( $t['owner_subject'] . $t['owner_body'] ) !== '' ? '<span style="color:#1b9e52">✓ configured</span>' : '<span style="color:#999">—</span>'; ?></td>
+				<td><?php echo $t['customer_enabled'] ? '<span style="color:#1b9e52">✓ enabled</span>' : '<span style="color:#999">off</span>'; ?></td>
+				<?php else : ?>
+				<td style="max-width:420px;color:#555;font-size:12.5px"><?php echo esc_html( wp_trim_words( $t['sms_body'], 18 ) ); ?></td>
+				<?php endif; ?>
+				<td><a class="button button-small" href="<?php echo esc_url( get_edit_post_link( $t['id'], '' ) ); ?>">Edit</a></td>
+			</tr>
+			<?php endforeach; ?>
+			</tbody>
+		</table>
+
+		<div style="margin-top:28px;padding:16px 20px;background:#fff;border:1px solid #dcdcde;border-radius:4px;max-width:760px">
+			<h3 style="margin-top:0">Merge tags — who this is being sent to, filled in automatically</h3>
+			<p>Every template below supports these wherever they're relevant to it, resolved automatically for whichever specific customer the email or text is going out to — no manual lookup needed:</p>
+			<table class="widefat" style="max-width:700px">
+				<tbody>
+					<tr><td style="width:160px"><code>{client_name}</code></td><td>The lead/customer's name.</td></tr>
+					<tr><td><code>{client_email}</code></td><td>Their email address.</td></tr>
+					<tr><td><code>{client_phone}</code></td><td>Their phone number, when one was given.</td></tr>
+					<tr><td><code>{services}</code></td><td>The services they selected — read from their onboarding selection when they're an onboarding lead, or from whichever form field looked like a service/package choice when they came from a website form.</td></tr>
+					<tr><td><code>{all_fields}</code></td><td>Every submitted field as a readable list — website forms only.</td></tr>
+					<tr><td><code>{form_title}</code></td><td>This template's own name.</td></tr>
+				</tbody>
+			</table>
+			<p style="margin-bottom:0;color:#666;font-size:12.5px">A website form also turns any of its own fields into a tag automatically — a field with the key <code>company</code> becomes <code>{company}</code> — open that form's <strong>Fields</strong> tab to see its exact keys.</p>
+		</div>
+	</div>
+	<?php
 }

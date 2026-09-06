@@ -1,16 +1,19 @@
 <?php
 /**
- * System-generated notification emails — onboarding abandonment/completion,
- * budget changes, new service requests, and service activation. Each event
- * has an editable template (a `six_form` post with six_form_is_system=1,
- * seeded in data-forms-seed.php) with an admin (owner) copy and a customer
- * copy, exactly like a lead-capture form's Emails meta box — reusing
- * six_forms_get()/six_forms_merge_tags() so there's one merge-tag syntax
- * and one editor across the whole site's email system.
+ * System-generated notifications — onboarding abandonment/completion, budget
+ * changes, new service requests, service activation, the onboarding-abandon
+ * 30-minute reach-out, and the instant new-lead SMS. Each event has an
+ * editable template (a `six_form` post with six_form_is_system=1, seeded in
+ * data-forms-seed.php) with an admin (owner) copy, a customer email copy,
+ * AND a customer SMS copy — exactly like a lead-capture form's Email
+ * Notifications meta box — reusing six_forms_get()/six_forms_merge_tags() so
+ * there's one merge-tag syntax and one editor across the whole site's
+ * automated email + SMS system (6ix Portal → Automation).
  *
- * Call sites (class-odoo.php, ajax-onboarding.php, ajax-handlers.php) build
- * a flat label=>value $merge array and call six_send_system_email(). This
- * file never invents business logic of its own — it only renders + sends.
+ * Call sites (class-odoo.php, ajax-onboarding.php, ajax-handlers.php,
+ * class-growth-engine.php) build a flat label=>value $merge array and call
+ * six_send_system_email(). This file never invents business logic of its
+ * own — it only renders + sends.
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
@@ -31,7 +34,7 @@ function six_admin_notify_emails() {
  *
  * @param string $type_key Matches the template's six_form_key (see
  *                          six_system_email_seed_defaults() in
- *                          data-forms-seed.php for the 5 built-in keys).
+ *                          data-forms-seed.php for the built-in keys).
  * @param array  $merge     Flat label=>value pairs. Keys become
  *                          {snake_case_key} merge tags (auto sanitized);
  *                          all of them together become {all_fields} as
@@ -49,13 +52,18 @@ function six_admin_notify_emails() {
  *                                 history regardless of which part of the site
  *                                 triggered the email.
  *   @type string $dashboard_url   Adds an "Open in Dashboard" button to the admin copy.
+ *   @type string $customer_phone  Required for the SMS half to send — independent
+ *                                 of $customer_email; a template can be email-only,
+ *                                 SMS-only, or both depending on which of these
+ *                                 two are provided and which fields the template has.
  * }
- * @return array array('admin'=>array('sent','skipped','error'), 'customer'=>array(...))
+ * @return array array('admin'=>array('sent','skipped','error'), 'customer'=>array(...), 'sms'=>array(...))
  */
 function six_send_system_email( $type_key, array $merge, array $opts = array() ) {
 	$result = array(
 		'admin'    => array( 'sent' => false, 'skipped' => true, 'error' => '' ),
 		'customer' => array( 'sent' => false, 'skipped' => true, 'error' => '' ),
+		'sms'      => array( 'sent' => false, 'skipped' => true, 'error' => '' ),
 	);
 
 	$tpl = function_exists( 'six_forms_get' ) ? six_forms_get( $type_key ) : null;
@@ -128,6 +136,22 @@ function six_send_system_email( $type_key, array $merge, array $opts = array() )
 					$out['sent'] ? "To: {$customer_email}" : "To: {$customer_email}\nError: {$out['error']}"
 				);
 			}
+		}
+
+		// SMS half of the same template — independent of the "Send this email
+		// to the customer" toggle above (that checkbox is email-only), gated
+		// only on the template actually having SMS text and a phone number
+		// being available for this send. Lets a template be SMS-only,
+		// email-only, or both, same as a lead-capture form's own SMS field.
+		$customer_phone = $opts['customer_phone'] ?? '';
+		if ( $tpl['sms_body'] && $customer_phone && class_exists( 'Six_Odoo' ) ) {
+			$sms = six_forms_merge_tags( $tpl['sms_body'], $data, $tpl );
+			$sms_ok = Six_Odoo::send_sms_twilio( $customer_phone, $sms, intval( $opts['odoo_lead_id'] ?? 0 ) );
+			$result['sms'] = array( 'sent' => (bool) $sms_ok, 'skipped' => false, 'error' => $sms_ok ? '' : 'Twilio send failed — see error log.' );
+		} elseif ( $tpl['sms_body'] ) {
+			$result['sms'] = array( 'sent' => false, 'skipped' => true, 'error' => 'No phone number was provided for this send.' );
+		} else {
+			$result['sms'] = array( 'sent' => false, 'skipped' => true, 'error' => '' );
 		}
 	}
 
