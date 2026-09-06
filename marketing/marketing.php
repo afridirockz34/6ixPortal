@@ -92,9 +92,21 @@ function six_mk_is_marketing_page() {
 add_action( 'wp_enqueue_scripts', function () {
     if ( ! six_mk_is_marketing_page() ) return;
 
+    // Weights trimmed to exactly what marketing.css actually uses (audited
+    // against every font-weight rule in that file, every inline style, and
+    // every <strong>/<b> across the marketing templates — see the commit
+    // this comment landed in for the full weight-by-selector breakdown):
+    //   Montserrat (--mk-head, all headings)   : 700, 800        — was also requesting 500, 600 (unused)
+    //   Mulish     (--mk-body, default/running): 400, 600, 700, 800 — was also requesting 300, 500 (unused)
+    //   Inter      (--mk-num, stat/number text): 400, 600, 700, 800 — was also requesting 500, 900 (unused)
+    // 16 weight/family combinations down to 10 — fewer font files for a
+    // mobile connection to fetch before text can render in its real weight.
+    // If a new heading/number style is added later that needs one of the
+    // dropped weights, add it back here first — otherwise it silently
+    // renders as browser-synthesized (fake) bold/thin instead of the real cut.
     wp_enqueue_style(
         'six-mk-fonts',
-        'https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Mulish:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap',
+        'https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Mulish:wght@400;600;700;800&family=Inter:wght@400;600;700;800&display=swap',
         array(), null
     );
     $css = SIX_MK_DIR . 'assets/marketing.css';
