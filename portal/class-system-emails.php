@@ -56,6 +56,16 @@ function six_admin_notify_emails() {
  *                                 of $customer_email; a template can be email-only,
  *                                 SMS-only, or both depending on which of these
  *                                 two are provided and which fields the template has.
+ *   @type bool   $send_via_odoo   PILOT. When true (and $odoo_lead_id + $customer_partner_id
+ *                                 are both set), sends the customer email through Odoo's own
+ *                                 mail server instead of wp_mail(), so a reply threads back
+ *                                 onto the lead's chatter automatically (see
+ *                                 Six_Odoo::send_email_threaded()). Falls back to the normal
+ *                                 wp_mail() path on any failure. Off by default — opt in per
+ *                                 call site while this is still being validated end-to-end.
+ *   @type int    $customer_partner_id  The customer's res.partner ID — required for
+ *                                 $send_via_odoo (a bare email string isn't enough for
+ *                                 Odoo's message_post()). See Six_Odoo::get_or_create_partner_id().
  * }
  * @return array array('admin'=>array('sent','skipped','error'), 'customer'=>array(...), 'sms'=>array(...))
  */
@@ -120,21 +130,43 @@ function six_send_system_email( $type_key, array $merge, array $opts = array() )
 		} else {
 			$subject = six_forms_merge_tags( $tpl['customer_subject'] ?: $tpl['title'], $data, $tpl );
 			$body    = six_forms_merge_tags( $tpl['customer_body'] ?: '', $data, $tpl );
-			$html    = six_email_chrome( array(
-				'preheader' => wp_strip_all_tags( $body ),
-				'heading'   => $subject,
-				'body_html' => nl2br( esc_html( $body ) ),
-			) );
-			$out = six_wp_mail( $customer_email, $subject, $html, array( 'Content-Type: text/html; charset=UTF-8' ) );
-			$result['customer'] = array( 'sent' => $out['sent'], 'skipped' => false, 'error' => $out['error'] );
 
-			if ( ! empty( $opts['odoo_lead_id'] ) && class_exists( 'Six_Odoo' ) ) {
-				Six_Odoo::log_communication(
-					intval( $opts['odoo_lead_id'] ), 'Email',
-					$out['sent'] ? 'Sent' : 'Failed',
-					$subject,
-					$out['sent'] ? "To: {$customer_email}" : "To: {$customer_email}\nError: {$out['error']}"
-				);
+			// PILOT — send through Odoo's own mail server instead of
+			// wp_mail() so a reply threads back onto this lead's chatter
+			// automatically (Six_Odoo::send_email_threaded()). Opt-in per
+			// call site via $opts['send_via_odoo'] — everything else about
+			// this function is unchanged for every other caller. Falls
+			// straight back to the normal wp_mail() path below on any
+			// failure (missing partner ID, Odoo unreachable, etc.) so an
+			// Odoo-side hiccup never costs the customer their email.
+			$sent_via_odoo = false;
+			if ( ! empty( $opts['send_via_odoo'] ) && ! empty( $opts['odoo_lead_id'] ) && ! empty( $opts['customer_partner_id'] ) && class_exists( 'Six_Odoo' ) ) {
+				$sent_via_odoo = Six_Odoo::send_email_threaded( intval( $opts['odoo_lead_id'] ), intval( $opts['customer_partner_id'] ), $subject, $body );
+			}
+
+			if ( $sent_via_odoo ) {
+				// send_email_threaded() already posted the message on the
+				// lead itself (that IS the send) — no separate wp_mail() or
+				// log_communication() call needed; doing both would send it
+				// twice and double the chatter entry.
+				$result['customer'] = array( 'sent' => true, 'skipped' => false, 'error' => '' );
+			} else {
+				$html = six_email_chrome( array(
+					'preheader' => wp_strip_all_tags( $body ),
+					'heading'   => $subject,
+					'body_html' => nl2br( esc_html( $body ) ),
+				) );
+				$out = six_wp_mail( $customer_email, $subject, $html, array( 'Content-Type: text/html; charset=UTF-8' ) );
+				$result['customer'] = array( 'sent' => $out['sent'], 'skipped' => false, 'error' => $out['error'] );
+
+				if ( ! empty( $opts['odoo_lead_id'] ) && class_exists( 'Six_Odoo' ) ) {
+					Six_Odoo::log_communication(
+						intval( $opts['odoo_lead_id'] ), 'Email',
+						$out['sent'] ? 'Sent' : 'Failed',
+						$subject,
+						$out['sent'] ? "To: {$customer_email}" : "To: {$customer_email}\nError: {$out['error']}"
+					);
+				}
 			}
 		}
 

@@ -957,13 +957,19 @@ class Six_Odoo {
     // ═════════════════════════════════════════════════════════════════════
 
     /**
-     * Send an email FROM Odoo and log it in the lead's chatter.
-     * The email appears in the timeline exactly like HubSpot.
-     */
-    /**
      * Send plain-text email to user AND log clean note to Odoo chatter.
      * Pass plain text as $body_plain — this function converts to HTML for delivery.
      * No HTML tags, no emojis in chatter. Clean plain text only.
+     *
+     * Despite the name, this does NOT send "from Odoo" — it sends via
+     * WordPress's wp_mail() and then writes a plain note onto the lead's
+     * chatter recording that it happened. That's a deliberate, resilient
+     * design (an Odoo outage never costs a customer their email) but it
+     * means a reply to this email has no way to thread back onto this lead
+     * — Odoo never generated the message, so its mail gateway has no
+     * Message-ID to match a reply against. See send_email_threaded() below
+     * for the one that genuinely sends through Odoo and gets real
+     * reply-threading, currently piloted on one template only.
      */
     public static function send_email_odoo( $lead_id, $to_email, $subject, $body_plain, $from_name = '6ix Developers' ) {
         if ( ! $to_email ) return false;
@@ -1004,6 +1010,79 @@ Status: "
         }
 
         return $sent;
+    }
+
+    /**
+     * PILOT — sends a REAL outbound email through Odoo's own mail server
+     * instead of WordPress's, by posting a genuine 'comment' message on the
+     * lead with the customer's partner as a recipient (post_note() above
+     * uses subtype 'mail.mt_note', an internal-only note nobody outside
+     * Odoo ever receives — this uses 'mail.mt_comment', which Odoo actually
+     * emails out). Because Odoo itself generates the Message-ID and sets
+     * Reply-To to its own mail gateway, a reply to this email threads back
+     * onto this lead's chatter automatically — the one thing send_email_odoo()
+     * can never do.
+     *
+     * Depends on Odoo's Incoming Mail being configured to receive at that
+     * gateway address — outgoing alone isn't enough for threading to work.
+     * If that hasn't been verified yet, this will still send the email fine
+     * (message_post()/mail.mail delivery doesn't need incoming mail), it's
+     * only the reply-threading half that silently won't work until it is.
+     *
+     * Currently wired into exactly one send path — see
+     * six_send_system_email()'s $opts['send_via_odoo'] in
+     * class-system-emails.php, which falls back to the normal wp_mail()
+     * path automatically if this returns false, so an Odoo-side hiccup
+     * never costs the customer their email.
+     *
+     * @param int    $lead_id    crm.lead ID.
+     * @param int    $partner_id res.partner ID — the actual recipient Odoo emails. Must be a real partner (see get_or_create_partner_id()), not just an email string.
+     * @param string $subject
+     * @param string $body_plain Plain text; converted to a simple paragraph HTML body, same as send_email_odoo().
+     * @return bool True if Odoo accepted the message — NOT a delivery confirmation (Odoo queues/sends async, same as any outgoing mail server).
+     */
+    public static function send_email_threaded( $lead_id, $partner_id, $subject, $body_plain ) {
+        $lead_id    = intval( $lead_id );
+        $partner_id = intval( $partner_id );
+        if ( ! $lead_id || ! $partner_id ) return false;
+
+        $paragraphs = explode( "\n\n", (string) $body_plain );
+        $body_html  = implode( '', array_map( function ( $p ) {
+            return '<p>' . nl2br( esc_html( trim( $p ) ) ) . '</p>';
+        }, $paragraphs ) );
+
+        $result = self::execute( 'crm.lead', 'message_post',
+            array( array( $lead_id ) ),
+            array(
+                'body'          => $body_html,
+                'subject'       => (string) $subject,
+                'message_type'  => 'comment',
+                'subtype_xmlid' => 'mail.mt_comment',
+                'partner_ids'   => array( $partner_id ),
+            )
+        );
+
+        if ( $result === false ) {
+            error_log( '6ix Odoo: send_email_threaded failed on lead ' . $lead_id . ' partner ' . $partner_id . ' fault=' . wp_json_encode( self::$last_fault ) );
+            return false;
+        }
+        error_log( "6ix Odoo: send_email_threaded OK lead={$lead_id} partner={$partner_id} subject=\"{$subject}\"" );
+        return true;
+    }
+
+    /**
+     * The res.partner ID for a WP customer's own Odoo contact, creating one
+     * on the spot if it doesn't exist yet — the ID send_email_threaded()
+     * needs (a bare email string isn't enough, message_post()'s partner_ids
+     * takes real partner IDs). Reads the six_odoo_partner_id meta
+     * create_or_update_contact() already writes, so this is nearly always a
+     * cached read, not a fresh Odoo round-trip.
+     */
+    public static function get_or_create_partner_id( $user_id ) {
+        $pid = intval( get_user_meta( $user_id, 'six_odoo_partner_id', true ) );
+        if ( $pid ) return $pid;
+        $pid = self::create_or_update_contact( $user_id );
+        return $pid ? intval( $pid ) : 0;
     }
 
     /**

@@ -900,6 +900,13 @@ class Six_Growth_Engine {
             $phone = get_user_meta( $user_id, 'billing_phone', true );
         }
 
+        // PILOT: this is the one template currently sent through Odoo's own
+        // mail server (see Six_Odoo::send_email_threaded()) instead of
+        // wp_mail(), so a reply to it threads back onto the lead's chatter
+        // automatically — everything else in the recovery/abandonment
+        // system is unaffected while this gets validated end-to-end.
+        $partner_id = Six_Odoo::get_or_create_partner_id( $user_id );
+
         // Editable under 6ix Portal → Automation → Emails/SMS ("System:
         // Onboarding Abandoned — 30min Reach-Out") instead of hardcoded here.
         $result = function_exists( 'six_send_system_email' ) ? six_send_system_email( 'onboarding_abandon_initial', array(
@@ -909,11 +916,13 @@ class Six_Growth_Engine {
             'services'     => self::service_names_from_platforms( $user_id ),
             'resume_url'   => home_url( '/get-started/' ),
         ), array(
-            'send_admin'     => false, // advisor already got their own copy immediately, at T0, via on_abandon()'s activity + FYI email
-            'send_customer'  => true,
-            'customer_email' => $user->user_email,
-            'customer_phone' => $phone,
-            'odoo_lead_id'   => $lead_id,
+            'send_admin'          => false, // advisor already got their own copy immediately, at T0, via on_abandon()'s activity + FYI email
+            'send_customer'       => true,
+            'customer_email'      => $user->user_email,
+            'customer_phone'      => $phone,
+            'odoo_lead_id'        => $lead_id,
+            'send_via_odoo'       => true, // PILOT — see comment above
+            'customer_partner_id' => $partner_id,
         ) ) : array( 'customer' => array( 'sent' => false ), 'sms' => array( 'sent' => false ) );
 
         self::track_event( $user_id, 'abandon_initial_message', array( 'step' => $step, 'score' => $score ) );
