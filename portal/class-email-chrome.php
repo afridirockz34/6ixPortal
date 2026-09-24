@@ -102,15 +102,60 @@ function six_email_info_table( array $rows ) {
 }
 
 /**
+ * A short standout status pill rendered above the heading — visual pattern
+ * borrowed from account-analysis-style emails (e.g. a big score number up
+ * top), but kept to facts we actually know at send time (a step count, a
+ * completion state) rather than a fabricated score. Pass plain text; a
+ * checkmark is added automatically.
+ */
+function six_email_status_badge( $text ) {
+	$p = six_email_palette();
+	return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 14px"><tr><td style="background:' . esc_attr( $p['bg'] ) . ';border-radius:20px;padding:7px 16px;font-family:Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:700;color:' . esc_attr( $p['navy'] ) . ';letter-spacing:.2px">&#10003; ' . esc_html( $text ) . '</td></tr></table>';
+}
+
+/**
+ * A stacked, numbered/iconed card list for a scannable set of short items —
+ * same visual pattern as a platform "account analysis" email's recommendation
+ * cards (icon + bold title + one-line description per row), reused here for
+ * things like "what happens next" instead of ad-performance recommendations.
+ *
+ * @param array $items List of ['title'=>string, 'body'=>string, 'icon'=>string (optional, defaults to the row number)].
+ */
+function six_email_step_cards( array $items ) {
+	$p = six_email_palette();
+	if ( ! $items ) return '';
+	$rows = '';
+	$last = count( $items ) - 1;
+	foreach ( array_values( $items ) as $i => $item ) {
+		$border = $i < $last ? 'border-bottom:1px solid ' . esc_attr( $p['border'] ) . ';' : '';
+		$icon   = $item['icon'] ?? (string) ( $i + 1 );
+		$rows .= '<tr>'
+			. '<td width="34" style="padding:12px 0;' . $border . 'vertical-align:top">'
+			. '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td width="26" height="26" align="center" valign="middle" style="background:' . esc_attr( $p['navy'] ) . ';border-radius:50%;font-family:Helvetica,Arial,sans-serif;font-size:11.5px;font-weight:700;color:#ffffff">' . esc_html( $icon ) . '</td></tr></table>'
+			. '</td>'
+			. '<td style="padding:12px 0 12px 12px;' . $border . 'vertical-align:top">'
+			. '<div style="font-family:Helvetica,Arial,sans-serif;font-size:14px;font-weight:700;color:' . esc_attr( $p['text1'] ) . ';line-height:1.4">' . esc_html( $item['title'] ?? '' ) . '</div>'
+			. ( ! empty( $item['body'] ) ? '<div style="font-family:Helvetica,Arial,sans-serif;font-size:13px;color:' . esc_attr( $p['text3'] ) . ';line-height:1.5;margin-top:2px">' . esc_html( $item['body'] ) . '</div>' : '' )
+			. '</td></tr>';
+	}
+	return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:18px 0;background:' . esc_attr( $p['bg'] ) . ';border-radius:12px;border-collapse:collapse">'
+		. '<tr><td style="padding:2px 18px">'
+		. '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse">' . $rows . '</table>'
+		. '</td></tr></table>';
+}
+
+/**
  * Wrap content in the full branded email shell: dark header band with logo,
- * a white content card (heading + body + optional info table + optional
- * CTA buttons), and a plain footer.
+ * a white content card (optional badge + heading + body + optional step
+ * cards + optional info table + optional CTA buttons), and a plain footer.
  *
  * @param array $args {
  *   @type string $preheader  Hidden preview text shown next to the subject in inbox lists.
+ *   @type string $badge      Optional short status pill rendered above the heading (see six_email_status_badge()).
  *   @type string $heading    Card heading.
  *   @type string $body_html  Already-safe HTML for the main message (e.g. nl2br(esc_html(...))).
- *   @type array  $info_rows  Optional label=>value pairs rendered as a table below body_html.
+ *   @type array  $step_cards Optional list of items rendered as a card list below body_html (see six_email_step_cards()).
+ *   @type array  $info_rows  Optional label=>value pairs rendered as a table below step_cards.
  *   @type array  $links      Optional list of ['label'=>string,'url'=>string] rendered as CTA buttons.
  *   @type string $footer_note  Optional extra line under the standard footer.
  * }
@@ -118,8 +163,10 @@ function six_email_info_table( array $rows ) {
 function six_email_chrome( array $args ) {
 	$p = six_email_palette();
 	$preheader   = $args['preheader']   ?? '';
+	$badge       = $args['badge']       ?? '';
 	$heading     = $args['heading']     ?? '';
 	$body_html   = $args['body_html']   ?? '';
+	$step_cards  = $args['step_cards']  ?? array();
 	$info_rows   = $args['info_rows']   ?? array();
 	$links       = $args['links']       ?? array();
 	$footer_note = $args['footer_note'] ?? '';
@@ -151,10 +198,14 @@ function six_email_chrome( array $args ) {
 	</td></tr>
 
 	<tr><td style="background:<?php echo esc_attr( $p['card'] ); ?>;padding:32px 30px 8px" align="left">
+		<?php if ( $badge ) : ?>
+		<?php echo six_email_status_badge( $badge ); ?>
+		<?php endif; ?>
 		<?php if ( $heading ) : ?>
 		<h1 style="margin:0 0 14px;font-family:Helvetica,Arial,sans-serif;font-size:20px;font-weight:800;color:<?php echo esc_attr( $p['text1'] ); ?>;line-height:1.3"><?php echo esc_html( $heading ); ?></h1>
 		<?php endif; ?>
 		<div style="font-family:Helvetica,Arial,sans-serif;font-size:14.5px;color:<?php echo esc_attr( $p['text2'] ); ?>;line-height:1.65"><?php echo $body_html; ?></div>
+		<?php echo six_email_step_cards( $step_cards ); ?>
 		<?php echo six_email_info_table( $info_rows ); ?>
 		<?php if ( $buttons ) : ?>
 		<div style="margin:20px 0 6px"><?php echo $buttons; ?></div>
