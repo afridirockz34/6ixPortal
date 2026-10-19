@@ -503,14 +503,22 @@ class Six_Growth_Engine {
         if ( ! wp_next_scheduled('six_abandon_24h_check', array($user_id)) )
             wp_schedule_single_event(time()+86400, 'six_abandon_24h_check', array($user_id)); // 24 hours
 
-        // Trigger WP-Cron to run the scheduled events immediately
-        if ( ! defined('DOING_CRON') ) {
-            wp_remote_post( admin_url('admin-ajax.php'), array(
-                'timeout'   => 0.01,
-                'blocking'  => false,
-                'body'      => array('action'=>'six_run_cron'),
-                'sslverify' => apply_filters('https_local_ssl_verify', false),
-            ) );
+        // Nudge WP-Cron to process anything already overdue right now — e.g.
+        // a PREVIOUS abandonment's +30min/+24h event that never got picked
+        // up because no one visited the site in the meantime (WP's own
+        // pseudo-cron only runs on real page loads). This can't make an
+        // event fire before its own due time, but it stops overdue events
+        // from silently waiting for the next visitor.
+        //
+        // BUG (fixed): this used to wp_remote_post() admin-ajax.php with a
+        // made-up action=six_run_cron — no such AJAX handler was ever
+        // registered anywhere in the codebase, so every call silently did
+        // nothing. spawn_cron() is WordPress's own core function for this
+        // exact purpose (it's what wp-cron.php's normal page-load trigger
+        // calls internally) and already handles the DOING_CRON/
+        // ALTERNATE_WP_CRON/DISABLE_WP_CRON edge cases correctly.
+        if ( ! defined('DOING_CRON') && function_exists('spawn_cron') ) {
+            spawn_cron();
         }
         error_log("6ix on_abandon: complete uid={$user_id}");
     }
