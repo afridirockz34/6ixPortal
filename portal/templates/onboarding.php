@@ -1271,6 +1271,44 @@ window.OB={
     el.classList.add('on');
   },
 
+  // Apply a six_get_onboarding_state response onto S.q/svcs/budgets (or, when
+  // the account has no saved state — or the lookup failed — reset those to
+  // blank). Shared by resumeLoggedIn() (full page load, server already knows
+  // who's logged in) and doLogin() (AJAX login while the onboarding SPA is
+  // already running). Without this reset, S.q/svcs/budgets would otherwise
+  // still hold whatever a DIFFERENT account left there earlier in the same
+  // page session — e.g. a visitor mistypes their email, gets a brand-new
+  // account started under it, goes back, and logs into their real account:
+  // the real account must never resume showing the wrong account's answers.
+  _applyOnboardingState:function(sr, fallbackStep, done){
+    if(sr&&sr.success&&sr.data){
+      var d=sr.data;
+      S.svcs = d.platforms ? d.platforms.split(',').filter(function(s){return s.trim()!=='';}) : [];
+      S.budgets = d.budgets || {};
+      S.q = d.q || {};
+      // Split competitors back into comp1/comp2/comp3
+      if(S.q._competitors){
+        var comps=S.q._competitors.split(',').map(function(s){return s.trim();});
+        S.q.comp1=comps[0]||'';S.q.comp2=comps[1]||'';S.q.comp3=comps[2]||'';
+      }
+      // Unpack the Google Ads audit JSON back into individual S.q fields
+      if(S.q.gads_audit){
+        try{
+          var ga=JSON.parse(S.q.gads_audit);
+          S.q.gads_dur=ga.duration||'';S.q.gads_goal=ga.goal||'';
+          S.q.gads_camp=ga.campaign_types||'';S.q.gads_mgr=ga.manager||'';
+          S.q.gads_sat=ga.satisfied||'';S.q.gads_working=ga.working||'';
+          S.q.gads_notworking=ga.not_working||'';S.q.gads_challenge=ga.challenge||'';
+        }catch(e){}
+      }
+      var dbStep=Math.max(1,parseInt(d.step)||1);
+      done(Math.max(fallbackStep||1, dbStep));
+    } else {
+      S.svcs=[];S.budgets={};S.q={};
+      done(Math.max(1,fallbackStep||1));
+    }
+  },
+
   resumeLoggedIn:function(uid,email,step,first,last,phone){
     S.userId=uid;S.email=email;S.isNew=false;
     var m=$i('ob-main-el');if(m)m.classList.add('ob-main-form');
@@ -1294,53 +1332,23 @@ window.OB={
     ]).then(function(results){
       var ar=results[0], sr=results[1];
       if(ar&&ar.success&&ar.data) S.advisor=ar.data;
-
-      if(sr&&sr.success&&sr.data){
-        var d=sr.data;
-        // Restore services
-        if(d.platforms){
-          S.svcs=d.platforms.split(',').filter(function(s){return s.trim()!=='';});
-        }
-        // Restore budgets
-        if(d.budgets){
-          S.budgets=d.budgets;
-        }
-        // Restore questionnaire data — S.q
-        if(d.q){
-          S.q=d.q;
-          // Split competitors back into comp1/comp2/comp3
-          if(d.q._competitors){
-            var comps=d.q._competitors.split(',').map(function(s){return s.trim();});
-            S.q.comp1=comps[0]||'';S.q.comp2=comps[1]||'';S.q.comp3=comps[2]||'';
-          }
-          // Unpack the Google Ads audit JSON back into individual S.q fields
-          if(d.q.gads_audit){
-            try{
-              var ga=JSON.parse(d.q.gads_audit);
-              S.q.gads_dur=ga.duration||'';S.q.gads_goal=ga.goal||'';
-              S.q.gads_camp=ga.campaign_types||'';S.q.gads_mgr=ga.manager||'';
-              S.q.gads_sat=ga.satisfied||'';S.q.gads_working=ga.working||'';
-              S.q.gads_notworking=ga.not_working||'';S.q.gads_challenge=ga.challenge||'';
-            }catch(e){}
-          }
-        }
-        // Use DB step if higher than PHP-provided step
-        var dbStep=Math.max(1,parseInt(d.step)||1);
-        var finalStep=Math.max(step||1, dbStep);
+      OB._applyOnboardingState(sr, step, function(finalStep){
         OB.goStep(finalStep);
         prefill();
-      } else {
-        OB.goStep(Math.max(1,step||1));
-        prefill();
-      }
+      });
     }).catch(function(){
-      OB.goStep(Math.max(1,step||1));
-      prefill();
+      OB._applyOnboardingState(null, step, function(finalStep){
+        OB.goStep(finalStep);
+        prefill();
+      });
     });
   },
 
   backToEmail:function(){
-    S.email='';S.isNew=true;
+    // Clear out whatever account we were just looking at — the next email
+    // typed here may belong to a completely different account, and
+    // S.q/svcs/budgets/userId must never carry over (see _applyOnboardingState).
+    S.email='';S.isNew=true;S.userId=0;S.q={};S.svcs=[];S.budgets={};
     var btn=$i('ob-login-btn');
     if(btn){btn.textContent='Continue →';btn.disabled=false;btn.onclick=OB.handleEmail;}
     var pw=$i('ob-pw-sec');if(pw)pw.style.display='none';
@@ -1386,9 +1394,17 @@ window.OB={
         S.userId=r.data.user_id;S.email=email;
         if(r.data.has_completed_checkout){window.location.replace('<?php echo esc_js(home_url('/portal/'));?>');}
         else{
-          post({action:'six_get_advisor_for_user',user_id:S.userId}).then(function(ar){
-            if(ar.success)S.advisor=ar.data;
-            OB.goStep(r.data.resume_step||1);
+          // Always refetch THIS account's own saved state before deciding
+          // which step to resume at \u2014 S.q/svcs/budgets may still hold a
+          // different account's answers if the visitor checked another
+          // email earlier in this same page session (see _applyOnboardingState).
+          Promise.all([
+            post({action:'six_get_advisor_for_user',user_id:S.userId}),
+            post({action:'six_get_onboarding_state',user_id:S.userId})
+          ]).then(function(results){
+            var ar=results[0], sr=results[1];
+            if(ar&&ar.success&&ar.data)S.advisor=ar.data;
+            OB._applyOnboardingState(sr, r.data.resume_step, function(finalStep){ OB.goStep(finalStep); });
           });
         }
       } else {btn.textContent='Log In \u2192';alert2('ob-login-err',r.data||'Incorrect email or password.');}
