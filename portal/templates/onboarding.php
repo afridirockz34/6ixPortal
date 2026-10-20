@@ -752,24 +752,6 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       </div>
     </div>
 
-    <!-- ROI inputs: power an honest revenue/ROI projection after onboarding -->
-    <div class="ob-g2">
-      <div class="ob-fg"><label class="ob-lbl">Average customer value <span style="font-weight:400;font-size:11px">(one sale / job, in $)</span></label>
-        <input class="ob-inp" id="q-deal-value" type="number" min="0" inputmode="numeric" placeholder="e.g. 1200">
-      </div>
-      <div class="ob-fg"><label class="ob-lbl">Lead close rate <span style="font-weight:400;font-size:11px">(% of leads that buy)</span></label>
-        <select class="ob-inp" id="q-close-rate">
-          <option value="">Not sure</option>
-          <option value="10">Around 10%</option>
-          <option value="20">Around 20%</option>
-          <option value="30">Around 30%</option>
-          <option value="40">Around 40%</option>
-          <option value="50">50% or more</option>
-        </select>
-      </div>
-    </div>
-    <div style="font-size:11px;color:var(--ob-muted,#8a8a9a);margin:-4px 0 6px">Used to project your revenue and ROI. An estimate is fine — your advisor refines it later.</div>
-
     <div class="ob-btnrow">
       <button class="ob-btn ob-ghost" onclick="OB.goStep(2)">&larr; Back</button>
       <button class="ob-btn ob-primary" style="flex:1" onclick="OB.doStep3a()">Next &rarr;</button>
@@ -1448,14 +1430,12 @@ window.OB={
     S.q=Object.assign(S.q,{
       bizname:biz,website:v('q-web-url'),address:v('q-addr'),
       industry:v('q-ind'),years:v('q-yrs'),goals:chips('q-goals').join(','),
-      deal_value:v('q-deal-value'),close_rate:v('q-close-rate'),
     });
     // Save business basics to DB immediately
     if(S.userId){
       var sd={first:S.q.first||'',last:S.q.last||'',phone:S.q.phone||'',
         bizname:S.q.bizname||'',website:S.q.website||'',industry:S.q.industry||'',
         location:S.q.address||'',years:S.q.years||'',goal:S.q.goals||'',
-        deal_value:S.q.deal_value||'',close_rate:S.q.close_rate||'',
         competitors:[S.q.comp1,S.q.comp2,S.q.comp3].filter(Boolean).join(','),
         platforms:S.svcs.join(',')};
       post({action:'six_save_checkout_step',step:1,data:JSON.stringify(sd),user_id:S.userId}).catch(function(){});
@@ -1637,7 +1617,6 @@ window.OB={
       first:q.first||'',last:q.last||'',phone:q.phone||'',
       bizname:q.bizname||'',website:q.website||'',industry:q.industry||'',
       location:q.address||'',goal:q.goals||'',
-      deal_value:q.deal_value||'',close_rate:q.close_rate||'',
       competitors:[q.comp1,q.comp2,q.comp3].filter(Boolean).join(','),
       mktg_budget:tot.toString(),platforms:S.svcs.join(','),
       // Google Ads
@@ -1679,7 +1658,6 @@ window.OB={
       first:q.first||'',last:q.last||'',phone:q.phone||'',
       bizname:q.bizname||'',website:q.website||'',industry:q.industry||'',
       location:q.address||'',goal:q.goals||'',years:q.years||'',
-      deal_value:q.deal_value||'',close_rate:q.close_rate||'',
       competitors:[q.comp1,q.comp2,q.comp3].filter(Boolean).join(','),
       mktg_budget:tot.toString(),platforms:S.svcs.join(','),
       // Google Ads
@@ -1716,7 +1694,7 @@ window.OB={
     var tot=Object.values(S.budgets||{}).reduce(function(a,b){return a+(parseInt(b)||0);},0);
     S.score=Math.min(97,20+(svcs.length*10)+(tot>=5000?15:tot>=2000?10:tot>0?5:0)+(q.website?8:0)+(q.industry?5:0));
 
-    var msgs=['Analysing your market and competition...','Pulling live keyword data from Google Ads...','Calculating your projected ROI and returns...','Building your tailored 60-day roadmap...'];
+    var msgs=['Analysing your market and competition...','Pulling live keyword data from Google Ads...','Projecting your reach and lead volume...','Building your tailored 60-day roadmap...'];
     var mi=0,msgEl=$i('ob-s4-loading-msg');
     if(msgEl) msgEl.textContent=msgs[0];
     var msgTimer=setInterval(function(){mi=(mi+1)%msgs.length;if(msgEl)msgEl.textContent=msgs[mi];},2500);
@@ -1732,8 +1710,6 @@ window.OB={
         industry:  S.q.industry||'',
         location:  S.q.address||'',
         website:   S.q.website||'',
-        deal_value:S.q.deal_value||'',
-        close_rate:S.q.close_rate||'',
         platforms: S.svcs.join(','),
         ads_loc:   S.q.ads_loc||'',
         seo_loc:   S.q.seo_loc||'',
@@ -1766,8 +1742,7 @@ window.OB={
         headline:(q.bizname||'Your business')+' is positioned to win new customers through '+ch+' in '+mktLoc+' — here is your tailored 90-day roadmap.',
         kpis:[
           {label:isAds?'Est. Leads / Month 1':'Est. Organic Leads / Mo',value:tot>0?Math.round(tot/150)+'-'+Math.round(tot/100):'8–15'},
-          {label:'By Month 3',value:tot>0?Math.round(tot/80)+'-'+Math.round(tot/55):'20–35'},
-          {label:'Est. Monthly ROI',value:tot>0?'+$'+Math.round(tot*2.5).toLocaleString():'TBD'}
+          {label:'By Month 3',value:tot>0?Math.round(tot/80)+'-'+Math.round(tot/55):'20–35'}
         ],
         roadmap:[
           {week:'Week 1–2',phase:'Foundation',title:'Audit & architecture',
@@ -1907,10 +1882,6 @@ window.OB={
     // ── Disclaimer ────────────────────────────────────────────────────────
     var disc=$i('ob-plan-disclaimer');
     if(disc){
-      var roiKpi=(kpis.find(function(k){return k.label.indexOf('ROI')>-1;})||{}).value||'';
-      var roiNote=roiKpi&&roiKpi!=='TBD'&&roiKpi.indexOf('$')>-1
-        ? ' ROI is estimated as (projected leads × avg deal value × 20% close rate) minus your monthly investment.'
-        : '';
       var src=backed?' based on real Google Ads keyword data for your market':' based on industry benchmarks for your market';
       if(isAudit){
         // Existing-GA: clearly frame this as an initial AI assessment, not a
@@ -1918,12 +1889,12 @@ window.OB={
         disc.innerHTML=
           '<strong>How we built this.</strong> This is an <strong>initial AI-assisted assessment</strong> of your current Google Ads, '+
           'generated from the answers you gave us, live keyword and CPC data for your market'+(backed?'':' (industry benchmarks where live data was unavailable)')+', '+
-          'your competitors, and Claude AI. We surface the single highest-impact opportunity first.'+roiNote+
+          'your competitors, and Claude AI. We surface the single highest-impact opportunity first.'+
           '<br><br>It is <strong>not a substitute for a full audit inside your account.</strong> '+
           'Once you complete onboarding, your 6ix Developers advisor will log into your Google Ads (with your permission), '+
           'review your real campaign, keyword and conversion data, and refine this plan into a hands-on strategy — usually within one business day.';
       } else {
-        disc.innerHTML='These projections are'+src+'.'+roiNote
+        disc.innerHTML='These projections are'+src+'.'
           +' Once you complete onboarding, your advisor will reach out within one business day with a full benchmark report and custom strategy.';
       }
       disc.style.display='block';
@@ -1957,7 +1928,6 @@ window.OB={
       var flds={
         'q-biz':q.bizname,'q-web-url':q.website,'q-addr':q.address,
         'q-ind':q.industry,'q-yrs':q.years,
-        'q-deal-value':q.deal_value||'','q-close-rate':q.close_rate||'',
         'q-comp1':q.comp1||'','q-comp2':q.comp2||'','q-comp3':q.comp3||'',
         'q-ads-loc':q.ads_loc||'','q-ads-prod':q.ads_prod||'',
         'q-ads-usp':q.ads_usp||'','q-ads-promo':q.ads_promo||'','q-ads-sched':q.ads_sched||'',

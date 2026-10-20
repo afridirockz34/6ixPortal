@@ -297,117 +297,13 @@ if ( $kpi_exists ) {
     foreach ( $kpi_rows as $row ) $kpi_data[$row->kpi_key] = $row;
 }
 
-// ── AI-estimated ROI if no advisor input yet ──────────────────────────────
-$roi_benchmarks = array(
-    'google-ads'       => array('roi_mult'=>4.2, 'visitors_mo'=>1200, 'leads_mo'=>60),
-    'seo'              => array('roi_mult'=>3.5, 'visitors_mo'=>800,  'leads_mo'=>40),
-    'google-business'  => array('roi_mult'=>2.8, 'visitors_mo'=>600,  'leads_mo'=>30),
-    'website'          => array('roi_mult'=>2.0, 'visitors_mo'=>400,  'leads_mo'=>20),
-);
-
-// ── Try to pull estimates from AI plan generated during onboarding ──────────
-$ai_plan        = $ai_plan_json ? json_decode($ai_plan_json, true) : null;
-$ai_kpis        = $ai_plan['kpis'] ?? array();
-$ai_leads_val   = '';
-$ai_roi_val     = '';
-foreach ($ai_kpis as $kpi) {
-    $lbl = strtolower($kpi['label'] ?? '');
-    $val = $kpi['value'] ?? '';
-    if (strpos($lbl,'month 1') !== false || strpos($lbl,'month 2') !== false) {
-        if (!$ai_leads_val) $ai_leads_val = $val;
-    }
-    if (strpos($lbl,'roi') !== false) $ai_roi_val = $val;
-}
-
-// ── Estimate from selected services (active OR onboarding-selected) ─────────
-$est_svcs        = !empty($active_svcs) ? $active_svcs : array();
+// ── What they're paying for, and how much ─────────────────────────────────
 $est_platforms   = array_filter(array_map('trim', explode(',', $checkout->platforms ?? '')));
 $onb_budget      = intval($checkout->mktg_budget ?? 0);
 $est_from_onb    = empty($active_svcs) && !empty($est_platforms);
 
-$est_roi         = 0;
-$est_visitors    = 0;
-$est_leads       = 0;
-
-if (!empty($active_svcs)) {
-    // Real active services
-    foreach ($active_svcs as $s) {
-        $bench = $roi_benchmarks[$s->service_slug] ?? array('roi_mult'=>2.0,'visitors_mo'=>300,'leads_mo'=>15);
-        $est_roi      += round(floatval($s->budget) * $bench['roi_mult']);
-        $est_visitors += $bench['visitors_mo'];
-        $est_leads    += $bench['leads_mo'];
-    }
-} elseif (!empty($est_platforms) && $onb_budget > 0) {
-    // No active services yet — estimate from onboarding selections + budget
-    $budget_per_svc = $onb_budget / max(1, count($est_platforms));
-    foreach ($est_platforms as $slug) {
-        $bench = $roi_benchmarks[$slug] ?? array('roi_mult'=>2.0,'visitors_mo'=>300,'leads_mo'=>15);
-        $est_roi      += round($budget_per_svc * $bench['roi_mult']);
-        $est_visitors += $bench['visitors_mo'];
-        $est_leads    += $bench['leads_mo'];
-    }
-} elseif (!empty($est_platforms)) {
-    // Services selected but no budget — use baseline estimates
-    foreach ($est_platforms as $slug) {
-        $bench = $roi_benchmarks[$slug] ?? array('roi_mult'=>2.0,'visitors_mo'=>300,'leads_mo'=>15);
-        $est_visitors += $bench['visitors_mo'];
-        $est_leads    += $bench['leads_mo'];
-    }
-}
-
-// If AI plan has leads/ROI, prefer those over benchmark estimates
-if ($ai_leads_val) {
-    // Parse e.g. "11–20" → take lower bound
-    $ai_leads_num = intval(preg_replace('/[^0-9].*/', '', $ai_leads_val));
-    if ($ai_leads_num > 0) $est_leads = $ai_leads_num;
-}
-if ($ai_roi_val && strpos($ai_roi_val, '$') !== false) {
-    $ai_roi_num = intval(preg_replace('/[^0-9]/', '', $ai_roi_val));
-    if ($ai_roi_num > 0) $est_roi = $ai_roi_num;
-}
-
-$est_growth_pct = $onb_budget > 0 ? min(35, round(($est_roi / max($onb_budget,1)) * 5)) : 0;
-
-// ── Resolve each KPI: advisor value → metric → estimate → placeholder ─────
-function six_kpi_resolve( $kpi_data, $key, $fallback_val, $fallback_prev=null ) {
-    if ( isset($kpi_data[$key]) && $kpi_data[$key]->kpi_value !== '' ) {
-        return array(
-            'val'      => $kpi_data[$key]->kpi_value,
-            'prev'     => $kpi_data[$key]->kpi_prev,
-            'source'   => 'advisor',
-        );
-    }
-    return array('val'=>$fallback_val, 'prev'=>$fallback_prev, 'source'=>'estimate');
-}
-
-// Find metrics
-$metric_map = array();
-foreach ( $metrics as $m ) $metric_map[strtolower($m->label)] = $m;
-$find_m = fn($keys) => array_reduce($keys, fn($c,$k)=>$c??($metric_map[$k]??null), null);
-$nc_m      = $find_m(array('new customers','customers','conversions'));
-$rev_m     = $find_m(array('sales revenue','revenue','sales'));
-$vis_m     = $find_m(array('total visitors','visitors','sessions','organic traffic','traffic'));
-
-$fmt_num = function($v) {
-    if(!$v || $v==='—') return $v;
-    $has_dollar = strpos($v,'$')!==false; $has_pct = strpos($v,'%')!==false;
-    $n = floatval(preg_replace('/[^0-9.]/','',$v));
-    if($n===0.0 && $v!=='0') return $v;
-    $r = round($n,2);
-    $fmt = $r==floor($r) ? number_format((int)$r) : number_format($r,2);
-    if($has_dollar) return '$'.$fmt;
-    if($has_pct) return $fmt.'%';
-    return $fmt;
-};
-$kpi_nc  = six_kpi_resolve($kpi_data,'new_customers',  $nc_m?$fmt_num($nc_m->current_value):($est_leads>0?number_format((int)round($est_leads)).'/mo':'—'),   $nc_m?$nc_m->previous_value:null);
-// Use onboarding budget as revenue estimate base when no active services
-$_rev_budget = max($total_budget, $onb_budget ?? 0);
-$kpi_rev = six_kpi_resolve($kpi_data,'sales_revenue',  $rev_m?$fmt_num($rev_m->current_value):($_rev_budget>0?'+$'.number_format(round($_rev_budget*2.8)).'/mo':'—'),  $rev_m?$rev_m->previous_value:null);
-$kpi_vis = six_kpi_resolve($kpi_data,'total_visitors', $vis_m?$fmt_num($vis_m->current_value):($est_visitors>0?number_format((int)round($est_visitors)).'/mo':'—'), $vis_m?$vis_m->previous_value:null);
-$kpi_roi = six_kpi_resolve($kpi_data,'roi_projection', $est_roi>0?'+$'.number_format($est_roi,0).'/mo':'—', null);
-$roi_growth_pct = isset($kpi_data['roi_growth_pct']) ? $kpi_data['roi_growth_pct']->kpi_value : ($est_growth_pct > 0 ? '+'.$est_growth_pct.'%' : '');
-
-// ── Trend calculator ──────────────────────────────────────────────────────
+// Percentage change between a card's current and previous value, or null when
+// there's no comparable previous figure.
 function six_calc_trend($val_str, $prev_str) {
     if (!$prev_str || !$val_str || $val_str==='—') return null;
     $cv = floatval(preg_replace('/[^0-9.]/','',$val_str));
@@ -415,96 +311,35 @@ function six_calc_trend($val_str, $prev_str) {
     if ($pv <= 0) return null;
     return round((($cv - $pv) / $pv) * 100, 1);
 }
-$trend_nc  = six_calc_trend($kpi_nc['val'],  $kpi_nc['prev']);
-$trend_rev = six_calc_trend($kpi_rev['val'], $kpi_rev['prev']);
-$trend_vis = six_calc_trend($kpi_vis['val'], $kpi_vis['prev']);
 
-// ═══════════════════════════════════════════════════════════════════════════
-// POST-ONBOARDING GROWTH PROJECTION (bounded 90-day ramp, confidence band)
-// Honest, transparent projection — NOT random data. Grounded in the customer's
-// budget, real market CPC (DataForSEO, cached at onboarding), and their own
-// deal economics (avg value x close rate). Every figure is labelled Projected.
-// ═══════════════════════════════════════════════════════════════════════════
-$proj_deal    = intval( $checkout->deal_value ?? 0 );
-$proj_close   = intval( $checkout->close_rate ?? 0 );            // percent
-$proj_cpc     = floatval( get_user_meta($user_id,'six_market_avg_cpc',true) );
-$proj_kw_src  = get_user_meta($user_id,'six_market_kw_source',true) ?: '';
-$proj_budget  = class_exists('Six_Odoo') && method_exists('Six_Odoo','effective_monthly_budget')
-    ? intval( Six_Odoo::effective_monthly_budget($user_id, $checkout) )
-    : max( intval($onb_budget), intval($total_budget) );
-
-// Mature monthly baseline (run-rate the plan aims for by ~month 3)
-$mature_leads    = max( 0, intval($est_leads) );
-$mature_visitors = max( 0, intval($est_visitors) );
-
-// Refine from real market economics when we have a live CPC + budget.
-if ( $proj_cpc > 0 && $proj_budget > 0 ) {
-    // Industry lead-conversion rate (visitor/click -> lead), percent.
-    $ind = strtolower( $checkout->industry ?? '' );
-    $conv_tbl = array('dental'=>3.8,'dentist'=>3.8,'legal'=>2.7,'law'=>2.7,'lawyer'=>2.7,
-        'real estate'=>2.4,'plumb'=>4.1,'hvac'=>4.2,'roof'=>3.9,'electric'=>3.8,
-        'contractor'=>3.2,'medical'=>3.3,'health'=>3.3,'fitness'=>2.8,'gym'=>2.8,
-        'restaurant'=>2.1,'retail'=>2.3,'ecommerce'=>1.9,'finance'=>2.9,'insurance'=>2.6,
-        'account'=>3.0,'education'=>3.1,'tutor'=>3.4,'auto'=>3.4,'clean'=>3.7,'salon'=>3.0,'spa'=>2.8);
-    $conv = 2.7;
-    foreach ( $conv_tbl as $k=>$v ) { if ( $ind && strpos($ind,$k)!==false ) { $conv = $v; break; } }
-    // ~65% of budget becomes paid clicks (rest = management/creative/other).
-    $paid_clicks = ( $proj_budget * 0.65 ) / max($proj_cpc, 0.5);
-    $paid_leads  = $paid_clicks * ( $conv / 100 );
-    // Blend with benchmark baseline (covers organic/SEO/social not driven by CPC).
-    $mature_visitors = max( $mature_visitors, (int) round( $paid_clicks + $mature_visitors * 0.5 ) );
-    $mature_leads    = max( $mature_leads,    (int) round( $paid_leads  + $mature_leads    * 0.4 ) );
-}
-
-// Revenue from the customer's OWN deal economics when provided.
-if ( $proj_deal > 0 && $proj_close > 0 && $mature_leads > 0 ) {
-    $mature_revenue = (int) round( $mature_leads * ( $proj_close / 100 ) * $proj_deal );
-    $rev_grounded   = true;
-} else {
-    $mature_revenue = intval($est_roi);   // fall back to existing benchmark ROI $
-    $rev_grounded   = false;
-}
-
-// Build a 12-week ramp (logistic S-curve, normalised 0.15 -> 1.0) with an
-// asymmetric confidence band. Weeks are monthly run-rate, not cumulative, so
-// the line settles at the mature figure instead of climbing forever.
-$six_proj_series = function( $mature ) {
-    $mature = max( 0, (int) $mature );
-    $pts = array();
-    $raw = array();
-    for ( $w = 1; $w <= 12; $w++ ) { $raw[$w] = 1 / ( 1 + exp( -0.7 * ( $w - 6 ) ) ); }
-    $min = min($raw); $max = max($raw);
-    for ( $w = 1; $w <= 12; $w++ ) {
-        $f   = 0.15 + ( ( $raw[$w] - $min ) / max( $max - $min, 0.0001 ) ) * 0.85; // 0.15..1.0
-        $exp = $mature * $f;
-        // Band widens a touch early (more uncertainty), tightens as it matures.
-        $spread = 0.30 + ( 1 - $f ) * 0.10; // ~0.40 early -> 0.30 late
-        $pts[] = array(
-            'w'    => $w,
-            'low'  => round( $exp * ( 1 - $spread ) ),
-            'exp'  => round( $exp ),
-            'high' => round( $exp * ( 1 + $spread + 0.05 ) ), // slight upside skew
-        );
+// ── Service-aware stat cards + visitors series (see class-dashboard-metrics.php).
+// Resolution order per metric is live connector → advisor-entered → benchmark.
+// No revenue/ROI projections: we can't guarantee returns.
+$dash_slugs   = array();
+$dash_budgets = array();
+if ( ! empty($active_svcs) ) {
+    foreach ( $active_svcs as $s ) {
+        $dash_slugs[] = $s->service_slug;
+        $dash_budgets[$s->service_slug] = floatval($s->budget);
     }
-    return $pts;
-};
+} elseif ( ! empty($est_platforms) ) {
+    // Not activated yet — fall back to what they picked during onboarding,
+    // splitting their stated budget evenly so the benchmarks have something
+    // real to scale from.
+    $dash_slugs   = $est_platforms;
+    $per          = $onb_budget > 0 ? $onb_budget / max(1, count($est_platforms)) : 0;
+    foreach ( $est_platforms as $slug ) $dash_budgets[$slug] = $per;
+}
 
-$six_projection = array(
-    'has'     => ( $mature_leads > 0 || $mature_visitors > 0 || $mature_revenue > 0 ),
-    'grounded'=> array(
-        'budget'    => $proj_budget,
-        'cpc'       => $proj_cpc,
-        'kw_source' => $proj_kw_src,
-        'deal'      => $proj_deal,
-        'close'     => $proj_close,
-        'rev_from_deal' => $rev_grounded,
-    ),
-    'metrics' => array(
-        'visitors' => array( 'label'=>'Visitors', 'unit'=>'',  'mature'=>$mature_visitors, 'points'=>$six_proj_series($mature_visitors) ),
-        'leads'    => array( 'label'=>'Leads',    'unit'=>'',  'mature'=>$mature_leads,    'points'=>$six_proj_series($mature_leads) ),
-        'revenue'  => array( 'label'=>'Revenue',  'unit'=>'$', 'mature'=>$mature_revenue,  'points'=>$six_proj_series($mature_revenue) ),
-    ),
+$dash_ctx = array(
+    'slugs'   => $dash_slugs,
+    'budgets' => $dash_budgets,
+    'kpi'     => $kpi_data,
+    'cpc'     => floatval( get_user_meta($user_id,'six_market_avg_cpc',true) ),
 );
+
+$dash_cards = class_exists('Six_Dash_Metrics') ? Six_Dash_Metrics::cards($user_id, $dash_ctx) : array();
+$six_visits = class_exists('Six_Dash_Metrics') ? Six_Dash_Metrics::visitor_series($user_id, $dash_ctx) : array('has'=>false);
 ?>
 
 <!-- ── GREETING ──────────────────────────────────────────────────────────── -->
@@ -518,12 +353,16 @@ $six_projection = array(
 
 <!-- ── 4 KPI CARDS ───────────────────────────────────────────────────────── -->
 <?php
-// Determine metrics source for disclaimer
-$metrics_are_real    = !empty($active_svcs) && !empty($kpi_data);
-$metrics_from_onb    = $est_from_onb ?? (!empty($est_platforms) && empty($active_svcs));
-$has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
+// Determine metrics source for the disclaimer. A card row built purely from
+// benchmarks gets the "estimate" notice; a row with any live or
+// advisor-confirmed number does not.
+$metrics_are_real = !empty($active_svcs) && !empty($kpi_data);
+$metrics_from_onb = $est_from_onb ?? (!empty($est_platforms) && empty($active_svcs));
+$has_any_data     = !empty($dash_cards);
+$all_estimated    = $has_any_data;
+foreach ( $dash_cards as $_c ) { if ( $_c['source'] !== 'estimate' ) { $all_estimated = false; break; } }
 ?>
-<?php if ($metrics_from_onb && $has_any_data): ?>
+<?php if ($all_estimated): ?>
 <div style="display:flex;align-items:flex-start;gap:12px;background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.2);border-radius:12px;padding:14px 18px;margin-bottom:16px">
     <svg viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
     <div>
@@ -543,120 +382,40 @@ $has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
 <?php endif; ?>
 
 <div class="six-kpi-row">
-
-    <!-- 1. New Customers -->
-    <div class="six-kc" data-kpi="new_customers">
-        <div class="six-kc-bar" style="background:linear-gradient(90deg,#FF6699,#8781BA)"></div>
-        <div class="six-kc-head">
-            <span class="six-kc-label">New Customers</span>
-            <div class="six-kc-icon" style="background:rgba(255,102,153,0.12)">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF6699" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                </svg>
-            </div>
+<?php if ( empty($dash_cards) ): ?>
+    <div class="six-kc" style="grid-column:1/-1">
+        <div class="six-kc-head"><span class="six-kc-label">Performance</span></div>
+        <div class="six-kc-val" style="font-size:13px;color:var(--text3);font-weight:500;line-height:1.5">
+            Your performance cards appear here once a service is active. Your advisor will have you set up within one business day.
         </div>
-        <div class="six-kc-val"><?php echo esc_html($kpi_nc['val']); ?></div>
-        <?php if($trend_nc!==null): ?>
-        <div class="six-kc-trend <?php echo $trend_nc>=0?'up':'dn'; ?>">
-            <?php if($trend_nc>=0): ?>
+    </div>
+<?php else: foreach ( $dash_cards as $card ):
+    $c_trend = six_calc_trend( $card['value'], $card['prev'] );
+?>
+    <div class="six-kc" data-kpi="<?php echo esc_attr($card['key']); ?>" data-service="<?php echo esc_attr($card['service']); ?>">
+        <div class="six-kc-bar" style="background:linear-gradient(90deg,<?php echo esc_attr($card['accent'][0]); ?>,<?php echo esc_attr($card['accent'][1]); ?>)"></div>
+        <div class="six-kc-head">
+            <span class="six-kc-label"><?php echo esc_html($card['label']); ?></span>
+            <span style="font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:<?php echo esc_attr($card['accent'][0]); ?>;background:rgba(0,0,0,.04);padding:2.5px 7px;border-radius:5px;white-space:nowrap"><?php echo esc_html($card['svc_label']); ?></span>
+        </div>
+        <div class="six-kc-val"><?php echo esc_html($card['value']); ?></div>
+        <?php if ( $c_trend !== null ): ?>
+        <div class="six-kc-trend <?php echo $c_trend>=0?'up':'dn'; ?>">
+            <?php if($c_trend>=0): ?>
             <svg width="10" height="10" viewBox="0 0 10 10"><polyline points="1,7 5,2 9,7" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
             <?php else: ?>
             <svg width="10" height="10" viewBox="0 0 10 10"><polyline points="1,3 5,8 9,3" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
             <?php endif; ?>
-            <?php echo abs($trend_nc); ?>%
+            <?php echo abs($c_trend); ?>%
         </div>
-        <?php elseif($kpi_nc['val']!=='—'): ?>
-        <div class="six-kc-sub"><?php echo $kpi_nc['source']==='estimate'?($metrics_from_onb?'Industry benchmark':'Estimated from services'):'From campaigns'; ?></div>
+        <?php elseif ( $card['value'] !== '—' ): ?>
+        <div class="six-kc-sub"><?php echo esc_html($card['sub']); ?></div>
         <?php else: ?>
         <div class="six-kc-sub" style="opacity:.4">No data yet</div>
         <?php endif; ?>
-        <?php if($kpi_nc['prev']): ?><div class="six-kc-from">From <?php echo esc_html($kpi_nc['prev']); ?></div><?php endif; ?>
+        <?php if ( $card['prev'] ): ?><div class="six-kc-from">From <?php echo esc_html($card['prev']); ?></div><?php endif; ?>
     </div>
-
-    <!-- 2. Sales Revenue -->
-    <div class="six-kc" data-kpi="sales_revenue">
-        <div class="six-kc-bar" style="background:linear-gradient(90deg,#E3B341,#f59e0b)"></div>
-        <div class="six-kc-head">
-            <span class="six-kc-label">Sales Revenue</span>
-            <div class="six-kc-icon" style="background:rgba(227,179,65,0.12)">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E3B341" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-                </svg>
-            </div>
-        </div>
-        <div class="six-kc-val"><?php echo esc_html($kpi_rev['val']); ?></div>
-        <?php if($trend_rev!==null): ?>
-        <div class="six-kc-trend <?php echo $trend_rev>=0?'up':'dn'; ?>">
-            <?php if($trend_rev>=0): ?>
-            <svg width="10" height="10" viewBox="0 0 10 10"><polyline points="1,7 5,2 9,7" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
-            <?php else: ?>
-            <svg width="10" height="10" viewBox="0 0 10 10"><polyline points="1,3 5,8 9,3" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
-            <?php endif; ?>
-            <?php echo abs($trend_rev); ?>%
-        </div>
-        <?php elseif($kpi_rev['val']!=='—'): ?>
-        <div class="six-kc-sub"><?php echo $kpi_rev['source']==='estimate'?'Based on active budget':'Monthly revenue'; ?></div>
-        <?php else: ?>
-        <div class="six-kc-sub" style="opacity:.4">No data yet</div>
-        <?php endif; ?>
-        <?php if($kpi_rev['prev']): ?><div class="six-kc-from">From <?php echo esc_html($kpi_rev['prev']); ?></div><?php endif; ?>
-    </div>
-
-    <!-- 3. Total Visitors -->
-    <div class="six-kc" data-kpi="total_visitors">
-        <div class="six-kc-bar" style="background:linear-gradient(90deg,#56D364,#10b981)"></div>
-        <div class="six-kc-head">
-            <span class="six-kc-label">Total Visitors</span>
-            <div class="six-kc-icon" style="background:rgba(86,211,100,0.12)">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#56D364" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
-                </svg>
-            </div>
-        </div>
-        <div class="six-kc-val"><?php echo esc_html($kpi_vis['val']); ?></div>
-        <?php if($trend_vis!==null): ?>
-        <div class="six-kc-trend <?php echo $trend_vis>=0?'up':'dn'; ?>">
-            <?php if($trend_vis>=0): ?>
-            <svg width="10" height="10" viewBox="0 0 10 10"><polyline points="1,7 5,2 9,7" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
-            <?php else: ?>
-            <svg width="10" height="10" viewBox="0 0 10 10"><polyline points="1,3 5,8 9,3" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
-            <?php endif; ?>
-            <?php echo abs($trend_vis); ?>%
-        </div>
-        <?php elseif($kpi_vis['val']!=='—'): ?>
-        <div class="six-kc-sub"><?php echo $kpi_vis['source']==='estimate'?($metrics_from_onb?'Industry benchmark':'Estimated from services'):'Monthly sessions'; ?></div>
-        <?php else: ?>
-        <div class="six-kc-sub" style="opacity:.4">No data yet</div>
-        <?php endif; ?>
-        <?php if($kpi_vis['prev']): ?><div class="six-kc-from">From <?php echo esc_html($kpi_vis['prev']); ?></div><?php endif; ?>
-    </div>
-
-    <!-- 4. Live ROI Projection -->
-    <div class="six-kc six-kc-roi" data-kpi="roi_projection">
-        <div class="six-kc-bar" style="background:linear-gradient(90deg,#FF6699,#8781BA,#6ACAFD)"></div>
-        <div class="six-kc-head">
-            <span class="six-kc-label">Live ROI Projection</span>
-            <div class="six-kc-icon" style="background:rgba(135,129,186,0.12)">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8781BA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-                </svg>
-            </div>
-        </div>
-        <?php if($kpi_roi['val']!=='—'): ?>
-        <div class="six-kc-val six-roi-val"><?php echo esc_html($kpi_roi['val']); ?></div>
-        <?php if($roi_growth_pct): ?>
-        <div class="six-kc-trend up">
-            <svg width="10" height="10" viewBox="0 0 10 10"><polyline points="1,7 5,2 9,7" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
-            <?php echo esc_html($roi_growth_pct); ?> growth potential
-        </div>
-        <?php endif; ?>
-        <div class="six-kc-sub" style="margin-top:6px">Based on your business &amp; selected services</div>
-        <?php else: ?>
-        <div class="six-kc-val" style="font-size:13px;color:var(--text3);font-weight:500;line-height:1.4">ROI will be calculated after advisor review</div>
-        <?php endif; ?>
-    </div>
-
+<?php endforeach; endif; ?>
 </div><!-- /.six-kpi-row -->
 
 <!-- ── HERO CONTENT ROW: Chart left | Advisor right ──────────────────────── -->
@@ -873,103 +632,82 @@ $has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
 </style>
 
 <script>
-// ── Post-onboarding Growth PROJECTION chart (bounded 90-day ramp + band) ──────
-// Honest, transparent projection built from PHP data — NOT random. Shows a
-// conservative/expected/optimistic band per metric, everything badged Projected.
+// ── Visitors: before us vs with us ───────────────────────────────────────────
+// Two lines, visitors only. "Without us" is where their traffic was sitting
+// before we started (advisor-entered where we have it, otherwise the share of
+// today's traffic that isn't coming from work we do). "With us" is the combined
+// figure across every service they're paying for. The badge says plainly
+// whether that second line is measured or still projected — we never pass an
+// estimate off as measured traffic.
 (function() {
-  var PROJ = <?php echo wp_json_encode($six_projection); ?>;
+  var VIS   = <?php echo wp_json_encode($six_visits); ?>;
   var mount = document.getElementById('six-analytics-chart');
   if (!mount) return;
 
   var ns = 'http://www.w3.org/2000/svg';
-  var isDark, METRIC, GEO = null;
+  var isDark, GEO = null;
 
-  // default metric = the most tangible one that has data
-  METRIC = (PROJ.metrics.leads.mature > 0) ? 'leads'
-         : (PROJ.metrics.visitors.mature > 0 ? 'visitors'
-         : 'revenue');
-
-  function fmt(n, unit){ n = Math.round(n); return (unit==='$'?'$':'') + n.toLocaleString(); }
+  function theme(){
+    var r = document.getElementById('six-portal-root') || document.documentElement;
+    if (r.getAttribute('data-theme') === 'dark')  return true;
+    if (r.getAttribute('data-theme') === 'light') return false;
+    return (localStorage.getItem('six_theme') || 'light') === 'dark';
+  }
   function grid(){ return isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,20,40,0.07)'; }
   function lbl(){  return isDark ? 'rgba(255,255,255,0.34)' : 'rgba(15,20,40,0.42)'; }
+  function fmt(n){ return Math.round(n).toLocaleString(); }
 
-  function caption(){
-    var g = PROJ.grounded, parts = [];
-    if (g.budget > 0) parts.push('your $' + Math.round(g.budget).toLocaleString() + '/mo budget');
-    if (g.cpc > 0)    parts.push('~$' + (Math.round(g.cpc*100)/100) + ' avg CPC in your market' + (g.kw_source ? ' (' + g.kw_source + ')' : ''));
-    if (g.rev_from_deal && g.deal > 0 && g.close > 0) parts.push('$' + Math.round(g.deal).toLocaleString() + ' avg sale × ' + g.close + '% close rate');
-    if (!parts.length) return 'Benchmark from your selected services and industry data. Your advisor refines this with your live numbers.';
-    return 'Benchmark from ' + parts.join(' · ') + '. Your advisor replaces this with your live numbers.';
-  }
-
-  // ── Empty state (no data at all) ──────────────────────────────────────────
-  if (!PROJ.has) {
-    isDark = (function(){var r=document.getElementById('six-portal-root')||document.documentElement; if(r.getAttribute('data-theme')==='dark')return true; if(r.getAttribute('data-theme')==='light')return false; return (localStorage.getItem('six_theme')||'light')==='dark';})();  // match the page theme (toggle defaults to light) — was defaulting to dark and flashing
+  if (!VIS.has) {
+    isDark = theme();
     mount.innerHTML = '<div id="analytics-root" style="background:'+(isDark?'#0B0F1A':'#F4F6FB')+';padding:28px;display:flex;align-items:center;justify-content:center;text-align:center">'
-      + '<div style="color:'+(isDark?'rgba(255,255,255,.5)':'rgba(15,20,40,.5)')+';font-size:13px;line-height:1.6;max-width:280px">Your growth benchmark appears here once your services and budget are set. Complete onboarding or add a service to see it.</div></div>';
+      + '<div style="color:'+(isDark?'rgba(255,255,255,.5)':'rgba(15,20,40,.5)')+';font-size:13px;line-height:1.6;max-width:300px">Your visitor comparison appears here once a service is active.</div></div>';
     return;
   }
 
-  // ── Smooth path (Catmull-Rom) ─────────────────────────────────────────────
+  // Catmull-Rom through the points for a smooth line.
   function smooth(pts){
     if (pts.length < 2) return pts.length ? 'M '+pts[0][0]+','+pts[0][1] : '';
     var d = 'M ' + pts[0][0] + ',' + pts[0][1];
     for (var i=0;i<pts.length-1;i++){
       var p0=pts[Math.max(0,i-1)], p1=pts[i], p2=pts[i+1], p3=pts[Math.min(pts.length-1,i+2)];
-      var c1x=p1[0]+(p2[0]-p0[0])/6, c1y=p1[1]+(p2[1]-p0[1])/6;
-      var c2x=p2[0]-(p3[0]-p1[0])/6, c2y=p2[1]-(p3[1]-p1[1])/6;
-      d += ' C '+c1x+','+c1y+' '+c2x+','+c2y+' '+p2[0]+','+p2[1];
+      d += ' C '+(p1[0]+(p2[0]-p0[0])/6)+','+(p1[1]+(p2[1]-p0[1])/6)
+         + ' '+(p2[0]-(p3[0]-p1[0])/6)+','+(p2[1]-(p3[1]-p1[1])/6)
+         + ' '+p2[0]+','+p2[1];
     }
     return d;
   }
 
-  function styleTab(el, active){
-    if (active){ el.style.background='linear-gradient(135deg,#FF6699,#6ACAFD)'; el.style.color='#fff'; el.style.borderColor='transparent'; }
-    else { el.style.background=isDark?'rgba(255,255,255,.05)':'rgba(15,20,40,.05)'; el.style.color=isDark?'rgba(255,255,255,.6)':'rgba(15,20,40,.6)'; el.style.borderColor=isDark?'rgba(255,255,255,.08)':'rgba(15,20,40,.08)'; }
-  }
-  function refreshTabs(){
-    var tabWrap = document.getElementById('proj-tabs'); if (!tabWrap) return;
-    Array.prototype.forEach.call(tabWrap.children, function(el){
-      if (el.classList.contains('off')) return;
-      styleTab(el, el.getAttribute('data-k') === METRIC);
-    });
-  }
-
   function render(){
-    var m = PROJ.metrics[METRIC];
-    var mo = document.getElementById('proj-mature'); if (mo) mo.textContent = fmt(m.mature, m.unit);
-
-    var wrap = document.getElementById('proj-plot');
-    var svg  = document.getElementById('proj-svg');
+    var wrap = document.getElementById('vis-plot');
+    var svg  = document.getElementById('vis-svg');
     if (!wrap || !svg) return;
     var W = wrap.clientWidth, H = wrap.clientHeight;
     if (!W || !H) return;
     svg.setAttribute('viewBox','0 0 '+W+' '+H);
-    var pad = { t:14, b:26, l:(m.unit==='$'?54:42), r:16 };
 
-    var pts = m.points, n = pts.length;
-    var maxY = Math.max.apply(null, pts.map(function(p){return p.high;})) * 1.08 || 1;
+    var pad = { t:14, b:26, l:46, r:16 };
+    var pts = VIS.points, n = pts.length;
+    var maxY = Math.max.apply(null, pts.map(function(p){ return Math.max(p.before,p.after); })) * 1.12 || 1;
     var X = function(i){ return pad.l + (i/(n-1)) * (W-pad.l-pad.r); };
     var Y = function(v){ return H-pad.b - (v/maxY) * (H-pad.t-pad.b); };
 
-    var g = document.getElementById('proj-grid'); g.innerHTML='';
-    var yl = document.getElementById('proj-ylbl'); yl.innerHTML='';
-    var steps = 4;
-    for (var s=0;s<=steps;s++){
-      var val = maxY * s/steps, y = Y(val);
+    var g = document.getElementById('vis-grid'); g.innerHTML='';
+    var yl = document.getElementById('vis-ylbl'); yl.innerHTML='';
+    for (var s=0;s<=4;s++){
+      var val = maxY * s/4, y = Y(val);
       var ln = document.createElementNS(ns,'line');
       ln.setAttribute('x1',pad.l); ln.setAttribute('x2',W-pad.r);
-      ln.setAttribute('y1',y); ln.setAttribute('y2',y);
+      ln.setAttribute('y1',y);     ln.setAttribute('y2',y);
       ln.setAttribute('stroke',grid()); ln.setAttribute('stroke-width','1');
       g.appendChild(ln);
       var t = document.createElementNS(ns,'text');
       t.setAttribute('x',pad.l-8); t.setAttribute('y',y+3);
       t.setAttribute('text-anchor','end'); t.setAttribute('font-size','10');
       t.setAttribute('fill',lbl()); t.setAttribute('font-family','monospace');
-      t.textContent = (m.unit==='$'?'$':'') + (val>=1000?(Math.round(val/100)/10)+'k':Math.round(val));
+      t.textContent = val>=1000 ? (Math.round(val/100)/10)+'k' : Math.round(val);
       yl.appendChild(t);
     }
-    var xl = document.getElementById('proj-xlbl'); xl.innerHTML='';
+    var xl = document.getElementById('vis-xlbl'); xl.innerHTML='';
     [0,3,7,11].forEach(function(i){
       var t = document.createElementNS(ns,'text');
       t.setAttribute('x',X(i)); t.setAttribute('y',H-9);
@@ -979,110 +717,102 @@ $has_any_data        = $est_leads > 0 || $est_roi > 0 || $est_visitors > 0;
       xl.appendChild(t);
     });
 
-    var hiPts = pts.map(function(p,i){ return [X(i), Y(p.high)]; });
-    var loPts = pts.map(function(p,i){ return [X(i), Y(p.low)]; });
-    var exPts = pts.map(function(p,i){ return [X(i), Y(p.exp)]; });
+    var beforePts = pts.map(function(p,i){ return [X(i), Y(p.before)]; });
+    var afterPts  = pts.map(function(p,i){ return [X(i), Y(p.after)];  });
 
-    var loRev = ''; for (var k=loPts.length-1;k>=0;k--){ loRev += 'L '+loPts[k][0]+','+loPts[k][1]+' '; }
-    var areaD = smooth(hiPts) + ' L ' + loPts[loPts.length-1][0] + ',' + loPts[loPts.length-1][1] + ' ' + loRev + ' Z';
-    document.getElementById('proj-area').setAttribute('d', areaD);
-    document.getElementById('proj-hi').setAttribute('d', smooth(hiPts));
-    document.getElementById('proj-lo').setAttribute('d', smooth(loPts));
-    document.getElementById('proj-exp').setAttribute('d', smooth(exPts));
+    // Shade the gap between the two lines — that gap is the whole point.
+    var rev = ''; for (var k=beforePts.length-1;k>=0;k--){ rev += 'L '+beforePts[k][0]+','+beforePts[k][1]+' '; }
+    document.getElementById('vis-gap').setAttribute('d',
+      smooth(afterPts) + ' L ' + beforePts[beforePts.length-1][0] + ',' + beforePts[beforePts.length-1][1] + ' ' + rev + ' Z');
+    document.getElementById('vis-before').setAttribute('d', smooth(beforePts));
+    document.getElementById('vis-after').setAttribute('d',  smooth(afterPts));
 
-    var end = document.getElementById('proj-end');
-    end.setAttribute('cx', exPts[exPts.length-1][0]);
-    end.setAttribute('cy', exPts[exPts.length-1][1]);
+    var end = document.getElementById('vis-end');
+    end.setAttribute('cx', afterPts[afterPts.length-1][0]);
+    end.setAttribute('cy', afterPts[afterPts.length-1][1]);
 
-    GEO = { X:X, Y:Y, pad:pad, W:W, H:H, n:n, m:m };
+    GEO = { X:X, Y:Y, pad:pad, W:W, H:H, n:n };
   }
 
   function build(){
-    isDark = (function(){var r=document.getElementById('six-portal-root')||document.documentElement; if(r.getAttribute('data-theme')==='dark')return true; if(r.getAttribute('data-theme')==='light')return false; return (localStorage.getItem('six_theme')||'light')==='dark';})();  // match the page theme (toggle defaults to light) — was defaulting to dark and flashing
-    var bg = isDark ? '#0B0F1A' : '#F4F6FB';
+    isDark = theme();
+    var bg     = isDark ? '#0B0F1A' : '#F4F6FB';
     var strong = isDark ? '#fff' : '#0f1428';
     var muted  = isDark ? 'rgba(255,255,255,.32)' : 'rgba(15,20,40,.4)';
+    var live   = VIS.source === 'live';
+    var lift   = VIS.current_mo - VIS.baseline_mo;
+
     mount.innerHTML = [
     '<div id="analytics-root" style="background:'+bg+';padding:20px 22px 14px;font-family:var(--font-body);transition:background .3s">',
     '  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">',
     '    <div>',
     '      <div style="display:flex;align-items:center;gap:9px">',
-    '        <div style="font-size:15px;font-weight:700;letter-spacing:-.01em;color:'+(isDark?'rgba(255,255,255,.9)':'rgba(15,20,40,.9)')+'">Growth Benchmark</div>',
-    '        <span style="font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#5b4708;background:#E3B341;padding:2.5px 7px;border-radius:5px">Benchmark</span>',
+    '        <div style="font-size:15px;font-weight:700;letter-spacing:-.01em;color:'+(isDark?'rgba(255,255,255,.9)':'rgba(15,20,40,.9)')+'">Visitors</div>',
+    '        <span style="font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;'
+         + (live ? 'color:#0b3b1e;background:#56D364' : 'color:#5b4708;background:#E3B341')
+         + ';padding:2.5px 7px;border-radius:5px">' + (live ? 'Live' : 'Projected') + '</span>',
     '      </div>',
-    '      <div style="font-size:11.5px;color:'+muted+';margin-top:4px">Your first 90 days · conservative to optimistic range</div>',
+    '      <div style="font-size:11.5px;color:'+muted+';margin-top:4px">Where you were heading without us, versus where you are now</div>',
     '    </div>',
     '    <div style="text-align:right">',
-    '      <div id="proj-mature" style="font-size:22px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:'+strong+'"></div>',
-    '      <div style="font-size:10.5px;color:'+muted+'">benchmark / mo by day 90</div>',
+    '      <div style="font-size:22px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:'+strong+'">'+fmt(VIS.current_mo)+'</div>',
+    '      <div style="font-size:10.5px;color:'+muted+'">visitors / mo'+(lift>0?' · +'+fmt(lift)+' vs before':'')+'</div>',
     '    </div>',
     '  </div>',
-    '  <div id="proj-tabs" style="display:flex;gap:8px;margin:14px 0 2px"></div>',
-    '  <div id="proj-plot" style="position:relative;width:100%;margin:8px 0 4px">',
-    '    <svg id="proj-svg" style="width:100%;height:100%;overflow:visible" role="img" aria-label="Growth benchmark range over the first 90 days">',
+    '  <div style="display:flex;gap:16px;margin:12px 0 2px;font-size:11px;color:'+muted+'">',
+    '    <span style="display:flex;align-items:center;gap:6px"><span style="width:14px;height:2.6px;border-radius:2px;background:#FF6699;display:inline-block"></span>With 6ix Developers</span>',
+    '    <span style="display:flex;align-items:center;gap:6px"><span style="width:14px;height:0;border-top:2px dashed '+(isDark?'rgba(255,255,255,.45)':'rgba(15,20,40,.4)')+';display:inline-block"></span>Without us</span>',
+    '  </div>',
+    '  <div id="vis-plot" style="position:relative;width:100%;height:210px;margin:6px 0 4px">',
+    '    <svg id="vis-svg" style="width:100%;height:100%;overflow:visible" role="img" aria-label="Monthly visitors with and without 6ix Developers">',
     '      <defs>',
-    '        <linearGradient id="projBand" x1="0" y1="0" x2="0" y2="1">',
-    '          <stop offset="0%" stop-color="#6ACAFD" stop-opacity=".28"/>',
-    '          <stop offset="100%" stop-color="#6ACAFD" stop-opacity=".03"/>',
-    '        </linearGradient>',
-    '        <linearGradient id="projLine" x1="0" y1="0" x2="1" y2="0">',
-    '          <stop offset="0%" stop-color="#6ACAFD"/><stop offset="100%" stop-color="#FF6699"/>',
+    '        <linearGradient id="visGap" x1="0" y1="0" x2="0" y2="1">',
+    '          <stop offset="0%" stop-color="#FF6699" stop-opacity=".22"/>',
+    '          <stop offset="100%" stop-color="#FF6699" stop-opacity=".02"/>',
     '        </linearGradient>',
     '      </defs>',
-    '      <g id="proj-grid"></g>',
-    '      <path id="proj-area" fill="url(#projBand)"/>',
-    '      <path id="proj-lo" fill="none" stroke="'+(isDark?'rgba(106,202,253,.5)':'rgba(106,202,253,.7)')+'" stroke-width="1.2" stroke-dasharray="4,4"/>',
-    '      <path id="proj-hi" fill="none" stroke="'+(isDark?'rgba(255,102,153,.45)':'rgba(255,102,153,.6)')+'" stroke-width="1.2" stroke-dasharray="4,4"/>',
-    '      <path id="proj-exp" fill="none" stroke="url(#projLine)" stroke-width="2.6" stroke-linecap="round"/>',
-    '      <g id="proj-xlbl"></g><g id="proj-ylbl"></g>',
-    '      <circle id="proj-end" r="4.5" fill="#FF6699"/>',
-    '      <line id="proj-hv" stroke="'+(isDark?'rgba(255,255,255,.14)':'rgba(15,20,40,.14)')+'" stroke-width="1" stroke-dasharray="3,3" opacity="0"/>',
+    '      <g id="vis-grid"></g>',
+    '      <path id="vis-gap" fill="url(#visGap)"/>',
+    '      <path id="vis-before" fill="none" stroke="'+(isDark?'rgba(255,255,255,.45)':'rgba(15,20,40,.4)')+'" stroke-width="2" stroke-dasharray="5,4"/>',
+    '      <path id="vis-after" fill="none" stroke="#FF6699" stroke-width="2.6" stroke-linecap="round"/>',
+    '      <g id="vis-xlbl"></g><g id="vis-ylbl"></g>',
+    '      <circle id="vis-end" r="4.5" fill="#FF6699"/>',
+    '      <line id="vis-hv" stroke="'+(isDark?'rgba(255,255,255,.14)':'rgba(15,20,40,.14)')+'" stroke-width="1" stroke-dasharray="3,3" opacity="0"/>',
     '    </svg>',
-    '    <div id="proj-tt" style="position:absolute;pointer-events:none;opacity:0;background:'+(isDark?'rgba(11,15,26,.92)':'rgba(255,255,255,.96)')+';border:1px solid '+(isDark?'rgba(106,202,253,.2)':'rgba(15,20,40,.12)')+';border-radius:9px;padding:8px 11px;font-size:11.5px;min-width:132px;box-shadow:0 8px 28px rgba(0,0,0,.32);transition:opacity .12s;z-index:20;color:'+strong+'">',
-    '      <div id="proj-tt-w" style="font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;opacity:.5;margin-bottom:5px"></div>',
-    '      <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:2px"><span style="color:#FF6699;font-weight:700">Expected</span><span id="proj-tt-e" style="font-variant-numeric:tabular-nums"></span></div>',
-    '      <div style="display:flex;justify-content:space-between;gap:12px;font-size:10.5px;opacity:.7"><span>Range</span><span id="proj-tt-r" style="font-variant-numeric:tabular-nums"></span></div>',
+    '    <div id="vis-tt" style="position:absolute;pointer-events:none;opacity:0;background:'+(isDark?'rgba(11,15,26,.92)':'rgba(255,255,255,.96)')+';border:1px solid '+(isDark?'rgba(255,102,153,.2)':'rgba(15,20,40,.12)')+';border-radius:9px;padding:8px 11px;font-size:11.5px;min-width:150px;box-shadow:0 8px 28px rgba(0,0,0,.32);transition:opacity .12s;z-index:20;color:'+strong+'">',
+    '      <div id="vis-tt-w" style="font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;opacity:.5;margin-bottom:5px"></div>',
+    '      <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:2px"><span style="color:#FF6699;font-weight:700">With us</span><span id="vis-tt-a" style="font-variant-numeric:tabular-nums"></span></div>',
+    '      <div style="display:flex;justify-content:space-between;gap:12px;font-size:10.5px;opacity:.7"><span>Without us</span><span id="vis-tt-b" style="font-variant-numeric:tabular-nums"></span></div>',
     '    </div>',
     '  </div>',
-    '  <div style="font-size:10.5px;line-height:1.5;color:'+(isDark?'rgba(255,255,255,.34)':'rgba(15,20,40,.45)')+';margin-top:6px">'+caption()+'</div>',
+    '  <div style="font-size:10.5px;line-height:1.5;color:'+(isDark?'rgba(255,255,255,.34)':'rgba(15,20,40,.45)')+';margin-top:6px">'
+       + (live
+          ? 'Measured across the services you\'re running with us. The dashed line is your pre-6ix baseline.'
+          : 'Projected from your services and budget using industry benchmarks. Switches to measured traffic once your advisor connects your reporting tools.')
+       + '</div>',
     '</div>'
     ].join('');
 
-    // tabs
-    var tabWrap = document.getElementById('proj-tabs');
-    ['visitors','leads','revenue'].forEach(function(key){
-      var m = PROJ.metrics[key], on = m.mature > 0;
-      var pill = document.createElement('div');
-      pill.className = 'proj-pill' + (on ? '' : ' off');
-      pill.setAttribute('data-k', key);
-      pill.textContent = m.label;
-      styleTab(pill, key === METRIC);
-      if (on) pill.addEventListener('click', function(){ METRIC = key; refreshTabs(); render(); });
-      tabWrap.appendChild(pill);
-    });
-
-    // hover
-    var plot = document.getElementById('proj-plot');
+    var plot = document.getElementById('vis-plot');
     plot.addEventListener('mousemove', function(e){
       if (!GEO) return;
       var rect = plot.getBoundingClientRect();
-      var mx = e.clientX - rect.left;
-      var i = Math.max(0, Math.min(GEO.n-1, Math.round(((mx-GEO.pad.l)/(GEO.W-GEO.pad.l-GEO.pad.r))*(GEO.n-1))));
-      var p = GEO.m.points[i], x = GEO.X(i);
-      var hv = document.getElementById('proj-hv');
+      var i = Math.max(0, Math.min(GEO.n-1, Math.round((((e.clientX-rect.left)-GEO.pad.l)/(GEO.W-GEO.pad.l-GEO.pad.r))*(GEO.n-1))));
+      var p = VIS.points[i], x = GEO.X(i);
+      var hv = document.getElementById('vis-hv');
       hv.setAttribute('x1',x); hv.setAttribute('x2',x);
       hv.setAttribute('y1',GEO.pad.t); hv.setAttribute('y2',GEO.H-GEO.pad.b);
       hv.setAttribute('opacity','1');
-      document.getElementById('proj-tt-w').textContent = 'Week ' + (i+1);
-      document.getElementById('proj-tt-e').textContent = fmt(p.exp, GEO.m.unit);
-      document.getElementById('proj-tt-r').textContent = fmt(p.low, GEO.m.unit) + ' – ' + fmt(p.high, GEO.m.unit);
-      var tt = document.getElementById('proj-tt');
-      var left = x + 14; if (left + 150 > GEO.W) left = x - 150;
+      document.getElementById('vis-tt-w').textContent = 'Week ' + (i+1);
+      document.getElementById('vis-tt-a').textContent = fmt(p.after);
+      document.getElementById('vis-tt-b').textContent = fmt(p.before);
+      var tt = document.getElementById('vis-tt');
+      var left = x + 14; if (left + 165 > GEO.W) left = x - 165;
       tt.style.left = left + 'px'; tt.style.top = '10px'; tt.style.opacity = '1';
     });
     plot.addEventListener('mouseleave', function(){
-      document.getElementById('proj-tt').style.opacity='0';
-      document.getElementById('proj-hv').setAttribute('opacity','0');
+      document.getElementById('vis-tt').style.opacity='0';
+      document.getElementById('vis-hv').setAttribute('opacity','0');
     });
 
     render();

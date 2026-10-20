@@ -120,7 +120,7 @@ class Six_AI_Strategist {
                 'business_name'=>'Business','industry'=>'Industry','website'=>'Website',
                 'location'=>'Location','business_address'=>'Address','years_in_business'=>'Years in business',
                 'goal'=>'Primary goal','competitors'=>'Competitors','platforms'=>'Services of interest',
-                'mktg_budget'=>'Total monthly budget','deal_value'=>'Avg customer value ($)','close_rate'=>'Close rate (%)',
+                'mktg_budget'=>'Total monthly budget',
                 // Google Ads
                 'gads_running'=>'Currently running Google Ads','ads_locations'=>'GAds target locations',
                 'ads_keywords'=>'GAds keywords','ads_products'=>'GAds products/services','ads_usp'=>'GAds USP','ads_budget'=>'GAds budget',

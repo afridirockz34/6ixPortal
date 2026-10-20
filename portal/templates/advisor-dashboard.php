@@ -1033,10 +1033,18 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
             <?php
-            $ai_stats = array(
-                array('label'=>'Month 1 Leads',  'val'=>$c_ai_data['month1_leads']??'—',  'color'=>'var(--cyan)'),
-                array('label'=>'Month 3 Leads',  'val'=>$c_ai_data['month3_leads']??'—',  'color'=>'var(--success)'),
-                array('label'=>'Est. Monthly ROI','val'=>$c_ai_data['monthly_roi']??'—',   'color'=>'var(--pink)'));
+            // The plan JSON carries its KPIs as a kpis:[{label,value}] array —
+            // read the first three straight off it rather than guessing at
+            // flat keys it never had.
+            $ai_colors = array('var(--cyan)','var(--success)','var(--pink)');
+            $ai_stats  = array();
+            foreach ( array_slice( (array) ( $c_ai_data['kpis'] ?? array() ), 0, 3 ) as $ai_i => $ai_kpi ) {
+                $ai_stats[] = array(
+                    'label' => $ai_kpi['label'] ?? '',
+                    'val'   => $ai_kpi['value'] ?? '—',
+                    'color' => $ai_colors[ $ai_i ] ?? 'var(--cyan)',
+                );
+            }
             foreach($ai_stats as $stat): ?>
             <div style="background:var(--dark3);border-radius:10px;padding:12px;text-align:center">
                 <div style="font-family:var(--font-head);font-size:16px;font-weight:700;color:<?php echo $stat['color']; ?>"><?php echo esc_html($stat['val']); ?></div>
@@ -1178,7 +1186,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 <div style="font-size:11px;color:var(--text3);margin-top:2px;max-width:480px">
                     These replace the AI estimates on the customer dashboard. Set realistic, achievable targets based on your expertise.
                     <?php if($c_ai_data): ?>
-                    <span style="color:var(--warning)"> AI suggested: <?php echo esc_html($c_ai_data['month1_leads']??'—'); ?> leads/mo1 · <?php echo esc_html($c_ai_data['monthly_roi']??'—'); ?> ROI</span>
+                    <span style="color:var(--warning)"> AI suggested: <?php echo esc_html( $c_ai_data['kpis'][0]['value'] ?? '—' ); ?> <?php echo esc_html( strtolower( $c_ai_data['kpis'][0]['label'] ?? '' ) ); ?></span>
                     <?php endif; ?>
                 </div>
             </div>
@@ -1198,8 +1206,10 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             'new_customers'  => array('label'=>'New Customers',    'ph'=>'e.g. 40,841',      'hint'=>'Monthly new customer count'),
             'sales_revenue'  => array('label'=>'Sales Revenue',    'ph'=>'e.g. $30,816',    'hint'=>'Monthly revenue figure'),
             'total_visitors' => array('label'=>'Total Visitors',   'ph'=>'e.g. 520,612',     'hint'=>'Monthly website sessions'),
-            'roi_projection' => array('label'=>'ROI Projection',   'ph'=>'e.g. +$4,250/month','hint'=>'Monthly ROI value'),
-            'roi_growth_pct' => array('label'=>'Growth Potential', 'ph'=>'e.g. +18%',    'hint'=>'Growth % shown under ROI'));
+            'organic_visitors' => array('label'=>'Organic Visitors','ph'=>'e.g. 3,400',  'hint'=>'Monthly organic sessions (SEO card)'),
+            'paid_clicks'      => array('label'=>'Paid Clicks',     'ph'=>'e.g. 1,250',  'hint'=>'Monthly Google Ads clicks'),
+            'keywords_page1'   => array('label'=>'Keywords on Page 1','ph'=>'e.g. 24',    'hint'=>'Keywords ranking in the top 10'),
+            'visitors_baseline'=> array('label'=>'Visitors Before Us','ph'=>'e.g. 900',   'hint'=>'Monthly visitors before we started — baseline for the graph'));
         foreach( $kpi_fields as $key => $f ):
         ?>
         <div>
@@ -2141,8 +2151,6 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             adv_qrow('Phone',            $c_checkout->phone ?? get_user_meta($view_client_id,'billing_phone',true));
             adv_qrow('Employees', $c_employees);
             adv_qrow('Monthly Revenue', $c_revenue);
-            adv_qrow('Avg Customer Value', ($c_checkout->deal_value ?? '') !== '' ? '$'.number_format(intval($c_checkout->deal_value)) : '');
-            adv_qrow('Lead Close Rate', ($c_checkout->close_rate ?? '') !== '' ? intval($c_checkout->close_rate).'%' : '');
             adv_qrow('Marketing Goals', $c_goal ? str_replace(',', ', ', $c_goal) : '');
             adv_qrow('Competitors', $c_comp_str, true);
             adv_qrow('CRM / Tools', $c_crm);

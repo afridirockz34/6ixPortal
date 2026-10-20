@@ -78,6 +78,7 @@ $optional_files = array(
     'class-forms-integrations.php', // forms → Odoo + advisor notifications (needs Six_Odoo)
     'class-lead-pipeline.php', // Lead Automation Flow — response window, recovery sequence, win-back (needs Six_Odoo)
     'class-estimate-engine.php', // Estimate Engine — real data growth plans
+    'class-dashboard-metrics.php', // service-aware dashboard stats + connector seam
     'class-growth-engine.php', // Growth Engine
     'class-stripe.php',
     'class-google-ads-calendar.php',

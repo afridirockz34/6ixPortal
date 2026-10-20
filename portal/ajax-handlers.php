@@ -2107,7 +2107,7 @@ add_action('wp_ajax_six_save_client_kpi', function() {
     $kpi_key   = sanitize_key($_POST['kpi_key'] ?? '');
     $kpi_value = sanitize_text_field($_POST['kpi_value'] ?? '');
 
-    $allowed_keys = array('new_customers','sales_revenue','total_visitors','roi_projection','roi_growth_pct');
+    $allowed_keys = array('new_customers','sales_revenue','total_visitors','organic_visitors','paid_clicks','keywords_page1','visitors_baseline');
     if ( ! $client_id || ! in_array($kpi_key, $allowed_keys, true) ) {
         wp_send_json_error('Invalid data'); return;
     }
@@ -2131,11 +2131,13 @@ add_action('wp_ajax_six_save_client_kpi', function() {
         $lead_id = intval(get_user_meta($client_id,'six_odoo_lead_id',true));
         if ($lead_id) {
             $labels = array(
-                'new_customers'  => 'New Customers',
-                'sales_revenue'  => 'Sales Revenue',
-                'total_visitors' => 'Total Visitors',
-                'roi_projection' => 'ROI Projection',
-                'roi_growth_pct' => 'Growth %',
+                'new_customers'     => 'New Customers',
+                'sales_revenue'     => 'Sales Revenue',
+                'total_visitors'    => 'Total Visitors',
+                'organic_visitors'  => 'Organic Visitors',
+                'paid_clicks'       => 'Paid Clicks',
+                'keywords_page1'    => 'Keywords on Page 1',
+                'visitors_baseline' => 'Visitors Before Us',
             );
             Six_Odoo::post_note($lead_id,
                 "Advisor updated KPI: " . ($labels[$kpi_key] ?? $kpi_key) . "\n" .

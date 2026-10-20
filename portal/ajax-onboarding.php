@@ -340,8 +340,6 @@ function six_ajax_save_checkout_step() {
             'challenge'      => sanitize_text_field( $data['challenge']   ?? '' ),
             'mktg_budget'    => sanitize_text_field( $data['mktg_budget'] ?? '' ),
             'platforms'      => sanitize_text_field( $data['platforms']   ?? '' ),
-            'deal_value'     => preg_replace( '/[^0-9]/', '', $data['deal_value'] ?? '' ),
-            'close_rate'     => preg_replace( '/[^0-9]/', '', $data['close_rate'] ?? '' ),
             'monthly_revenue'    => sanitize_text_field( $data['revenue']     ?? $data['monthly_revenue'] ?? '' ),
             // New v5 fields
             'business_address'   => sanitize_text_field( $data['location']     ?? '' ),
@@ -515,8 +513,6 @@ function six_complete_onboarding() {
                                 ])) ),
             'platforms'       => sanitize_text_field( $d['platforms']    ?? '' ),
             'mktg_budget'     => sanitize_text_field( $d['mktg_budget']  ?? '' ),
-            'deal_value'      => preg_replace( '/[^0-9]/', '', $d['deal_value'] ?? '' ),
-            'close_rate'      => preg_replace( '/[^0-9]/', '', $d['close_rate'] ?? '' ),
             // Google Ads
             'ads_locations'   => sanitize_text_field( $d['ads_loc']      ?? '' ),
             'ads_loc_type'    => sanitize_text_field( $d['ads_loc_type'] ?? 'Include' ),
@@ -1518,12 +1514,16 @@ function six_onboarding_db_upgrade() {
         update_option( 'six_onboarding_db_v8', 1 );
     }
 
-    // v9 migration — ROI inputs for the post-onboarding growth projection
+    // v9 migration — RETIRED. These two columns fed an ROI/revenue projection
+    // we no longer make (we can't guarantee returns), so onboarding no longer
+    // asks for them and nothing reads them. The columns stay — dropping them
+    // would destroy answers existing clients already gave us, and an advisor
+    // may still want that history — but do NOT wire anything new to them.
     if ( ! get_option('six_onboarding_db_v9') ) {
         $cols9 = $wpdb->get_col( "SHOW COLUMNS FROM {$wpdb->prefix}six_checkout_progress", 0 );
         $v9_cols = array(
-            'deal_value' => "VARCHAR(20) DEFAULT ''", // average customer/order value ($)
-            'close_rate' => "VARCHAR(10) DEFAULT ''", // % of leads that convert
+            'deal_value' => "VARCHAR(20) DEFAULT ''", // retired — see note above
+            'close_rate' => "VARCHAR(10) DEFAULT ''", // retired — see note above
         );
         foreach ( $v9_cols as $col => $def ) {
             if ( ! in_array( $col, $cols9 ) ) {
