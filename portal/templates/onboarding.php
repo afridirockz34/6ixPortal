@@ -1152,6 +1152,14 @@ function qSlider(id,lbl,mn,mx,def){
     +'<div class="ob-sllbls"><span>$'+mn.toLocaleString()+'</span><span>$'+mx.toLocaleString()+'</span></div>'
     +'<div class="ob-slval" id="'+id+'-v">$'+def.toLocaleString()+'/mo</div></div>');
 }
+/* A fixed-price service — no slider, because the price isn't negotiable per
+   customer. Google Business Profile is a flat monthly rate. */
+function qFixedPrice(lbl,amount,note){
+  return qFG(lbl,'<div style="display:flex;align-items:baseline;gap:10px;background:var(--d3);border:1px solid var(--bdr);border-radius:10px;padding:14px 16px">'
+    +'<span style="font-family:\'Bricolage Grotesque\',sans-serif;font-size:26px;font-weight:800;color:var(--t1)">$'+amount.toLocaleString()+'</span>'
+    +'<span style="font-size:13px;color:var(--t3)">/month</span>'
+    +'</div>'+(note?'<div style="font-size:11px;color:var(--t3);margin-top:6px">'+note+'</div>':''));
+}
 function qTog(id){
   return'<div class="ob-tog-row"><div class="ob-tog-btn" data-tog="'+id+'" data-val="yes" onclick="OB.tog(this,\'yes\')">Yes</div>'
     +'<div class="ob-tog-btn" data-tog="'+id+'" data-val="no" onclick="OB.tog(this,\'no\')">No</div></div>';
@@ -1272,7 +1280,7 @@ function buildPane(slug){
       +qFG('Services to highlight','<textarea class="ob-inp" id="q-gbp-svcs" rows="2" placeholder="e.g. '+indEx('services')+'"></textarea>','The services you want featured on your profile')
       +qFG('Business hours',qHours('gbp'),'When you are open to customers')
       +qFG('Current rating','<input class="ob-inp" id="q-gbp-rating" placeholder="e.g. 4.7 stars, 120 reviews" style="max-width:240px">','Your star rating and review count, if you have one')
-      +qSlider('q-gbp-bud','Monthly budget',200,5000,400)
+      +qFixedPrice('Your investment',499,'Google Business Profile management is a flat monthly rate \u2014 posts, optimisation and reporting included.')
     );
   } else if(slug==='website'){
     h+=qSec('Website Project',
@@ -1281,7 +1289,7 @@ function buildPane(slug){
       +qFG('Design style','<div class="ob-chips" id="q-web-style"><div class="ob-chip" data-v="modern">Modern &amp; Clean</div><div class="ob-chip" data-v="bold">Bold &amp; Vibrant</div><div class="ob-chip" data-v="minimal">Minimal</div><div class="ob-chip" data-v="corp">Corporate</div></div>','The look and feel you are going for')
       +qFG('Sites you like','<input class="ob-inp" id="q-web-refs" placeholder="e.g. apple.com, airbnb.com">','A few websites whose style you admire')
       +qFG('Redesigning an existing site?',qTog('q-web-exist'),'Are we starting fresh or updating a current site')
-      +qSlider('q-web-bud','Monthly budget / retainer',500,15000,2000)
+      +qSlider('q-web-bud','Project budget (one-time)',500,15000,2000)
     );
   }
   return h;
@@ -1637,7 +1645,7 @@ window.OB={
       S.q.seo_reviews=v('q-seo-reviews')||'';
       S.q.seo_extra=v('q-seo-extra')||'';
     } else if(slug==='google-business'){
-      var b=$i('q-gbp-bud');S.budgets[slug]=b?parseInt(b.value):0;
+      S.budgets[slug]=OB.GMB_PRICE;   // flat rate, not customer-chosen
       S.q.gbp_name=v('q-gbp-name');S.q.gbp_cat=v('q-gbp-cat');
       S.q.gbp_svcs=v('q-gbp-svcs');S.q.gbp_rating=v('q-gbp-rating');
       S.q.gbp_hrs=getHoursVal('gbp');   // hours widget was previously never collected
@@ -1698,7 +1706,7 @@ window.OB={
       setTog('q-seo-gsc',q.seo_gsc);setTog('q-seo-blog',q.seo_blog);
       setV('q-seo-extra',q.seo_extra);
     } else if(slug==='google-business'){
-      setSlider('q-gbp-bud',S.budgets['google-business']);
+      S.budgets['google-business']=OB.GMB_PRICE;
       setV('q-gbp-name',q.gbp_name||q.bizname);        // prefill from business name
       setV('q-gbp-cat',q.gbp_cat);setV('q-gbp-svcs',q.gbp_svcs||q.ads_prod);
       setV('q-gbp-rating',q.gbp_rating);
@@ -1729,7 +1737,7 @@ window.OB={
   // so the server always has the latest data even if user abandons mid-flow
   _savePartialQ:function(){
     if(!S.userId) return;
-    var tot=Object.values(S.budgets).reduce(function(a,b){return a+b;},0);
+    var tot=OB._monthlyTotal();
     var q=S.q;
     var sd={
       first:q.first||'',last:q.last||'',phone:q.phone||'',
@@ -1770,7 +1778,7 @@ window.OB={
   doStep3:function(){
     S.q.comp1=v('q-c1');S.q.comp2=v('q-c2');S.q.comp3=v('q-c3');
     S.q.crm=v('q-crm');S.q.awards=v('q-awards');S.q.notes=v('q-notes');
-    var tot=Object.values(S.budgets).reduce(function(a,b){return a+b;},0);
+    var tot=OB._monthlyTotal();
     // CRITICAL: send ALL questionnaire data so estimate engine has everything
     var q=S.q;
     var sd={
@@ -1810,7 +1818,7 @@ window.OB={
   /* AI-powered growth plan — replaces score ring */
   buildAIPlan: async function(){
     var q=S.q, svcs=S.svcs;
-    var tot=Object.values(S.budgets||{}).reduce(function(a,b){return a+(parseInt(b)||0);},0);
+    var tot=OB._monthlyTotal();
     S.score=Math.min(97,20+(svcs.length*10)+(tot>=5000?15:tot>=2000?10:tot>0?5:0)+(q.website?8:0)+(q.industry?5:0));
 
     var msgs=['Analysing your market and competition...','Pulling live keyword data from Google Ads...','Projecting your reach and lead volume...','Building your tailored 60-day roadmap...'];
@@ -2029,6 +2037,21 @@ window.OB={
       :'Built on real data for your market. Review before proceeding.';
   },
 
+
+  /* Google Business Profile is sold at a flat monthly rate rather than a
+     customer-chosen budget. Change it here and the questionnaire, the stored
+     budget and every total follow. */
+  GMB_PRICE:499,
+
+  /* Recurring monthly spend. Website development is a one-time project, not a
+     retainer, so it is deliberately excluded — including it would inflate
+     every "per month" figure we show and store. */
+  _monthlyTotal:function(){
+    return Object.keys(S.budgets||{}).reduce(function(sum,slug){
+      if(slug==='website') return sum;
+      return sum + (parseInt(S.budgets[slug])||0);
+    },0);
+  },
 
   // Which S.q answers belong to which service. Used to clear ONLY the
   // answers for a service the customer just de-selected, so everything else

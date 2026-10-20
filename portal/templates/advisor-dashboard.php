@@ -1178,6 +1178,123 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
 
     <!-- ── TAB 1: Overview KPIs — the customer dashboard's top cards ── -->
     <div data-mpane="overview">
+    <!-- ── Website build + maintenance (advisor-only controls) ── -->
+    <?php
+    $wp_rows  = class_exists('Six_Website_Project') ? Six_Website_Project::milestones($view_client_id) : array();
+    $wp_prog  = class_exists('Six_Website_Project') ? Six_Website_Project::progress($view_client_id)   : array('percent'=>0,'done'=>0,'total'=>0);
+    $wp_maint = class_exists('Six_Website_Project') && Six_Website_Project::maintenance_on($view_client_id);
+    $wp_fee   = class_exists('Six_Website_Project') ? Six_Website_Project::maintenance_fee($view_client_id) : 0;
+    ?>
+    <div style="background:var(--dark3);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px" id="wp-panel" data-client="<?php echo intval($view_client_id); ?>">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px;flex-wrap:wrap">
+            <div>
+                <div style="font-size:14px;font-weight:700;color:var(--text1)">Website Build &amp; Maintenance</div>
+                <div style="font-size:11px;color:var(--text3);margin-top:2px;max-width:520px">
+                    Milestones drive the progress bar on the client's dashboard. Maintenance is a recurring add-on only you can switch on — the client can't buy it themselves.
+                </div>
+            </div>
+            <div style="font-family:var(--font-head);font-size:20px;font-weight:800;color:var(--text1)" id="wp-pct"><?php echo intval($wp_prog['percent']); ?>%</div>
+        </div>
+
+        <!-- Maintenance toggle -->
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--dark2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:16px">
+            <label style="display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--text1);cursor:pointer">
+                <input type="checkbox" id="wp-maint" <?php checked($wp_maint); ?> style="width:16px;height:16px;accent-color:var(--pink);cursor:pointer">
+                Website maintenance active
+            </label>
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text3)">
+                <span>$</span>
+                <input class="ob-input" type="number" min="0" step="1" id="wp-fee" value="<?php echo $wp_fee ? esc_attr(number_format($wp_fee,0,'.','')) : ''; ?>" placeholder="0" style="width:90px;font-size:12px;padding:6px 10px">
+                <span>/mo</span>
+            </div>
+            <span id="wp-maint-msg" style="font-size:11px;color:var(--success)"></span>
+        </div>
+
+        <!-- Milestones -->
+        <div id="wp-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input class="ob-input" type="text" id="wp-new" placeholder="Add a milestone — e.g. Content handover" style="flex:1;min-width:220px;font-size:12px;padding:8px 12px">
+            <button class="six-btn six-btn-primary six-btn-sm" id="wp-add" style="font-size:11px">Add</button>
+            <button class="six-btn six-btn-ghost six-btn-sm" id="wp-seed" style="font-size:11px">Use standard milestones</button>
+        </div>
+    </div>
+    <script>
+    (function(){
+      var panel=document.getElementById('wp-panel'); if(!panel) return;
+      var CLIENT=panel.getAttribute('data-client');
+      var list=document.getElementById('wp-list');
+      var rows=<?php echo wp_json_encode(array_map(function($r){
+          return array('id'=>intval($r->id),'title'=>$r->title,'status'=>$r->status);
+      }, (array)$wp_rows)); ?>;
+
+      function post(data){
+        return fetch(sixPortal.ajax_url,{method:'POST',credentials:'same-origin',
+          headers:{'Content-Type':'application/x-www-form-urlencoded'},
+          body:new URLSearchParams(Object.assign({nonce:sixPortal.nonce,client_id:CLIENT},data))
+        }).then(function(r){return r.json();});
+      }
+      function pct(){
+        if(!rows.length) return 0;
+        var done=rows.filter(function(r){return r.status==='done';}).length;
+        return Math.round(done/rows.length*100);
+      }
+      function render(){
+        document.getElementById('wp-pct').textContent=pct()+'%';
+        if(!rows.length){
+          list.innerHTML='<div style="font-size:12px;color:var(--text3);padding:6px 0">No milestones yet — add one, or start from the standard set.</div>';
+          return;
+        }
+        list.innerHTML=rows.map(function(r){
+          var done=r.status==='done';
+          return '<div style="display:flex;align-items:center;gap:10px;background:var(--dark2);border:1px solid var(--border);border-radius:8px;padding:9px 12px">'
+            +'<input type="checkbox" data-ms="'+r.id+'"'+(done?' checked':'')+' style="width:15px;height:15px;accent-color:var(--success);cursor:pointer">'
+            +'<span style="flex:1;font-size:12.5px;color:'+(done?'var(--text3)':'var(--text1)')+';'+(done?'text-decoration:line-through':'')+'">'+
+              r.title.replace(/[<>&]/g,function(c){return {'<':'&lt;','>':'&gt;','&':'&amp;'}[c];})+'</span>'
+            +'<button data-del="'+r.id+'" title="Remove" style="background:none;border:0;color:var(--text3);cursor:pointer;font-size:15px;line-height:1;padding:2px 4px">&times;</button>'
+          +'</div>';
+        }).join('');
+      }
+      list.addEventListener('change',function(e){
+        var id=e.target.getAttribute('data-ms'); if(!id) return;
+        post({action:'six_website_milestone_toggle',milestone_id:id}).then(function(r){
+          if(r&&r.success){ rows=r.data.milestones.map(function(m){return {id:+m.id,title:m.title,status:m.status};}); render(); }
+        });
+      });
+      list.addEventListener('click',function(e){
+        var id=e.target.getAttribute('data-del'); if(!id) return;
+        if(!confirm('Remove this milestone?')) return;
+        post({action:'six_website_milestone_delete',milestone_id:id}).then(function(r){
+          if(r&&r.success){ rows=r.data.milestones.map(function(m){return {id:+m.id,title:m.title,status:m.status};}); render(); }
+        });
+      });
+      document.getElementById('wp-add').addEventListener('click',function(){
+        var i=document.getElementById('wp-new'); var t=(i.value||'').trim(); if(!t) return;
+        post({action:'six_website_milestone_add',title:t}).then(function(r){
+          if(r&&r.success){ i.value=''; rows=r.data.milestones.map(function(m){return {id:+m.id,title:m.title,status:m.status};}); render(); }
+        });
+      });
+      document.getElementById('wp-seed').addEventListener('click',function(){
+        post({action:'six_website_milestone_add',title:''}).then(function(r){
+          if(r&&r.success){ rows=r.data.milestones.map(function(m){return {id:+m.id,title:m.title,status:m.status};}); render(); }
+          else alert((r&&r.data)||'Could not set up milestones.');
+        });
+      });
+      function saveMaint(){
+        var on=document.getElementById('wp-maint').checked;
+        var fee=document.getElementById('wp-fee').value||0;
+        post({action:'six_website_maintenance_set',enabled:on?1:0,fee:fee}).then(function(r){
+          var m=document.getElementById('wp-maint-msg');
+          m.textContent=(r&&r.success)?'Saved':'Could not save';
+          m.style.color=(r&&r.success)?'var(--success)':'var(--danger,#D93B3B)';
+          setTimeout(function(){m.textContent='';},2500);
+        });
+      }
+      document.getElementById('wp-maint').addEventListener('change',saveMaint);
+      document.getElementById('wp-fee').addEventListener('change',saveMaint);
+      render();
+    })();
+    </script>
+
     <!-- ── Advisor KPI Editor: customer dashboard fields ── -->
     <div style="background:var(--dark3);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">

@@ -237,6 +237,15 @@ $svc_svg_icons = array(
             <span style="font-size:12px"><?php echo esc_html($s->service_name); ?></span>
         </a>
         <?php endforeach; ?>
+        <?php // Website maintenance is an advisor-enabled add-on, so it has no
+              // row in six_client_services — it appears here only once the
+              // advisor switches it on from the client's profile.
+        if ( class_exists('Six_Website_Project') && Six_Website_Project::maintenance_on($user_id) ): ?>
+        <a href="?tab=website" class="six-nav-item <?php echo $active_tab==='website'?'active':''; ?>" style="padding-left:28px">
+            <span class="six-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span>
+            <span style="font-size:12px">Website Maintenance</span>
+        </a>
+        <?php endif; ?>
         <a href="?tab=advisor"  class="six-nav-item <?php echo $active_tab==='advisor' ?'active':''; ?>"><span class="six-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span> Advisor<?php if($unread_msgs>0): ?><span class="six-badge"><?php echo $unread_msgs; ?></span><?php endif; ?></a>
         <a href="?tab=reports"  class="six-nav-item <?php echo $active_tab==='reports' ?'active':''; ?>"><span class="six-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span> Reports</a>
     </div>
@@ -417,6 +426,36 @@ foreach ( $dash_cards as $_c ) { if ( $_c['source'] !== 'estimate' ) { $all_esti
     </div>
 <?php endforeach; endif; ?>
 </div><!-- /.six-kpi-row -->
+
+<?php
+// ── Website build progress ───────────────────────────────────────────────
+// A website build is a one-off project, so it gets a delivery progress bar
+// instead of monthly performance cards. Milestones are set by the advisor.
+$web_proj = ( class_exists('Six_Website_Project') && Six_Website_Project::has_project($user_id) )
+    ? Six_Website_Project::progress($user_id) : null;
+if ( $web_proj && $web_proj['total'] > 0 ):
+?>
+<div class="six-card" style="margin-bottom:16px">
+    <div class="six-card-header">
+        <span class="six-card-title">Website Build</span>
+        <span style="font-size:11px;color:var(--text3)"><?php echo intval($web_proj['done']); ?> of <?php echo intval($web_proj['total']); ?> milestones</span>
+    </div>
+    <div class="six-card-body">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:10px">
+            <div style="font-size:13px;color:var(--text2)">
+                <?php echo $web_proj['percent'] >= 100
+                    ? 'Your site is live.'
+                    : 'Currently: <strong style="color:var(--text1)">' . esc_html($web_proj['current']) . '</strong>'; ?>
+            </div>
+            <div style="font-family:var(--font-head);font-size:20px;font-weight:800;color:var(--text1);font-variant-numeric:tabular-nums"><?php echo intval($web_proj['percent']); ?>%</div>
+        </div>
+        <div style="height:8px;border-radius:5px;background:var(--dark3);overflow:hidden">
+            <div style="height:100%;width:<?php echo intval($web_proj['percent']); ?>%;border-radius:5px;background:linear-gradient(90deg,#7C5CBF,#6ACAFD);transition:width .6s cubic-bezier(.4,0,.2,1)"></div>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:10px">Your advisor updates this as each stage is completed.</div>
+    </div>
+</div>
+<?php endif; ?>
 
 <!-- ── HERO CONTENT ROW: Chart left | Advisor right ──────────────────────── -->
 <div class="six-hero-row">

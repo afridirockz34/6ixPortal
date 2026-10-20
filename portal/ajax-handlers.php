@@ -2358,3 +2358,98 @@ function six_get_default_advisor(){
         'specialties' => get_user_meta($advisor->ID,'six_specialties',true)?:'',
     ));
 }
+
+// ═════════════════════════════════════════════════════════════════════════
+// WEBSITE PROJECT — delivery milestones + the maintenance add-on
+// Both are advisor-controlled. A customer can see their progress bar and,
+// when it's switched on, the maintenance line under their services, but they
+// can never set either themselves.
+// ═════════════════════════════════════════════════════════════════════════
+
+/** Shared guard for every website-project write. */
+function six_website_project_guard() {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    $ok = ( class_exists( 'Six_Roles' ) && Six_Roles::is_advisor() ) || current_user_can( 'manage_options' );
+    if ( ! $ok ) { wp_send_json_error( 'Permission denied' ); }
+    $client_id = intval( $_POST['client_id'] ?? 0 );
+    if ( ! $client_id || ! get_userdata( $client_id ) ) { wp_send_json_error( 'Unknown client' ); }
+    return $client_id;
+}
+
+// Add a milestone (or seed the default list when there is none yet).
+add_action( 'wp_ajax_six_website_milestone_add', function () {
+    global $wpdb;
+    $client_id = six_website_project_guard();
+    $title     = sanitize_text_field( $_POST['title'] ?? '' );
+
+    if ( $title === '' ) {
+        // No title means "set this project up with the standard milestones".
+        $seeded = Six_Website_Project::seed( $client_id );
+        if ( ! $seeded ) { wp_send_json_error( 'This project already has milestones.' ); }
+        wp_send_json_success( array( 'milestones' => Six_Website_Project::milestones( $client_id ) ) );
+    }
+
+    $next = (int) $wpdb->get_var( $wpdb->prepare(
+        "SELECT COALESCE(MAX(sort_order),-1)+1 FROM {$wpdb->prefix}six_website_milestones WHERE client_id=%d",
+        $client_id
+    ) );
+    $wpdb->insert( $wpdb->prefix . 'six_website_milestones', array(
+        'client_id'  => $client_id,
+        'title'      => $title,
+        'status'     => 'pending',
+        'sort_order' => $next,
+        'updated_by' => get_current_user_id(),
+    ) );
+    wp_send_json_success( array( 'milestones' => Six_Website_Project::milestones( $client_id ) ) );
+} );
+
+// Flip one milestone between pending and done.
+add_action( 'wp_ajax_six_website_milestone_toggle', function () {
+    global $wpdb;
+    $client_id = six_website_project_guard();
+    $id        = intval( $_POST['milestone_id'] ?? 0 );
+    $tbl       = $wpdb->prefix . 'six_website_milestones';
+
+    // Scope the lookup to this client so an id from another client's project
+    // can't be flipped by passing a mismatched pair.
+    $row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$tbl} WHERE id=%d AND client_id=%d", $id, $client_id ) );
+    if ( ! $row ) { wp_send_json_error( 'Milestone not found' ); }
+
+    $done = $row->status !== 'done';
+    $wpdb->update( $tbl, array(
+        'status'       => $done ? 'done' : 'pending',
+        'completed_at' => $done ? current_time( 'mysql' ) : null,
+        'updated_by'   => get_current_user_id(),
+    ), array( 'id' => $id ) );
+
+    $progress = Six_Website_Project::progress( $client_id );
+    if ( class_exists( 'Six_Odoo' ) ) {
+        $lead_id = intval( get_user_meta( $client_id, 'six_odoo_lead_id', true ) );
+        if ( $lead_id ) {
+            Six_Odoo::post_note( $lead_id, 'Website milestone ' . ( $done ? 'completed' : 'reopened' )
+                . ': ' . $row->title . ' (' . $progress['done'] . '/' . $progress['total'] . ')' );
+        }
+    }
+    wp_send_json_success( array( 'milestones' => Six_Website_Project::milestones( $client_id ), 'progress' => $progress ) );
+} );
+
+// Remove a milestone.
+add_action( 'wp_ajax_six_website_milestone_delete', function () {
+    global $wpdb;
+    $client_id = six_website_project_guard();
+    $id        = intval( $_POST['milestone_id'] ?? 0 );
+    $wpdb->delete( $wpdb->prefix . 'six_website_milestones', array( 'id' => $id, 'client_id' => $client_id ) );
+    wp_send_json_success( array( 'milestones' => Six_Website_Project::milestones( $client_id ) ) );
+} );
+
+// Turn the recurring website-maintenance add-on on or off.
+add_action( 'wp_ajax_six_website_maintenance_set', function () {
+    $client_id = six_website_project_guard();
+    $on  = ! empty( $_POST['enabled'] ) && $_POST['enabled'] !== '0';
+    $fee = isset( $_POST['fee'] ) ? floatval( $_POST['fee'] ) : null;
+    Six_Website_Project::set_maintenance( $client_id, $on, $fee );
+    wp_send_json_success( array(
+        'enabled' => Six_Website_Project::maintenance_on( $client_id ),
+        'fee'     => Six_Website_Project::maintenance_fee( $client_id ),
+    ) );
+} );
