@@ -570,8 +570,14 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       <span>Your information is private and never shared with third parties.</span>
     </div>
     <div class="ob-btnrow">
-      <button class="ob-btn ob-ghost" onclick="OB.backToEmail()">&larr; Back</button>
       <button class="ob-btn ob-primary" style="flex:1" id="s1-btn" onclick="OB.doStep1()">Select Services &rarr;</button>
+    </div>
+    <!-- This is the earliest step anyone can navigate back to. There's no
+         "Back" here on purpose: once we know who they are, dropping them on
+         the email screen loses their place. Changing email is a deliberate,
+         clearly-labelled action instead. -->
+    <div style="text-align:center;margin-top:12px">
+      <button class="ob-btn ob-ghost" style="font-size:12.5px;padding:8px 16px" onclick="OB.useDifferentEmail()">Use a different email</button>
     </div>
   </div>
 
@@ -612,7 +618,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       <div><div class="ob-notsure-t">Not sure &mdash; recommend for me</div><div class="ob-notsure-s">We'll match you with the best services based on your goals</div></div>
     </div>
     <div class="ob-btnrow">
-      <button class="ob-btn ob-ghost" onclick="OB.goStep(1)">&larr; Back</button>
+      <button class="ob-btn ob-ghost" onclick="OB.goBack(1)">&larr; Back</button>
       <button class="ob-btn ob-primary" style="flex:1" onclick="OB.doStep2()">Answer a Few Questions &rarr;</button>
     </div>
   </div>
@@ -753,7 +759,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
     </div>
 
     <div class="ob-btnrow">
-      <button class="ob-btn ob-ghost" onclick="OB.goStep(2)">&larr; Back</button>
+      <button class="ob-btn ob-ghost" onclick="OB.goBack(2)">&larr; Back</button>
       <button class="ob-btn ob-primary" style="flex:1" onclick="OB.doStep3a()">Next &rarr;</button>
     </div>
   </div>
@@ -1418,8 +1424,15 @@ window.OB={
     var ns=$i('ob-notsure')&&$i('ob-notsure').classList.contains('sel');
     if(!sel.length&&!ns){alert2('s2-err','Please select at least one service.');return;}
     if(ns&&!sel.length)sel=['google-ads','seo'];
-    S.svcs=sel;S.budgets={};
+    // Only forget the answers for services they just removed. Everything they
+    // still have selected keeps its answers and budget, so coming back here
+    // to change one service doesn't wipe the work done on the others.
+    (S.svcs||[]).forEach(function(slug){
+      if(sel.indexOf(slug)<0) OB._clearSvcData(slug);
+    });
+    S.svcs=sel;
     post({action:'six_save_checkout_step',step:2,data:JSON.stringify({services:sel,not_sure:ns}),user_id:S.userId});
+    OB._savePartialQ();
     OB.goStep('3a');
   },
 
@@ -1643,6 +1656,7 @@ window.OB={
   },
 
   s3cBack:function(){
+    OB._persistCurrent();
     if(S.svcs.length>0){S._svcIdx=S.svcs.length-1;OB._renderSvcScreen(S._svcIdx);OB.goStep('3b');}
     else OB.goStep('3a');
   },
@@ -1910,6 +1924,77 @@ window.OB={
       :'Built on real data for your market. Review before proceeding.';
   },
 
+
+  // Which S.q answers belong to which service. Used to clear ONLY the
+  // answers for a service the customer just de-selected, so everything else
+  // stays prefilled. 'website' is listed by exact key rather than a "web_"
+  // prefix because that prefix would also match q.website, their business
+  // website URL, which belongs to the business profile and must survive.
+  _svcFields:{
+    'google-ads':      {prefix:['ads_','gads_'], keys:[]},
+    'seo':             {prefix:['seo_'],         keys:[]},
+    'google-business': {prefix:['gbp_'],         keys:[]},
+    'website':         {prefix:[],               keys:['web_goal','web_pages','web_style','web_refs','web_exist','web_platform','web_timeline','web_features','web_bud']},
+  },
+
+  /** Forget every answer belonging to one service (and its budget). */
+  _clearSvcData:function(slug){
+    var def=OB._svcFields[slug]; if(!def) return;
+    Object.keys(S.q).forEach(function(k){
+      var owned = def.keys.indexOf(k)>-1 || def.prefix.some(function(p){ return k.indexOf(p)===0; });
+      if(owned) delete S.q[k];
+    });
+    delete S.budgets[slug];
+  },
+
+  /**
+   * Harvest whatever is currently on screen into S.q and push it to the
+   * server, so navigating backwards never loses typed answers. Safe to call
+   * from any step — it only reads the fields that exist in the DOM.
+   */
+  _persistCurrent:function(){
+    var step=S.step;
+    if(step===1){
+      S.q.first=v('s1-first')||S.q.first||'';
+      S.q.last =v('s1-last') ||S.q.last ||'';
+      S.q.phone=v('s1-phone')||S.q.phone||'';
+    } else if(step==='3a'||step===3){
+      S.q=Object.assign(S.q,{
+        bizname:v('q-biz')||S.q.bizname||'',
+        website:v('q-web-url')||S.q.website||'',
+        address:v('q-addr')||S.q.address||'',
+        industry:v('q-ind')||S.q.industry||'',
+        years:v('q-yrs')||S.q.years||'',
+        goals:chips('q-goals').join(',')||S.q.goals||'',
+      });
+    } else if(step==='3b'){
+      OB._collectSvcData(S.svcs[S._svcIdx]);
+    }
+    if(S.userId) OB._savePartialQ();
+    else OB._saveLocal();
+  },
+
+  /**
+   * Navigate backwards, saving first and never going further back than step 1.
+   * Step 1 ("Tell us about yourself") is the floor: once someone has an
+   * account, the email screen is not a place to land by accident.
+   */
+  goBack:function(n){
+    OB._persistCurrent();
+    var target=n;
+    if(typeof target==='number'&&target<1) target=1;
+    OB.goStep(target);
+  },
+
+  /**
+   * Deliberately start over under a different address. This is the only way
+   * back to the email screen, and it clears the current identity because the
+   * next email may be a completely different account.
+   */
+  useDifferentEmail:function(){
+    if(!window.confirm('Start again with a different email address? The details you entered on this step will not be carried over.')) return;
+    OB.backToEmail();
+  },
 
   goStep:function(n){
     S.step=n;prog(n);
