@@ -25,6 +25,7 @@ function six_admin_menu() {
     add_submenu_page( 'six-portal', 'All Clients',     'All Clients',     'manage_options', 'six-portal-clients',  'six_admin_clients' );
     add_submenu_page( 'six-portal', 'Lead Pipeline',   'Lead Pipeline',   'manage_options', 'six-portal-leads',    'six_admin_leads' );
     add_submenu_page( 'six-portal', 'Assign Advisors', 'Assign Advisors', 'manage_options', 'six-portal-assign',   'six_admin_assign' );
+    add_submenu_page( 'six-portal', 'API Tokens',      'API Tokens',      'manage_options', 'six-portal-api',     'six_admin_api_tokens' );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1089,4 +1090,84 @@ function six_ajax_test_dataforseo() {
         wp_send_json_success( $res );
     }
     wp_send_json_error( $res );
+}
+
+/**
+ * API tokens — credentials external tools and Claude skills use to read and
+ * write client profiles through /wp-json/six/v1/. The plaintext token is shown
+ * exactly once, at creation; only its hash is stored.
+ */
+function six_admin_api_tokens() {
+    if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Nope.' );
+    if ( ! class_exists( 'Six_Profile_API' ) ) { echo '<div class="wrap"><p>Profile API is not loaded.</p></div>'; return; }
+
+    $new_token = '';
+    if ( ! empty( $_POST['six_api_action'] ) && check_admin_referer( 'six_api_tokens' ) ) {
+        if ( $_POST['six_api_action'] === 'create' ) {
+            $new_token = Six_Profile_API::create_token(
+                sanitize_text_field( $_POST['label'] ?? 'Untitled' ),
+                ( $_POST['scope'] ?? 'read' ) === 'write' ? 'write' : 'read'
+            );
+        } elseif ( $_POST['six_api_action'] === 'revoke' ) {
+            Six_Profile_API::revoke_token( sanitize_text_field( $_POST['token_id'] ?? '' ) );
+        }
+    }
+
+    $tokens = (array) get_option( Six_Profile_API::TOKENS_OPT, array() );
+    ?>
+    <div class="wrap">
+        <h1>API Tokens</h1>
+        <p>Credentials for tools that read and write client profiles over <code><?php echo esc_html( rest_url( 'six/v1/' ) ); ?></code>.
+           Send as <code>Authorization: Bearer &lt;token&gt;</code>.</p>
+
+        <?php if ( $new_token ) : ?>
+        <div class="notice notice-success"><p>
+            <strong>Copy this now — it will not be shown again:</strong><br>
+            <code style="font-size:14px;user-select:all"><?php echo esc_html( $new_token ); ?></code>
+        </p></div>
+        <?php endif; ?>
+
+        <h2>Create a token</h2>
+        <form method="post">
+            <?php wp_nonce_field( 'six_api_tokens' ); ?>
+            <input type="hidden" name="six_api_action" value="create">
+            <table class="form-table">
+                <tr><th scope="row"><label for="label">Label</label></th>
+                    <td><input name="label" id="label" class="regular-text" placeholder="e.g. Claude SEO skill" required></td></tr>
+                <tr><th scope="row"><label for="scope">Scope</label></th>
+                    <td><select name="scope" id="scope">
+                        <option value="read">Read only</option>
+                        <option value="write">Read &amp; write</option>
+                    </select>
+                    <p class="description">Write lets the tool update profile fields and store results. Every change is attributed to this token's label.</p></td></tr>
+            </table>
+            <?php submit_button( 'Create token' ); ?>
+        </form>
+
+        <h2>Existing tokens</h2>
+        <table class="widefat striped">
+            <thead><tr><th>Label</th><th>Scope</th><th>Created</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+            <?php if ( ! $tokens ) : ?>
+                <tr><td colspan="5">No tokens yet.</td></tr>
+            <?php else : foreach ( $tokens as $t ) : ?>
+                <tr>
+                    <td><?php echo esc_html( $t['label'] ?? '' ); ?></td>
+                    <td><?php echo esc_html( $t['scope'] ?? 'read' ); ?></td>
+                    <td><?php echo esc_html( $t['created'] ?? '' ); ?></td>
+                    <td><?php echo empty( $t['revoked'] ) ? 'Active' : 'Revoked'; ?></td>
+                    <td><?php if ( empty( $t['revoked'] ) ) : ?>
+                        <form method="post" style="margin:0">
+                            <?php wp_nonce_field( 'six_api_tokens' ); ?>
+                            <input type="hidden" name="six_api_action" value="revoke">
+                            <input type="hidden" name="token_id" value="<?php echo esc_attr( $t['id'] ?? '' ); ?>">
+                            <button class="button button-small">Revoke</button>
+                        </form>
+                    <?php endif; ?></td>
+                </tr>
+            <?php endforeach; endif; ?>
+            </tbody>
+        </table>
+    </div>
+    <?php
 }

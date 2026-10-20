@@ -80,6 +80,7 @@ $optional_files = array(
     'class-estimate-engine.php', // Estimate Engine — real data growth plans
     'class-dashboard-metrics.php', // service-aware dashboard stats + connector seam
     'class-website-project.php', // website build milestones + maintenance add-on
+    'class-profile-api.php',     // REST profile contract for external tools/skills
     'class-growth-engine.php', // Growth Engine
     'class-stripe.php',
     'class-google-ads-calendar.php',
@@ -255,6 +256,21 @@ function six_create_tables() {
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
             KEY client_id (client_id)
+        ) $charset",
+
+        // Results produced by external tools and Claude skills against a
+        // client profile — keyword analyses, post schedules, reports. Payload
+        // shape is the producer's business; the dashboard renders the types it
+        // knows and ignores the rest.
+        "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}six_client_artifacts (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            client_id bigint(20) NOT NULL,
+            type varchar(60) NOT NULL,
+            source varchar(100) DEFAULT '',
+            payload longtext,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY client_type (client_id, type)
         ) $charset",
 
         "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}six_metrics (
