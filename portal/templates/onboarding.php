@@ -52,16 +52,23 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .ob-side-foot{font-size:11px;color:var(--t3);line-height:1.6;border-top:1px solid var(--bdr);padding-top:14px;}
 .ob-side-foot a{color:var(--cy);text-decoration:none;}
 
-/* Main — top-aligned so the eyebrow/title/fields sit in the same place on
-   every step (align-self:center re-centered each step by its own height, which
-   made the header jump vertically between steps and clipped tall steps). The
-   login panel centers itself via the #ob-login rule below. */
-.ob-main{padding:64px 40px 76px;max-width:640px;margin:0 auto;width:100%;align-self:start;}
-/* Login panel: vertically centered inside the right column */
-#ob-login.ob-panel.active{
-  min-height:calc(100vh - 96px);
-  display:flex !important;flex-direction:column;justify-content:center;
+/* Main — a full-height flex column: the progress bar stays pinned at the top
+   (parallel to the sidebar logo, never moving between steps), and the active
+   panel takes the remaining space.
+
+   The panel is centered with auto block margins rather than
+   justify-content:center on purpose. Auto margins resolve to 0 the moment the
+   content is taller than the space available, so a long step simply flows from
+   the top and scrolls normally — justify-content:center would clip the top of
+   it off-screen, which is what broke an earlier attempt at centering here. */
+.ob-main{
+  padding:64px 40px 76px;max-width:640px;margin:0 auto;width:100%;
+  min-height:100vh;
+  min-height:100dvh; /* mobile: discount the browser chrome so it can't overflow */
+  display:flex;flex-direction:column;align-self:stretch;
 }
+.ob-prog{flex:0 0 auto;}
+.ob-panel.active{margin-top:auto;margin-bottom:auto;}
 #ob-login.ob-panel.active .ob-btnrow{position:static !important;padding:0;margin-top:20px;box-shadow:none;border-top:none;background:transparent;}
 @media(max-width:600px){.ob-main{padding:28px 20px;}}
 
@@ -97,6 +104,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 
 /* Password wrap */
 .ob-pw-wrap{position:relative;}
+.ob-invalid{border-color:var(--err) !important;box-shadow:0 0 0 3px rgba(217,59,59,.12) !important;}
 .ob-pw-tog{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;
   color:var(--t3);cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;}
 
@@ -475,7 +483,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   $ob_logo_src     = $ob_logo_custom && $ob_logo_custom !== $ob_logo_default ? $ob_logo_custom : $ob_logo_navy;
   ?>
   <a class="ob-logo" href="<?php echo esc_url( home_url( '/' ) ); ?>" style="text-decoration:none;cursor:pointer">
-    <img src="<?php echo esc_url( $ob_logo_src ); ?>" alt="6ix Developers" style="height:36px;width:auto;display:block">
+    <img src="<?php echo esc_url( $ob_logo_src ); ?>" alt="6ix Developers" style="height:43px;width:auto;display:block">
   </a>
   <div class="ob-side-content">
     <h2 class="ob-side-hl">Your <span>marketing strategy</span> starts here.</h2>
@@ -524,7 +532,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       <div class="ob-fg" style="margin-top:14px"><label class="ob-lbl">Password</label>
         <div class="ob-pw-wrap">
           <input class="ob-inp" type="password" id="ob-pw" placeholder="Your password" autocomplete="current-password" style="padding-right:44px">
-          <button class="ob-pw-tog" onclick="togglePw()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+          <button class="ob-pw-tog" onclick="togglePw(event)" type="button" aria-label="Show password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
         </div>
       </div>
       <div style="text-align:right;margin-top:6px"><a href="#" style="font-size:12px;color:var(--cy);text-decoration:none" onclick="OB.showForgot();return false">Forgot password?</a></div>
@@ -562,7 +570,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
     <div id="s1-pw-wrap" class="ob-fg"><label class="ob-lbl">Create a Password *</label>
       <div class="ob-pw-wrap">
         <input class="ob-inp" type="password" id="s1-pw" placeholder="Minimum 8 characters" autocomplete="new-password" style="padding-right:44px">
-        <button class="ob-pw-tog" onclick="togglePw1()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        <button class="ob-pw-tog" onclick="togglePw1(event)" type="button" aria-label="Show password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
       </div>
     </div>
     <div class="ob-trust">
@@ -1019,6 +1027,87 @@ function $i(id){return document.getElementById(id);}
 function v(id){var e=$i(id);return e?e.value.trim():'';}
 function chips(id){return Array.from(document.querySelectorAll('#'+id+' .ob-chip.sel')).map(function(c){return c.dataset.v;});}
 function alert2(id,msg){var e=$i(id);if(!e)return;e.textContent=msg;e.classList.add('on');setTimeout(function(){e.classList.remove('on');},6000);}
+
+/* ── Field validation ──────────────────────────────────────────────────────
+   Only fields actually marked required are enforced as required; optional
+   fields are validated for FORMAT only, and only when the customer typed
+   something. Phone numbers are formatted as they're typed so what gets stored
+   is consistent — an advisor shouldn't have to decode 4165550100 vs
+   416.555.0100 vs +1-416-555-0100. */
+var VALID = {
+  email:function(s){
+    s=(s||'').trim();
+    // Deliberately not the full RFC grammar: one @, something either side, a
+    // dot-separated TLD of 2+ letters, and no spaces. That rejects every
+    // realistic typo without bouncing legitimate unusual addresses.
+    return /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)*\.[A-Za-z]{2,}$/.test(s);
+  },
+  /** Digits only, ignoring punctuation and any leading country code. */
+  phoneDigits:function(s){ return (s||'').replace(/\D/g,''); },
+  phone:function(s){
+    var d=VALID.phoneDigits(s);
+    if(/^\s*\+/.test(s||'')) return d.length>=8&&d.length<=15; // E.164 international
+    if(d.length===11&&d.charAt(0)==='1') return true;          // 1 + NANP
+    return d.length===10;                                       // plain NANP
+  },
+  /** Format as the customer types. NANP gets (416) 555-0100; anything typed
+      with a leading + is treated as international and only normalised. */
+  formatPhone:function(s){
+    var intl=/^\s*\+/.test(s||'');
+    var d=VALID.phoneDigits(s);
+    if(intl){ return '+'+d.slice(0,15); }
+    if(d.length===11&&d.charAt(0)==='1') d=d.slice(1);
+    d=d.slice(0,10);
+    if(d.length<4) return d;
+    if(d.length<7) return '('+d.slice(0,3)+') '+d.slice(3);
+    return '('+d.slice(0,3)+') '+d.slice(3,6)+'-'+d.slice(6);
+  },
+  url:function(s){
+    s=(s||'').trim();
+    if(!s) return true;                       // optional everywhere we use it
+    if(/\s/.test(s)) return false;
+    var bare=s.replace(/^https?:\/\//i,'').replace(/^www\./i,'');
+    return /^[^\/\s.]+(\.[^\/\s.]+)*\.[A-Za-z]{2,}(\/.*)?$/.test(bare);
+  },
+  name:function(s){ return (s||'').trim().length>=2; }
+};
+
+/** Mark a field as failing validation, focus it, and clear the mark on edit. */
+function invalid(id){
+  var el=$i(id); if(!el) return;
+  el.classList.add('ob-invalid');
+  var clear=function(){ el.classList.remove('ob-invalid'); el.removeEventListener('input',clear); el.removeEventListener('change',clear); };
+  el.addEventListener('input',clear); el.addEventListener('change',clear);
+  try{ el.focus(); el.scrollIntoView({block:'center',behavior:'smooth'}); }catch(e){}
+}
+
+/**
+ * Run a list of [fieldId, test, message] rules in order. Reports the first
+ * failure into the step's error box, flags the field, and returns false.
+ */
+function validateFields(errId, rules){
+  for(var i=0;i<rules.length;i++){
+    var id=rules[i][0], ok=rules[i][1], msg=rules[i][2];
+    if(!ok){ alert2(errId,msg); invalid(id); return false; }
+  }
+  return true;
+}
+
+/** Attach live phone formatting to a field. */
+function bindPhoneFormat(id){
+  var el=$i(id); if(!el||el._phoneBound) return;
+  el._phoneBound=true;
+  el.addEventListener('input',function(){
+    var before=el.value, atEnd=el.selectionStart===before.length;
+    var out=VALID.formatPhone(before);
+    if(out!==before){
+      el.value=out;
+      // Keep the caret at the end while they're typing forward; moving it
+      // mid-string would fight them on every keystroke.
+      if(atEnd){ try{ el.setSelectionRange(out.length,out.length); }catch(e){} }
+    }
+  });
+}
 function panel(id){document.querySelectorAll('.ob-panel').forEach(function(p){p.classList.remove('active');});var e=$i(id);if(e){e.classList.add('active');window.scrollTo({top:0,behavior:'smooth'});}}
 
 function prog(n){
@@ -1347,7 +1436,10 @@ window.OB={
 
   handleEmail:function(){
     var email=v('ob-email'),pws=$i('ob-pw-sec'),btn=$i('ob-login-btn');
-    if(!email||!email.includes('@')){alert2('ob-login-err','Please enter a valid email address.');return;}
+    if(!validateFields('ob-login-err',[
+      ['ob-email', !!email,              'Please enter your email address.'],
+      ['ob-email', VALID.email(email),   'That email address doesn\u2019t look right.']
+    ])) return;
     if(pws&&pws.style.display!=='none'){OB.doLogin();return;}
     btn.innerHTML='<span class="ob-spin"></span>';btn.disabled=true;
     post({action:'six_check_email',email:email}).then(function(r){
@@ -1400,10 +1492,19 @@ window.OB={
   },
 
   doStep1:function(){
-    var first=v('s1-first'),last=v('s1-last'),phone=v('s1-phone'),pw=v('s1-pw');
-    if(!first||!last){alert2('s1-err','Please enter your first and last name.');return;}
-    if(!phone){alert2('s1-err','Phone number is required — your advisor will use it to contact you.');return;}
-    if(S.isNew&&!S.isGoogle&&pw.length<8){alert2('s1-err','Please create a password of at least 8 characters.');return;}
+    var first=v('s1-first'),last=v('s1-last'),phone=v('s1-phone'),pw=$i('s1-pw')?$i('s1-pw').value:'';
+    var needsPw = S.isNew && !S.isGoogle;
+    if(!validateFields('s1-err',[
+      ['s1-first', !!first,                 'Please enter your first name.'],
+      ['s1-first', VALID.name(first),       'Please enter your full first name.'],
+      ['s1-last',  !!last,                  'Please enter your last name.'],
+      ['s1-last',  VALID.name(last),        'Please enter your full last name.'],
+      ['s1-phone', !!phone,                 'Phone number is required — your advisor will use it to contact you.'],
+      ['s1-phone', VALID.phone(phone),      'That phone number doesn’t look right. Enter 10 digits, or start with + for an international number.'],
+      ['s1-pw',    !needsPw||pw.length>=8,  'Please create a password of at least 8 characters.']
+    ])) return;
+    phone=VALID.formatPhone(phone);
+    var pel=$i('s1-phone'); if(pel) pel.value=phone;
     var btn=$i('s1-btn');btn.innerHTML='<span class="ob-spin"></span> Saving\u2026';btn.disabled=true;
     var d={action:'six_create_personal_account',email:S.email,first:first,last:last,phone:phone,
       utm_source:S.utm.source,utm_medium:S.utm.medium,utm_campaign:S.utm.campaign};
@@ -1438,8 +1539,12 @@ window.OB={
 
   /* Step 3a: Business Basics */
   doStep3a:function(){
-    var biz=v('q-biz');
-    if(!biz){alert2('s3a-err','Please enter your business name.');return;}
+    var biz=v('q-biz'), web=v('q-web-url');
+    if(!validateFields('s3a-err',[
+      ['q-biz',     !!biz,            'Please enter your business name.'],
+      ['q-biz',     VALID.name(biz),  'Please enter your full business name.'],
+      ['q-web-url', VALID.url(web),   'That website address doesn\u2019t look right \u2014 e.g. yourbusiness.com']
+    ])) return;
     S.q=Object.assign(S.q,{
       bizname:biz,website:v('q-web-url'),address:v('q-addr'),
       industry:v('q-ind'),years:v('q-yrs'),goals:chips('q-goals').join(','),
@@ -2376,8 +2481,25 @@ document.querySelectorAll('#q-goals .ob-chip').forEach(function(c){
 });
 
 /* ── Password toggles ── */
-window.togglePw=function(){var i=$i('ob-pw');if(i)i.type=i.type==='password'?'text':'password';};
-window.togglePw1=function(){var i=$i('s1-pw');if(i)i.type=i.type==='password'?'text':'password';};
+// Password visibility. The icon switches to a struck-through eye while the
+// password is revealed, so it's obvious the field is currently readable.
+var EYE='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+var EYE_OFF='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+function togglePwField(inputId,btn){
+  var i=$i(inputId); if(!i) return;
+  var show = i.type==='password';
+  i.type = show ? 'text' : 'password';
+  if(btn){
+    btn.innerHTML = show ? EYE_OFF : EYE;
+    btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+  }
+  try{ i.focus(); i.setSelectionRange(i.value.length,i.value.length); }catch(e){}
+}
+window.togglePw =function(ev){ togglePwField('ob-pw', ev&&ev.currentTarget); };
+window.togglePw1=function(ev){ togglePwField('s1-pw', ev&&ev.currentTarget); };
+
+// Format phone numbers as they're typed, wherever one is collected.
+['s1-phone','ob-phone'].forEach(function(id){ bindPhoneFormat(id); });
 
 /* ── Growth Engine ── */
 var GE = {
