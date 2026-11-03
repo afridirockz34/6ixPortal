@@ -166,15 +166,39 @@ class Six_Profile_API {
 	// ── Reads ─────────────────────────────────────────────────────────────
 
 	public static function list_clients( $request ) {
-		$page  = max( 1, (int) $request->get_param( 'page' ) );
-		$per   = min( 100, max( 1, (int) ( $request->get_param( 'per_page' ) ?: 50 ) ) );
-		$users = get_users( array(
+		$page   = max( 1, (int) $request->get_param( 'page' ) );
+		$per    = min( 100, max( 1, (int) ( $request->get_param( 'per_page' ) ?: 50 ) ) );
+		$search = trim( (string) $request->get_param( 'search' ) );
+
+		$args = array(
 			'role'    => 'six_customer',
 			'number'  => $per,
 			'paged'   => $page,
 			'orderby' => 'ID',
 			'order'   => 'DESC',
-		) );
+		);
+		// Callers generally know a person or a business, not a numeric id, so
+		// searching covers the WP user fields AND the business name captured
+		// during onboarding.
+		if ( $search !== '' ) {
+			$args['search']         = '*' . $search . '*';
+			$args['search_columns'] = array( 'user_login', 'user_email', 'display_name', 'user_nicename' );
+		}
+		$users = get_users( $args );
+
+		if ( $search !== '' ) {
+			global $wpdb;
+			$by_biz = (array) $wpdb->get_col( $wpdb->prepare(
+				"SELECT user_id FROM {$wpdb->prefix}six_checkout_progress WHERE business_name LIKE %s LIMIT 50",
+				'%' . $wpdb->esc_like( $search ) . '%'
+			) );
+			$seen = wp_list_pluck( $users, 'ID' );
+			foreach ( $by_biz as $uid ) {
+				if ( in_array( (int) $uid, array_map( 'intval', $seen ), true ) ) continue;
+				$u = get_userdata( (int) $uid );
+				if ( $u ) $users[] = $u;
+			}
+		}
 
 		$out = array();
 		foreach ( $users as $u ) {
