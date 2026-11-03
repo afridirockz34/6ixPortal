@@ -52,16 +52,23 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .ob-side-foot{font-size:11px;color:var(--t3);line-height:1.6;border-top:1px solid var(--bdr);padding-top:14px;}
 .ob-side-foot a{color:var(--cy);text-decoration:none;}
 
-/* Main — top-aligned so the eyebrow/title/fields sit in the same place on
-   every step (align-self:center re-centered each step by its own height, which
-   made the header jump vertically between steps and clipped tall steps). The
-   login panel centers itself via the #ob-login rule below. */
-.ob-main{padding:64px 40px 76px;max-width:640px;margin:0 auto;width:100%;align-self:start;}
-/* Login panel: vertically centered inside the right column */
-#ob-login.ob-panel.active{
-  min-height:calc(100vh - 96px);
-  display:flex !important;flex-direction:column;justify-content:center;
+/* Main — a full-height flex column: the progress bar stays pinned at the top
+   (parallel to the sidebar logo, never moving between steps), and the active
+   panel takes the remaining space.
+
+   The panel is centered with auto block margins rather than
+   justify-content:center on purpose. Auto margins resolve to 0 the moment the
+   content is taller than the space available, so a long step simply flows from
+   the top and scrolls normally — justify-content:center would clip the top of
+   it off-screen, which is what broke an earlier attempt at centering here. */
+.ob-main{
+  padding:64px 40px 76px;max-width:640px;margin:0 auto;width:100%;
+  min-height:100vh;
+  min-height:100dvh; /* mobile: discount the browser chrome so it can't overflow */
+  display:flex;flex-direction:column;align-self:stretch;
 }
+.ob-prog{flex:0 0 auto;}
+.ob-panel.active{margin-top:auto;margin-bottom:auto;}
 #ob-login.ob-panel.active .ob-btnrow{position:static !important;padding:0;margin-top:20px;box-shadow:none;border-top:none;background:transparent;}
 @media(max-width:600px){.ob-main{padding:28px 20px;}}
 
@@ -97,6 +104,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 
 /* Password wrap */
 .ob-pw-wrap{position:relative;}
+.ob-invalid{border-color:var(--err) !important;box-shadow:0 0 0 3px rgba(217,59,59,.12) !important;}
 .ob-pw-tog{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;
   color:var(--t3);cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;}
 
@@ -475,7 +483,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   $ob_logo_src     = $ob_logo_custom && $ob_logo_custom !== $ob_logo_default ? $ob_logo_custom : $ob_logo_navy;
   ?>
   <a class="ob-logo" href="<?php echo esc_url( home_url( '/' ) ); ?>" style="text-decoration:none;cursor:pointer">
-    <img src="<?php echo esc_url( $ob_logo_src ); ?>" alt="6ix Developers" style="height:36px;width:auto;display:block">
+    <img src="<?php echo esc_url( $ob_logo_src ); ?>" alt="6ix Developers" style="height:43px;width:auto;display:block">
   </a>
   <div class="ob-side-content">
     <h2 class="ob-side-hl">Your <span>marketing strategy</span> starts here.</h2>
@@ -524,7 +532,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       <div class="ob-fg" style="margin-top:14px"><label class="ob-lbl">Password</label>
         <div class="ob-pw-wrap">
           <input class="ob-inp" type="password" id="ob-pw" placeholder="Your password" autocomplete="current-password" style="padding-right:44px">
-          <button class="ob-pw-tog" onclick="togglePw()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+          <button class="ob-pw-tog" onclick="togglePw(event)" type="button" aria-label="Show password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
         </div>
       </div>
       <div style="text-align:right;margin-top:6px"><a href="#" style="font-size:12px;color:var(--cy);text-decoration:none" onclick="OB.showForgot();return false">Forgot password?</a></div>
@@ -562,7 +570,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
     <div id="s1-pw-wrap" class="ob-fg"><label class="ob-lbl">Create a Password *</label>
       <div class="ob-pw-wrap">
         <input class="ob-inp" type="password" id="s1-pw" placeholder="Minimum 8 characters" autocomplete="new-password" style="padding-right:44px">
-        <button class="ob-pw-tog" onclick="togglePw1()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        <button class="ob-pw-tog" onclick="togglePw1(event)" type="button" aria-label="Show password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
       </div>
     </div>
     <div class="ob-trust">
@@ -570,8 +578,14 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       <span>Your information is private and never shared with third parties.</span>
     </div>
     <div class="ob-btnrow">
-      <button class="ob-btn ob-ghost" onclick="OB.backToEmail()">&larr; Back</button>
       <button class="ob-btn ob-primary" style="flex:1" id="s1-btn" onclick="OB.doStep1()">Select Services &rarr;</button>
+    </div>
+    <!-- This is the earliest step anyone can navigate back to. There's no
+         "Back" here on purpose: once we know who they are, dropping them on
+         the email screen loses their place. Changing email is a deliberate,
+         clearly-labelled action instead. -->
+    <div style="text-align:center;margin-top:12px">
+      <button class="ob-btn ob-ghost" style="font-size:12.5px;padding:8px 16px" onclick="OB.useDifferentEmail()">Use a different email</button>
     </div>
   </div>
 
@@ -612,7 +626,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       <div><div class="ob-notsure-t">Not sure &mdash; recommend for me</div><div class="ob-notsure-s">We'll match you with the best services based on your goals</div></div>
     </div>
     <div class="ob-btnrow">
-      <button class="ob-btn ob-ghost" onclick="OB.goStep(1)">&larr; Back</button>
+      <button class="ob-btn ob-ghost" onclick="OB.goBack(1)">&larr; Back</button>
       <button class="ob-btn ob-primary" style="flex:1" onclick="OB.doStep2()">Answer a Few Questions &rarr;</button>
     </div>
   </div>
@@ -752,26 +766,8 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       </div>
     </div>
 
-    <!-- ROI inputs: power an honest revenue/ROI projection after onboarding -->
-    <div class="ob-g2">
-      <div class="ob-fg"><label class="ob-lbl">Average customer value <span style="font-weight:400;font-size:11px">(one sale / job, in $)</span></label>
-        <input class="ob-inp" id="q-deal-value" type="number" min="0" inputmode="numeric" placeholder="e.g. 1200">
-      </div>
-      <div class="ob-fg"><label class="ob-lbl">Lead close rate <span style="font-weight:400;font-size:11px">(% of leads that buy)</span></label>
-        <select class="ob-inp" id="q-close-rate">
-          <option value="">Not sure</option>
-          <option value="10">Around 10%</option>
-          <option value="20">Around 20%</option>
-          <option value="30">Around 30%</option>
-          <option value="40">Around 40%</option>
-          <option value="50">50% or more</option>
-        </select>
-      </div>
-    </div>
-    <div style="font-size:11px;color:var(--ob-muted,#8a8a9a);margin:-4px 0 6px">Used to project your revenue and ROI. An estimate is fine — your advisor refines it later.</div>
-
     <div class="ob-btnrow">
-      <button class="ob-btn ob-ghost" onclick="OB.goStep(2)">&larr; Back</button>
+      <button class="ob-btn ob-ghost" onclick="OB.goBack(2)">&larr; Back</button>
       <button class="ob-btn ob-primary" style="flex:1" onclick="OB.doStep3a()">Next &rarr;</button>
     </div>
   </div>
@@ -1031,6 +1027,87 @@ function $i(id){return document.getElementById(id);}
 function v(id){var e=$i(id);return e?e.value.trim():'';}
 function chips(id){return Array.from(document.querySelectorAll('#'+id+' .ob-chip.sel')).map(function(c){return c.dataset.v;});}
 function alert2(id,msg){var e=$i(id);if(!e)return;e.textContent=msg;e.classList.add('on');setTimeout(function(){e.classList.remove('on');},6000);}
+
+/* ── Field validation ──────────────────────────────────────────────────────
+   Only fields actually marked required are enforced as required; optional
+   fields are validated for FORMAT only, and only when the customer typed
+   something. Phone numbers are formatted as they're typed so what gets stored
+   is consistent — an advisor shouldn't have to decode 4165550100 vs
+   416.555.0100 vs +1-416-555-0100. */
+var VALID = {
+  email:function(s){
+    s=(s||'').trim();
+    // Deliberately not the full RFC grammar: one @, something either side, a
+    // dot-separated TLD of 2+ letters, and no spaces. That rejects every
+    // realistic typo without bouncing legitimate unusual addresses.
+    return /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)*\.[A-Za-z]{2,}$/.test(s);
+  },
+  /** Digits only, ignoring punctuation and any leading country code. */
+  phoneDigits:function(s){ return (s||'').replace(/\D/g,''); },
+  phone:function(s){
+    var d=VALID.phoneDigits(s);
+    if(/^\s*\+/.test(s||'')) return d.length>=8&&d.length<=15; // E.164 international
+    if(d.length===11&&d.charAt(0)==='1') return true;          // 1 + NANP
+    return d.length===10;                                       // plain NANP
+  },
+  /** Format as the customer types. NANP gets (416) 555-0100; anything typed
+      with a leading + is treated as international and only normalised. */
+  formatPhone:function(s){
+    var intl=/^\s*\+/.test(s||'');
+    var d=VALID.phoneDigits(s);
+    if(intl){ return '+'+d.slice(0,15); }
+    if(d.length===11&&d.charAt(0)==='1') d=d.slice(1);
+    d=d.slice(0,10);
+    if(d.length<4) return d;
+    if(d.length<7) return '('+d.slice(0,3)+') '+d.slice(3);
+    return '('+d.slice(0,3)+') '+d.slice(3,6)+'-'+d.slice(6);
+  },
+  url:function(s){
+    s=(s||'').trim();
+    if(!s) return true;                       // optional everywhere we use it
+    if(/\s/.test(s)) return false;
+    var bare=s.replace(/^https?:\/\//i,'').replace(/^www\./i,'');
+    return /^[^\/\s.]+(\.[^\/\s.]+)*\.[A-Za-z]{2,}(\/.*)?$/.test(bare);
+  },
+  name:function(s){ return (s||'').trim().length>=2; }
+};
+
+/** Mark a field as failing validation, focus it, and clear the mark on edit. */
+function invalid(id){
+  var el=$i(id); if(!el) return;
+  el.classList.add('ob-invalid');
+  var clear=function(){ el.classList.remove('ob-invalid'); el.removeEventListener('input',clear); el.removeEventListener('change',clear); };
+  el.addEventListener('input',clear); el.addEventListener('change',clear);
+  try{ el.focus(); el.scrollIntoView({block:'center',behavior:'smooth'}); }catch(e){}
+}
+
+/**
+ * Run a list of [fieldId, test, message] rules in order. Reports the first
+ * failure into the step's error box, flags the field, and returns false.
+ */
+function validateFields(errId, rules){
+  for(var i=0;i<rules.length;i++){
+    var id=rules[i][0], ok=rules[i][1], msg=rules[i][2];
+    if(!ok){ alert2(errId,msg); invalid(id); return false; }
+  }
+  return true;
+}
+
+/** Attach live phone formatting to a field. */
+function bindPhoneFormat(id){
+  var el=$i(id); if(!el||el._phoneBound) return;
+  el._phoneBound=true;
+  el.addEventListener('input',function(){
+    var before=el.value, atEnd=el.selectionStart===before.length;
+    var out=VALID.formatPhone(before);
+    if(out!==before){
+      el.value=out;
+      // Keep the caret at the end while they're typing forward; moving it
+      // mid-string would fight them on every keystroke.
+      if(atEnd){ try{ el.setSelectionRange(out.length,out.length); }catch(e){} }
+    }
+  });
+}
 function panel(id){document.querySelectorAll('.ob-panel').forEach(function(p){p.classList.remove('active');});var e=$i(id);if(e){e.classList.add('active');window.scrollTo({top:0,behavior:'smooth'});}}
 
 function prog(n){
@@ -1074,6 +1151,14 @@ function qSlider(id,lbl,mn,mx,def){
   return qFG(lbl,'<div><input type="range" class="ob-slider" id="'+id+'" min="'+mn+'" max="'+mx+'" value="'+def+'" step="100" oninput="OB.sl(this)">'
     +'<div class="ob-sllbls"><span>$'+mn.toLocaleString()+'</span><span>$'+mx.toLocaleString()+'</span></div>'
     +'<div class="ob-slval" id="'+id+'-v">$'+def.toLocaleString()+'/mo</div></div>');
+}
+/* A fixed-price service — no slider, because the price isn't negotiable per
+   customer. Google Business Profile is a flat monthly rate. */
+function qFixedPrice(lbl,amount,note){
+  return qFG(lbl,'<div style="display:flex;align-items:baseline;gap:10px;background:var(--d3);border:1px solid var(--bdr);border-radius:10px;padding:14px 16px">'
+    +'<span style="font-family:\'Bricolage Grotesque\',sans-serif;font-size:26px;font-weight:800;color:var(--t1)">$'+amount.toLocaleString()+'</span>'
+    +'<span style="font-size:13px;color:var(--t3)">/month</span>'
+    +'</div>'+(note?'<div style="font-size:11px;color:var(--t3);margin-top:6px">'+note+'</div>':''));
 }
 function qTog(id){
   return'<div class="ob-tog-row"><div class="ob-tog-btn" data-tog="'+id+'" data-val="yes" onclick="OB.tog(this,\'yes\')">Yes</div>'
@@ -1195,7 +1280,7 @@ function buildPane(slug){
       +qFG('Services to highlight','<textarea class="ob-inp" id="q-gbp-svcs" rows="2" placeholder="e.g. '+indEx('services')+'"></textarea>','The services you want featured on your profile')
       +qFG('Business hours',qHours('gbp'),'When you are open to customers')
       +qFG('Current rating','<input class="ob-inp" id="q-gbp-rating" placeholder="e.g. 4.7 stars, 120 reviews" style="max-width:240px">','Your star rating and review count, if you have one')
-      +qSlider('q-gbp-bud','Monthly budget',200,5000,400)
+      +qFixedPrice('Your investment',499,'Google Business Profile management is a flat monthly rate \u2014 posts, optimisation and reporting included.')
     );
   } else if(slug==='website'){
     h+=qSec('Website Project',
@@ -1204,7 +1289,7 @@ function buildPane(slug){
       +qFG('Design style','<div class="ob-chips" id="q-web-style"><div class="ob-chip" data-v="modern">Modern &amp; Clean</div><div class="ob-chip" data-v="bold">Bold &amp; Vibrant</div><div class="ob-chip" data-v="minimal">Minimal</div><div class="ob-chip" data-v="corp">Corporate</div></div>','The look and feel you are going for')
       +qFG('Sites you like','<input class="ob-inp" id="q-web-refs" placeholder="e.g. apple.com, airbnb.com">','A few websites whose style you admire')
       +qFG('Redesigning an existing site?',qTog('q-web-exist'),'Are we starting fresh or updating a current site')
-      +qSlider('q-web-bud','Monthly budget / retainer',500,15000,2000)
+      +qSlider('q-web-bud','Project budget (one-time)',500,15000,2000)
     );
   }
   return h;
@@ -1271,6 +1356,44 @@ window.OB={
     el.classList.add('on');
   },
 
+  // Apply a six_get_onboarding_state response onto S.q/svcs/budgets (or, when
+  // the account has no saved state — or the lookup failed — reset those to
+  // blank). Shared by resumeLoggedIn() (full page load, server already knows
+  // who's logged in) and doLogin() (AJAX login while the onboarding SPA is
+  // already running). Without this reset, S.q/svcs/budgets would otherwise
+  // still hold whatever a DIFFERENT account left there earlier in the same
+  // page session — e.g. a visitor mistypes their email, gets a brand-new
+  // account started under it, goes back, and logs into their real account:
+  // the real account must never resume showing the wrong account's answers.
+  _applyOnboardingState:function(sr, fallbackStep, done){
+    if(sr&&sr.success&&sr.data){
+      var d=sr.data;
+      S.svcs = d.platforms ? d.platforms.split(',').filter(function(s){return s.trim()!=='';}) : [];
+      S.budgets = d.budgets || {};
+      S.q = d.q || {};
+      // Split competitors back into comp1/comp2/comp3
+      if(S.q._competitors){
+        var comps=S.q._competitors.split(',').map(function(s){return s.trim();});
+        S.q.comp1=comps[0]||'';S.q.comp2=comps[1]||'';S.q.comp3=comps[2]||'';
+      }
+      // Unpack the Google Ads audit JSON back into individual S.q fields
+      if(S.q.gads_audit){
+        try{
+          var ga=JSON.parse(S.q.gads_audit);
+          S.q.gads_dur=ga.duration||'';S.q.gads_goal=ga.goal||'';
+          S.q.gads_camp=ga.campaign_types||'';S.q.gads_mgr=ga.manager||'';
+          S.q.gads_sat=ga.satisfied||'';S.q.gads_working=ga.working||'';
+          S.q.gads_notworking=ga.not_working||'';S.q.gads_challenge=ga.challenge||'';
+        }catch(e){}
+      }
+      var dbStep=Math.max(1,parseInt(d.step)||1);
+      done(Math.max(fallbackStep||1, dbStep));
+    } else {
+      S.svcs=[];S.budgets={};S.q={};
+      done(Math.max(1,fallbackStep||1));
+    }
+  },
+
   resumeLoggedIn:function(uid,email,step,first,last,phone){
     S.userId=uid;S.email=email;S.isNew=false;
     var m=$i('ob-main-el');if(m)m.classList.add('ob-main-form');
@@ -1294,53 +1417,23 @@ window.OB={
     ]).then(function(results){
       var ar=results[0], sr=results[1];
       if(ar&&ar.success&&ar.data) S.advisor=ar.data;
-
-      if(sr&&sr.success&&sr.data){
-        var d=sr.data;
-        // Restore services
-        if(d.platforms){
-          S.svcs=d.platforms.split(',').filter(function(s){return s.trim()!=='';});
-        }
-        // Restore budgets
-        if(d.budgets){
-          S.budgets=d.budgets;
-        }
-        // Restore questionnaire data — S.q
-        if(d.q){
-          S.q=d.q;
-          // Split competitors back into comp1/comp2/comp3
-          if(d.q._competitors){
-            var comps=d.q._competitors.split(',').map(function(s){return s.trim();});
-            S.q.comp1=comps[0]||'';S.q.comp2=comps[1]||'';S.q.comp3=comps[2]||'';
-          }
-          // Unpack the Google Ads audit JSON back into individual S.q fields
-          if(d.q.gads_audit){
-            try{
-              var ga=JSON.parse(d.q.gads_audit);
-              S.q.gads_dur=ga.duration||'';S.q.gads_goal=ga.goal||'';
-              S.q.gads_camp=ga.campaign_types||'';S.q.gads_mgr=ga.manager||'';
-              S.q.gads_sat=ga.satisfied||'';S.q.gads_working=ga.working||'';
-              S.q.gads_notworking=ga.not_working||'';S.q.gads_challenge=ga.challenge||'';
-            }catch(e){}
-          }
-        }
-        // Use DB step if higher than PHP-provided step
-        var dbStep=Math.max(1,parseInt(d.step)||1);
-        var finalStep=Math.max(step||1, dbStep);
+      OB._applyOnboardingState(sr, step, function(finalStep){
         OB.goStep(finalStep);
         prefill();
-      } else {
-        OB.goStep(Math.max(1,step||1));
-        prefill();
-      }
+      });
     }).catch(function(){
-      OB.goStep(Math.max(1,step||1));
-      prefill();
+      OB._applyOnboardingState(null, step, function(finalStep){
+        OB.goStep(finalStep);
+        prefill();
+      });
     });
   },
 
   backToEmail:function(){
-    S.email='';S.isNew=true;
+    // Clear out whatever account we were just looking at — the next email
+    // typed here may belong to a completely different account, and
+    // S.q/svcs/budgets/userId must never carry over (see _applyOnboardingState).
+    S.email='';S.isNew=true;S.userId=0;S.q={};S.svcs=[];S.budgets={};
     var btn=$i('ob-login-btn');
     if(btn){btn.textContent='Continue →';btn.disabled=false;btn.onclick=OB.handleEmail;}
     var pw=$i('ob-pw-sec');if(pw)pw.style.display='none';
@@ -1351,7 +1444,10 @@ window.OB={
 
   handleEmail:function(){
     var email=v('ob-email'),pws=$i('ob-pw-sec'),btn=$i('ob-login-btn');
-    if(!email||!email.includes('@')){alert2('ob-login-err','Please enter a valid email address.');return;}
+    if(!validateFields('ob-login-err',[
+      ['ob-email', !!email,              'Please enter your email address.'],
+      ['ob-email', VALID.email(email),   'That email address doesn\u2019t look right.']
+    ])) return;
     if(pws&&pws.style.display!=='none'){OB.doLogin();return;}
     btn.innerHTML='<span class="ob-spin"></span>';btn.disabled=true;
     post({action:'six_check_email',email:email}).then(function(r){
@@ -1386,9 +1482,17 @@ window.OB={
         S.userId=r.data.user_id;S.email=email;
         if(r.data.has_completed_checkout){window.location.replace('<?php echo esc_js(home_url('/portal/'));?>');}
         else{
-          post({action:'six_get_advisor_for_user',user_id:S.userId}).then(function(ar){
-            if(ar.success)S.advisor=ar.data;
-            OB.goStep(r.data.resume_step||1);
+          // Always refetch THIS account's own saved state before deciding
+          // which step to resume at \u2014 S.q/svcs/budgets may still hold a
+          // different account's answers if the visitor checked another
+          // email earlier in this same page session (see _applyOnboardingState).
+          Promise.all([
+            post({action:'six_get_advisor_for_user',user_id:S.userId}),
+            post({action:'six_get_onboarding_state',user_id:S.userId})
+          ]).then(function(results){
+            var ar=results[0], sr=results[1];
+            if(ar&&ar.success&&ar.data)S.advisor=ar.data;
+            OB._applyOnboardingState(sr, r.data.resume_step, function(finalStep){ OB.goStep(finalStep); });
           });
         }
       } else {btn.textContent='Log In \u2192';alert2('ob-login-err',r.data||'Incorrect email or password.');}
@@ -1396,10 +1500,19 @@ window.OB={
   },
 
   doStep1:function(){
-    var first=v('s1-first'),last=v('s1-last'),phone=v('s1-phone'),pw=v('s1-pw');
-    if(!first||!last){alert2('s1-err','Please enter your first and last name.');return;}
-    if(!phone){alert2('s1-err','Phone number is required — your advisor will use it to contact you.');return;}
-    if(S.isNew&&!S.isGoogle&&pw.length<8){alert2('s1-err','Please create a password of at least 8 characters.');return;}
+    var first=v('s1-first'),last=v('s1-last'),phone=v('s1-phone'),pw=$i('s1-pw')?$i('s1-pw').value:'';
+    var needsPw = S.isNew && !S.isGoogle;
+    if(!validateFields('s1-err',[
+      ['s1-first', !!first,                 'Please enter your first name.'],
+      ['s1-first', VALID.name(first),       'Please enter your full first name.'],
+      ['s1-last',  !!last,                  'Please enter your last name.'],
+      ['s1-last',  VALID.name(last),        'Please enter your full last name.'],
+      ['s1-phone', !!phone,                 'Phone number is required — your advisor will use it to contact you.'],
+      ['s1-phone', VALID.phone(phone),      'That phone number doesn’t look right. Enter 10 digits, or start with + for an international number.'],
+      ['s1-pw',    !needsPw||pw.length>=8,  'Please create a password of at least 8 characters.']
+    ])) return;
+    phone=VALID.formatPhone(phone);
+    var pel=$i('s1-phone'); if(pel) pel.value=phone;
     var btn=$i('s1-btn');btn.innerHTML='<span class="ob-spin"></span> Saving\u2026';btn.disabled=true;
     var d={action:'six_create_personal_account',email:S.email,first:first,last:last,phone:phone,
       utm_source:S.utm.source,utm_medium:S.utm.medium,utm_campaign:S.utm.campaign};
@@ -1420,26 +1533,35 @@ window.OB={
     var ns=$i('ob-notsure')&&$i('ob-notsure').classList.contains('sel');
     if(!sel.length&&!ns){alert2('s2-err','Please select at least one service.');return;}
     if(ns&&!sel.length)sel=['google-ads','seo'];
-    S.svcs=sel;S.budgets={};
+    // Only forget the answers for services they just removed. Everything they
+    // still have selected keeps its answers and budget, so coming back here
+    // to change one service doesn't wipe the work done on the others.
+    (S.svcs||[]).forEach(function(slug){
+      if(sel.indexOf(slug)<0) OB._clearSvcData(slug);
+    });
+    S.svcs=sel;
     post({action:'six_save_checkout_step',step:2,data:JSON.stringify({services:sel,not_sure:ns}),user_id:S.userId});
+    OB._savePartialQ();
     OB.goStep('3a');
   },
 
   /* Step 3a: Business Basics */
   doStep3a:function(){
-    var biz=v('q-biz');
-    if(!biz){alert2('s3a-err','Please enter your business name.');return;}
+    var biz=v('q-biz'), web=v('q-web-url');
+    if(!validateFields('s3a-err',[
+      ['q-biz',     !!biz,            'Please enter your business name.'],
+      ['q-biz',     VALID.name(biz),  'Please enter your full business name.'],
+      ['q-web-url', VALID.url(web),   'That website address doesn\u2019t look right \u2014 e.g. yourbusiness.com']
+    ])) return;
     S.q=Object.assign(S.q,{
       bizname:biz,website:v('q-web-url'),address:v('q-addr'),
       industry:v('q-ind'),years:v('q-yrs'),goals:chips('q-goals').join(','),
-      deal_value:v('q-deal-value'),close_rate:v('q-close-rate'),
     });
     // Save business basics to DB immediately
     if(S.userId){
       var sd={first:S.q.first||'',last:S.q.last||'',phone:S.q.phone||'',
         bizname:S.q.bizname||'',website:S.q.website||'',industry:S.q.industry||'',
         location:S.q.address||'',years:S.q.years||'',goal:S.q.goals||'',
-        deal_value:S.q.deal_value||'',close_rate:S.q.close_rate||'',
         competitors:[S.q.comp1,S.q.comp2,S.q.comp3].filter(Boolean).join(','),
         platforms:S.svcs.join(',')};
       post({action:'six_save_checkout_step',step:1,data:JSON.stringify(sd),user_id:S.userId}).catch(function(){});
@@ -1523,7 +1645,7 @@ window.OB={
       S.q.seo_reviews=v('q-seo-reviews')||'';
       S.q.seo_extra=v('q-seo-extra')||'';
     } else if(slug==='google-business'){
-      var b=$i('q-gbp-bud');S.budgets[slug]=b?parseInt(b.value):0;
+      S.budgets[slug]=OB.GMB_PRICE;   // flat rate, not customer-chosen
       S.q.gbp_name=v('q-gbp-name');S.q.gbp_cat=v('q-gbp-cat');
       S.q.gbp_svcs=v('q-gbp-svcs');S.q.gbp_rating=v('q-gbp-rating');
       S.q.gbp_hrs=getHoursVal('gbp');   // hours widget was previously never collected
@@ -1584,7 +1706,7 @@ window.OB={
       setTog('q-seo-gsc',q.seo_gsc);setTog('q-seo-blog',q.seo_blog);
       setV('q-seo-extra',q.seo_extra);
     } else if(slug==='google-business'){
-      setSlider('q-gbp-bud',S.budgets['google-business']);
+      S.budgets['google-business']=OB.GMB_PRICE;
       setV('q-gbp-name',q.gbp_name||q.bizname);        // prefill from business name
       setV('q-gbp-cat',q.gbp_cat);setV('q-gbp-svcs',q.gbp_svcs||q.ads_prod);
       setV('q-gbp-rating',q.gbp_rating);
@@ -1615,13 +1737,12 @@ window.OB={
   // so the server always has the latest data even if user abandons mid-flow
   _savePartialQ:function(){
     if(!S.userId) return;
-    var tot=Object.values(S.budgets).reduce(function(a,b){return a+b;},0);
+    var tot=OB._monthlyTotal();
     var q=S.q;
     var sd={
       first:q.first||'',last:q.last||'',phone:q.phone||'',
       bizname:q.bizname||'',website:q.website||'',industry:q.industry||'',
       location:q.address||'',goal:q.goals||'',
-      deal_value:q.deal_value||'',close_rate:q.close_rate||'',
       competitors:[q.comp1,q.comp2,q.comp3].filter(Boolean).join(','),
       mktg_budget:tot.toString(),platforms:S.svcs.join(','),
       // Google Ads
@@ -1648,6 +1769,7 @@ window.OB={
   },
 
   s3cBack:function(){
+    OB._persistCurrent();
     if(S.svcs.length>0){S._svcIdx=S.svcs.length-1;OB._renderSvcScreen(S._svcIdx);OB.goStep('3b');}
     else OB.goStep('3a');
   },
@@ -1656,14 +1778,13 @@ window.OB={
   doStep3:function(){
     S.q.comp1=v('q-c1');S.q.comp2=v('q-c2');S.q.comp3=v('q-c3');
     S.q.crm=v('q-crm');S.q.awards=v('q-awards');S.q.notes=v('q-notes');
-    var tot=Object.values(S.budgets).reduce(function(a,b){return a+b;},0);
+    var tot=OB._monthlyTotal();
     // CRITICAL: send ALL questionnaire data so estimate engine has everything
     var q=S.q;
     var sd={
       first:q.first||'',last:q.last||'',phone:q.phone||'',
       bizname:q.bizname||'',website:q.website||'',industry:q.industry||'',
       location:q.address||'',goal:q.goals||'',years:q.years||'',
-      deal_value:q.deal_value||'',close_rate:q.close_rate||'',
       competitors:[q.comp1,q.comp2,q.comp3].filter(Boolean).join(','),
       mktg_budget:tot.toString(),platforms:S.svcs.join(','),
       // Google Ads
@@ -1697,10 +1818,10 @@ window.OB={
   /* AI-powered growth plan — replaces score ring */
   buildAIPlan: async function(){
     var q=S.q, svcs=S.svcs;
-    var tot=Object.values(S.budgets||{}).reduce(function(a,b){return a+(parseInt(b)||0);},0);
+    var tot=OB._monthlyTotal();
     S.score=Math.min(97,20+(svcs.length*10)+(tot>=5000?15:tot>=2000?10:tot>0?5:0)+(q.website?8:0)+(q.industry?5:0));
 
-    var msgs=['Analysing your market and competition...','Pulling live keyword data from Google Ads...','Calculating your projected ROI and returns...','Building your tailored 60-day roadmap...'];
+    var msgs=['Analysing your market and competition...','Pulling live keyword data from Google Ads...','Projecting your reach and lead volume...','Building your tailored 60-day roadmap...'];
     var mi=0,msgEl=$i('ob-s4-loading-msg');
     if(msgEl) msgEl.textContent=msgs[0];
     var msgTimer=setInterval(function(){mi=(mi+1)%msgs.length;if(msgEl)msgEl.textContent=msgs[mi];},2500);
@@ -1716,8 +1837,6 @@ window.OB={
         industry:  S.q.industry||'',
         location:  S.q.address||'',
         website:   S.q.website||'',
-        deal_value:S.q.deal_value||'',
-        close_rate:S.q.close_rate||'',
         platforms: S.svcs.join(','),
         ads_loc:   S.q.ads_loc||'',
         seo_loc:   S.q.seo_loc||'',
@@ -1750,8 +1869,7 @@ window.OB={
         headline:(q.bizname||'Your business')+' is positioned to win new customers through '+ch+' in '+mktLoc+' — here is your tailored 90-day roadmap.',
         kpis:[
           {label:isAds?'Est. Leads / Month 1':'Est. Organic Leads / Mo',value:tot>0?Math.round(tot/150)+'-'+Math.round(tot/100):'8–15'},
-          {label:'By Month 3',value:tot>0?Math.round(tot/80)+'-'+Math.round(tot/55):'20–35'},
-          {label:'Est. Monthly ROI',value:tot>0?'+$'+Math.round(tot*2.5).toLocaleString():'TBD'}
+          {label:'By Month 3',value:tot>0?Math.round(tot/80)+'-'+Math.round(tot/55):'20–35'}
         ],
         roadmap:[
           {week:'Week 1–2',phase:'Foundation',title:'Audit & architecture',
@@ -1891,10 +2009,6 @@ window.OB={
     // ── Disclaimer ────────────────────────────────────────────────────────
     var disc=$i('ob-plan-disclaimer');
     if(disc){
-      var roiKpi=(kpis.find(function(k){return k.label.indexOf('ROI')>-1;})||{}).value||'';
-      var roiNote=roiKpi&&roiKpi!=='TBD'&&roiKpi.indexOf('$')>-1
-        ? ' ROI is estimated as (projected leads × avg deal value × 20% close rate) minus your monthly investment.'
-        : '';
       var src=backed?' based on real Google Ads keyword data for your market':' based on industry benchmarks for your market';
       if(isAudit){
         // Existing-GA: clearly frame this as an initial AI assessment, not a
@@ -1902,12 +2016,12 @@ window.OB={
         disc.innerHTML=
           '<strong>How we built this.</strong> This is an <strong>initial AI-assisted assessment</strong> of your current Google Ads, '+
           'generated from the answers you gave us, live keyword and CPC data for your market'+(backed?'':' (industry benchmarks where live data was unavailable)')+', '+
-          'your competitors, and Claude AI. We surface the single highest-impact opportunity first.'+roiNote+
+          'your competitors, and Claude AI. We surface the single highest-impact opportunity first.'+
           '<br><br>It is <strong>not a substitute for a full audit inside your account.</strong> '+
           'Once you complete onboarding, your 6ix Developers advisor will log into your Google Ads (with your permission), '+
           'review your real campaign, keyword and conversion data, and refine this plan into a hands-on strategy — usually within one business day.';
       } else {
-        disc.innerHTML='These projections are'+src+'.'+roiNote
+        disc.innerHTML='These projections are'+src+'.'
           +' Once you complete onboarding, your advisor will reach out within one business day with a full benchmark report and custom strategy.';
       }
       disc.style.display='block';
@@ -1923,6 +2037,92 @@ window.OB={
       :'Built on real data for your market. Review before proceeding.';
   },
 
+
+  /* Google Business Profile is sold at a flat monthly rate rather than a
+     customer-chosen budget. Change it here and the questionnaire, the stored
+     budget and every total follow. */
+  GMB_PRICE:499,
+
+  /* Recurring monthly spend. Website development is a one-time project, not a
+     retainer, so it is deliberately excluded — including it would inflate
+     every "per month" figure we show and store. */
+  _monthlyTotal:function(){
+    return Object.keys(S.budgets||{}).reduce(function(sum,slug){
+      if(slug==='website') return sum;
+      return sum + (parseInt(S.budgets[slug])||0);
+    },0);
+  },
+
+  // Which S.q answers belong to which service. Used to clear ONLY the
+  // answers for a service the customer just de-selected, so everything else
+  // stays prefilled. 'website' is listed by exact key rather than a "web_"
+  // prefix because that prefix would also match q.website, their business
+  // website URL, which belongs to the business profile and must survive.
+  _svcFields:{
+    'google-ads':      {prefix:['ads_','gads_'], keys:[]},
+    'seo':             {prefix:['seo_'],         keys:[]},
+    'google-business': {prefix:['gbp_'],         keys:[]},
+    'website':         {prefix:[],               keys:['web_goal','web_pages','web_style','web_refs','web_exist','web_platform','web_timeline','web_features','web_bud']},
+  },
+
+  /** Forget every answer belonging to one service (and its budget). */
+  _clearSvcData:function(slug){
+    var def=OB._svcFields[slug]; if(!def) return;
+    Object.keys(S.q).forEach(function(k){
+      var owned = def.keys.indexOf(k)>-1 || def.prefix.some(function(p){ return k.indexOf(p)===0; });
+      if(owned) delete S.q[k];
+    });
+    delete S.budgets[slug];
+  },
+
+  /**
+   * Harvest whatever is currently on screen into S.q and push it to the
+   * server, so navigating backwards never loses typed answers. Safe to call
+   * from any step — it only reads the fields that exist in the DOM.
+   */
+  _persistCurrent:function(){
+    var step=S.step;
+    if(step===1){
+      S.q.first=v('s1-first')||S.q.first||'';
+      S.q.last =v('s1-last') ||S.q.last ||'';
+      S.q.phone=v('s1-phone')||S.q.phone||'';
+    } else if(step==='3a'||step===3){
+      S.q=Object.assign(S.q,{
+        bizname:v('q-biz')||S.q.bizname||'',
+        website:v('q-web-url')||S.q.website||'',
+        address:v('q-addr')||S.q.address||'',
+        industry:v('q-ind')||S.q.industry||'',
+        years:v('q-yrs')||S.q.years||'',
+        goals:chips('q-goals').join(',')||S.q.goals||'',
+      });
+    } else if(step==='3b'){
+      OB._collectSvcData(S.svcs[S._svcIdx]);
+    }
+    if(S.userId) OB._savePartialQ();
+    else OB._saveLocal();
+  },
+
+  /**
+   * Navigate backwards, saving first and never going further back than step 1.
+   * Step 1 ("Tell us about yourself") is the floor: once someone has an
+   * account, the email screen is not a place to land by accident.
+   */
+  goBack:function(n){
+    OB._persistCurrent();
+    var target=n;
+    if(typeof target==='number'&&target<1) target=1;
+    OB.goStep(target);
+  },
+
+  /**
+   * Deliberately start over under a different address. This is the only way
+   * back to the email screen, and it clears the current identity because the
+   * next email may be a completely different account.
+   */
+  useDifferentEmail:function(){
+    if(!window.confirm('Start again with a different email address? The details you entered on this step will not be carried over.')) return;
+    OB.backToEmail();
+  },
 
   goStep:function(n){
     S.step=n;prog(n);
@@ -1941,7 +2141,6 @@ window.OB={
       var flds={
         'q-biz':q.bizname,'q-web-url':q.website,'q-addr':q.address,
         'q-ind':q.industry,'q-yrs':q.years,
-        'q-deal-value':q.deal_value||'','q-close-rate':q.close_rate||'',
         'q-comp1':q.comp1||'','q-comp2':q.comp2||'','q-comp3':q.comp3||'',
         'q-ads-loc':q.ads_loc||'','q-ads-prod':q.ads_prod||'',
         'q-ads-usp':q.ads_usp||'','q-ads-promo':q.ads_promo||'','q-ads-sched':q.ads_sched||'',
@@ -2305,8 +2504,25 @@ document.querySelectorAll('#q-goals .ob-chip').forEach(function(c){
 });
 
 /* ── Password toggles ── */
-window.togglePw=function(){var i=$i('ob-pw');if(i)i.type=i.type==='password'?'text':'password';};
-window.togglePw1=function(){var i=$i('s1-pw');if(i)i.type=i.type==='password'?'text':'password';};
+// Password visibility. The icon switches to a struck-through eye while the
+// password is revealed, so it's obvious the field is currently readable.
+var EYE='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+var EYE_OFF='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+function togglePwField(inputId,btn){
+  var i=$i(inputId); if(!i) return;
+  var show = i.type==='password';
+  i.type = show ? 'text' : 'password';
+  if(btn){
+    btn.innerHTML = show ? EYE_OFF : EYE;
+    btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+  }
+  try{ i.focus(); i.setSelectionRange(i.value.length,i.value.length); }catch(e){}
+}
+window.togglePw =function(ev){ togglePwField('ob-pw', ev&&ev.currentTarget); };
+window.togglePw1=function(ev){ togglePwField('s1-pw', ev&&ev.currentTarget); };
+
+// Format phone numbers as they're typed, wherever one is collected.
+['s1-phone','ob-phone'].forEach(function(id){ bindPhoneFormat(id); });
 
 /* ── Growth Engine ── */
 var GE = {

@@ -632,8 +632,6 @@ class Six_Odoo {
             'platforms'        => 'Services / platforms',
             'competitors'      => 'Competitors',
             'mktg_budget'      => 'Total monthly budget',
-            'deal_value'       => 'Avg customer value ($)',
-            'close_rate'       => 'Lead close rate (%)',
             // Google Ads
             'gads_running'     => 'Currently running Google Ads',
             'ads_locations'    => 'Google Ads - target locations',
@@ -876,18 +874,100 @@ class Six_Odoo {
         return $result;
     }
 
+    /**
+     * Unified communication-history logger — every email, SMS, in-portal
+     * message, and phone call the site sends/receives/logs gets posted to
+     * the lead's Odoo chatter in one consistent format, so Odoo is the
+     * single source of truth for "everything sent/received with this
+     * customer" (a HubSpot-style timeline on every lead). Thin wrapper
+     * around post_note(); no-ops safely if $lead_id is falsy, so every call
+     * site can call this unconditionally without its own guard.
+     *
+     * @param int    $lead_id   Odoo crm.lead ID.
+     * @param string $channel   'Email' | 'SMS' | 'Portal Message' | 'Call'
+     * @param string $direction 'Sent' | 'Received' | 'Made' | 'Missed'
+     * @param string $summary   One-line summary (subject line, or the
+     *                          message/call outcome).
+     * @param string $detail    Optional fuller body/notes below the summary.
+     */
+    public static function log_communication( $lead_id, $channel, $direction, $summary, $detail = '' ) {
+        if ( ! $lead_id ) return false;
+        $body = '[' . strtoupper( $channel ) . ' ' . strtoupper( $direction ) . '] ' . $summary;
+        if ( $detail ) $body .= "\n" . $detail;
+        return self::post_note( $lead_id, $body );
+    }
+
+    /**
+     * Read a lead's chatter back — every entry log_communication()/post_note()
+     * (and the plain "Email sent to: ..." notes send_email_odoo() writes
+     * directly) has ever posted, newest first. This is the read-side of the
+     * same single source of truth: nothing new to log, nothing to keep in
+     * sync — just fetching what's already there so the WP portal can show a
+     * lead's full send history next to their profile instead of only inside
+     * Odoo.
+     *
+     * @param int $lead_id
+     * @param int $limit
+     * @return array[] Each: ['date'=>'Y-m-d H:i:s' (site time), 'body'=>plain text, 'channel'=>'Email'|'SMS'|'Portal Message'|'Call'|'Note', 'direction'=>'Sent'|'Received'|'Made'|'Missed'|''].
+     */
+    public static function get_lead_messages( $lead_id, $limit = 100 ) {
+        $lead_id = intval( $lead_id );
+        if ( ! $lead_id ) return array();
+
+        $rows = self::execute( 'mail.message', 'search_read',
+            array( array(
+                array( 'model',   '=', 'crm.lead' ),
+                array( 'res_id',  '=', $lead_id ),
+                array( 'message_type', 'in', array( 'comment', 'notification', 'email' ) ),
+            ) ),
+            array( 'fields' => array( 'body', 'date', 'subject', 'message_type', 'email_from' ), 'order' => 'date desc', 'limit' => $limit )
+        );
+        if ( ! is_array( $rows ) ) return array();
+
+        $out = array();
+        foreach ( $rows as $r ) {
+            $plain = trim( wp_strip_all_tags( html_entity_decode( (string) ( $r['body'] ?? '' ), ENT_QUOTES ) ) );
+            if ( $plain === '' ) continue;
+
+            $channel   = 'Note';
+            $direction = '';
+            if ( preg_match( '/^\[(EMAIL|SMS|PORTAL MESSAGE|CALL)\s+(SENT|RECEIVED|MADE|MISSED)\]/i', $plain, $m ) ) {
+                $channel   = ucwords( strtolower( $m[1] ) );
+                $direction = ucfirst( strtolower( $m[2] ) );
+                $plain     = trim( preg_replace( '/^\[[^\]]+\]\s*/', '', $plain ) );
+            } elseif ( stripos( $plain, 'Email sent to:' ) === 0 ) {
+                $channel   = 'Email';
+                $direction = 'Sent';
+            }
+
+            $out[] = array(
+                'date'      => get_date_from_gmt( (string) ( $r['date'] ?? '' ) ),
+                'body'      => $plain,
+                'channel'   => $channel,
+                'direction' => $direction,
+            );
+        }
+        return $out;
+    }
+
     // ═════════════════════════════════════════════════════════════════════
     // SECTION 7 — EMAIL VIA ODOO (logged in chatter)
     // ═════════════════════════════════════════════════════════════════════
 
     /**
-     * Send an email FROM Odoo and log it in the lead's chatter.
-     * The email appears in the timeline exactly like HubSpot.
-     */
-    /**
      * Send plain-text email to user AND log clean note to Odoo chatter.
      * Pass plain text as $body_plain — this function converts to HTML for delivery.
      * No HTML tags, no emojis in chatter. Clean plain text only.
+     *
+     * Despite the name, this does NOT send "from Odoo" — it sends via
+     * WordPress's wp_mail() and then writes a plain note onto the lead's
+     * chatter recording that it happened. That's a deliberate, resilient
+     * design (an Odoo outage never costs a customer their email) but it
+     * means a reply to this email has no way to thread back onto this lead
+     * — Odoo never generated the message, so its mail gateway has no
+     * Message-ID to match a reply against. See send_email_threaded() below
+     * for the one that genuinely sends through Odoo and gets real
+     * reply-threading, currently piloted on one template only.
      */
     public static function send_email_odoo( $lead_id, $to_email, $subject, $body_plain, $from_name = '6ix Developers' ) {
         if ( ! $to_email ) return false;
@@ -928,6 +1008,79 @@ Status: "
         }
 
         return $sent;
+    }
+
+    /**
+     * PILOT — sends a REAL outbound email through Odoo's own mail server
+     * instead of WordPress's, by posting a genuine 'comment' message on the
+     * lead with the customer's partner as a recipient (post_note() above
+     * uses subtype 'mail.mt_note', an internal-only note nobody outside
+     * Odoo ever receives — this uses 'mail.mt_comment', which Odoo actually
+     * emails out). Because Odoo itself generates the Message-ID and sets
+     * Reply-To to its own mail gateway, a reply to this email threads back
+     * onto this lead's chatter automatically — the one thing send_email_odoo()
+     * can never do.
+     *
+     * Depends on Odoo's Incoming Mail being configured to receive at that
+     * gateway address — outgoing alone isn't enough for threading to work.
+     * If that hasn't been verified yet, this will still send the email fine
+     * (message_post()/mail.mail delivery doesn't need incoming mail), it's
+     * only the reply-threading half that silently won't work until it is.
+     *
+     * Currently wired into exactly one send path — see
+     * six_send_system_email()'s $opts['send_via_odoo'] in
+     * class-system-emails.php, which falls back to the normal wp_mail()
+     * path automatically if this returns false, so an Odoo-side hiccup
+     * never costs the customer their email.
+     *
+     * @param int    $lead_id    crm.lead ID.
+     * @param int    $partner_id res.partner ID — the actual recipient Odoo emails. Must be a real partner (see get_or_create_partner_id()), not just an email string.
+     * @param string $subject
+     * @param string $body_plain Plain text; converted to a simple paragraph HTML body, same as send_email_odoo().
+     * @return bool True if Odoo accepted the message — NOT a delivery confirmation (Odoo queues/sends async, same as any outgoing mail server).
+     */
+    public static function send_email_threaded( $lead_id, $partner_id, $subject, $body_plain ) {
+        $lead_id    = intval( $lead_id );
+        $partner_id = intval( $partner_id );
+        if ( ! $lead_id || ! $partner_id ) return false;
+
+        $paragraphs = explode( "\n\n", (string) $body_plain );
+        $body_html  = implode( '', array_map( function ( $p ) {
+            return '<p>' . nl2br( esc_html( trim( $p ) ) ) . '</p>';
+        }, $paragraphs ) );
+
+        $result = self::execute( 'crm.lead', 'message_post',
+            array( array( $lead_id ) ),
+            array(
+                'body'          => $body_html,
+                'subject'       => (string) $subject,
+                'message_type'  => 'comment',
+                'subtype_xmlid' => 'mail.mt_comment',
+                'partner_ids'   => array( $partner_id ),
+            )
+        );
+
+        if ( $result === false ) {
+            error_log( '6ix Odoo: send_email_threaded failed on lead ' . $lead_id . ' partner ' . $partner_id . ' fault=' . wp_json_encode( self::$last_fault ) );
+            return false;
+        }
+        error_log( "6ix Odoo: send_email_threaded OK lead={$lead_id} partner={$partner_id} subject=\"{$subject}\"" );
+        return true;
+    }
+
+    /**
+     * The res.partner ID for a WP customer's own Odoo contact, creating one
+     * on the spot if it doesn't exist yet — the ID send_email_threaded()
+     * needs (a bare email string isn't enough, message_post()'s partner_ids
+     * takes real partner IDs). Reads the six_odoo_partner_id meta
+     * create_or_update_contact() already writes, so this is nearly always a
+     * cached read, not a fresh Odoo round-trip.
+     */
+    public static function get_or_create_partner_id( $user_id ) {
+        $pid = intval( get_user_meta( $user_id, 'six_odoo_partner_id', true ) );
+        if ( $pid ) return $pid;
+        $pid = self::create_or_update_contact( $user_id );
+        return $pid ? intval( $pid ) : 0;
     }
 
     /**
@@ -1117,6 +1270,19 @@ Fix: Verify this number at console.twilio.com → Verified Caller IDs";
      * Stage: always Abandoned.
      * Activity: clean plain text, no HTML, no emojis.
      * Messages: exact wording per spec.
+     *
+     * NOT the production path. six_track_abandoned_checkout() (ajax-onboarding.php)
+     * — the real-time JS beacon's handler — delegates to
+     * Six_Growth_Engine::on_abandon() instead, which is the single
+     * authoritative abandonment handler live on the site (SMS/email
+     * cadence, the admin notification, and the recovery-sequence handoff
+     * all live there — see class-growth-engine.php). This method is only
+     * reachable manually via /wp-admin/?six_test_abandon=USER_ID as a
+     * fallback for when Six_Growth_Engine isn't loaded, and via the
+     * backwards-compat create_abandoned_task() wrapper below, which
+     * nothing in this codebase currently calls. Kept for that manual/
+     * fallback use — do not add production logic here; add it to
+     * Six_Growth_Engine::on_abandon() instead, or it won't run.
      */
     public static function handle_abandoned_checkout( $user_id, $step, $score ) {
         $user = get_userdata( $user_id );
@@ -1282,25 +1448,11 @@ Anastasia
             error_log("6ix Odoo: Abandon email sent to user {$user_id} email={$user->user_email}");
         }
 
-        // Admin notification (musab/faheem) — separate from, and in addition
-        // to, the "Anastasia" nurture email/SMS the customer already got
-        // above; this is the internal FYI copy.
-        if ( function_exists( 'six_send_system_email' ) ) {
-            six_send_system_email( 'onboarding_abandoned', array(
-                'client_name'    => $display,
-                'client_email'   => $user->user_email,
-                'client_phone'   => $phone ?: 'not provided',
-                'stopped_at_step'=> $step_label,
-                'business_name'  => $biz_name ?: 'not provided',
-                'industry'       => $industry ?: 'not provided',
-                'abandon_count'  => $abandon_count,
-                'submitted_at'   => current_time( 'F j, Y g:i a' ),
-            ), array(
-                'send_customer' => false, // the nurture email above already covers the customer
-                'dashboard_url' => $advisor_url,
-                'odoo_lead_id'  => $lead_id,
-            ) );
-        }
+        // NOTE: the admin notification email + recovery-sequence handoff
+        // used to live here, but this function isn't the production path
+        // (see the docblock above) — they were moved to
+        // Six_Growth_Engine::on_abandon(), the function that's actually
+        // called on a real abandonment, so they'd actually run.
 
         error_log("6ix Odoo: Abandon flow complete for user {$user_id} lead {$lead_id}");
         return $lead_id;
@@ -1400,6 +1552,15 @@ Anastasia
         if ( ! $lead_id ) {
             error_log( "6ix Odoo: on_onboarding_completed — sync_lead failed for user {$user_id}" );
             return false;
+        }
+
+        // "Card or call?" fork, per the Lead Automation Flow: a saved
+        // payment method means onboarding finished with the customer
+        // already paying — an instant self-serve client, Won immediately,
+        // no advisor gate. (No card saved falls to on_call_requested()
+        // instead, a separate advisor-owned "Call Requested" stage.)
+        if ( $payment_saved ) {
+            self::update_lead_stage( $lead_id, 'Customer' );
         }
 
         $advisor_uid = self::get_advisor_odoo_uid( $user_id );
@@ -1805,6 +1966,18 @@ Best,
                 'limit'=>200)) ?: array();
     }
 
+    /**
+     * Odoo's own "Lost" leads (active=false — the ORM's implicit active=true
+     * filter has to be explicitly overridden with an 'active' domain clause
+     * to see them at all). Not tracked anywhere in WordPress; read straight
+     * from Odoo for the quarterly win-back pass (class-lead-pipeline.php).
+     */
+    public static function get_lost_leads( $limit = 200 ) {
+        return self::execute('crm.lead','search_read',
+            array(array(array('active','=',false))),
+            array('fields'=>array('id','name','email_from','phone','partner_name'),'limit'=>$limit)) ?: array();
+    }
+
     // ═════════════════════════════════════════════════════════════════════
     // SECTION 15 — SETUP (one-time, /wp-admin/?six_odoo_setup=1)
     // ═════════════════════════════════════════════════════════════════════
@@ -2092,8 +2265,10 @@ Best,
             }
         }
 
-        // ── 2. Lead (crm.lead) ──────────────────────────────────────────
-        $stage_id = self::get_stage_id( 'Website Form Submission' );
+        // ── 2. Lead (crm.lead) — "New Auto": the shared entry stage for
+        // every paid/website lead (Meta Ads + Website Form), per the Lead
+        // Automation Flow. ─────────────────────────────────────────────
+        $stage_id = self::get_stage_id( 'New Auto' );
 
         $when  = ! empty( $sub['created_at'] ) ? $sub['created_at'] : current_time( 'mysql' );
         $where = ! empty( $sub['source_url'] ) ? $sub['source_url'] : '';
@@ -2141,25 +2316,128 @@ Best,
         }
         error_log( '6ix Odoo: sync_form_submission — crm.lead created ID=' . $lead_id . ' for form "' . $form_title . '"' );
 
-        // ── 3. Follow-up task — due tomorrow, "contact within 24 hours" ───
+        // ── 3. Call Reminder task — Odoo's date_deadline is date-only (no
+        // time-of-day), so the actual 10-minute urgency is spelled out in
+        // the activity text/summary; the WordPress side additionally tracks
+        // response_due_at on the submission row itself (minute-precision)
+        // for the dashboard countdown + six_lead_pipeline.php's cron sweep
+        // that moves an unanswered lead to Abandoned after the window.
         self::create_activity(
             $lead_id,
-            'Contact within 24 hours — new "' . $form_title . '" submission',
+            'CALL WITHIN 10 MINUTES — new "' . $form_title . '" submission',
             "New website form submission from {$display_name}.\n"
             . "Form: {$form_title}\n"
             . ( $contact['email'] ? "Email: {$contact['email']}\n" : '' )
             . ( $contact['phone'] ? "Phone: {$contact['phone']}\n" : '' )
             . "Submitted: {$when}\n"
             . ( $where ? "Page: {$where}\n" : '' )
-            . "\nACTION REQUIRED: Contact this lead within 24 hours of submission.",
+            . "\nACTION REQUIRED: Call this lead within 10 minutes of submission.",
             'Todo',
-            1
+            0
         );
+
+        // ── 4. Auto SMS to the lead — "New Auto" stage sends auto email +
+        // SMS the moment a paid/website lead lands in the CRM. The email
+        // side is the form's own customer-confirmation email (already sent
+        // by class-forms-submit.php); this is the SMS half — editable under
+        // 6ix Portal → Automation → SMS ("System: New Lead — Instant SMS").
+        // Skipped when the specific form that was submitted already has its
+        // own SMS text configured (class-forms-submit.php already sent that
+        // one directly), so a lead never gets texted twice for one submission.
+        $form_has_own_sms = false;
+        if ( ! empty( $sub['form_key'] ) && function_exists( 'six_forms_get' ) ) {
+            $form_tpl = six_forms_get( (string) $sub['form_key'] );
+            $form_has_own_sms = $form_tpl && ! empty( $form_tpl['sms_body'] );
+        }
+        if ( $contact['phone'] && ! $form_has_own_sms && function_exists( 'six_send_system_email' ) ) {
+            six_send_system_email( 'form_new_lead_sms', array(
+                'client_name' => $contact['name'] ? explode( ' ', trim( $contact['name'] ) )[0] : 'there',
+                'source_form' => $form_title,
+            ), array(
+                'send_admin'     => false,
+                'send_customer'  => true, // the template's own customer_enabled=0 already skips the (nonexistent) email half — see seed note
+                'customer_phone' => $contact['phone'],
+                'odoo_lead_id'   => $lead_id,
+            ) );
+        }
 
         return array( 'ok' => true, 'lead_id' => $lead_id, 'partner_id' => $partner_id );
     }
 }
 endif;
+
+// ═════════════════════════════════════════════════════════════════════════════
+// INBOUND SMS — Twilio webhook, logs a customer's reply to their Odoo lead
+// chatter. Configure this URL as the phone number's "A message comes in"
+// webhook in the Twilio console: https://<site>/wp-admin/admin-ajax.php
+// ?action=six_twilio_inbound_sms (no nonce — Twilio is an external caller;
+// see the docblock below for what that trades off).
+// ═════════════════════════════════════════════════════════════════════════════
+add_action( 'wp_ajax_nopriv_six_twilio_inbound_sms', 'six_twilio_inbound_sms_webhook' );
+add_action( 'wp_ajax_six_twilio_inbound_sms', 'six_twilio_inbound_sms_webhook' );
+
+/**
+ * Twilio POSTs From/To/Body (+MessageSid) here the moment someone texts the
+ * business number back. No nonce (Twilio can't carry one) — this is
+ * intentionally read-only from our data's perspective: it only ever posts a
+ * chatter note keyed off a phone-number lookup, never writes/authorizes
+ * anything. Returns empty 200 (no TwiML) since we don't auto-reply.
+ */
+function six_twilio_inbound_sms_webhook() {
+	$from = isset( $_POST['From'] ) ? sanitize_text_field( wp_unslash( $_POST['From'] ) ) : '';
+	$body = isset( $_POST['Body'] ) ? sanitize_textarea_field( wp_unslash( $_POST['Body'] ) ) : '';
+	if ( ! $from ) { status_header( 200 ); exit; }
+
+	$lead_id = six_lookup_odoo_lead_by_phone( $from );
+	if ( $lead_id && class_exists( 'Six_Odoo' ) ) {
+		Six_Odoo::log_communication( $lead_id, 'SMS', 'Received', wp_trim_words( $body, 12 ), "From: {$from}\n{$body}" );
+	} else {
+		error_log( "6ix Odoo: inbound SMS from {$from} — no matching lead found. Body: {$body}" );
+	}
+
+	status_header( 200 );
+	header( 'Content-Type: text/xml' );
+	echo '<?xml version="1.0" encoding="UTF-8"?><Response></Response>';
+	exit;
+}
+
+/**
+ * Best-effort phone -> Odoo lead lookup: WP users first (billing_phone,
+ * covers onboarding leads), then Odoo directly by phone (covers website-form
+ * leads, which have no WP user). Matches on the last 10 digits so formatting
+ * differences (+1, spaces, dashes, parens) between what Twilio sends and
+ * what was typed into a form don't cause a false miss.
+ */
+function six_lookup_odoo_lead_by_phone( $phone ) {
+	$digits = preg_replace( '/\D/', '', $phone );
+	$last10 = substr( $digits, -10 );
+	if ( strlen( $last10 ) < 7 ) return 0; // too short to match reliably
+
+	$users = get_users( array(
+		'meta_key'     => 'billing_phone',
+		'meta_compare' => 'EXISTS',
+		'number'       => 500,
+		'fields'       => array( 'ID' ),
+	) );
+	foreach ( $users as $u ) {
+		$their_phone = get_user_meta( $u->ID, 'billing_phone', true );
+		$their_digits = preg_replace( '/\D/', '', (string) $their_phone );
+		if ( $their_digits && substr( $their_digits, -10 ) === $last10 ) {
+			$lead_id = intval( get_user_meta( $u->ID, 'six_odoo_lead_id', true ) );
+			if ( $lead_id ) return $lead_id;
+		}
+	}
+
+	if ( class_exists( 'Six_Odoo' ) ) {
+		$matches = Six_Odoo::execute_public( 'crm.lead', 'search_read',
+			array( array( array( 'phone', 'like', $last10 ) ) ),
+			array( 'fields' => array( 'id' ), 'limit' => 1 )
+		);
+		if ( ! empty( $matches[0]['id'] ) ) return intval( $matches[0]['id'] );
+	}
+
+	return 0;
+}
 
 // ═════════════════════════════════════════════════════════════════════════════
 // ADMIN: Setup page — /wp-admin/?six_odoo_setup=1
@@ -2234,6 +2512,8 @@ add_action('admin_init', function() {
         'six_checkout_completed', 'six_abandoned_at_step', 'six_abandoned_at',
         'six_abandoned_score', 'six_abandon_fired_sms', 'six_abandon_fired_email',
         'six_abandon_fired_activity', 'six_abandon_fired_followup',
+        'six_abandon_fired_initial', 'six_abandon_escalated',
+        'six_recovery_active', 'six_recovery_stage', 'six_recovery_next_at', 'six_recovery_nurture',
         'six_high_intent_fired', 'six_last_event', 'six_odoo_lead_id',
         'six_last_activity',
     );
@@ -2251,6 +2531,7 @@ add_action('admin_init', function() {
 add_action('admin_init', function() {
     if (!current_user_can('manage_options') || empty($_GET['six_clear_abandon_crons'])) return;
     $hooks = array(
+        'six_abandon_initial_message', 'six_abandon_24h_check',
         'six_abandon_sms', 'six_abandon_email', 'six_abandon_activity',
         'six_abandon_followup', 'six_stale_lead_check', 'six_stale_lead_check_v2',
         'six_stale_lead_cron',
@@ -2286,6 +2567,8 @@ add_action('admin_init', function() {
     delete_user_meta($uid, 'six_last_abandon_trigger');
     delete_user_meta($uid, 'six_abandon_fired_sms');
     delete_user_meta($uid, 'six_abandon_fired_email');
+    delete_user_meta($uid, 'six_abandon_fired_initial');
+    delete_user_meta($uid, 'six_abandon_escalated');
     $step  = intval(get_user_meta($uid, 'six_checkout_step', true) ?: 1);
     $score = intval(get_user_meta($uid, 'six_checkout_score', true) ?: 15);
     $user  = get_userdata($uid);

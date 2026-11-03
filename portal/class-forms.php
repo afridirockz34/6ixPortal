@@ -44,7 +44,15 @@ add_action( 'init', function () {
 		),
 		'public'        => false,
 		'show_ui'       => true,
-		'show_in_menu'  => 'six-portal', // attaches as a submenu of the existing 6ix Portal menu
+		// Not attached to the 6ix Portal menu (was 'six-portal') — its own
+		// "All Forms" list mixed real lead-capture forms with internal
+		// automation-only templates with no visual distinction beyond a
+		// column. 6ix Portal → Automation (class-forms-admin.php) replaces
+		// it: one categorized Emails/SMS view across both, each row linking
+		// to this same post's edit screen (still fully functional with
+		// show_ui alone — WP doesn't require show_in_menu for post.php/
+		// post-new.php to work, only to put a link in the sidebar).
+		'show_in_menu'  => false,
 		'supports'      => array( 'title' ),
 		'has_archive'   => false,
 		'rewrite'       => false,
@@ -76,22 +84,31 @@ function six_forms_create_table() {
 		odoo_partner_id bigint(20) NOT NULL DEFAULT 0,
 		odoo_sync_status varchar(20) NOT NULL DEFAULT 'pending',
 		odoo_sync_error text,
+		response_status varchar(20) NOT NULL DEFAULT 'pending',
+		response_due_at datetime DEFAULT NULL,
+		responded_at datetime DEFAULT NULL,
+		responded_by bigint(20) NOT NULL DEFAULT 0,
+		recovery_stage tinyint(1) NOT NULL DEFAULT 0,
+		recovery_next_at datetime DEFAULT NULL,
 		created_at datetime DEFAULT CURRENT_TIMESTAMP,
 		PRIMARY KEY (id),
 		KEY form_key (form_key),
 		KEY status (status),
-		KEY created_at (created_at)
+		KEY created_at (created_at),
+		KEY response_status (response_status),
+		KEY recovery_next_at (recovery_next_at)
 	) $charset" );
 }
 // Runs automatically the first time this code is live — not gated behind a
 // manual admin visit, since a missing table would silently drop every
 // submission until someone noticed. Guarded so it only ever runs once.
-// Bumped to v3 to add odoo_sync_status/odoo_sync_error on existing installs
-// (v2 added odoo_lead_id/odoo_partner_id) — dbDelta() is additive-safe, so
-// each bump just adds the new columns without touching existing rows.
+// Bumped to v4 to add the lead-response/recovery-sequence columns used by
+// class-lead-pipeline.php (v3 added odoo_sync_status/odoo_sync_error, v2
+// added odoo_lead_id/odoo_partner_id) — dbDelta() is additive-safe, so each
+// bump just adds the new columns without touching existing rows.
 add_action( 'wp_loaded', function () {
-	if ( get_option( 'six_forms_table_v3' ) ) return;
-	update_option( 'six_forms_table_v3', 1 );
+	if ( get_option( 'six_forms_table_v4' ) ) return;
+	update_option( 'six_forms_table_v4', 1 );
 	six_forms_create_table();
 } );
 
@@ -146,6 +163,7 @@ function six_forms_get( $key_or_id ) {
 		'customer_email_field' => get_post_meta( $id, 'six_form_customer_email_field', true ),
 		'customer_subject'     => get_post_meta( $id, 'six_form_customer_subject', true ),
 		'customer_body'        => get_post_meta( $id, 'six_form_customer_body', true ),
+		'sms_body'             => get_post_meta( $id, 'six_form_sms_body', true ),
 	);
 }
 

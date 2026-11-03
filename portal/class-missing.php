@@ -167,6 +167,23 @@ class Six_Messaging {
                 'message'    => wp_trim_words( $message, 15 ),
                 'action_url' => $action_url,
             ) );
+
+            // Log to the customer's Odoo lead chatter — whichever side of
+            // this conversation is the customer, so Odoo keeps the full
+            // communication history regardless of channel.
+            if ( class_exists( 'Six_Odoo' ) && class_exists( 'Six_Roles' ) ) {
+                $customer_id = null;
+                if ( Six_Roles::is_customer( $sender_id ) ) $customer_id = intval( $sender_id );
+                elseif ( Six_Roles::is_customer( $receiver_id ) ) $customer_id = intval( $receiver_id );
+                if ( $customer_id ) {
+                    $lead_id = intval( get_user_meta( $customer_id, 'six_odoo_lead_id', true ) );
+                    if ( $lead_id ) {
+                        $direction = ( $customer_id === intval( $sender_id ) ) ? 'Received' : 'Sent';
+                        Six_Odoo::log_communication( $lead_id, 'Portal Message', $direction, wp_trim_words( $message, 12 ), $message );
+                    }
+                }
+            }
+
             return $wpdb->insert_id;
         }
         return false;

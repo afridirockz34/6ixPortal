@@ -76,7 +76,11 @@ require_once SIX_PLUGIN_DIR . 'data-forms-seed.php';
 $optional_files = array(
     'class-odoo.php',          // must load before growth engine
     'class-forms-integrations.php', // forms → Odoo + advisor notifications (needs Six_Odoo)
+    'class-lead-pipeline.php', // Lead Automation Flow — response window, recovery sequence, win-back (needs Six_Odoo)
     'class-estimate-engine.php', // Estimate Engine — real data growth plans
+    'class-dashboard-metrics.php', // service-aware dashboard stats + connector seam
+    'class-website-project.php', // website build milestones + maintenance add-on
+    'class-profile-api.php',     // REST profile contract for external tools/skills
     'class-growth-engine.php', // Growth Engine
     'class-stripe.php',
     'class-google-ads-calendar.php',
@@ -236,6 +240,37 @@ function six_create_tables() {
             odoo_project_id varchar(100) DEFAULT '',
             PRIMARY KEY (id),
             UNIQUE KEY client_service (client_id, service_slug)
+        ) $charset",
+
+        // Website builds are one-off projects, not monthly retainers, so they
+        // are tracked by delivery milestones an advisor sets rather than by
+        // performance metrics. Ordered by sort_order for display.
+        "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}six_website_milestones (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            client_id bigint(20) NOT NULL,
+            title varchar(200) NOT NULL,
+            status varchar(20) DEFAULT 'pending',
+            sort_order int(11) DEFAULT 0,
+            completed_at datetime NULL,
+            updated_by bigint(20) DEFAULT 0,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY client_id (client_id)
+        ) $charset",
+
+        // Results produced by external tools and Claude skills against a
+        // client profile — keyword analyses, post schedules, reports. Payload
+        // shape is the producer's business; the dashboard renders the types it
+        // knows and ignores the rest.
+        "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}six_client_artifacts (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            client_id bigint(20) NOT NULL,
+            type varchar(60) NOT NULL,
+            source varchar(100) DEFAULT '',
+            payload longtext,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY client_type (client_id, type)
         ) $charset",
 
         "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}six_metrics (

@@ -165,8 +165,14 @@ add_action( 'wp_ajax_nopriv_six_portal_login', 'six_portal_login' );
 add_action( 'wp_ajax_six_portal_login',        'six_portal_login' );
 function six_portal_login() {
     check_ajax_referer( 'six_nonce', 'nonce' );
-    $email    = sanitize_email( $_POST['email']    ?? '' );
-    $password = sanitize_text_field( $_POST['password'] ?? '' );
+    $email = sanitize_email( $_POST['email'] ?? '' );
+    // NEVER sanitize a password. sanitize_text_field() strips tags, strips
+    // octets and trims, so any password containing "<", ">" or trailing
+    // whitespace arrived here altered and could never match the raw value
+    // six_create_personal_account()/six_set_user_password() stored — a valid
+    // login was rejected as "Incorrect email or password". wp_authenticate()
+    // only ever hashes and compares this; it is never echoed or interpolated.
+    $password = (string) ( $_POST['password'] ?? '' );
     $user     = wp_authenticate( $email, $password );
     if ( is_wp_error( $user ) ) {
         wp_send_json_error( 'Incorrect email or password.' );
@@ -213,67 +219,16 @@ function six_portal_login() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 3. CREATE PARTIAL ACCOUNT — new email, start onboarding
+// 3. (REMOVED) CREATE PARTIAL ACCOUNT
 // ─────────────────────────────────────────────────────────────────────────────
-add_action( 'wp_ajax_nopriv_six_create_partial_account', 'six_create_partial_account' );
-add_action( 'wp_ajax_six_create_partial_account',        'six_create_partial_account' );
-function six_create_partial_account() {
-    // No nonce check — this fires as a guest (nopriv). The guest nonce from
-    // page load is valid here. Security: email is validated before use.
-    $email = sanitize_email( $_POST['email'] ?? '' );
-    if ( ! is_email( $email ) ) wp_send_json_error( 'Invalid email' );
-    if ( email_exists( $email ) ) {
-        $user = get_user_by( 'email', $email );
-        // Already exists but not completed — resume
-        $advisor = six_get_advisor_for_user( $user->ID );
-        wp_send_json_success( array( 'user_id' => $user->ID, 'advisor' => $advisor ) );
-        return;
-    }
-
-    // Generate temp password
-    $password = wp_generate_password( 16, false );
-    $username = sanitize_user( strstr( $email, '@', true ) . '_' . wp_rand( 100, 999 ) );
-    while ( username_exists( $username ) ) { $username .= wp_rand( 1, 9 ); }
-
-    $user_id = wp_insert_user( array(
-        'user_login' => $username,
-        'user_email' => $email,
-        'user_pass'  => $password,
-        'role'       => 'six_customer',
-    ) );
-
-    if ( is_wp_error( $user_id ) ) wp_send_json_error( $user_id->get_error_message() );
-
-    // Store temp password in meta (emailed to user on completion)
-    update_user_meta( $user_id, 'six_temp_password',      $password );
-    update_user_meta( $user_id, 'six_checkout_step',      1 );
-    update_user_meta( $user_id, 'six_checkout_score',     10 ); // account created = 10
-    update_user_meta( $user_id, 'six_checkout_completed', 0 );
-
-    // Log them in immediately
-    wp_set_current_user( $user_id );
-    wp_set_auth_cookie( $user_id, true );
-
-    // CRITICAL: Regenerate nonce now that the user is logged in.
-    // The original nonce was minted for a guest — all subsequent AJAX calls
-    // (including six_complete_onboarding) must use this new logged-in nonce,
-    // otherwise check_ajax_referer will return -1 and every call will fail.
-    $fresh_nonce = wp_create_nonce( 'six_nonce' );
-
-    // Assign advisor (round-robin)
-    $advisor = six_assign_advisor_round_robin( $user_id );
-
-    // Create Odoo contact immediately — welcome message fired by on_personal_info_submitted
-    if ( class_exists('Six_Odoo') ) {
-        Six_Odoo::create_or_update_contact( $user_id );
-    }
-
-    wp_send_json_success( array(
-        'user_id' => $user_id,
-        'advisor' => $advisor,
-        'nonce'   => $fresh_nonce,  // JS must update S.nonce with this value
-    ) );
-}
+// six_create_partial_account() lived here: it created a six_customer account
+// from an unauthenticated request with no nonce check, assigned it a random
+// password and stored that password in plaintext usermeta. Nothing called it —
+// the current flow creates the account at step 1 via
+// six_create_personal_account(), with a password the customer chooses (see
+// that function's docblock, which already described this as "replaces the old
+// two-step"). It was left registered as a public wp_ajax_nopriv_* endpoint,
+// so anyone could have mass-created accounts with it. Do not reinstate it.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 4. SAVE CHECKOUT STEP
@@ -340,8 +295,6 @@ function six_ajax_save_checkout_step() {
             'challenge'      => sanitize_text_field( $data['challenge']   ?? '' ),
             'mktg_budget'    => sanitize_text_field( $data['mktg_budget'] ?? '' ),
             'platforms'      => sanitize_text_field( $data['platforms']   ?? '' ),
-            'deal_value'     => preg_replace( '/[^0-9]/', '', $data['deal_value'] ?? '' ),
-            'close_rate'     => preg_replace( '/[^0-9]/', '', $data['close_rate'] ?? '' ),
             'monthly_revenue'    => sanitize_text_field( $data['revenue']     ?? $data['monthly_revenue'] ?? '' ),
             // New v5 fields
             'business_address'   => sanitize_text_field( $data['location']     ?? '' ),
@@ -515,8 +468,6 @@ function six_complete_onboarding() {
                                 ])) ),
             'platforms'       => sanitize_text_field( $d['platforms']    ?? '' ),
             'mktg_budget'     => sanitize_text_field( $d['mktg_budget']  ?? '' ),
-            'deal_value'      => preg_replace( '/[^0-9]/', '', $d['deal_value'] ?? '' ),
-            'close_rate'      => preg_replace( '/[^0-9]/', '', $d['close_rate'] ?? '' ),
             // Google Ads
             'ads_locations'   => sanitize_text_field( $d['ads_loc']      ?? '' ),
             'ads_loc_type'    => sanitize_text_field( $d['ads_loc_type'] ?? 'Include' ),
@@ -755,24 +706,41 @@ function six_complete_onboarding() {
         }
     }
 
-    // Send welcome email with login info — content is code-controlled (not
-    // the editable "System: Onboarding Completed" template) since it carries
-    // the customer's actual temporary password; only its visual chrome is
+    // Send the welcome email. Content is code-controlled rather than the
+    // editable "System: Onboarding Completed" template because it carries
+    // account access details; only its visual chrome (badge + step cards) is
     // shared with the rest of the branded email system.
+    //
+    // This used to be gated on a six_temp_password meta value, which the
+    // current signup flow never sets — customers choose their own password at
+    // step 1 — so the welcome email silently never sent. It now always sends,
+    // and it never contains a password: we don't need to mail them one they
+    // already chose, and legacy accounts get a set-password link instead.
     $temp_pass = get_user_meta( $user_id, 'six_temp_password', true );
     $user      = get_userdata( $user_id );
-    if ( $temp_pass ) {
-        $welcome_body = '<p>Hi ' . esc_html($user->first_name ?: $user->display_name) . ',</p>'
-            . '<p>Welcome! Your account is ready. Here are your login details:</p>'
-            . '<ul><li><strong>Email:</strong> ' . esc_html($user->user_email) . '</li>'
-            . '<li><strong>Temporary Password:</strong> ' . esc_html($temp_pass) . '</li></ul>'
-            . '<p>Your advisor will reach out within one business day.</p>';
+    if ( $user ) {
+        $first_name  = $user->first_name ?: $user->display_name;
+        $service_str = $svc_names ? implode( ', ', $svc_names ) : 'your services';
+        $badge_text  = $svc_names
+            ? count( $svc_names ) . ' service' . ( count( $svc_names ) === 1 ? '' : 's' ) . ' ready to launch'
+            : 'Account ready to launch';
+
         $welcome_html = function_exists( 'six_email_chrome' ) ? six_email_chrome( array(
-            'preheader' => 'Your 6ix Developers account is ready.',
-            'heading'   => 'Welcome to 6ix Developers',
-            'body_html' => $welcome_body,
-            'links'     => array( array( 'label' => 'Go to My Dashboard', 'url' => home_url( '/portal/' ) ) ),
-        ) ) : ( $welcome_body . '<p><a href="' . home_url('/portal/') . '">Go to My Dashboard →</a></p>' );
+            'preheader'  => 'Your 6ix Developers account is ready.',
+            'badge'      => $badge_text,
+            'heading'    => 'Welcome to 6ix Developers, ' . $first_name . '!',
+            'body_html'  => '<p style="margin:0">Your account is all set — here\'s what happens next.</p>',
+            'step_cards' => array(
+                array( 'title' => 'Your advisor is on it', 'body' => 'They\'ll reach out within one business day to kick things off.' ),
+                array( 'title' => 'We\'re setting up ' . $service_str, 'body' => 'Your selected services are being configured now.' ),
+                array( 'title' => 'Track everything from your dashboard', 'body' => 'See progress, messages, and next steps anytime.' ),
+            ),
+            'info_rows'  => array( 'Login email' => $user->user_email ),
+            'links'      => array( array( 'label' => 'Go to My Dashboard', 'url' => home_url( '/portal/' ) ) ),
+        ) ) : ( '<p>Hi ' . esc_html( $first_name ) . ',</p>'
+            . '<p>Welcome! Your account is ready. You can sign in with <strong>' . esc_html($user->user_email) . '</strong>.</p>'
+            . '<p>Your advisor will reach out within one business day.</p>'
+            . '<p><a href="' . home_url('/portal/') . '">Go to My Dashboard →</a></p>' );
         wp_mail(
             $user->user_email,
             'Welcome to 6ix Developers — Your Account Details',
@@ -1499,12 +1467,16 @@ function six_onboarding_db_upgrade() {
         update_option( 'six_onboarding_db_v8', 1 );
     }
 
-    // v9 migration — ROI inputs for the post-onboarding growth projection
+    // v9 migration — RETIRED. These two columns fed an ROI/revenue projection
+    // we no longer make (we can't guarantee returns), so onboarding no longer
+    // asks for them and nothing reads them. The columns stay — dropping them
+    // would destroy answers existing clients already gave us, and an advisor
+    // may still want that history — but do NOT wire anything new to them.
     if ( ! get_option('six_onboarding_db_v9') ) {
         $cols9 = $wpdb->get_col( "SHOW COLUMNS FROM {$wpdb->prefix}six_checkout_progress", 0 );
         $v9_cols = array(
-            'deal_value' => "VARCHAR(20) DEFAULT ''", // average customer/order value ($)
-            'close_rate' => "VARCHAR(10) DEFAULT ''", // % of leads that convert
+            'deal_value' => "VARCHAR(20) DEFAULT ''", // retired — see note above
+            'close_rate' => "VARCHAR(10) DEFAULT ''", // retired — see note above
         );
         foreach ( $v9_cols as $col => $def ) {
             if ( ! in_array( $col, $cols9 ) ) {
@@ -1543,8 +1515,11 @@ function six_set_user_password() {
     $user = get_userdata($user_id);
     wp_set_current_user($user_id);
     wp_set_auth_cookie($user_id, true);
-    // Update temp password meta
-    update_user_meta($user_id,'six_temp_password',$password);
+    // Deliberately does NOT keep a copy of the password. It used to be stored
+    // in plaintext in six_temp_password so the welcome email could quote it
+    // back; that email no longer sends credentials, and keeping a readable
+    // password in usermeta is not worth any convenience it bought.
+    delete_user_meta($user_id,'six_temp_password');
     wp_send_json_success();
 }
 
@@ -1656,6 +1631,8 @@ function six_create_personal_account() {
     delete_user_meta( $user_id, 'six_last_abandon_odoo' );
     update_user_meta( $user_id, 'six_abandon_fired_sms',   0 );
     update_user_meta( $user_id, 'six_abandon_fired_email', 0 );
+    update_user_meta( $user_id, 'six_abandon_fired_initial', 0 );
+    update_user_meta( $user_id, 'six_abandon_escalated',     0 );
     // Store session_id as fallback identifier for abandon tracking
     if ( ! session_id() ) @session_start();
     $sess = session_id() ?: wp_generate_uuid4();
@@ -1848,10 +1825,18 @@ function six_schedule_onboarding_call() {
     $table = $wpdb->prefix . 'six_checkout_progress';
 
     // A requested call supersedes any earlier abandonment — clear the abandon
-    // state so the abandoned-checkout follow-up cron does not nag this lead.
+    // state AND cancel whatever on_abandon() already queued for this lead
+    // (the +30min combined message, the +24h resume check), so nobody who
+    // just booked a live call still gets a "come back and finish!" text.
+    $pending_step  = intval( get_user_meta( $user_id, 'six_abandoned_at_step', true ) );
+    $pending_score = intval( get_user_meta( $user_id, 'six_abandoned_score',   true ) );
+    wp_clear_scheduled_hook( 'six_abandon_initial_message', array( $user_id, $pending_step, $pending_score ) );
+    wp_clear_scheduled_hook( 'six_abandon_24h_check', array( $user_id ) );
     delete_user_meta( $user_id, 'six_abandoned_at_step' );
     delete_user_meta( $user_id, 'six_abandoned_score' );
     delete_user_meta( $user_id, 'six_abandoned_at' );
+    delete_user_meta( $user_id, 'six_abandon_fired_initial' );
+    delete_user_meta( $user_id, 'six_abandon_escalated' );
     update_user_meta( $user_id, 'six_call_requested_at', current_time('mysql') );
 
     // Save call scheduling to DB

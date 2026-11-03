@@ -122,9 +122,35 @@ function six_forms_handle_submit() {
 				$customer_out    = six_wp_mail( $customer_email, $csubject, $chtml, array( 'Content-Type: text/html; charset=UTF-8' ) );
 				$customer_status = $customer_out['sent'] ? 'sent' : 'failed';
 				$customer_err    = $customer_out['error'];
+
+				if ( $odoo_lead_id && class_exists( 'Six_Odoo' ) ) {
+					Six_Odoo::log_communication(
+						$odoo_lead_id, 'Email',
+						$customer_out['sent'] ? 'Sent' : 'Failed',
+						$csubject,
+						$customer_out['sent'] ? "To: {$customer_email}" : "To: {$customer_email}\nError: {$customer_out['error']}"
+					);
+				}
 			} else {
 				$customer_status = 'skipped';
 				$customer_err    = 'No valid email address found in the submission to confirm to.';
+			}
+		}
+
+		// ── Customer SMS (optional) — independent of the email confirmation
+		// above; sends whenever this form has SMS text configured AND the
+		// submission included a value for one of this form's 'tel' fields.
+		if ( ! empty( $form['sms_body'] ) && class_exists( 'Six_Odoo' ) ) {
+			$phone = '';
+			foreach ( $form['fields'] as $fdef ) {
+				if ( ( $fdef['type'] ?? '' ) === 'tel' && ! empty( $data[ $fdef['key'] ]['value'] ) ) {
+					$phone = $data[ $fdef['key'] ]['value'];
+					break;
+				}
+			}
+			if ( $phone ) {
+				$sms = six_forms_merge_tags( $form['sms_body'], $data, $form );
+				Six_Odoo::send_sms_twilio( $phone, $sms, $odoo_lead_id );
 			}
 		}
 

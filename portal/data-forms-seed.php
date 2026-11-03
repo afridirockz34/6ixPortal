@@ -262,12 +262,45 @@ function six_system_email_seed_defaults() {
 			'customer_subject'=> 'Your {service_name} is now active!',
 			'customer_body'   => "Hi {client_name},\n\nGreat news — {service_name} is now active on your account at \${budget}/mo. Your advisor will be in touch with next steps.\n\nYou can track progress anytime from your dashboard.\n\nThe 6ix Developers team",
 		),
+		array(
+			// Was hardcoded PHP inside Six_Growth_Engine::cron_abandon_initial_message()
+			// — the onboarding journey's one automated +30min reach-out. Made
+			// editable here so it's no longer the one automated message on the
+			// whole site nobody but a developer could change.
+			'key'             => 'onboarding_abandon_initial',
+			'title'           => 'System: Onboarding Abandoned — 30min Reach-Out',
+			'owner_subject'   => '',
+			'owner_body'      => '',
+			'customer_enabled'=> 1, // admin already got their own copy immediately via on_abandon()'s Odoo activity + FYI email — this template is customer-only (send_admin is forced off at the call site)
+			'customer_subject'=> 'Pick up right where you left off',
+			'customer_body'   => "Hi {client_name},\n\nIt's Anastasia from 6ix Developers — I noticed you started setting up your account but didn't get a chance to finish.\n\nGood news: your answers are saved, so it only takes a couple of minutes to pick back up: {resume_url}\n\nIf anything was unclear or you had questions, just reply to this email or text me back — happy to help.\n\nBest,\nAnastasia\n6ix Developers",
+			'sms_body'        => "Hi {client_name}, it's Anastasia from 6ix Developers — looks like you got interrupted setting up your account. Your progress is saved, pick back up here: {resume_url}",
+		),
+		array(
+			// Was hardcoded PHP inside Six_Odoo::sync_form_submission() — the
+			// instant auto-text every new website-form/Meta lead gets the
+			// moment they land in "New Auto". SMS-only: the email side of a
+			// new submission is that form's own confirmation email, sent
+			// separately by class-forms-submit.php.
+			'key'             => 'form_new_lead_sms',
+			'title'           => 'System: New Lead — Instant SMS',
+			'owner_subject'   => '',
+			'owner_body'      => '',
+			'customer_enabled'=> 0, // no email half — see note above
+			'customer_subject'=> '',
+			'customer_body'   => '',
+			// {source_form}, not {form_title} — that tag is reserved by
+			// six_forms_merge_tags() for THIS template's own name ("System:
+			// New Lead — Instant SMS"), not the website form the lead
+			// actually submitted, which is what belongs in this sentence.
+			'sms_body'        => "Hi {client_name}, thanks for reaching out to 6ix Developers about {source_form}! One of our specialists will be calling you shortly to help you get started.",
+		),
 	);
 }
 
 add_action( 'wp_loaded', function () {
-	if ( get_option( 'six_system_emails_seeded_v1' ) ) return;
-	update_option( 'six_system_emails_seeded_v1', 1 );
+	if ( get_option( 'six_system_emails_seeded_v2' ) ) return;
+	update_option( 'six_system_emails_seeded_v2', 1 );
 
 	foreach ( six_system_email_seed_defaults() as $f ) {
 		if ( get_posts( array( 'post_type' => 'six_form', 'meta_key' => 'six_form_key', 'meta_value' => $f['key'], 'post_status' => 'any', 'numberposts' => 1, 'fields' => 'ids' ) ) ) continue;
@@ -288,6 +321,113 @@ add_action( 'wp_loaded', function () {
 		update_post_meta( $post_id, 'six_form_customer_enabled', $f['customer_enabled'] );
 		update_post_meta( $post_id, 'six_form_customer_subject', $f['customer_subject'] );
 		update_post_meta( $post_id, 'six_form_customer_body', $f['customer_body'] );
+		update_post_meta( $post_id, 'six_form_sms_body', $f['sms_body'] ?? '' );
+	}
+}, 21 );
+
+/**
+ * Lead recovery sequence — the SHARED "Abandoned" stage sequence, fired by
+ * class-lead-pipeline.php for ANY lead that lands in Abandoned, regardless
+ * of source: a website-form/Meta lead the advisor couldn't reach (manually
+ * marked, or auto-swept after the 10-minute call-reminder window), or an
+ * onboarding drop-off still not resumed 24 hours later
+ * (Six_Growth_Engine::cron_abandon_24h_check()). One unified 3-touch
+ * sequence, every touch email+SMS together: immediately on entering
+ * Abandoned, again at 3 days, and a final offer at 10 days — all signed as
+ * "Anastasia" from 6ix Developers, matching the persona already used in the
+ * onboarding flow's own immediate reach-out.
+ *
+ * {scenario_line} is the one thing that differs by source — callers pass a
+ * short, source-specific opener (e.g. "we tried calling after you reached
+ * out to us" vs "you started setting up your account") so one template set
+ * still reads naturally regardless of where the lead came from, without
+ * needing separate templates to maintain for onboarding vs. lead forms.
+ *
+ * IMPORTANT: touches 2 and 3 below have a PLACEHOLDER offer — edit
+ * "lead_recovery_touch1" and "lead_recovery_touch2" under 6ix Portal →
+ * Forms with your actual promotion before this goes live.
+ *
+ * No admin copy is sent per touch (would be 3x noise per lead) —
+ * class-lead-pipeline.php always calls these with send_admin=false, but the
+ * owner fields are still filled in below in case that's ever turned on.
+ */
+function six_lead_recovery_seed_defaults() {
+	return array(
+		array(
+			'key'   => 'lead_recovery_touch0',
+			'title' => 'System: Abandoned — Touch 1 (immediate)',
+			'owner_subject' => 'Abandoned-stage touch 1 sent — {client_name}',
+			'owner_body'    => 'Immediate abandoned-stage email+SMS sent to {client_name}.',
+			'customer_enabled' => 1,
+			'customer_subject' => "Still there, {client_name}?",
+			'customer_body'    => "Hi {client_name},\n\n{scenario_line}\n\nNo worries — these things happen! If now's not a good time, just reply to this email or give us a call whenever works for you.\n\nBest,\nAnastasia\n6ix Developers",
+			'sms_body'         => "Hi {client_name}, it's Anastasia from 6ix Developers — {scenario_line_sms} Reply here or call us back whenever's convenient!",
+		),
+		array(
+			'key'   => 'lead_recovery_touch1',
+			'title' => 'System: Abandoned — Touch 2 (3 days)',
+			'owner_subject' => 'Abandoned-stage touch 2 sent — {client_name}',
+			'owner_body'    => '3-day abandoned-stage email+SMS sent to {client_name}.',
+			'customer_enabled' => 1,
+			'customer_subject' => "Still thinking it over, {client_name}?",
+			'customer_body'    => "Hi {client_name},\n\nJust checking in again — we'd love to help your business grow. [EDIT ME — add a current offer/promo here if you have one, or leave this as a plain check-in].\n\nReply or call anytime — I'm here whenever you're ready.\n\nBest,\nAnastasia\n6ix Developers",
+			'sms_body'         => "Hi {client_name}, Anastasia again from 6ix Developers — still here whenever you're ready to chat about growing your business. Call or reply anytime!",
+		),
+		array(
+			'key'   => 'lead_recovery_touch2',
+			'title' => 'System: Abandoned — Touch 3 (10 days, final offer)',
+			'owner_subject' => 'Abandoned-stage touch 3 (final) sent — {client_name}',
+			'owner_body'    => '10-day final-offer email+SMS sent to {client_name}.',
+			'customer_enabled' => 1,
+			'customer_subject' => "Last call, {client_name} — this offer won't stay open",
+			'customer_body'    => "Hi {client_name},\n\nThis is our last check-in — [EDIT ME — add your final offer/promo + any deadline here].\n\nIf you'd still like to talk, I'm just a reply or call away.\n\nBest,\nAnastasia\n6ix Developers",
+			'sms_body'         => "Hi {client_name}, last call from Anastasia at 6ix Developers — [EDIT ME: final offer]. Reply or call if you'd like to chat!",
+		),
+	);
+}
+
+/**
+ * Quarterly win-back — one touch, fired by class-lead-pipeline.php against
+ * everyone who finished the recovery sequence with no response (Nurture
+ * list) plus Lost leads, every quarter.
+ */
+function six_lead_winback_seed_defaults() {
+	return array( array(
+		'key'   => 'lead_quarterly_winback',
+		'title' => 'System: Quarterly Win-Back',
+		'owner_subject' => 'Quarterly win-back sent — {client_name}',
+		'owner_body'    => 'Quarterly win-back email sent to {client_name}.',
+		'customer_enabled' => 1,
+		'customer_subject' => "It's been a while, {client_name} — worth another look?",
+		'customer_body'    => "Hi {client_name},\n\nIt's been a few months since we last connected — we've grown a lot since then, and we'd love another chance to show you what 6ix Developers can do for your business: [EDIT ME — add a current offer or recent win/case study here].\n\nJust reply or call if you'd like to reconnect.\n\nThe 6ix Developers team",
+		'sms_body'         => '',
+	) );
+}
+
+add_action( 'wp_loaded', function () {
+	if ( get_option( 'six_lead_recovery_seeded_v1' ) ) return;
+	update_option( 'six_lead_recovery_seeded_v1', 1 );
+
+	foreach ( array_merge( six_lead_recovery_seed_defaults(), six_lead_winback_seed_defaults() ) as $f ) {
+		if ( get_posts( array( 'post_type' => 'six_form', 'meta_key' => 'six_form_key', 'meta_value' => $f['key'], 'post_status' => 'any', 'numberposts' => 1, 'fields' => 'ids' ) ) ) continue;
+
+		$post_id = wp_insert_post( array(
+			'post_title'  => $f['title'],
+			'post_type'   => 'six_form',
+			'post_status' => 'publish',
+			'post_name'   => $f['key'],
+		) );
+		if ( ! $post_id || is_wp_error( $post_id ) ) continue;
+
+		update_post_meta( $post_id, 'six_form_key', $f['key'] );
+		update_post_meta( $post_id, 'six_form_is_system', 1 );
+		update_post_meta( $post_id, 'six_form_fields_json', wp_json_encode( array() ) );
+		update_post_meta( $post_id, 'six_form_owner_subject', $f['owner_subject'] );
+		update_post_meta( $post_id, 'six_form_owner_body', $f['owner_body'] );
+		update_post_meta( $post_id, 'six_form_customer_enabled', $f['customer_enabled'] );
+		update_post_meta( $post_id, 'six_form_customer_subject', $f['customer_subject'] );
+		update_post_meta( $post_id, 'six_form_customer_body', $f['customer_body'] );
+		update_post_meta( $post_id, 'six_form_sms_body', $f['sms_body'] );
 	}
 }, 21 );
 

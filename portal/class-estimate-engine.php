@@ -639,14 +639,6 @@ class Six_EstimateEngine {
         $deal_val = 1200;
         foreach ($dv_map as $dk => $dv) if (strpos($ind,$dk)!==false){$deal_val=$dv;break;}
 
-        $rev_lo  = (int)round($leads_lo  * $deal_val * 0.20);
-        $rev_hi  = (int)round($leads_hi  * $deal_val * 0.20);
-        $roi_lo  = max(0, $rev_lo - $bud_ads);
-        $roi_hi  = max(0, $rev_hi - $bud_ads);
-
-        $fmt = fn($n) => $n >= 10000 ? '$'.round($n/1000,1).'k' : '$'.number_format($n);
-        $roi_str = $roi_hi > 0 ? '+'.$fmt($roi_lo).'–'.$fmt($roi_hi) : ($rev_hi>0 ? $fmt($rev_lo).'–'.$fmt($rev_hi).' est. revenue' : 'TBD');
-
         $kw_detail = '';
         if (!empty($kw['keywords'])) {
             $top3 = array_slice($kw['keywords'], 0, 3);
@@ -726,9 +718,7 @@ class Six_EstimateEngine {
         $L[] = "Industry conversion rate: {$cr}%";
         $L[] = "Estimated leads Month 1: {$leads_lo}–{$leads_hi}";
         $L[] = "Estimated leads Month 2: {$leads_m2_lo}–{$leads_m2_hi}";
-        $L[] = "Avg deal value in {$ind}: \${$deal_val}";
-        $L[] = "ROI formula: leads × \${$deal_val} × 20% close rate − \${$bud_ads} = net ROI";
-        $L[] = "Est. net ROI by Month 2: {$roi_str}";
+        $L[] = "Avg deal value in {$ind}: \${$deal_val} (context only — NEVER project revenue or ROI from it, we do not guarantee returns)";
         $L[] = '';
         if ( ! empty( $intel['has'] ) ) {
             $L[] = '=== LIVE MARKET INTELLIGENCE (real DataForSEO data pulled for THIS client — your biggest weapon) ===';
@@ -755,8 +745,8 @@ class Six_EstimateEngine {
         if ( $has_ads )  $L[] = 'Google Ads focus: CPC economics, click volume, conversion rate, campaign structure, negative keywords, and cost-per-lead.';
         if ( $has_seo )  $L[] = 'SEO focus: current vs target rankings for their keywords, organic traffic upside from real search volume, on-page/technical fixes, and content gaps vs competitors.';
         if ( $has_gbp )  $L[] = 'Google Business Profile focus: local map-pack ranking, review velocity/rating, calls and direction requests, photos and posts.';
-        if ( $has_web )  $L[] = 'Website focus: conversion rate, page speed, mobile UX, and the highest-ROI pages/CTAs to build first.';
-        $L[] = 'Choose KPI labels that match their services — e.g. for SEO use "Est. Organic Leads / Mo", "Keywords on Page 1", "Traffic Growth"; for Google Ads use lead/CPC/ROI labels.';
+        if ( $has_web )  $L[] = 'Website focus: conversion rate, page speed, mobile UX, and the highest-impact pages/CTAs to build first.';
+        $L[] = 'Choose KPI labels that match their services — e.g. for SEO use "Est. Organic Leads / Mo", "Keywords on Page 1", "Traffic Growth"; for Google Ads use lead, CPC and click labels. NEVER use a revenue or ROI label — we do not guarantee returns.';
         $L[] = 'LENGTH RULE: every roadmap "points" item and every insight "what"/"why"/"action" must be a COMPLETE sentence of 18–25 words. Never output fragments, never truncate, never end with an ellipsis ("…"). Titles stay short (about 5 words).';
         $L[] = '';
         // Build service-specific insight instructions
@@ -768,7 +758,7 @@ class Six_EstimateEngine {
         if ( strpos($svc_str,'Google Business') !== false )
             $svc_insight_instructions[] = 'GBP insight: explain their current rating (' . ($co->gbp_rating ?? 'unknown') . ') vs local competition, why map pack visibility drives walk-ins for ' . $ind . ', and 1 specific optimisation (photos, posts, or Q&A).';
         if ( strpos($svc_str,'Website') !== false )
-            $svc_insight_instructions[] = 'Website insight: identify 1 conversion friction point common in ' . $ind . ', explain why load speed or headline copy affects cost per lead, and name the highest-ROI page to build first.';
+            $svc_insight_instructions[] = 'Website insight: identify 1 conversion friction point common in ' . $ind . ', explain why load speed or headline copy affects cost per lead, and name the highest-impact page to build first.';
 
         if ( $is_ga_audit ) {
             $L[] = 'For the "insights" array, produce EXACTLY ONE opportunity — the single highest-impact improvement to their CURRENT Google Ads. Do not list more than one. It MUST follow this structure:';
@@ -784,7 +774,7 @@ class Six_EstimateEngine {
             $L[] = '  "kpis": [';
             $L[] = '    {"label": "Added Leads / Month", "value": "'.$leads_lo.'–'.$leads_hi.'"},';
             $L[] = '    {"label": "By Month 2",          "value": "'.$leads_m2_lo.'–'.$leads_m2_hi.'"},';
-            $L[] = '    {"label": "Est. ROI Upside",     "value": "'.$roi_str.'"}';
+            $L[] = '    {"label": "Searches / Month",    "value": "'.( $total_vol ? number_format($total_vol) : $clicks_mo.' est. clicks' ).'"}';
             $L[] = '  ],';
             $L[] = '  "insight": "Max 20 words. The single biggest lever to improve their current account — cite a number or their own words.",';
             $L[] = '  "insights": [';
@@ -794,7 +784,7 @@ class Six_EstimateEngine {
             $L[] = '    {"week":"Days 1–15","phase":"Audit & Fix","title":"5-word title","points":["what we audit first in their account","the top leak we fix (cite their stated problem)","expected early win with a number"]},';
             $L[] = '    {"week":"Days 16–30","phase":"Optimise","title":"5-word title","points":["bidding or targeting change citing their keyword/CPC $' . $avg_cpc . '","what we cut vs double down on","updated cost-per-lead or lead number"]},';
             $L[] = '    {"week":"Days 31–45","phase":"Expand","title":"5-word title","points":["new campaign type or keyword group to add","competitor gap we exploit (name one)","incremental lead projection"]},';
-            $L[] = '    {"week":"Days 46–60","phase":"Scale","title":"5-word title","points":["scale step tied to their goal","budget reallocation to top performers","Month 2 lead or ROI projection"]}';
+            $L[] = '    {"week":"Days 46–60","phase":"Scale","title":"5-word title","points":["scale step tied to their goal","budget reallocation to top performers","Month 2 lead volume projection"]}';
             $L[] = '  ]';
             $L[] = '}';
         } else {
@@ -813,7 +803,7 @@ class Six_EstimateEngine {
         $L[] = '  "kpis": [';
         $L[] = '    {"label": "Est. Leads / Month 1", "value": "'.$leads_lo.'–'.$leads_hi.'"},';
         $L[] = '    {"label": "Est. Leads / Month 2", "value": "'.$leads_m2_lo.'–'.$leads_m2_hi.'"},';
-        $L[] = '    {"label": "Est. Monthly ROI",     "value": "'.$roi_str.'"}';
+        $L[] = '    {"label": "Searches / Month",     "value": "'.( $total_vol ? number_format($total_vol) : $clicks_mo.' est. clicks' ).'"}';
         $L[] = '  ],';
         $L[] = '  "insight": "Max 20 words. Single sharpest insight — cite CPC, volume, or rank gap.",';
         $L[] = '  "insights": [';
@@ -822,7 +812,7 @@ class Six_EstimateEngine {
         $L[] = '  "roadmap": [';
         $L[] = '    {"week":"Week 1–2","phase":"Foundation","title":"5-word title","points":["specific setup action","configuration or audit step","expected first outcome with a number"]},';
         $L[] = '    {"week":"Week 3–4","phase":"Launch","title":"5-word title","points":["go-live action","targeting decision citing their keyword or category","first measurable milestone"]},';
-        $L[] = '    {"week":"Day 30–45","phase":"Optimise","title":"5-word title","points":["data-driven cut or scale decision","what underperforms vs what wins in ' . $ind . '","updated ROI or ranking number"]},';
+        $L[] = '    {"week":"Day 30–45","phase":"Optimise","title":"5-word title","points":["data-driven cut or scale decision","what underperforms vs what wins in ' . $ind . '","updated lead or ranking number"]},';
         $L[] = '    {"week":"Day 46–60","phase":"Scale","title":"5-word title","points":["expansion step specific to their goal","new keyword group or content piece to add","Month 2 lead or traffic projection"]}';
         $L[] = '  ]';
         $L[] = '}';
@@ -930,7 +920,9 @@ class Six_EstimateEngine {
             $comp = 'other ' . $ind . ' businesses in ' . ($loc !== 'your area' ? $loc : 'your market');
         }
 
-        // Deal value estimate by industry (used for ROI calculation)
+        // Deal value estimate by industry — advisor context only. We do NOT
+        // project revenue or ROI from it anywhere customer-facing, because we
+        // can't guarantee returns.
         $deal_values = array(
             'dental'=>800,'dentist'=>800,'orthodont'=>2500,
             'legal'=>3500,'lawyer'=>3500,'attorney'=>3500,
@@ -966,31 +958,19 @@ class Six_EstimateEngine {
         $month3_lo  = round($lo * 1.8);
         $month3_hi  = round($hi * 2.2);
 
-        // ROI = (leads × deal_value × close_rate) - budget
-        // Assume 20% close rate on inbound leads
-        $close_rate = 0.20;
-        $rev_lo     = round($lo  * $deal_value * $close_rate);
-        $rev_hi     = round($hi  * $deal_value * $close_rate);
-        $roi_lo     = max(0, $rev_lo - $bud);
-        $roi_hi     = max(0, $rev_hi - $bud);
-        // Format ROI — abbreviate large numbers, never show negative
-        if ( $bud > 0 && $roi_hi > 0 ) {
-            $fmt_n = fn($n) => $n >= 10000 ? '$'.round($n/1000,1).'k' : '$'.number_format($n);
-            $roi_str = '+'.$fmt_n($roi_lo).'–'.$fmt_n($roi_hi);
-        } elseif ( $bud > 0 && $rev_hi > 0 ) {
-            // Revenue exists but less than budget — show estimated revenue instead
-            $fmt_n = fn($n) => $n >= 10000 ? '$'.round($n/1000,1).'k' : '$'.number_format($n);
-            $roi_str = $fmt_n($rev_lo).'–'.$fmt_n($rev_hi);
-        } else {
-            $roi_str = 'TBD';
-        }
+        // Third KPI: addressable monthly demand (real search volume where we
+        // have it, else estimated clicks their budget buys). Deliberately a
+        // reach metric, not a revenue/ROI projection — we don't guarantee returns.
+        $reach_str = ! empty($kw['total_vol'])
+            ? number_format( (int) $kw['total_vol'] ) . ' searches'
+            : ( $clicks > 0 ? number_format($clicks) . ' clicks' : 'TBD' );
 
         return array(
             'headline' => "{$biz} is projected to generate {$lo}–{$hi} qualified leads/month through {$ch}" . ($loc !== 'your area' ? " in {$loc}" : '') . ", based on industry benchmarks for {$ind} at your \${$bud}/month investment.",
             'kpis' => array(
                 array('label'=>'Est. Leads / Month 1', 'value'=>"{$lo}–{$hi}"),
                 array('label'=>'Est. Leads / Month 3', 'value'=>"{$month3_lo}–{$month3_hi}"),
-                array('label'=>'Est. Monthly ROI',      'value'=> $roi_str),
+                array('label'=>'Searches / Month',      'value'=> $reach_str),
             ),
             'roadmap' => array(
                 array(
@@ -1021,7 +1001,7 @@ class Six_EstimateEngine {
                     'title'  => 'Data-driven refinement',
                     'points' => array(
                         "Identify top-converting keywords and audiences — double down on winners",
-                        "Cut spend on underperformers and reallocate to highest-ROI placements",
+                        "Cut spend on underperformers and reallocate to best-performing placements",
                         "Deliver performance report with cost per lead and recommendations",
                     ),
                     'outcome' => 'Lower cost per lead, higher lead quality',

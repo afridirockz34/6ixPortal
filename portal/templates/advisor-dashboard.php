@@ -203,6 +203,9 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 <?php $new_submissions_n = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}six_form_submissions WHERE lead_status='new'" );
                 if ( $new_submissions_n > 0 ) : ?><span class="six-badge"><?php echo $new_submissions_n; ?></span><?php endif; ?>
             </a>
+            <a href="?tab=priority-leads" class="six-nav-item <?php echo $active_tab==='priority-leads'?'active':'';?>">
+                <span class="six-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span> Priority Leads
+            </a>
             <a href="?tab=notifications" class="six-nav-item <?php echo $active_tab==='notifications'?'active':'';?>">
                 <span class="six-nav-icon">◎</span> Alerts
                 <?php $alert_total=intval($unread_n)+intval($unread_msg); if($alert_total>0):?><span class="six-badge"><?php echo $alert_total;?></span><?php endif;?>
@@ -829,15 +832,70 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                     <?php endif; ?>
                 </div>
             </div>
+            <div style="margin-left:auto;align-self:center;display:flex;gap:8px">
+            <button class="six-btn six-btn-ghost six-btn-sm" id="adv-log-call-btn"
+                    data-client="<?php echo intval($view_client_id); ?>"
+                    data-name="<?php echo esc_attr($view_client->display_name); ?>"
+                    style="white-space:nowrap;display:inline-flex;align-items:center;gap:6px">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                Log Call
+            </button>
             <button class="six-btn six-btn-primary six-btn-sm" id="adv-schedule-meeting-btn"
                     data-client="<?php echo intval($view_client_id); ?>" data-advisor="<?php echo intval($advisor_id); ?>"
                     data-name="<?php echo esc_attr($view_client->display_name); ?>"
-                    style="margin-left:auto;align-self:center;white-space:nowrap;display:inline-flex;align-items:center;gap:6px">
+                    style="white-space:nowrap;display:inline-flex;align-items:center;gap:6px">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 Schedule Meeting
             </button>
+            </div>
         </div>
 
+        <script>
+        (function(){
+          var lcBtn=document.getElementById('adv-log-call-btn');
+          if(lcBtn && !lcBtn._bound){
+            lcBtn._bound=1;
+            lcBtn.addEventListener('click',function(){
+              var clientId=lcBtn.dataset.client, name=lcBtn.dataset.name||'client';
+              var ov=document.getElementById('adv-logcall-ov'); if(ov) ov.remove();
+              ov=document.createElement('div'); ov.id='adv-logcall-ov'; ov.className='six-modal-ov';
+              ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px';
+              ov.innerHTML='<div style="background:var(--dark2,#15151c);border:1px solid var(--border,#2a2a35);border-radius:16px;width:100%;max-width:420px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden">'
+                +'<div style="padding:18px 20px;border-bottom:1px solid var(--border,#2a2a35);display:flex;align-items:center;justify-content:space-between;gap:10px"><div style="font-size:14px;font-weight:700">Log a call with '+name+'</div><button id="alc-x" style="background:none;border:none;color:var(--text3,#8a8a99);font-size:24px;cursor:pointer;line-height:1">&times;</button></div>'
+                +'<div style="padding:20px;overflow-y:auto">'
+                  +'<label style="display:block;font-size:11px;font-weight:600;color:var(--text2,#b5b5c5);margin-bottom:5px">Direction</label>'
+                  +'<select id="alc-direction" class="six-input" style="width:100%;font-size:13px;padding:9px 11px;margin-bottom:14px"><option value="Made">Call made (outbound)</option><option value="Received">Call received (inbound)</option><option value="Missed">Missed call</option></select>'
+                  +'<label style="display:block;font-size:11px;font-weight:600;color:var(--text2,#b5b5c5);margin-bottom:5px">Outcome</label>'
+                  +'<select id="alc-outcome" class="six-input" style="width:100%;font-size:13px;padding:9px 11px;margin-bottom:14px"><option>Connected</option><option>No answer</option><option>Left voicemail</option><option>Rescheduled</option><option>Not interested</option><option>Other</option></select>'
+                  +'<label style="display:block;font-size:11px;font-weight:600;color:var(--text2,#b5b5c5);margin-bottom:5px">Notes (optional)</label>'
+                  +'<textarea id="alc-notes" rows="3" class="six-input" placeholder="What was discussed…" style="width:100%;font-size:12px;padding:9px 11px;resize:vertical"></textarea>'
+                  +'<div id="alc-msg" style="font-size:12px;margin-top:10px;min-height:16px"></div></div>'
+                +'<div style="padding:14px 20px;border-top:1px solid var(--border,#2a2a35);display:flex;justify-content:flex-end;gap:10px"><button id="alc-cancel" class="six-btn six-btn-ghost six-btn-sm" style="font-size:12px">Cancel</button><button id="alc-save" class="six-btn six-btn-primary six-btn-sm" style="font-size:12px">Log call</button></div></div>';
+              document.body.appendChild(ov);
+              function close(){ ov.remove(); }
+              ov.querySelector('#alc-x').addEventListener('click',close);
+              ov.querySelector('#alc-cancel').addEventListener('click',close);
+              ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
+              ov.querySelector('#alc-save').addEventListener('click',function(){
+                var saveBtn=ov.querySelector('#alc-save'), msg=ov.querySelector('#alc-msg');
+                saveBtn.disabled=true; saveBtn.textContent='Saving…'; msg.style.color='var(--text3,#8a8a99)'; msg.textContent='';
+                fetch(AJAX,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({
+                  action:'six_log_call', nonce:NONCE, client_id:String(clientId),
+                  direction: ov.querySelector('#alc-direction').value,
+                  outcome: ov.querySelector('#alc-outcome').value,
+                  notes: ov.querySelector('#alc-notes').value
+                })})
+                .then(function(r){ return r.json(); })
+                .then(function(res){
+                  if(res && res.success){ msg.style.color='#4ade80'; msg.textContent='Logged.'; setTimeout(close,700); }
+                  else { saveBtn.disabled=false; saveBtn.textContent='Log call'; msg.style.color='#f87171'; msg.textContent=(res&&res.data)||'Could not log this call.'; }
+                })
+                .catch(function(){ saveBtn.disabled=false; saveBtn.textContent='Log call'; msg.style.color='#f87171'; msg.textContent='Network error.'; });
+              });
+            });
+          }
+        })();
+        </script>
         <script>
         (function(){
           var btn=document.getElementById('adv-schedule-meeting-btn');
@@ -975,10 +1033,18 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
             <?php
-            $ai_stats = array(
-                array('label'=>'Month 1 Leads',  'val'=>$c_ai_data['month1_leads']??'—',  'color'=>'var(--cyan)'),
-                array('label'=>'Month 3 Leads',  'val'=>$c_ai_data['month3_leads']??'—',  'color'=>'var(--success)'),
-                array('label'=>'Est. Monthly ROI','val'=>$c_ai_data['monthly_roi']??'—',   'color'=>'var(--pink)'));
+            // The plan JSON carries its KPIs as a kpis:[{label,value}] array —
+            // read the first three straight off it rather than guessing at
+            // flat keys it never had.
+            $ai_colors = array('var(--cyan)','var(--success)','var(--pink)');
+            $ai_stats  = array();
+            foreach ( array_slice( (array) ( $c_ai_data['kpis'] ?? array() ), 0, 3 ) as $ai_i => $ai_kpi ) {
+                $ai_stats[] = array(
+                    'label' => $ai_kpi['label'] ?? '',
+                    'val'   => $ai_kpi['value'] ?? '—',
+                    'color' => $ai_colors[ $ai_i ] ?? 'var(--cyan)',
+                );
+            }
             foreach($ai_stats as $stat): ?>
             <div style="background:var(--dark3);border-radius:10px;padding:12px;text-align:center">
                 <div style="font-family:var(--font-head);font-size:16px;font-weight:700;color:<?php echo $stat['color']; ?>"><?php echo esc_html($stat['val']); ?></div>
@@ -1112,6 +1178,123 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
 
     <!-- ── TAB 1: Overview KPIs — the customer dashboard's top cards ── -->
     <div data-mpane="overview">
+    <!-- ── Website build + maintenance (advisor-only controls) ── -->
+    <?php
+    $wp_rows  = class_exists('Six_Website_Project') ? Six_Website_Project::milestones($view_client_id) : array();
+    $wp_prog  = class_exists('Six_Website_Project') ? Six_Website_Project::progress($view_client_id)   : array('percent'=>0,'done'=>0,'total'=>0);
+    $wp_maint = class_exists('Six_Website_Project') && Six_Website_Project::maintenance_on($view_client_id);
+    $wp_fee   = class_exists('Six_Website_Project') ? Six_Website_Project::maintenance_fee($view_client_id) : 0;
+    ?>
+    <div style="background:var(--dark3);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px" id="wp-panel" data-client="<?php echo intval($view_client_id); ?>">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px;flex-wrap:wrap">
+            <div>
+                <div style="font-size:14px;font-weight:700;color:var(--text1)">Website Build &amp; Maintenance</div>
+                <div style="font-size:11px;color:var(--text3);margin-top:2px;max-width:520px">
+                    Milestones drive the progress bar on the client's dashboard. Maintenance is a recurring add-on only you can switch on — the client can't buy it themselves.
+                </div>
+            </div>
+            <div style="font-family:var(--font-head);font-size:20px;font-weight:800;color:var(--text1)" id="wp-pct"><?php echo intval($wp_prog['percent']); ?>%</div>
+        </div>
+
+        <!-- Maintenance toggle -->
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--dark2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:16px">
+            <label style="display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--text1);cursor:pointer">
+                <input type="checkbox" id="wp-maint" <?php checked($wp_maint); ?> style="width:16px;height:16px;accent-color:var(--pink);cursor:pointer">
+                Website maintenance active
+            </label>
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text3)">
+                <span>$</span>
+                <input class="ob-input" type="number" min="0" step="1" id="wp-fee" value="<?php echo $wp_fee ? esc_attr(number_format($wp_fee,0,'.','')) : ''; ?>" placeholder="0" style="width:90px;font-size:12px;padding:6px 10px">
+                <span>/mo</span>
+            </div>
+            <span id="wp-maint-msg" style="font-size:11px;color:var(--success)"></span>
+        </div>
+
+        <!-- Milestones -->
+        <div id="wp-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input class="ob-input" type="text" id="wp-new" placeholder="Add a milestone — e.g. Content handover" style="flex:1;min-width:220px;font-size:12px;padding:8px 12px">
+            <button class="six-btn six-btn-primary six-btn-sm" id="wp-add" style="font-size:11px">Add</button>
+            <button class="six-btn six-btn-ghost six-btn-sm" id="wp-seed" style="font-size:11px">Use standard milestones</button>
+        </div>
+    </div>
+    <script>
+    (function(){
+      var panel=document.getElementById('wp-panel'); if(!panel) return;
+      var CLIENT=panel.getAttribute('data-client');
+      var list=document.getElementById('wp-list');
+      var rows=<?php echo wp_json_encode(array_map(function($r){
+          return array('id'=>intval($r->id),'title'=>$r->title,'status'=>$r->status);
+      }, (array)$wp_rows)); ?>;
+
+      function post(data){
+        return fetch(sixPortal.ajax_url,{method:'POST',credentials:'same-origin',
+          headers:{'Content-Type':'application/x-www-form-urlencoded'},
+          body:new URLSearchParams(Object.assign({nonce:sixPortal.nonce,client_id:CLIENT},data))
+        }).then(function(r){return r.json();});
+      }
+      function pct(){
+        if(!rows.length) return 0;
+        var done=rows.filter(function(r){return r.status==='done';}).length;
+        return Math.round(done/rows.length*100);
+      }
+      function render(){
+        document.getElementById('wp-pct').textContent=pct()+'%';
+        if(!rows.length){
+          list.innerHTML='<div style="font-size:12px;color:var(--text3);padding:6px 0">No milestones yet — add one, or start from the standard set.</div>';
+          return;
+        }
+        list.innerHTML=rows.map(function(r){
+          var done=r.status==='done';
+          return '<div style="display:flex;align-items:center;gap:10px;background:var(--dark2);border:1px solid var(--border);border-radius:8px;padding:9px 12px">'
+            +'<input type="checkbox" data-ms="'+r.id+'"'+(done?' checked':'')+' style="width:15px;height:15px;accent-color:var(--success);cursor:pointer">'
+            +'<span style="flex:1;font-size:12.5px;color:'+(done?'var(--text3)':'var(--text1)')+';'+(done?'text-decoration:line-through':'')+'">'+
+              r.title.replace(/[<>&]/g,function(c){return {'<':'&lt;','>':'&gt;','&':'&amp;'}[c];})+'</span>'
+            +'<button data-del="'+r.id+'" title="Remove" style="background:none;border:0;color:var(--text3);cursor:pointer;font-size:15px;line-height:1;padding:2px 4px">&times;</button>'
+          +'</div>';
+        }).join('');
+      }
+      list.addEventListener('change',function(e){
+        var id=e.target.getAttribute('data-ms'); if(!id) return;
+        post({action:'six_website_milestone_toggle',milestone_id:id}).then(function(r){
+          if(r&&r.success){ rows=r.data.milestones.map(function(m){return {id:+m.id,title:m.title,status:m.status};}); render(); }
+        });
+      });
+      list.addEventListener('click',function(e){
+        var id=e.target.getAttribute('data-del'); if(!id) return;
+        if(!confirm('Remove this milestone?')) return;
+        post({action:'six_website_milestone_delete',milestone_id:id}).then(function(r){
+          if(r&&r.success){ rows=r.data.milestones.map(function(m){return {id:+m.id,title:m.title,status:m.status};}); render(); }
+        });
+      });
+      document.getElementById('wp-add').addEventListener('click',function(){
+        var i=document.getElementById('wp-new'); var t=(i.value||'').trim(); if(!t) return;
+        post({action:'six_website_milestone_add',title:t}).then(function(r){
+          if(r&&r.success){ i.value=''; rows=r.data.milestones.map(function(m){return {id:+m.id,title:m.title,status:m.status};}); render(); }
+        });
+      });
+      document.getElementById('wp-seed').addEventListener('click',function(){
+        post({action:'six_website_milestone_add',title:''}).then(function(r){
+          if(r&&r.success){ rows=r.data.milestones.map(function(m){return {id:+m.id,title:m.title,status:m.status};}); render(); }
+          else alert((r&&r.data)||'Could not set up milestones.');
+        });
+      });
+      function saveMaint(){
+        var on=document.getElementById('wp-maint').checked;
+        var fee=document.getElementById('wp-fee').value||0;
+        post({action:'six_website_maintenance_set',enabled:on?1:0,fee:fee}).then(function(r){
+          var m=document.getElementById('wp-maint-msg');
+          m.textContent=(r&&r.success)?'Saved':'Could not save';
+          m.style.color=(r&&r.success)?'var(--success)':'var(--danger,#D93B3B)';
+          setTimeout(function(){m.textContent='';},2500);
+        });
+      }
+      document.getElementById('wp-maint').addEventListener('change',saveMaint);
+      document.getElementById('wp-fee').addEventListener('change',saveMaint);
+      render();
+    })();
+    </script>
+
     <!-- ── Advisor KPI Editor: customer dashboard fields ── -->
     <div style="background:var(--dark3);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
@@ -1120,7 +1303,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 <div style="font-size:11px;color:var(--text3);margin-top:2px;max-width:480px">
                     These replace the AI estimates on the customer dashboard. Set realistic, achievable targets based on your expertise.
                     <?php if($c_ai_data): ?>
-                    <span style="color:var(--warning)"> AI suggested: <?php echo esc_html($c_ai_data['month1_leads']??'—'); ?> leads/mo1 · <?php echo esc_html($c_ai_data['monthly_roi']??'—'); ?> ROI</span>
+                    <span style="color:var(--warning)"> AI suggested: <?php echo esc_html( $c_ai_data['kpis'][0]['value'] ?? '—' ); ?> <?php echo esc_html( strtolower( $c_ai_data['kpis'][0]['label'] ?? '' ) ); ?></span>
                     <?php endif; ?>
                 </div>
             </div>
@@ -1140,8 +1323,10 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             'new_customers'  => array('label'=>'New Customers',    'ph'=>'e.g. 40,841',      'hint'=>'Monthly new customer count'),
             'sales_revenue'  => array('label'=>'Sales Revenue',    'ph'=>'e.g. $30,816',    'hint'=>'Monthly revenue figure'),
             'total_visitors' => array('label'=>'Total Visitors',   'ph'=>'e.g. 520,612',     'hint'=>'Monthly website sessions'),
-            'roi_projection' => array('label'=>'ROI Projection',   'ph'=>'e.g. +$4,250/month','hint'=>'Monthly ROI value'),
-            'roi_growth_pct' => array('label'=>'Growth Potential', 'ph'=>'e.g. +18%',    'hint'=>'Growth % shown under ROI'));
+            'organic_visitors' => array('label'=>'Organic Visitors','ph'=>'e.g. 3,400',  'hint'=>'Monthly organic sessions (SEO card)'),
+            'paid_clicks'      => array('label'=>'Paid Clicks',     'ph'=>'e.g. 1,250',  'hint'=>'Monthly Google Ads clicks'),
+            'keywords_page1'   => array('label'=>'Keywords on Page 1','ph'=>'e.g. 24',    'hint'=>'Keywords ranking in the top 10'),
+            'visitors_baseline'=> array('label'=>'Visitors Before Us','ph'=>'e.g. 900',   'hint'=>'Monthly visitors before we started — baseline for the graph'));
         foreach( $kpi_fields as $key => $f ):
         ?>
         <div>
@@ -1181,7 +1366,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             kpi_key: key,
             kpi_value: val
         });
-        fetch(AJAX_URL, {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:params.toString()})
+        fetch(AJAX, {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:params.toString()})
         .then(r=>r.json()).then(function(r){
             btn.textContent = r.success ? 'Saved' : 'Error';
             if (msg) { msg.style.display='block'; msg.textContent = r.success ? 'Saved — customer dashboard updated.' : (r.data||'Error saving'); }
@@ -1880,6 +2065,51 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
     <?php elseif($ctab==='activity'): ?>
 
     <?php
+    // Communication history — every email/SMS this lead has actually been
+    // sent, at every stage (onboarding abandon nudge, the shared recovery
+    // sequence, admin notices excluded), read straight from Odoo's chatter —
+    // the same place Six_Odoo::log_communication()/send_email_odoo() already
+    // log every send to, so there's nothing new to keep in sync here.
+    $c_odoo_lead_id = intval( get_user_meta( $view_client_id, 'six_odoo_lead_id', true ) );
+    $c_messages     = ( $c_odoo_lead_id && class_exists( 'Six_Odoo' ) ) ? Six_Odoo::get_lead_messages( $c_odoo_lead_id, 100 ) : array();
+    $c_msg_colors   = array( 'Email' => 'var(--cyan)', 'SMS' => 'var(--success)', 'Portal Message' => 'var(--pink)', 'Call' => 'var(--warning)', 'Note' => 'var(--text3)' );
+    ?>
+    <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px">
+        <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:13px;font-weight:700">Communication History</span>
+            <?php if ( $c_odoo_lead_id && get_option( 'six_odoo_url' ) ) : ?>
+            <a href="<?php echo esc_url( rtrim( get_option( 'six_odoo_url' ), '/' ) . '/odoo/crm/' . $c_odoo_lead_id ); ?>" target="_blank" rel="noopener" style="font-size:11px;color:var(--cyan);text-decoration:none">Full record in Odoo →</a>
+            <?php endif; ?>
+        </div>
+        <?php if ( ! $c_odoo_lead_id ) : ?>
+        <div style="padding:32px;text-align:center;color:var(--text3);font-size:13px">Not synced to Odoo yet — nothing to show.</div>
+        <?php elseif ( empty( $c_messages ) ) : ?>
+        <div style="padding:32px;text-align:center;color:var(--text3);font-size:13px">No emails or texts have gone out to this lead yet.</div>
+        <?php else : ?>
+        <div style="padding:14px 18px;max-height:480px;overflow-y:auto">
+        <?php foreach ( $c_messages as $msg ) :
+            $mcolor = $c_msg_colors[ $msg['channel'] ] ?? 'var(--text3)';
+            $lines  = explode( "\n", $msg['body'] );
+            $first  = array_shift( $lines );
+            $rest   = trim( implode( "\n", $lines ) );
+        ?>
+        <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px">
+            <div style="width:30px;height:30px;border-radius:8px;background:<?php echo $mcolor; ?>15;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:<?php echo $mcolor; ?>;flex-shrink:0"><?php echo esc_html( strtoupper( substr( $msg['channel'], 0, 1 ) ) ); ?></div>
+            <div style="flex:1;min-width:0;padding-top:2px">
+                <div style="font-size:11px;font-weight:700;color:<?php echo $mcolor; ?>"><?php echo esc_html( $msg['channel'] ); ?><?php if ( $msg['direction'] ) : ?> · <?php echo esc_html( $msg['direction'] ); ?><?php endif; ?></div>
+                <div style="font-size:12.5px;line-height:1.6;margin-top:2px"><?php echo esc_html( $first ); ?></div>
+                <?php if ( $rest !== '' ) : ?>
+                <div style="font-size:11.5px;color:var(--text3);line-height:1.6;margin-top:4px;white-space:pre-wrap"><?php echo esc_html( $rest ); ?></div>
+                <?php endif; ?>
+                <div style="font-size:10px;color:var(--text3);margin-top:4px"><?php echo $msg['date'] ? esc_html( date_i18n( 'M j, Y \a\t g:i a', strtotime( $msg['date'] ) ) ) : ''; ?></div>
+            </div>
+        </div>
+        <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+    </div>
+
+    <?php
     // Build unified activity feed
     $activity = array();
     foreach((array)$c_svcs as $s){
@@ -2038,8 +2268,6 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             adv_qrow('Phone',            $c_checkout->phone ?? get_user_meta($view_client_id,'billing_phone',true));
             adv_qrow('Employees', $c_employees);
             adv_qrow('Monthly Revenue', $c_revenue);
-            adv_qrow('Avg Customer Value', ($c_checkout->deal_value ?? '') !== '' ? '$'.number_format(intval($c_checkout->deal_value)) : '');
-            adv_qrow('Lead Close Rate', ($c_checkout->close_rate ?? '') !== '' ? intval($c_checkout->close_rate).'%' : '');
             adv_qrow('Marketing Goals', $c_goal ? str_replace(',', ', ', $c_goal) : '');
             adv_qrow('Competitors', $c_comp_str, true);
             adv_qrow('CRM / Tools', $c_crm);
@@ -3433,6 +3661,8 @@ function advCompleteOnboarding(clientId){
     </script>
     <?php /* ════════════ FORM SUBMISSIONS ════════════ */ elseif($active_tab==='form-submissions'):
         include SIX_PLUGIN_DIR . 'templates/advisor-tab-form-submissions.php';
+    /* ════════════ PRIORITY LEADS ════════════ */ elseif($active_tab==='priority-leads'):
+        include SIX_PLUGIN_DIR . 'templates/advisor-tab-priority-leads.php';
     endif;?>
     </main>
 </div>

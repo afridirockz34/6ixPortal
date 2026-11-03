@@ -138,6 +138,12 @@ if ( $mk_logged_in ) {
 
       <div class="mk-login-err" id="mk-login-err" role="alert"></div>
       <button type="submit" class="mk-btn mk-btn-primary mk-login-submit" id="mk-login-submit">Continue</button>
+      <!-- Once the password step is showing, the email field is locked. Without
+           this there was no way back to it: a mistyped address left you stuck
+           on "incorrect email or password" with no way to correct it. -->
+      <div id="mk-login-backwrap" hidden style="text-align:center;margin-top:12px">
+        <button type="button" id="mk-login-back" style="background:none;border:0;padding:0;font:inherit;font-size:12.5px;color:var(--mk-t2,#3D4757);text-decoration:underline;cursor:pointer">Use a different email</button>
+      </div>
     </form>
 
     <p class="mk-login-foot">New to 6ix Developers? <a href="<?php echo esc_url( $mk_portal_url ); ?>">Get started free</a></p>
@@ -153,15 +159,34 @@ if ( $mk_logged_in ) {
   var pwEl    = document.getElementById('mk-login-pw');
   var errEl   = document.getElementById('mk-login-err');
   var submit  = document.getElementById('mk-login-submit');
+  var backWrap= document.getElementById('mk-login-backwrap');
+  var backBtn = document.getElementById('mk-login-back');
   var AJAX    = <?php echo wp_json_encode( $mk_ajax_url ); ?>;
   var NONCE   = <?php echo wp_json_encode( $mk_login_nonce ); ?>;
   var PORTAL  = <?php echo wp_json_encode( $mk_portal_url ); ?>;
   var stage   = 'email'; // 'email' -> 'password'
 
-  function open(){ modal.classList.add('mk-on'); modal.setAttribute('aria-hidden','false'); document.body.style.overflow='hidden'; setTimeout(function(){emailEl.focus();},120); }
+  // Always reopen on the email step — a password stage left over from a
+  // previous attempt would otherwise show a locked field for a stale address.
+  function open(){ modal.classList.add('mk-on'); modal.setAttribute('aria-hidden','false'); document.body.style.overflow='hidden'; resetToEmail(); setTimeout(function(){emailEl.focus();},120); }
   function close(){ modal.classList.remove('mk-on'); modal.setAttribute('aria-hidden','true'); document.body.style.overflow=''; }
   function err(m){ errEl.textContent=m||''; errEl.classList.toggle('mk-on', !!m); }
   function busy(b){ submit.disabled=b; submit.textContent=b?'Please wait…':(stage==='email'?'Continue':'Sign in'); }
+
+  // Back to the email step: unlock the field, hide the password input and
+  // clear the error so they can correct a typo instead of being stuck.
+  function resetToEmail(){
+    stage='email';
+    pwWrap.hidden=true;
+    if(pwEl) pwEl.value='';
+    emailEl.removeAttribute('readonly');
+    submit.textContent='Continue';
+    if(backWrap) backWrap.hidden=true;
+    err('');
+    emailEl.focus();
+    emailEl.select();
+  }
+  if(backBtn) backBtn.addEventListener('click', resetToEmail);
 
   document.querySelectorAll('[data-mk-login-open]').forEach(function(b){ b.addEventListener('click', function(e){ e.preventDefault(); open(); }); });
   modal.querySelectorAll('[data-mk-login-close]').forEach(function(b){ b.addEventListener('click', close); });
@@ -189,6 +214,7 @@ if ( $mk_logged_in ) {
           pwWrap.hidden=false;
           emailEl.setAttribute('readonly','readonly');
           submit.textContent='Sign in';
+          if(backWrap) backWrap.hidden=false;
           setTimeout(function(){pwEl.focus();},60);
         } else {
           // No account (or Google account) → send them to onboarding
