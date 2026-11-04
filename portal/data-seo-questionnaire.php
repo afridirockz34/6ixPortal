@@ -115,6 +115,17 @@ function six_seo_questionnaire_schema() {
 				array( 'key' => 'seo_profitable_services', 'label' => 'Your most profitable services', 'type' => 'textarea',
 				       'prefill_from' => array( 'ads_products', 'gbp_services' ),
 				       'help' => 'Including any bigger-ticket work — we weight these higher when choosing keywords.' ),
+				// Deliberately its own column rather than the retired
+				// deal_value one. That field fed a revenue/ROI projection we
+				// no longer make, and is dead; this is a different question
+				// (lifetime value, not the value of one sale) kept strictly as
+				// context for which keywords are worth chasing. Nothing
+				// multiplies it out into a projected return.
+				array( 'key' => 'seo_lifetime_value', 'label' => 'Lifetime value of a typical customer', 'type' => 'text',
+				       'optional' => true,
+				       'help' => 'A rough figure is fine. We use it to judge which keywords are worth competing for — we never project a return from it.' ),
+				array( 'key' => 'seo_repeat_business', 'label' => 'Mostly one-time or returning customers?', 'type' => 'select',
+				       'options' => array( 'Mostly one-time', 'Mostly returning', 'An even mix' ) ),
 				array( 'key' => 'seo_sales_process', 'label' => 'What does your sales process look like, first contact to close?', 'type' => 'textarea' ),
 			),
 		),
