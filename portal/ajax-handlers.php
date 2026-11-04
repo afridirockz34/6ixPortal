@@ -2489,3 +2489,72 @@ add_action( 'wp_ajax_six_save_questionnaire', function () {
         'progress' => six_seo_questionnaire_progress( $client_id, $slugs ),
     ) );
 } );
+
+/**
+ * Save from the public questionnaire link. Authenticated by the link's own
+ * token rather than a session — the client has no reason to be logged in.
+ *
+ * Both the token AND a nonce bound to that client must check out, and the
+ * token must resolve to the same client the form claims to be for, so a valid
+ * link for one client can't be used to write another's answers.
+ */
+add_action( 'wp_ajax_nopriv_six_save_questionnaire_public', 'six_save_questionnaire_public' );
+add_action( 'wp_ajax_six_save_questionnaire_public',        'six_save_questionnaire_public' );
+function six_save_questionnaire_public() {
+    if ( ! function_exists( 'six_seo_questionnaire_save' ) ) { wp_send_json_error( 'Questionnaire unavailable' ); }
+
+    $claimed = intval( $_POST['client_id'] ?? 0 );
+    $token   = sanitize_text_field( wp_unslash( $_POST['token'] ?? '' ) );
+    $nonce   = sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) );
+
+    if ( ! $claimed || ! wp_verify_nonce( $nonce, 'six_questionnaire_public_' . $claimed ) ) {
+        wp_send_json_error( 'This page has expired — please reload it.' );
+    }
+
+    $client_id = $token ? six_questionnaire_token_client( $token ) : 0;
+
+    // A signed-in customer may also be filling it in without a token.
+    if ( ! $client_id && is_user_logged_in() && get_current_user_id() === $claimed ) {
+        $client_id = $claimed;
+    }
+    if ( ! $client_id || $client_id !== $claimed ) {
+        wp_send_json_error( 'This questionnaire link is no longer valid.' );
+    }
+
+    $answers = $_POST['answers'] ?? array();
+    if ( is_string( $answers ) ) $answers = json_decode( wp_unslash( $answers ), true );
+    if ( ! is_array( $answers ) ) { wp_send_json_error( 'Nothing to save' ); }
+
+    $result = six_seo_questionnaire_save( $client_id, $answers );
+
+    global $wpdb;
+    $slugs = (array) $wpdb->get_col( $wpdb->prepare(
+        "SELECT service_slug FROM {$wpdb->prefix}six_client_services WHERE client_id=%d AND status='active'",
+        $client_id
+    ) );
+
+    wp_send_json_success( array(
+        'saved'    => $result['saved'],
+        'progress' => six_seo_questionnaire_progress( $client_id, $slugs ),
+    ) );
+}
+
+/** Advisor mints (or rotates) a client's shareable questionnaire link. */
+add_action( 'wp_ajax_six_questionnaire_link', function () {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    $ok = ( class_exists( 'Six_Roles' ) && Six_Roles::is_advisor() ) || current_user_can( 'manage_options' );
+    if ( ! $ok ) { wp_send_json_error( 'Permission denied' ); }
+
+    $client_id = intval( $_POST['client_id'] ?? 0 );
+    if ( ! $client_id || ! get_userdata( $client_id ) ) { wp_send_json_error( 'Unknown client' ); }
+
+    // Always rotates: we only keep the hash, so an existing link's URL can't
+    // be shown again. Sending a new one invalidates the old.
+    $link = six_questionnaire_link( $client_id, true );
+
+    if ( class_exists( 'Six_Odoo' ) ) {
+        $lead = intval( get_user_meta( $client_id, 'six_odoo_lead_id', true ) );
+        if ( $lead ) Six_Odoo::post_note( $lead, 'Questionnaire link generated for the client (previous link, if any, is now invalid).' );
+    }
+    wp_send_json_success( array( 'link' => $link, 'expires_days' => SIX_Q_TOKEN_DAYS ) );
+} );

@@ -754,6 +754,14 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
         </select>
       </div>
     </div>
+    <!-- Asked here rather than in the post-signup questionnaire because the
+         audit can't be written safely without it: a regulated profession
+         changes what we're allowed to claim. Part of the audit intake set
+         (see six_seo_questionnaire_audit_keys()). -->
+    <div class="ob-fg"><label class="ob-lbl">Is yours a regulated profession?</label>
+      <div class="ob-sublbl" style="font-size:11px;color:var(--t3);margin-bottom:6px">Law, medicine, finance and similar. It changes what we can say in your marketing, so we check early.</div>
+      <input class="ob-inp" id="q-regulated" placeholder="e.g. Law Society of Ontario — or 'no'">
+    </div>
 
     <div class="ob-fg"><label class="ob-lbl">What do you want to achieve? <span style="font-weight:400;font-size:11px">(select all that apply)</span></label>
       <div class="ob-chips" id="q-goals">
@@ -1560,12 +1568,14 @@ window.OB={
     S.q=Object.assign(S.q,{
       bizname:biz,website:v('q-web-url'),address:v('q-addr'),
       industry:v('q-ind'),years:v('q-yrs'),goals:chips('q-goals').join(','),
+      comp_regulator:v('q-regulated'),
     });
     // Save business basics to DB immediately
     if(S.userId){
       var sd={first:S.q.first||'',last:S.q.last||'',phone:S.q.phone||'',
         bizname:S.q.bizname||'',website:S.q.website||'',industry:S.q.industry||'',
         location:S.q.address||'',years:S.q.years||'',goal:S.q.goals||'',
+        comp_regulator:S.q.comp_regulator||'',
         competitors:[S.q.comp1,S.q.comp2,S.q.comp3].filter(Boolean).join(','),
         platforms:S.svcs.join(',')};
       post({action:'six_save_checkout_step',step:1,data:JSON.stringify(sd),user_id:S.userId}).catch(function(){});
@@ -1747,7 +1757,7 @@ window.OB={
     var sd={
       first:q.first||'',last:q.last||'',phone:q.phone||'',
       bizname:q.bizname||'',website:q.website||'',industry:q.industry||'',
-      location:q.address||'',goal:q.goals||'',
+      location:q.address||'',goal:q.goals||'',comp_regulator:q.comp_regulator||'',
       competitors:[q.comp1,q.comp2,q.comp3].filter(Boolean).join(','),
       mktg_budget:tot.toString(),platforms:S.svcs.join(','),
       // Google Ads
@@ -1790,7 +1800,7 @@ window.OB={
     var sd={
       first:q.first||'',last:q.last||'',phone:q.phone||'',
       bizname:q.bizname||'',website:q.website||'',industry:q.industry||'',
-      location:q.address||'',goal:q.goals||'',years:q.years||'',
+      location:q.address||'',goal:q.goals||'',years:q.years||'',comp_regulator:q.comp_regulator||'',
       competitors:[q.comp1,q.comp2,q.comp3].filter(Boolean).join(','),
       mktg_budget:tot.toString(),platforms:S.svcs.join(','),
       // Google Ads
@@ -2101,6 +2111,7 @@ window.OB={
         industry:v('q-ind')||S.q.industry||'',
         years:v('q-yrs')||S.q.years||'',
         goals:chips('q-goals').join(',')||S.q.goals||'',
+        comp_regulator:v('q-regulated')||S.q.comp_regulator||'',
       });
     } else if(step==='3b'){
       OB._collectSvcData(S.svcs[S._svcIdx]);
@@ -2147,7 +2158,7 @@ window.OB={
       // Business basics
       var flds={
         'q-biz':q.bizname,'q-web-url':q.website,'q-addr':q.address,
-        'q-ind':q.industry,'q-yrs':q.years,
+        'q-ind':q.industry,'q-yrs':q.years,'q-regulated':q.comp_regulator||'',
         'q-comp1':q.comp1||'','q-comp2':q.comp2||'','q-comp3':q.comp3||'',
         'q-ads-loc':q.ads_loc||'','q-ads-prod':q.ads_prod||'',
         'q-ads-usp':q.ads_usp||'','q-ads-promo':q.ads_promo||'','q-ads-sched':q.ads_sched||'',

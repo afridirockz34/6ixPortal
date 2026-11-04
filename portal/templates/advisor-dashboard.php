@@ -1199,6 +1199,37 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         <div style="height:7px;border-radius:5px;background:var(--dark2);overflow:hidden;margin-bottom:12px">
             <div style="height:100%;width:<?php echo intval($cq['percent']); ?>%;border-radius:5px;background:linear-gradient(90deg,#56D364,#6ACAFD)"></div>
         </div>
+        <!-- A link the advisor can email, so the client doesn't need their
+             portal password to finish the questionnaire. -->
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+            <button class="six-btn six-btn-ghost six-btn-sm" id="cq-link-btn" data-client="<?php echo intval($view_client_id); ?>" style="font-size:11px">
+                <?php echo ( function_exists('six_questionnaire_link_active') && six_questionnaire_link_active($view_client_id) ) ? 'Generate a new link' : 'Get shareable link'; ?>
+            </button>
+            <input type="text" id="cq-link-out" readonly onclick="this.select()" placeholder="The link appears here"
+                   style="flex:1;min-width:240px;font-size:11.5px;padding:7px 10px;border-radius:7px;border:1px solid var(--border);background:var(--dark2);color:var(--text2)">
+            <span id="cq-link-msg" style="font-size:11px;color:var(--text3)"></span>
+        </div>
+        <script>
+        (function(){
+          var b=document.getElementById('cq-link-btn'); if(!b) return;
+          b.addEventListener('click',function(){
+            var msg=document.getElementById('cq-link-msg');
+            msg.textContent='Generating…';
+            fetch(sixPortal.ajax_url,{method:'POST',credentials:'same-origin',
+              headers:{'Content-Type':'application/x-www-form-urlencoded'},
+              body:new URLSearchParams({action:'six_questionnaire_link',nonce:sixPortal.nonce,client_id:b.getAttribute('data-client')})
+            }).then(function(r){return r.json();}).then(function(r){
+              if(r&&r.success&&r.data.link){
+                var out=document.getElementById('cq-link-out');
+                out.value=r.data.link; out.select();
+                try{ document.execCommand('copy'); msg.textContent='Copied — valid '+r.data.expires_days+' days'; }
+                catch(e){ msg.textContent='Valid '+r.data.expires_days+' days'; }
+                b.textContent='Generate a new link';
+              } else { msg.textContent=(r&&r.data)||'Could not generate a link'; }
+            }).catch(function(){ msg.textContent='Could not generate a link'; });
+          });
+        })();
+        </script>
         <?php if ( ! empty($cq['outstanding']) ): ?>
         <details>
             <summary style="font-size:12px;color:var(--cyan);cursor:pointer">Still outstanding (<?php echo count($cq['outstanding']); ?>)</summary>

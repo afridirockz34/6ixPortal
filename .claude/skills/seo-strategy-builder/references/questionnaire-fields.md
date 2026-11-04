@@ -28,6 +28,7 @@ _Most of this we already have — just filling the gaps._
 | `business_name` | Business name | text | from signup |
 | `brand_tagline` | Tagline | text | optional |
 | `website` | Website | url | from signup |
+| `industry` | Industry / what you do | text | from signup |
 | `phone` | Phone | tel | from signup |
 | `business_address` | Physical address | text | from signup |
 | `mailing_address` | Mailing address | text | optional |
@@ -148,5 +149,5 @@ _Please don't type passwords here — just tell us what exists, and we'll set up
 
 ---
 
-66 questions in total; 51 have their own storage and the rest reuse a field
+67 questions in total; 51 have their own storage and the rest reuse a field
 onboarding already captured.

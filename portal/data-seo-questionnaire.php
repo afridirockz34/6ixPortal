@@ -26,10 +26,46 @@
  * Any entry with none of those three is genuinely new and gets its own column
  * (see six_seo_questionnaire_columns()).
  *
+ * Every question also carries a 'phase':
+ *
+ *   'audit'     Needed before we can run the pre-sales SEO audit — the thing
+ *               that wins the engagement. These are collected during
+ *               onboarding so an audit can be produced immediately, and they
+ *               mirror the SEO Audit Intake sheet.
+ *
+ *   'strategy'  Needed once they've signed, to build the actual strategy.
+ *               These live in the portal questionnaire, which a client can
+ *               fill in at their own pace — including through a shareable
+ *               link that needs no login (see six_questionnaire_link()).
+ *
+ * A question marked 'from_signup' is asked during onboarding into its own
+ * column. That differs from 'maps_to', which means it reuses a DIFFERENT
+ * column; only maps_to suppresses column creation.
+ *
  * Source: "6ix Developers Client Questionnaire" (SEO), sections 1-10.
  * Section 10 (sign-off) is omitted — onboarding already captures a signature.
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
+
+/**
+ * The questions the pre-sales audit needs. Everything else is 'strategy'.
+ * This is the SEO Audit Intake sheet, expressed as keys — keep the two in step.
+ */
+function six_seo_questionnaire_audit_keys() {
+	return array(
+		// Who they are
+		'first_name', 'business_name', 'website', 'industry', 'phone',
+		// What makes the audit safe to write
+		'comp_regulator',
+		// What we're auditing them for
+		'seo_keywords', 'competitors',
+	);
+}
+
+/** 'audit' or 'strategy' for a given question key. */
+function six_seo_questionnaire_phase( $key ) {
+	return in_array( $key, six_seo_questionnaire_audit_keys(), true ) ? 'audit' : 'strategy';
+}
 
 /**
  * @return array[] Section key => ['title','intro','fields'=>[...]]
@@ -49,6 +85,7 @@ function six_seo_questionnaire_schema() {
 				array( 'key' => 'business_name',   'label' => 'Business name',  'type' => 'text',  'maps_to' => 'business_name' ),
 				array( 'key' => 'brand_tagline',   'label' => 'Tagline',        'type' => 'text',  'optional' => true, 'placeholder' => 'If you have one' ),
 				array( 'key' => 'website',         'label' => 'Website',        'type' => 'url',   'maps_to' => 'website' ),
+				array( 'key' => 'industry',        'label' => 'Industry / what you do', 'type' => 'text', 'maps_to' => 'industry' ),
 				array( 'key' => 'phone',           'label' => 'Phone',          'type' => 'tel',   'maps_to' => 'phone' ),
 				array( 'key' => 'business_address','label' => 'Physical address','type' => 'text', 'maps_to' => 'business_address' ),
 				array( 'key' => 'mailing_address', 'label' => 'Mailing address','type' => 'text',  'optional' => true, 'help' => 'Only if different from the physical address' ),
@@ -151,7 +188,7 @@ function six_seo_questionnaire_schema() {
 			'intro'     => "Skip this if it doesn't apply. If your field is regulated, these answers decide what we can and can't say in your content.",
 			'skippable' => true,
 			'fields'    => array(
-				array( 'key' => 'comp_regulator',         'label' => 'Is your profession regulated? By whom?', 'type' => 'text' ),
+				array( 'key' => 'comp_regulator',         'label' => 'Is your profession regulated? By whom?', 'type' => 'text', 'from_signup' => true ),
 				array( 'key' => 'comp_prohibited_claims', 'label' => 'Claims you are not permitted to make', 'type' => 'textarea',
 				       'help' => 'Results, guarantees, protected terms like "specialist"' ),
 				array( 'key' => 'comp_review_rules',      'label' => 'Rules about testimonials, reviews, or asking for them', 'type' => 'textarea' ),
@@ -237,6 +274,10 @@ function six_seo_questionnaire_fields() {
 	foreach ( six_seo_questionnaire_schema() as $skey => $section ) {
 		foreach ( $section['fields'] as $f ) {
 			$f['section'] = $skey;
+			$f['phase']   = six_seo_questionnaire_phase( $f['key'] );
+			// Collected during onboarding either way: by reusing another
+			// column (maps_to) or into its own (from_signup).
+			$f['signup']  = ! empty( $f['maps_to'] ) || ! empty( $f['from_signup'] );
 			$out[ $f['key'] ] = $f;
 		}
 	}
@@ -318,7 +359,8 @@ function six_seo_questionnaire_answers( $client_id, array $active_slugs = array(
 			$out[ $f['key'] ] = array(
 				'value'           => $value,
 				'answered'        => $value !== '',
-				'from_onboarding' => ! empty( $f['maps_to'] ),
+				'from_onboarding' => ! empty( $f['maps_to'] ) || ! empty( $f['from_signup'] ),
+				'phase'           => six_seo_questionnaire_phase( $f['key'] ),
 			);
 		}
 	}
@@ -393,4 +435,77 @@ function six_seo_questionnaire_save( $client_id, array $posted ) {
 	}
 
 	return array( 'saved' => $saved, 'rejected' => $rejected );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SHAREABLE LINK
+// A client who has signed still has to fill in the strategy questions, and
+// making them remember a portal password to do it is how a questionnaire
+// never gets filled. An advisor can hand them a link that opens the form
+// directly.
+//
+// The link grants access to ONE client's questionnaire and nothing else — it
+// is not a login, and it cannot reach the rest of the portal. The token is
+// stored hashed, so a database copy doesn't yield working links, and it
+// expires.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const SIX_Q_TOKEN_META   = 'six_questionnaire_token';
+const SIX_Q_EXPIRY_META  = 'six_questionnaire_token_expires';
+const SIX_Q_TOKEN_DAYS   = 90;
+
+/**
+ * The client's shareable questionnaire link, minting a token if there isn't a
+ * live one. Pass $regenerate to invalidate the old link (e.g. if it was sent
+ * to the wrong address).
+ */
+function six_questionnaire_link( $client_id, $regenerate = false ) {
+	$client_id = (int) $client_id;
+	if ( ! $client_id ) return '';
+
+	$expires = (int) get_user_meta( $client_id, SIX_Q_EXPIRY_META, true );
+	$hash    = (string) get_user_meta( $client_id, SIX_Q_TOKEN_META, true );
+
+	// We only ever store the hash, so an existing token can't be read back out
+	// to rebuild its URL — a fresh link means a fresh token.
+	if ( $regenerate || ! $hash || $expires < time() ) {
+		$plain = bin2hex( random_bytes( 20 ) );
+		update_user_meta( $client_id, SIX_Q_TOKEN_META, hash( 'sha256', $plain ) );
+		update_user_meta( $client_id, SIX_Q_EXPIRY_META, time() + ( SIX_Q_TOKEN_DAYS * DAY_IN_SECONDS ) );
+	} else {
+		return ''; // a live link exists but its URL can't be reconstructed
+	}
+
+	return add_query_arg( 'k', $client_id . '-' . $plain, home_url( '/seo-questionnaire/' ) );
+}
+
+/** True when this client currently has a live shareable link. */
+function six_questionnaire_link_active( $client_id ) {
+	$expires = (int) get_user_meta( (int) $client_id, SIX_Q_EXPIRY_META, true );
+	return $expires > time() && get_user_meta( (int) $client_id, SIX_Q_TOKEN_META, true ) !== '';
+}
+
+/**
+ * Resolve a token from a link back to its client, or 0.
+ * Compared by hash with hash_equals so a near-miss can't be probed by timing.
+ */
+function six_questionnaire_token_client( $token ) {
+	$token = (string) $token;
+	if ( strpos( $token, '-' ) === false ) return 0;
+
+	list( $client_id, $plain ) = explode( '-', $token, 2 );
+	$client_id = (int) $client_id;
+	if ( ! $client_id || $plain === '' ) return 0;
+
+	$stored  = (string) get_user_meta( $client_id, SIX_Q_TOKEN_META, true );
+	$expires = (int) get_user_meta( $client_id, SIX_Q_EXPIRY_META, true );
+	if ( ! $stored || $expires < time() ) return 0;
+
+	return hash_equals( $stored, hash( 'sha256', $plain ) ) ? $client_id : 0;
+}
+
+/** Revoke a client's shareable link. */
+function six_questionnaire_revoke_link( $client_id ) {
+	delete_user_meta( (int) $client_id, SIX_Q_TOKEN_META );
+	delete_user_meta( (int) $client_id, SIX_Q_EXPIRY_META );
 }
