@@ -32,9 +32,11 @@ This skill leans entirely on live Ahrefs data — a persuasive audit is a data-b
 
 If Ahrefs isn't connected in this session: say so, and either ask for exported data (Site Explorer overview, a recent Site Audit export) or produce a narrower report clearly scoped to what's checkable without it (on-page issues reachable by reading the live site directly, for instance) — never fill the gap with a plausible-sounding number.
 
-## Then: pull their profile from the portal
+## Then: get whatever context exists on the prospect
 
-The 6ix Developers portal is the system of record for everything a client or lead has told us. Look for tools named `6ix-developers-portal` / `mcp__*__get_client_profile` (search for them if deferred). If the connector is there:
+An audit informed by the prospect's own answers beats a data-only scan every time — it tells you which findings will actually land. That context arrives three ways, and **the audit runs regardless of which one you get**. `seo-strategy-builder/references/client-context.md` covers all three in full; the short version:
+
+**Route 1 — the portal.** Look for the connector in this session's tool list (`list_clients`, `get_client_profile`; search for them if deferred). If it's there:
 
 1. **`list_clients` with `search`** — resolve the business or person's name to a `client_id`. You will almost never be handed an id; you'll be handed "audit Acme Plumbing". Search by business name, person's name, or email.
 2. **`get_client_profile`** with that id. Read it before pulling a single Ahrefs number — it tells you which findings will actually matter to this business.
@@ -49,7 +51,11 @@ What to take from the profile, and what it changes:
 - **`positioning.competitors`** — benchmark against the competitors *they* named, not just whoever Ahrefs returns as organic competitors. Do both, and say when the two disagree; that gap is often itself the most interesting finding in the report.
 - **`questionnaire_progress`** — if large parts are unanswered, the audit is thinner than it could be. Say so in the framing, and tell the person running this which sections to chase.
 
-If the prospect isn't in the portal at all, that's expected for a cold lead — proceed on Ahrefs alone and note the narrower basis. Don't invent a profile, and don't treat a missing profile as an error.
+**Route 2 — a questionnaire they filled in and sent back.** Prospects often prefer a Word document over email to filling in a portal form, especially before they've signed anything. Read it the same way and pull the same facts — `.docx`, PDF, a pasted email, or a call transcript all count, and it doesn't need to match the questionnaire's wording. If the portal connector is available and they already exist there as a lead, offer to file their answers with `update_client_profile` so the information isn't stranded in an inbox; `seo-strategy-builder/references/questionnaire-fields.md` maps each question to its key.
+
+**Route 3 — neither.** Entirely normal for a cold prospect. Run the audit on Ahrefs and the live site alone, and say so in the framing: that it reflects what's publicly measurable, and that a full picture would also account for their margins, constraints and which services they actually want to grow. Then name the two or three answers that would most change the conclusions — that's a stronger close than pretending the gap isn't there.
+
+Never invent a profile, and never treat a missing one as a blocker.
 
 **When the report is finished**, if they exist in the portal, save it with **`save_client_artifact`** (`type: "audit_report"`) so it lands on their record and the next session can see it was already done. Writing needs a write-scoped token; if the connector is read-only, say so rather than silently skipping it.
 
@@ -69,6 +75,7 @@ It's tempting, especially when the data makes a fix obvious, to just write the f
 
 ## Reference files
 
+- `seo-strategy-builder/references/client-context.md` — getting the prospect's answers from the portal, a returned document, or neither
 - `references/audit-methodology.md` — the audit category checklist, which Ahrefs tool group covers each one, and the severity scoring rubric
 - `references/report-template.md` — report structure and the show-the-wound-not-the-stitches pattern, with a good/bad example
 - `assets/sample-weakness-section.md` — one fully worked example category section, for calibrating tone and length
