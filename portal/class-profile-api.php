@@ -327,27 +327,44 @@ class Six_Profile_API {
 			'field_provenance' => (array) get_user_meta( $id, self::ORIGIN_META, true ),
 		);
 
-		// The full SEO questionnaire, grouped the way it's asked. This is the
-		// depth an audit or strategy actually needs — brand story, ideal
-		// client, E-E-A-T credentials, compliance limits, content capacity —
-		// and it's why a skill can work from the profile instead of
-		// interviewing the client again. Answers resolve through the dedup
-		// rules, so a question answered during signup appears here too.
+		// Both questionnaires, each with its own completion, because they're
+		// answered at different points in the engagement: the audit intake at
+		// signup, the strategy questionnaire once the audit has won the work.
+		// A consumer can tell from `stage` which step this client is at.
 		if ( function_exists( 'six_seo_questionnaire_answers' ) ) {
-			$answers = six_seo_questionnaire_answers( $id, $slugs );
-			$grouped = array();
-			foreach ( six_seo_questionnaire_for_client( $slugs ) as $skey => $section ) {
-				foreach ( $section['fields'] as $f ) {
-					$val = $answers[ $f['key'] ]['value'] ?? '';
-					if ( $val === '' ) continue;      // don't pad the payload with blanks
-					$grouped[ $skey ][ $f['key'] ] = array(
-						'question' => $f['label'],
-						'answer'   => $val,
-					);
+			$sets = array();
+			foreach ( array( 'audit', 'strategy' ) as $set ) {
+				$answers = six_seo_questionnaire_answers( $id, $slugs, $set );
+				$grouped = array();
+				foreach ( six_seo_questionnaire_for_client( $slugs, $set ) as $skey => $section ) {
+					foreach ( $section['fields'] as $f ) {
+						$val = $answers[ $f['key'] ]['value'] ?? '';
+						if ( $val === '' ) continue;   // don't pad the payload with blanks
+						$grouped[ $skey ][ $f['key'] ] = array(
+							'question' => $f['label'],
+							'answer'   => $val,
+						);
+					}
 				}
+				$sets[ $set ] = array(
+					'progress' => six_seo_questionnaire_progress( $id, $slugs, $set ),
+					'sections' => $grouped,
+				);
 			}
-			$profile['questionnaire'] = $grouped;
-			$profile['questionnaire_progress'] = six_seo_questionnaire_progress( $id, $slugs );
+			$issued = function_exists( 'six_strategy_questionnaire_issued' )
+				&& six_strategy_questionnaire_issued( $id );
+			$sets['strategy']['issued']    = $issued;
+			$sets['strategy']['issued_at'] = $issued && function_exists( 'six_strategy_questionnaire_issued_at' )
+				? six_strategy_questionnaire_issued_at( $id ) : '';
+
+			$profile['questionnaire'] = $sets;
+
+			// Where this client is in the engagement, so a skill doesn't have to
+			// infer it: ready to audit, awaiting the strategy questionnaire, or
+			// ready to build the strategy.
+			$profile['stage'] = ! $issued
+				? ( $sets['audit']['progress']['percent'] >= 100 ? 'ready_for_audit' : 'audit_intake_incomplete' )
+				: ( $sets['strategy']['progress']['percent'] >= 100 ? 'ready_for_strategy' : 'awaiting_strategy_answers' );
 		}
 
 		return rest_ensure_response( $profile );

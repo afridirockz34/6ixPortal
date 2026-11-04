@@ -292,6 +292,7 @@ function six_ajax_save_checkout_step() {
             'monthly_revenue'=> sanitize_text_field( $data['revenue']     ?? '' ),
             'competitors'    => sanitize_text_field( $data['competitors'] ?? '' ),
             'goal'           => sanitize_text_field( $data['goal']        ?? '' ),
+            'comp_regulator'     => sanitize_text_field( $data['comp_regulator'] ?? '' ),
             'challenge'      => sanitize_text_field( $data['challenge']   ?? '' ),
             'mktg_budget'    => sanitize_text_field( $data['mktg_budget'] ?? '' ),
             'platforms'      => sanitize_text_field( $data['platforms']   ?? '' ),
@@ -469,6 +470,7 @@ function six_complete_onboarding() {
             'business_address'=> sanitize_text_field( $d['address']      ?? '' ),
             'years_in_business'=> sanitize_text_field($d['years']        ?? '' ),
             'goal'            => sanitize_text_field( $d['goals']        ?? '' ),
+            'comp_regulator'  => sanitize_text_field( $d['comp_regulator'] ?? '' ),
             'competitors'     => sanitize_text_field( implode(',', array_filter([
                                     $d['comp1']??'', $d['comp2']??'', $d['comp3']??''
                                 ])) ),

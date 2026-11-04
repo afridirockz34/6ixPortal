@@ -100,7 +100,7 @@ class Six_MCP_Server {
 			array(
 				'name'        => 'get_client_profile',
 				'title'       => 'Get a client profile',
-				'description' => 'The full profile for one client: business identity, services and budgets, positioning and competitors, the SEO / Google Ads / Google Business inputs they gave during onboarding, their completed SEO questionnaire (brand story, ideal client, team credentials, compliance limits, content capacity, tooling), website project progress, and their current dashboard metrics. Read this before writing any strategy, audit or analysis for a client, so the work reflects what they actually told us. Also returns `field_provenance`, showing which fields an automation has changed and when.',
+				'description' => 'The full profile for one client: business identity, services and budgets, positioning and competitors, the SEO / Google Ads / Google Business inputs they gave during onboarding, BOTH questionnaires (`questionnaire.audit` answered at signup, `questionnaire.strategy` answered after the audit wins the work) each with its own completion, website project progress, and their current dashboard metrics. Read `stage` to see where they are: audit_intake_incomplete, ready_for_audit, awaiting_strategy_answers, or ready_for_strategy. Read this before writing any strategy, audit or analysis for a client, so the work reflects what they actually told us. Also returns `field_provenance`, showing which fields an automation has changed and when.',
 				'inputSchema' => array(
 					'type'       => 'object',
 					'properties' => array(
@@ -123,6 +123,18 @@ class Six_MCP_Server {
 						),
 					),
 					'required'   => array( 'client_id', 'fields' ),
+				),
+			),
+			array(
+				'name'        => 'issue_strategy_questionnaire',
+				'title'       => 'Issue the strategy questionnaire',
+				'description' => 'Release the SEO strategy questionnaire to a client and return a shareable link they can fill in without logging in. Do this once the audit has been reviewed and the client wants to proceed — not before, since the strategy questions are long and nobody answers them before they have decided to work with us. Returns the link to send them. Requires a write-scoped token. Generating a link again invalidates the previous one.',
+				'inputSchema' => array(
+					'type'       => 'object',
+					'properties' => array(
+						'client_id' => array( 'type' => 'integer', 'description' => 'The client id, from list_clients.' ),
+					),
+					'required'   => array( 'client_id' ),
 				),
 			),
 			array(
@@ -298,7 +310,7 @@ class Six_MCP_Server {
 
 		// Write tools need a write-scoped token. Reported as a tool error
 		// rather than a protocol error so the model can explain it.
-		if ( in_array( $name, array( 'update_client_profile', 'save_client_artifact' ), true ) ) {
+		if ( in_array( $name, array( 'update_client_profile', 'save_client_artifact', 'issue_strategy_questionnaire' ), true ) ) {
 			$allowed = Six_Profile_API::require_write( $request );
 			if ( is_wp_error( $allowed ) ) {
 				return self::result( $id, self::tool_result( array(
@@ -334,6 +346,21 @@ class Six_MCP_Server {
 				}
 				return self::result( $id, self::unwrap( Six_Profile_API::patch_profile(
 					self::sub_request( $request, 'PATCH', '/clients/' . $client_id . '/profile', array( 'id' => $client_id ), $fields )
+				) ) );
+
+			case 'issue_strategy_questionnaire':
+				if ( ! function_exists( 'six_issue_strategy_questionnaire' ) ) {
+					return self::result( $id, self::tool_result( array(
+						'error' => 'unavailable', 'message' => 'The questionnaire module is not loaded on this site.',
+					), true ) );
+				}
+				six_issue_strategy_questionnaire( $client_id );
+				$link = six_questionnaire_link( $client_id, true );
+				return self::result( $id, self::tool_result( array(
+					'issued'       => true,
+					'link'         => $link,
+					'expires_days' => SIX_Q_TOKEN_DAYS,
+					'note'         => 'Send this link to the client. Any link issued earlier no longer works.',
 				) ) );
 
 			case 'list_client_artifacts':

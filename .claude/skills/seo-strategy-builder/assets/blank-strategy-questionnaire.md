@@ -1,11 +1,11 @@
-# SEO Questionnaire
+# SEO Strategy Questionnaire
 
-Everything we need to audit your site and build your strategy.
+Everything we need to build your strategy and start the work.
 
 Fill in whatever you can and send it back — you don't have to answer
 everything, and anything you'd rather talk through, just say so and we'll
-cover it on the call. If you'd prefer to fill this in online instead, it's
-in your 6ix Developers portal under **Questionnaire**, where it saves as you go.
+cover it on the call. If you'd prefer to fill this in online instead, your
+advisor can send you a link that saves as you go.
 
 ---
 
@@ -55,12 +55,6 @@ _What are they like, what do they care about, what are they trying to achieve?_
 
 > 
 
-**Main competitors (names and URLs)**
-
-_Or anyone doing what you want to do, and doing it well — we benchmark against these._
-
-> 
-
 **Anything to avoid?** _(optional)_
 
 _Colours, imagery or language that would be wrong for your market_
@@ -74,10 +68,6 @@ _Colours, imagery or language that would be wrong for your market_
 ---
 
 ## SEO specifics
-
-**Top phrases people would search to find you**
-
-> 
 
 **Are you national or local?**
 
@@ -199,10 +189,6 @@ _This builds the expertise and trust signals Google weighs (E-E-A-T). List anyon
 ## Regulated industry and compliance
 
 _Skip this if it doesn't apply. If your field is regulated, these answers decide what we can and can't say in your content._
-
-**Is your profession regulated? By whom?**
-
-> 
 
 **Claims you are not permitted to make**
 
