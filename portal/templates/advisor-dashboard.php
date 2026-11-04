@@ -1185,14 +1185,29 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         $view_client_id
     ) );
     $cq = function_exists('six_seo_questionnaire_progress')
-        ? six_seo_questionnaire_progress($view_client_id, $cq_slugs) : null;
+        ? six_seo_questionnaire_progress($view_client_id, $cq_slugs, 'strategy') : null;
+    $cq_issued = function_exists('six_strategy_questionnaire_issued')
+        && six_strategy_questionnaire_issued($view_client_id);
+    $cq_issued_at = $cq_issued && function_exists('six_strategy_questionnaire_issued_at')
+        ? six_strategy_questionnaire_issued_at($view_client_id) : '';
+    $cq_audit = function_exists('six_seo_questionnaire_progress')
+        ? six_seo_questionnaire_progress($view_client_id, $cq_slugs, 'audit') : null;
     if ( $cq && $cq['total'] > 0 ):
     ?>
     <div style="background:var(--dark3);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px">
             <div>
-                <div style="font-size:14px;font-weight:700;color:var(--text1)">SEO Questionnaire</div>
-                <div style="font-size:11px;color:var(--text3);margin-top:2px"><?php echo intval($cq['done']); ?> of <?php echo intval($cq['total']); ?> answered — the client fills this in from their portal.</div>
+                <div style="font-size:14px;font-weight:700;color:var(--text1)">SEO Strategy Questionnaire</div>
+                <div style="font-size:11px;color:var(--text3);margin-top:2px">
+                    <?php if ( $cq_issued ): ?>
+                        <?php echo intval($cq['done']); ?> of <?php echo intval($cq['total']); ?> answered — issued <?php echo esc_html( $cq_issued_at ? mysql2date('j M Y', $cq_issued_at) : '' ); ?>.
+                    <?php else: ?>
+                        Not issued yet. Send this once the audit has been reviewed and they want to proceed.
+                    <?php endif; ?>
+                    <?php if ( $cq_audit ): ?>
+                        <span style="color:<?php echo $cq_audit['percent']>=100?'var(--success)':'var(--warning)'; ?>">Audit intake <?php echo intval($cq_audit['percent']); ?>% complete.</span>
+                    <?php endif; ?>
+                </div>
             </div>
             <div style="font-family:var(--font-head);font-size:20px;font-weight:800;color:<?php echo $cq['percent']>=100?'var(--success)':'var(--text1)'; ?>"><?php echo intval($cq['percent']); ?>%</div>
         </div>
@@ -1202,8 +1217,8 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         <!-- A link the advisor can email, so the client doesn't need their
              portal password to finish the questionnaire. -->
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-            <button class="six-btn six-btn-ghost six-btn-sm" id="cq-link-btn" data-client="<?php echo intval($view_client_id); ?>" style="font-size:11px">
-                <?php echo ( function_exists('six_questionnaire_link_active') && six_questionnaire_link_active($view_client_id) ) ? 'Generate a new link' : 'Get shareable link'; ?>
+            <button class="six-btn <?php echo $cq_issued ? 'six-btn-ghost' : 'six-btn-primary'; ?> six-btn-sm" id="cq-link-btn" data-client="<?php echo intval($view_client_id); ?>" style="font-size:11px">
+                <?php echo $cq_issued ? 'Generate a new link' : 'Issue questionnaire &amp; get link'; ?>
             </button>
             <input type="text" id="cq-link-out" readonly onclick="this.select()" placeholder="The link appears here"
                    style="flex:1;min-width:240px;font-size:11.5px;padding:7px 10px;border-radius:7px;border:1px solid var(--border);background:var(--dark2);color:var(--text2)">
@@ -1230,7 +1245,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
           });
         })();
         </script>
-        <?php if ( ! empty($cq['outstanding']) ): ?>
+        <?php if ( $cq_issued && ! empty($cq['outstanding']) ): ?>
         <details>
             <summary style="font-size:12px;color:var(--cyan);cursor:pointer">Still outstanding (<?php echo count($cq['outstanding']); ?>)</summary>
             <div style="margin-top:10px;display:flex;flex-direction:column;gap:5px;max-height:220px;overflow:auto">
@@ -1241,7 +1256,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 <?php endforeach; ?>
             </div>
         </details>
-        <?php else: ?>
+        <?php elseif ( $cq_issued ): ?>
         <div style="font-size:12px;color:var(--success)">Complete — everything we need is on file.</div>
         <?php endif; ?>
     </div>

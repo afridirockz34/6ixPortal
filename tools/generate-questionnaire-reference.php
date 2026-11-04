@@ -69,38 +69,42 @@ $target = __DIR__ . '/../.claude/skills/seo-strategy-builder/references/question
 file_put_contents( $target, $out );
 echo "Wrote " . realpath( $target ) . " (" . $counts['total'] . " questions)\n";
 
-// ── Blank questionnaire, for clients who'd rather fill in a document ──────
-// Same schema, so what we email out can never drift from what the portal asks.
-// The contact section is skipped: we already hold those details, and asking
-// again just gives us a second version to reconcile.
-$blank  = "# SEO Questionnaire\n\n";
-$blank .= "Everything we need to audit your site and build your strategy.\n\n";
-$blank .= "Fill in whatever you can and send it back — you don't have to answer\n";
-$blank .= "everything, and anything you'd rather talk through, just say so and we'll\n";
-$blank .= "cover it on the call. If you'd prefer to fill this in online instead, it's\n";
-$blank .= "in your 6ix Developers portal under **Questionnaire**, where it saves as you go.\n\n";
-$blank .= "---\n\n";
-
-foreach ( $schema as $skey => $section ) {
-	if ( $skey === 'contact' ) continue;
-	$blank .= "## " . $section['title'] . "\n\n";
-	if ( ! empty( $section['intro'] ) ) $blank .= "_" . $section['intro'] . "_\n\n";
-
-	foreach ( $section['fields'] as $f ) {
-		$suffix = ! empty( $f['optional'] ) ? ' _(optional)_' : '';
-		$blank .= "**" . $f['label'] . "**" . $suffix . "\n\n";
-		if ( ! empty( $f['help'] ) ) $blank .= "_" . $f['help'] . "_\n\n";
-		if ( ! empty( $f['options'] ) ) {
-			foreach ( (array) $f['options'] as $opt ) $blank .= "- [ ] " . $opt . "\n";
-			$blank .= "\n";
-		} else {
-			$blank .= "> \n\n";
-		}
+// ── Blank questionnaires, for clients who'd rather fill in a document ─────
+// One per questionnaire, because they're sent at different moments: the audit
+// intake before we've won the work, the strategy questionnaire after. Built
+// from the same schema, so what we email can't drift from what the portal asks.
+foreach ( six_questionnaire_sets() as $set_key => $set ) {
+	$blank  = "# " . $set['title'] . "\n\n";
+	$blank .= $set['blurb'] . "\n\n";
+	if ( $set_key === 'strategy' ) {
+		$blank .= "Fill in whatever you can and send it back — you don't have to answer\n";
+		$blank .= "everything, and anything you'd rather talk through, just say so and we'll\n";
+		$blank .= "cover it on the call. If you'd prefer to fill this in online instead, your\n";
+		$blank .= "advisor can send you a link that saves as you go.\n\n";
 	}
 	$blank .= "---\n\n";
-}
-$blank .= "Thank you for taking the time to complete this. We'll be in touch shortly to\nconfirm next steps.\n";
 
-$blank_target = __DIR__ . '/../.claude/skills/seo-strategy-builder/assets/blank-questionnaire.md';
-file_put_contents( $blank_target, $blank );
-echo "Wrote " . realpath( $blank_target ) . "\n";
+	foreach ( six_seo_questionnaire_for_client( array(), $set_key ) as $skey => $section ) {
+		if ( $skey === 'contact' && $set_key === 'strategy' ) continue;  // already on file
+		$blank .= "## " . $section['title'] . "\n\n";
+		if ( ! empty( $section['intro'] ) ) $blank .= "_" . $section['intro'] . "_\n\n";
+
+		foreach ( $section['fields'] as $f ) {
+			$suffix = ! empty( $f['optional'] ) ? ' _(optional)_' : '';
+			$blank .= "**" . $f['label'] . "**" . $suffix . "\n\n";
+			if ( ! empty( $f['help'] ) ) $blank .= "_" . $f['help'] . "_\n\n";
+			if ( ! empty( $f['options'] ) ) {
+				foreach ( (array) $f['options'] as $opt ) $blank .= "- [ ] " . $opt . "\n";
+				$blank .= "\n";
+			} else {
+				$blank .= "> \n\n";
+			}
+		}
+		$blank .= "---\n\n";
+	}
+	$blank .= "Thank you for taking the time to complete this. We'll be in touch shortly to\nconfirm next steps.\n";
+
+	$bt = __DIR__ . '/../.claude/skills/seo-strategy-builder/assets/blank-' . $set_key . '-questionnaire.md';
+	file_put_contents( $bt, $blank );
+	echo "Wrote " . realpath( $bt ) . "\n";
+}

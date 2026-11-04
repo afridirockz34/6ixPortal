@@ -48,6 +48,35 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 /**
+ * The two questionnaires, as separate things a client is asked at separate
+ * moments in the engagement:
+ *
+ *   audit     The SEO Audit Intake sheet. Collected during onboarding, so an
+ *             audit can be produced straight away — that audit is what wins
+ *             the engagement.
+ *
+ *   strategy  Everything needed to build the actual strategy. Deliberately
+ *             NOT asked up front: it's issued once the audit has been
+ *             reviewed and the client wants to proceed. Asking sixty
+ *             questions of someone who hasn't decided to work with you yet is
+ *             how a questionnaire goes unanswered.
+ */
+function six_questionnaire_sets() {
+	return array(
+		'audit' => array(
+			'key'   => 'audit',
+			'title' => 'SEO Audit Intake',
+			'blurb' => "Just enough for us to run your audit — we'll pull the site, backlink and keyword data ourselves.",
+		),
+		'strategy' => array(
+			'key'   => 'strategy',
+			'title' => 'SEO Strategy Questionnaire',
+			'blurb' => 'Everything we need to build your strategy and start the work.',
+		),
+	);
+}
+
+/**
  * The questions the pre-sales audit needs. Everything else is 'strategy'.
  * This is the SEO Audit Intake sheet, expressed as keys — keep the two in step.
  */
@@ -316,16 +345,19 @@ function six_seo_questionnaire_column_for( $key ) {
  *
  * @param array $active_slugs Service slugs the client has.
  */
-function six_seo_questionnaire_for_client( array $active_slugs ) {
+function six_seo_questionnaire_for_client( array $active_slugs, $set = null ) {
 	$schema = six_seo_questionnaire_schema();
 	foreach ( $schema as $skey => &$section ) {
-		$section['fields'] = array_values( array_filter( $section['fields'], function ( $f ) use ( $active_slugs ) {
+		$section['fields'] = array_values( array_filter( $section['fields'], function ( $f ) use ( $active_slugs, $set ) {
+			// Wrong questionnaire for this question.
+			if ( $set !== null && six_seo_questionnaire_phase( $f['key'] ) !== $set ) return false;
 			if ( empty( $f['skip_if_svc'] ) ) return true;
 			return ! array_intersect( (array) $f['skip_if_svc'], $active_slugs );
 		} ) );
 	}
 	unset( $section );
-	return $schema;
+	// Drop sections that have nothing left in this set.
+	return array_filter( $schema, fn( $sec ) => ! empty( $sec['fields'] ) );
 }
 
 /**
@@ -335,7 +367,7 @@ function six_seo_questionnaire_for_client( array $active_slugs ) {
  *
  * @return array question key => array('value','answered','from_onboarding')
  */
-function six_seo_questionnaire_answers( $client_id, array $active_slugs = array() ) {
+function six_seo_questionnaire_answers( $client_id, array $active_slugs = array(), $set = null ) {
 	global $wpdb;
 	$row = $wpdb->get_row( $wpdb->prepare(
 		"SELECT * FROM {$wpdb->prefix}six_checkout_progress WHERE user_id=%d", $client_id
@@ -343,7 +375,7 @@ function six_seo_questionnaire_answers( $client_id, array $active_slugs = array(
 	if ( ! $row ) $row = (object) array();
 
 	$out = array();
-	foreach ( six_seo_questionnaire_for_client( $active_slugs ) as $section ) {
+	foreach ( six_seo_questionnaire_for_client( $active_slugs, $set ) as $section ) {
 		foreach ( $section['fields'] as $f ) {
 			$col   = $f['maps_to'] ?? $f['key'];
 			$value = isset( $row->$col ) ? (string) $row->$col : '';
@@ -374,11 +406,11 @@ function six_seo_questionnaire_answers( $client_id, array $active_slugs = array(
  *
  * @return array{total:int,done:int,percent:int,outstanding:array}
  */
-function six_seo_questionnaire_progress( $client_id, array $active_slugs = array() ) {
-	$answers = six_seo_questionnaire_answers( $client_id, $active_slugs );
+function six_seo_questionnaire_progress( $client_id, array $active_slugs = array(), $set = null ) {
+	$answers = six_seo_questionnaire_answers( $client_id, $active_slugs, $set );
 	$total = 0; $done = 0; $outstanding = array();
 
-	foreach ( six_seo_questionnaire_for_client( $active_slugs ) as $skey => $section ) {
+	foreach ( six_seo_questionnaire_for_client( $active_slugs, $set ) as $skey => $section ) {
 		foreach ( $section['fields'] as $f ) {
 			if ( ! empty( $f['optional'] ) ) continue;
 			$total++;
@@ -435,6 +467,49 @@ function six_seo_questionnaire_save( $client_id, array $posted ) {
 	}
 
 	return array( 'saved' => $saved, 'rejected' => $rejected );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ISSUING THE STRATEGY QUESTIONNAIRE
+// The audit questionnaire is answered at signup. The strategy one is held
+// back until the audit has been reviewed and the client wants to proceed —
+// step 3 of the engagement. Until an advisor issues it, the client never sees
+// it, so nobody is asked sixty questions before they've decided to work with
+// us.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const SIX_Q_ISSUED_META = 'six_strategy_questionnaire_issued';
+
+/** Has the strategy questionnaire been issued to this client? */
+function six_strategy_questionnaire_issued( $client_id ) {
+	return (bool) get_user_meta( (int) $client_id, SIX_Q_ISSUED_META, true );
+}
+
+/** When it was issued, or '' if it hasn't been. */
+function six_strategy_questionnaire_issued_at( $client_id ) {
+	return (string) get_user_meta( (int) $client_id, SIX_Q_ISSUED_META, true );
+}
+
+/**
+ * Issue it — typically right after the audit has been presented and accepted.
+ * Idempotent: re-issuing keeps the original date rather than resetting it.
+ */
+function six_issue_strategy_questionnaire( $client_id ) {
+	$client_id = (int) $client_id;
+	if ( ! $client_id ) return false;
+	if ( ! six_strategy_questionnaire_issued( $client_id ) ) {
+		update_user_meta( $client_id, SIX_Q_ISSUED_META, current_time( 'mysql' ) );
+		if ( class_exists( 'Six_Odoo' ) ) {
+			$lead = (int) get_user_meta( $client_id, 'six_odoo_lead_id', true );
+			if ( $lead ) Six_Odoo::post_note( $lead, 'Strategy questionnaire issued to the client.' );
+		}
+	}
+	return true;
+}
+
+/** Withdraw it again (e.g. issued to the wrong client). */
+function six_withdraw_strategy_questionnaire( $client_id ) {
+	delete_user_meta( (int) $client_id, SIX_Q_ISSUED_META );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

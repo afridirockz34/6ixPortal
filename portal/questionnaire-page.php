@@ -69,15 +69,15 @@ function six_render_questionnaire_page( $client_id ) {
 		$client_id
 	) );
 
-	$schema   = six_seo_questionnaire_for_client( $slugs );
-	$answers  = six_seo_questionnaire_answers( $client_id, $slugs );
-	$progress = six_seo_questionnaire_progress( $client_id, $slugs );
+	$schema   = six_seo_questionnaire_for_client( $slugs, 'strategy' );
+	$answers  = six_seo_questionnaire_answers( $client_id, $slugs, 'strategy' );
+	$progress = six_seo_questionnaire_progress( $client_id, $slugs, 'strategy' );
 	$nonce    = wp_create_nonce( 'six_questionnaire_public_' . $client_id );
 	$biz      = '';
 	$row = $wpdb->get_row( $wpdb->prepare( "SELECT business_name FROM {$wpdb->prefix}six_checkout_progress WHERE user_id=%d", $client_id ) );
 	if ( $row ) $biz = $row->business_name;
 
-	six_questionnaire_page_shell( 'SEO Questionnaire', function () use ( $schema, $answers, $progress, $client_id, $nonce, $biz ) {
+	six_questionnaire_page_shell( 'SEO Strategy Questionnaire', function () use ( $schema, $answers, $progress, $client_id, $nonce, $biz ) {
 		?>
 		<p style="font-size:14.5px;color:#3D4757;line-height:1.7;margin:0 0 6px">
 			<?php echo $biz ? 'For <strong>' . esc_html( $biz ) . '</strong>. ' : ''; ?>Everything we need to build your SEO strategy.

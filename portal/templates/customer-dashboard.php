@@ -248,11 +248,15 @@ $svc_svg_icons = array(
         <?php endif; ?>
         <a href="?tab=advisor"  class="six-nav-item <?php echo $active_tab==='advisor' ?'active':''; ?>"><span class="six-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span> Advisor<?php if($unread_msgs>0): ?><span class="six-badge"><?php echo $unread_msgs; ?></span><?php endif; ?></a>
         <?php
-        $q_prog = function_exists('six_seo_questionnaire_progress')
-            ? six_seo_questionnaire_progress($user_id, $active_svc_slugs) : null;
+        // Only once an advisor has issued it — before that the client has no
+        // reason to be answering strategy questions.
+        $q_issued = function_exists('six_strategy_questionnaire_issued')
+            && six_strategy_questionnaire_issued($user_id);
+        $q_prog = $q_issued && function_exists('six_seo_questionnaire_progress')
+            ? six_seo_questionnaire_progress($user_id, $active_svc_slugs, 'strategy') : null;
         if ( $q_prog && $q_prog['total'] > 0 ): ?>
         <a href="?tab=questionnaire" class="six-nav-item <?php echo $active_tab==='questionnaire'?'active':''; ?>">
-            <span class="six-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/></svg></span> Questionnaire
+            <span class="six-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/></svg></span> Strategy Questionnaire
             <?php if ( $q_prog['percent'] < 100 ): ?><span class="six-badge"><?php echo intval($q_prog['total'] - $q_prog['done']); ?></span><?php endif; ?>
         </a>
         <?php endif; ?>
@@ -1522,13 +1526,13 @@ $conv = class_exists('Six_Messaging') ? Six_Messaging::get_conversation($user_id
 <?php else: ?><div class="six-card"><div class="six-card-body" style="text-align:center;padding:60px;color:var(--text3)"><div style="margin-bottom:12px;color:var(--text3)"><?php echo class_exists('Six_Icon')?Six_Icon::get('advisor','','40px'):''; ?></div><div style="font-size:14px;font-weight:600">No advisor assigned yet</div><div style="font-size:13px;margin-top:8px">Contact us at hello@6ixdevelopers.com to get started.</div></div></div><?php endif; ?>
 
 <?php elseif($active_tab==='questionnaire'):
-$q_schema  = six_seo_questionnaire_for_client( $active_svc_slugs );
-$q_answers = six_seo_questionnaire_answers( $user_id, $active_svc_slugs );
-$q_prog    = six_seo_questionnaire_progress( $user_id, $active_svc_slugs );
+$q_schema  = six_seo_questionnaire_for_client( $active_svc_slugs, 'strategy' );
+$q_answers = six_seo_questionnaire_answers( $user_id, $active_svc_slugs, 'strategy' );
+$q_prog    = six_seo_questionnaire_progress( $user_id, $active_svc_slugs, 'strategy' );
 ?>
 <div class="six-greeting-row">
     <div>
-        <h1 class="six-page-title" style="margin:0">SEO Questionnaire</h1>
+        <h1 class="six-page-title" style="margin:0">SEO Strategy Questionnaire</h1>
         <p class="six-page-sub" style="margin:4px 0 0">Everything we need to audit your site and build your strategy. It saves as you go — you can stop and come back.</p>
     </div>
 </div>

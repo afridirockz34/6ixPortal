@@ -2486,7 +2486,7 @@ add_action( 'wp_ajax_six_save_questionnaire', function () {
     wp_send_json_success( array(
         'saved'    => $result['saved'],
         'rejected' => $result['rejected'],
-        'progress' => six_seo_questionnaire_progress( $client_id, $slugs ),
+        'progress' => six_seo_questionnaire_progress( $client_id, $slugs, 'strategy' ),
     ) );
 } );
 
@@ -2535,7 +2535,7 @@ function six_save_questionnaire_public() {
 
     wp_send_json_success( array(
         'saved'    => $result['saved'],
-        'progress' => six_seo_questionnaire_progress( $client_id, $slugs ),
+        'progress' => six_seo_questionnaire_progress( $client_id, $slugs, 'strategy' ),
     ) );
 }
 
@@ -2547,6 +2547,11 @@ add_action( 'wp_ajax_six_questionnaire_link', function () {
 
     $client_id = intval( $_POST['client_id'] ?? 0 );
     if ( ! $client_id || ! get_userdata( $client_id ) ) { wp_send_json_error( 'Unknown client' ); }
+
+    // Generating a link is how the strategy questionnaire gets issued — the
+    // advisor does it once the audit has been reviewed and the client wants
+    // to proceed. Until then the client never sees these questions.
+    six_issue_strategy_questionnaire( $client_id );
 
     // Always rotates: we only keep the hash, so an existing link's URL can't
     // be shown again. Sending a new one invalidates the old.

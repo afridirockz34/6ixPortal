@@ -59,10 +59,15 @@ whatever Phase 1 got wrong — so this is worth getting right before any phase
 starts. Their answers can arrive three ways, and **all three are workable**:
 
 1. **The 6ix Developers portal.** If the portal connector is in this session
-   (`list_clients`, `get_client_profile`), search for them by business name,
-   pull the profile, and read its `questionnaire` block. That's the questionnaire
-   already answered, structured, with their keywords, market, competitors,
-   credentials and regulatory constraints.
+   (`list_clients`, `get_client_profile`), search for them by business name and
+   pull the profile. There are two questionnaires on it, answered at different
+   points: `questionnaire.audit` (collected at signup — keywords, market,
+   competitors, regulatory status) and `questionnaire.strategy` (everything
+   else, and what this skill actually runs on). Read `stage` to see where they
+   are. If it says `awaiting_strategy_answers`, the strategy questionnaire has
+   been issued but not finished — say what's outstanding rather than building
+   on gaps. If it hasn't been issued at all, `issue_strategy_questionnaire`
+   returns a link to send them.
 2. **A document they filled in.** Plenty of clients would rather complete a Word
    document over email than log into a portal. Read it the same way — `.docx`,
    PDF, a pasted email, a call transcript, or an older brand document covering
@@ -75,7 +80,8 @@ starts. Their answers can arrive three ways, and **all three are workable**:
 
 Read `references/client-context.md` for the full handling of all three, and
 `references/questionnaire-fields.md` for the key each answer maps to when
-filing a returned document back to the portal.
+filing a returned document back to the portal, and
+`assets/blank-strategy-questionnaire.md` if they'd rather fill one in by email.
 
 Never invent a target market, a competitor set, or a compliance position to
 fill a gap. A wrong fact in Phase 1 is reproduced by every phase after it.
@@ -114,7 +120,8 @@ Every reference file here — especially `phase11-12-geo-schema.md` and `fact-ch
 - `references/phase17-18-19-tools-tracking-reporting.md` — tech stack documentation, local rank tracking, reporting/KPI framework
 - `references/client-context.md` — how to get the client's answers from the portal, from a document they filled in, or from neither
 - `references/questionnaire-fields.md` — generated map of every questionnaire question to the key it's stored under, for filing a returned document back to the portal
-- `assets/blank-questionnaire.md` — the questionnaire as a fillable document, for clients who'd rather answer by email than in the portal
+- `assets/blank-strategy-questionnaire.md` — the strategy questionnaire as a fillable document, for clients who'd rather answer by email
+- `assets/blank-audit-questionnaire.md` — the short audit intake sheet, for a prospect who isn't in the portal yet
 - `references/fact-check-registry.md` — current status of common SEO/schema/AI-search claims: what's dead, what's still real
 - `references/document-assembly.md` — how to combine every phase into one ordered final document, and how this composes with seo-content-production
 - `assets/nr-lawyers-foundation-document.md` — a complete worked example of a Phase 1 output
