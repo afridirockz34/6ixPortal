@@ -164,6 +164,43 @@ class Six_Dash_Metrics {
 	}
 
 	/**
+	 * The raw numeric value of every metric for this client, before any
+	 * formatting — what a snapshot stores and what a comparison does
+	 * arithmetic on. Same resolution order as the cards (live → advisor →
+	 * estimate) and reports which tier each value came from, so a comparison
+	 * can tell a measured figure from a benchmark.
+	 *
+	 * @return array{values:array<string,float>,sources:array<string,string>}
+	 */
+	public static function raw( $user_id, array $ctx ) {
+		$slugs   = self::card_services( $ctx['slugs'] ?? array() );
+		$budgets = $ctx['budgets'] ?? array();
+		$kpi     = $ctx['kpi']     ?? array();
+		$cpc     = $ctx['cpc']     ?? 0;
+		$catalog = self::catalog();
+
+		$values = array(); $sources = array();
+		foreach ( $slugs as $slug ) {
+			$live = self::live( $slug, $user_id );
+			$est  = self::estimates( $slug, $budgets[ $slug ] ?? 0, $cpc );
+
+			foreach ( array_keys( $catalog[ $slug ]['metrics'] ) as $key ) {
+				if ( $live !== null && isset( $live[ $key ] ) && $live[ $key ] !== '' ) {
+					$raw = $live[ $key ]; $src = 'live';
+				} elseif ( isset( $kpi[ $key ] ) && $kpi[ $key ]->kpi_value !== '' ) {
+					$raw = preg_replace( '/[^0-9.]/', '', (string) $kpi[ $key ]->kpi_value ); $src = 'advisor';
+				} else {
+					$raw = $est[ $key ] ?? 0; $src = 'estimate';
+				}
+				if ( ! is_numeric( $raw ) ) continue;   // free-form advisor text isn't comparable
+				$values[ $key ]  = (float) $raw;
+				$sources[ $key ] = $src;
+			}
+		}
+		return array( 'values' => $values, 'sources' => $sources );
+	}
+
+	/**
 	 * Build the stat cards for the dashboard's top row.
 	 *
 	 * @param array $ctx {

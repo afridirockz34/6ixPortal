@@ -79,6 +79,7 @@ $optional_files = array(
     'class-lead-pipeline.php', // Lead Automation Flow — response window, recovery sequence, win-back (needs Six_Odoo)
     'class-estimate-engine.php', // Estimate Engine — real data growth plans
     'class-dashboard-metrics.php', // service-aware dashboard stats + connector seam
+    'class-performance.php',     // performance snapshots over time + strategy projections
     'class-website-project.php', // website build milestones + maintenance add-on
     'class-profile-api.php',     // REST profile contract for external tools/skills
     'class-mcp-server.php',      // same contract as MCP, for claude.ai custom connectors
@@ -265,6 +266,44 @@ function six_create_tables() {
         // client profile — keyword analyses, post schedules, reports. Payload
         // shape is the producer's business; the dashboard renders the types it
         // knows and ignores the rest.
+        // What actually happened, captured over time. Without a stored
+        // history there is nothing to compare today's numbers against —
+        // Six_Dash_Metrics computes the present live and keeps no record.
+        // One row per client per period: the unique key makes a capture
+        // idempotent, so a cron that fires late (or twice) updates that
+        // period's row instead of duplicating it.
+        "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}six_performance_snapshots (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            client_id bigint(20) NOT NULL,
+            period_key varchar(20) NOT NULL,
+            captured_at datetime DEFAULT CURRENT_TIMESTAMP,
+            source varchar(40) DEFAULT 'scheduled',
+            services varchar(255) DEFAULT '',
+            metrics longtext,
+            PRIMARY KEY (id),
+            UNIQUE KEY client_period (client_id, period_key),
+            KEY client_captured (client_id, captured_at)
+        ) $charset",
+
+        // What the strategy said would happen, so a later check can ask
+        // "are we where we said we would be?" rather than only "has it gone
+        // up?". Stored per metric per target date so that question is a
+        // lookup rather than a scan through a strategy document.
+        "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}six_strategy_projections (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            client_id bigint(20) NOT NULL,
+            metric_key varchar(60) NOT NULL,
+            target_date date NOT NULL,
+            projected_value decimal(14,2) DEFAULT 0,
+            note varchar(255) DEFAULT '',
+            artifact_id bigint(20) DEFAULT 0,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            created_by bigint(20) DEFAULT 0,
+            PRIMARY KEY (id),
+            UNIQUE KEY client_metric_date (client_id, metric_key, target_date),
+            KEY client_metric (client_id, metric_key)
+        ) $charset",
+
         "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}six_client_artifacts (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             client_id bigint(20) NOT NULL,
