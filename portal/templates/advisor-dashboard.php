@@ -1178,6 +1178,44 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
 
     <!-- ── TAB 1: Overview KPIs — the customer dashboard's top cards ── -->
     <div data-mpane="overview">
+    <!-- ── SEO questionnaire progress ── -->
+    <?php
+    $cq_slugs = (array) $wpdb->get_col( $wpdb->prepare(
+        "SELECT service_slug FROM {$wpdb->prefix}six_client_services WHERE client_id=%d AND status='active'",
+        $view_client_id
+    ) );
+    $cq = function_exists('six_seo_questionnaire_progress')
+        ? six_seo_questionnaire_progress($view_client_id, $cq_slugs) : null;
+    if ( $cq && $cq['total'] > 0 ):
+    ?>
+    <div style="background:var(--dark3);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+            <div>
+                <div style="font-size:14px;font-weight:700;color:var(--text1)">SEO Questionnaire</div>
+                <div style="font-size:11px;color:var(--text3);margin-top:2px"><?php echo intval($cq['done']); ?> of <?php echo intval($cq['total']); ?> answered — the client fills this in from their portal.</div>
+            </div>
+            <div style="font-family:var(--font-head);font-size:20px;font-weight:800;color:<?php echo $cq['percent']>=100?'var(--success)':'var(--text1)'; ?>"><?php echo intval($cq['percent']); ?>%</div>
+        </div>
+        <div style="height:7px;border-radius:5px;background:var(--dark2);overflow:hidden;margin-bottom:12px">
+            <div style="height:100%;width:<?php echo intval($cq['percent']); ?>%;border-radius:5px;background:linear-gradient(90deg,#56D364,#6ACAFD)"></div>
+        </div>
+        <?php if ( ! empty($cq['outstanding']) ): ?>
+        <details>
+            <summary style="font-size:12px;color:var(--cyan);cursor:pointer">Still outstanding (<?php echo count($cq['outstanding']); ?>)</summary>
+            <div style="margin-top:10px;display:flex;flex-direction:column;gap:5px;max-height:220px;overflow:auto">
+                <?php foreach ( $cq['outstanding'] as $o ): ?>
+                <div style="font-size:11.5px;color:var(--text2);background:var(--dark2);border-radius:6px;padding:7px 10px">
+                    <span style="color:var(--text3)"><?php echo esc_html($o['section']); ?>:</span> <?php echo esc_html($o['label']); ?>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </details>
+        <?php else: ?>
+        <div style="font-size:12px;color:var(--success)">Complete — everything we need is on file.</div>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
+
     <!-- ── Website build + maintenance (advisor-only controls) ── -->
     <?php
     $wp_rows  = class_exists('Six_Website_Project') ? Six_Website_Project::milestones($view_client_id) : array();

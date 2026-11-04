@@ -324,6 +324,12 @@ function six_ajax_save_checkout_step() {
             'seo_reviews'        => sanitize_text_field( $data['seo_reviews'] ?? '' ),
             'seo_extra_info'     => sanitize_text_field( $data['seo_extra']   ?? '' ),
             'seo_budget'         => intval(               $data['seo_bud']     ?? 0 ),
+            // Scoping answers from the rebuilt SEO step (see
+            // portal/data-seo-questionnaire.php — the rest of that
+            // questionnaire is filled in the portal after signup).
+            'seo_scope'          => sanitize_text_field(     $data['seo_scope']    ?? '' ),
+            'seo_priority'       => sanitize_text_field(     $data['seo_priority'] ?? '' ),
+            'seo_prev_work'      => sanitize_textarea_field( $data['seo_prev_work']?? '' ),
             'gbp_name'           => sanitize_text_field( $data['gbp_name']     ?? '' ),
             'gbp_category'       => sanitize_text_field( $data['gbp_cat']      ?? '' ),
             'gbp_services'       => sanitize_textarea_field( $data['gbp_svcs'] ?? '' ),
@@ -1484,6 +1490,21 @@ function six_onboarding_db_upgrade() {
             }
         }
         update_option( 'six_onboarding_db_v9', 1 );
+    }
+
+    // v10 — the SEO questionnaire. Columns are derived from the questionnaire
+    // schema itself (portal/data-seo-questionnaire.php) rather than listed
+    // again here, so a question added to the schema can never be missing its
+    // storage. Questions that duplicate something onboarding already asks
+    // carry a 'maps_to' and deliberately produce no column.
+    if ( ! get_option('six_onboarding_db_v10') && function_exists('six_seo_questionnaire_columns') ) {
+        $cols10 = $wpdb->get_col( "SHOW COLUMNS FROM {$wpdb->prefix}six_checkout_progress", 0 );
+        foreach ( six_seo_questionnaire_columns() as $col => $def ) {
+            if ( ! in_array( $col, $cols10, true ) ) {
+                $wpdb->query( "ALTER TABLE {$wpdb->prefix}six_checkout_progress ADD COLUMN `{$col}` {$def}" );
+            }
+        }
+        update_option( 'six_onboarding_db_v10', 1 );
     }
 }
 

@@ -100,7 +100,7 @@ class Six_MCP_Server {
 			array(
 				'name'        => 'get_client_profile',
 				'title'       => 'Get a client profile',
-				'description' => 'The full profile for one client: business identity, services and budgets, positioning and competitors, the SEO / Google Ads / Google Business inputs they gave during onboarding, website project progress, and their current dashboard metrics. Read this before writing any strategy, audit or analysis for a client, so the work reflects what they actually told us. Also returns `field_provenance`, showing which fields an automation has changed and when.',
+				'description' => 'The full profile for one client: business identity, services and budgets, positioning and competitors, the SEO / Google Ads / Google Business inputs they gave during onboarding, their completed SEO questionnaire (brand story, ideal client, team credentials, compliance limits, content capacity, tooling), website project progress, and their current dashboard metrics. Read this before writing any strategy, audit or analysis for a client, so the work reflects what they actually told us. Also returns `field_provenance`, showing which fields an automation has changed and when.',
 				'inputSchema' => array(
 					'type'       => 'object',
 					'properties' => array(
