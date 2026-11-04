@@ -2453,3 +2453,39 @@ add_action( 'wp_ajax_six_website_maintenance_set', function () {
         'fee'     => Six_Website_Project::maintenance_fee( $client_id ),
     ) );
 } );
+
+// ═════════════════════════════════════════════════════════════════════════
+// SEO QUESTIONNAIRE — the post-signup form in the customer portal
+// Saves as the client goes, so a half-finished questionnaire is never lost.
+// ═════════════════════════════════════════════════════════════════════════
+add_action( 'wp_ajax_six_save_questionnaire', function () {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! function_exists( 'six_seo_questionnaire_save' ) ) { wp_send_json_error( 'Questionnaire unavailable' ); }
+
+    $client_id = get_current_user_id();
+    // An advisor filling it in on a call, on the client's behalf.
+    $for = intval( $_POST['client_id'] ?? 0 );
+    if ( $for && $for !== $client_id ) {
+        $staff = ( class_exists( 'Six_Roles' ) && Six_Roles::is_advisor() ) || current_user_can( 'manage_options' );
+        if ( ! $staff ) { wp_send_json_error( 'Permission denied' ); }
+        $client_id = $for;
+    }
+    if ( ! $client_id ) { wp_send_json_error( 'Not signed in' ); }
+
+    $answers = $_POST['answers'] ?? array();
+    if ( is_string( $answers ) ) $answers = json_decode( wp_unslash( $answers ), true );
+    if ( ! is_array( $answers ) ) { wp_send_json_error( 'Nothing to save' ); }
+
+    $result = six_seo_questionnaire_save( $client_id, $answers );
+
+    $slugs = (array) $GLOBALS['wpdb']->get_col( $GLOBALS['wpdb']->prepare(
+        "SELECT service_slug FROM {$GLOBALS['wpdb']->prefix}six_client_services WHERE client_id=%d AND status='active'",
+        $client_id
+    ) );
+
+    wp_send_json_success( array(
+        'saved'    => $result['saved'],
+        'rejected' => $result['rejected'],
+        'progress' => six_seo_questionnaire_progress( $client_id, $slugs ),
+    ) );
+} );

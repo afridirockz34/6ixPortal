@@ -247,6 +247,15 @@ $svc_svg_icons = array(
         </a>
         <?php endif; ?>
         <a href="?tab=advisor"  class="six-nav-item <?php echo $active_tab==='advisor' ?'active':''; ?>"><span class="six-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span> Advisor<?php if($unread_msgs>0): ?><span class="six-badge"><?php echo $unread_msgs; ?></span><?php endif; ?></a>
+        <?php
+        $q_prog = function_exists('six_seo_questionnaire_progress')
+            ? six_seo_questionnaire_progress($user_id, $active_svc_slugs) : null;
+        if ( $q_prog && $q_prog['total'] > 0 ): ?>
+        <a href="?tab=questionnaire" class="six-nav-item <?php echo $active_tab==='questionnaire'?'active':''; ?>">
+            <span class="six-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/></svg></span> Questionnaire
+            <?php if ( $q_prog['percent'] < 100 ): ?><span class="six-badge"><?php echo intval($q_prog['total'] - $q_prog['done']); ?></span><?php endif; ?>
+        </a>
+        <?php endif; ?>
         <a href="?tab=reports"  class="six-nav-item <?php echo $active_tab==='reports' ?'active':''; ?>"><span class="six-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span> Reports</a>
     </div>
     <div class="six-nav-section">
@@ -1511,6 +1520,141 @@ $conv = class_exists('Six_Messaging') ? Six_Messaging::get_conversation($user_id
     </div>
 </div>
 <?php else: ?><div class="six-card"><div class="six-card-body" style="text-align:center;padding:60px;color:var(--text3)"><div style="margin-bottom:12px;color:var(--text3)"><?php echo class_exists('Six_Icon')?Six_Icon::get('advisor','','40px'):''; ?></div><div style="font-size:14px;font-weight:600">No advisor assigned yet</div><div style="font-size:13px;margin-top:8px">Contact us at hello@6ixdevelopers.com to get started.</div></div></div><?php endif; ?>
+
+<?php elseif($active_tab==='questionnaire'):
+$q_schema  = six_seo_questionnaire_for_client( $active_svc_slugs );
+$q_answers = six_seo_questionnaire_answers( $user_id, $active_svc_slugs );
+$q_prog    = six_seo_questionnaire_progress( $user_id, $active_svc_slugs );
+?>
+<div class="six-greeting-row">
+    <div>
+        <h1 class="six-page-title" style="margin:0">SEO Questionnaire</h1>
+        <p class="six-page-sub" style="margin:4px 0 0">Everything we need to audit your site and build your strategy. It saves as you go — you can stop and come back.</p>
+    </div>
+</div>
+
+<div class="six-card" style="margin-bottom:18px">
+    <div class="six-card-body">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:10px">
+            <div style="font-size:13px;color:var(--text2)" id="q-status">
+                <?php echo intval($q_prog['done']); ?> of <?php echo intval($q_prog['total']); ?> answered
+            </div>
+            <div style="font-family:var(--font-head);font-size:20px;font-weight:800;color:var(--text1);font-variant-numeric:tabular-nums" id="q-pct"><?php echo intval($q_prog['percent']); ?>%</div>
+        </div>
+        <div style="height:8px;border-radius:5px;background:var(--dark3);overflow:hidden">
+            <div id="q-bar" style="height:100%;width:<?php echo intval($q_prog['percent']); ?>%;border-radius:5px;background:linear-gradient(90deg,#56D364,#6ACAFD);transition:width .5s cubic-bezier(.4,0,.2,1)"></div>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:10px">Questions you already answered during signup are filled in — change them here if anything has moved on.</div>
+    </div>
+</div>
+
+<form id="six-questionnaire">
+<?php foreach ( $q_schema as $skey => $section ):
+    if ( empty( $section['fields'] ) ) continue; ?>
+<div class="six-card" style="margin-bottom:16px">
+    <div class="six-card-header">
+        <span class="six-card-title"><?php echo esc_html($section['title']); ?></span>
+        <?php if ( ! empty($section['skippable']) ): ?><span style="font-size:11px;color:var(--text3)">Skip if not applicable</span><?php endif; ?>
+    </div>
+    <div class="six-card-body">
+        <?php if ( ! empty($section['intro']) ): ?>
+        <div style="font-size:12px;color:var(--text3);line-height:1.6;margin-bottom:16px"><?php echo esc_html($section['intro']); ?></div>
+        <?php endif; ?>
+
+        <?php foreach ( $section['fields'] as $f ):
+            $ans  = $q_answers[$f['key']] ?? array('value'=>'','answered'=>false,'from_onboarding'=>false);
+            $val  = $ans['value'];
+            $fid  = 'q_' . esc_attr($f['key']);
+        ?>
+        <div class="six-q-field" style="margin-bottom:18px">
+            <label for="<?php echo $fid; ?>" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;font-weight:600;color:var(--text1);margin-bottom:6px">
+                <?php echo esc_html($f['label']); ?>
+                <?php if ( ! empty($f['optional']) ): ?><span style="font-size:10px;font-weight:500;color:var(--text3)">optional</span><?php endif; ?>
+                <?php if ( $ans['from_onboarding'] && $val !== '' ): ?>
+                <span style="font-size:10px;font-weight:600;color:var(--success);background:rgba(86,211,100,.12);padding:2px 7px;border-radius:5px">From your signup</span>
+                <?php endif; ?>
+            </label>
+            <?php if ( ! empty($f['help']) ): ?>
+            <div style="font-size:11.5px;color:var(--text3);line-height:1.5;margin-bottom:6px"><?php echo esc_html($f['help']); ?></div>
+            <?php endif; ?>
+
+            <?php if ( ($f['type'] ?? 'text') === 'textarea' ): ?>
+            <textarea class="ob-input six-q-input" id="<?php echo $fid; ?>" data-q="<?php echo esc_attr($f['key']); ?>" rows="3"
+                placeholder="<?php echo esc_attr($f['placeholder'] ?? ''); ?>" style="width:100%;font-size:13px;padding:10px 12px"><?php echo esc_textarea($val); ?></textarea>
+            <?php elseif ( ($f['type'] ?? '') === 'select' ): ?>
+            <select class="ob-input six-q-input" id="<?php echo $fid; ?>" data-q="<?php echo esc_attr($f['key']); ?>" style="width:100%;font-size:13px;padding:10px 12px">
+                <option value="">Choose one…</option>
+                <?php foreach ( (array) $f['options'] as $opt ): ?>
+                <option value="<?php echo esc_attr($opt); ?>" <?php selected($val,$opt); ?>><?php echo esc_html($opt); ?></option>
+                <?php endforeach; ?>
+            </select>
+            <?php else: ?>
+            <input class="ob-input six-q-input" id="<?php echo $fid; ?>" data-q="<?php echo esc_attr($f['key']); ?>"
+                type="<?php echo esc_attr($f['type']==='url'?'url':($f['type']==='tel'?'tel':'text')); ?>"
+                value="<?php echo esc_attr($val); ?>" placeholder="<?php echo esc_attr($f['placeholder'] ?? ''); ?>"
+                style="width:100%;font-size:13px;padding:10px 12px">
+            <?php endif; ?>
+        </div>
+        <?php endforeach; ?>
+    </div>
+</div>
+<?php endforeach; ?>
+</form>
+
+<div style="position:sticky;bottom:0;background:var(--dark1,var(--dark2));border-top:1px solid var(--border);padding:12px 0;display:flex;align-items:center;gap:12px">
+    <button class="six-btn six-btn-primary" id="q-save">Save answers</button>
+    <span id="q-saved-msg" style="font-size:12px;color:var(--success)"></span>
+</div>
+
+<script>
+(function(){
+  var form=document.getElementById('six-questionnaire'); if(!form) return;
+  var dirty={}, timer=null;
+
+  function collect(all){
+    var out={};
+    form.querySelectorAll('.six-q-input').forEach(function(el){
+      var k=el.getAttribute('data-q');
+      if(all || dirty[k]) out[k]=el.value;
+    });
+    return out;
+  }
+  function save(all,quiet){
+    var answers=collect(all);
+    if(!Object.keys(answers).length) return;
+    var msg=document.getElementById('q-saved-msg');
+    fetch(sixPortal.ajax_url,{method:'POST',credentials:'same-origin',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:new URLSearchParams({nonce:sixPortal.nonce,action:'six_save_questionnaire',answers:JSON.stringify(answers)})
+    }).then(function(r){return r.json();}).then(function(r){
+      if(r&&r.success){
+        dirty={};
+        var p=r.data.progress;
+        document.getElementById('q-pct').textContent=p.percent+'%';
+        document.getElementById('q-bar').style.width=p.percent+'%';
+        document.getElementById('q-status').textContent=p.done+' of '+p.total+' answered';
+        msg.textContent=quiet?'Saved':'All answers saved';
+        setTimeout(function(){msg.textContent='';},2500);
+      } else { msg.style.color='var(--danger,#D93B3B)'; msg.textContent='Could not save — try again'; }
+    }).catch(function(){ msg.style.color='var(--danger,#D93B3B)'; msg.textContent='Could not save — try again'; });
+  }
+
+  // Autosave a field shortly after they stop typing in it, so a long
+  // questionnaire is never lost to a closed tab.
+  form.addEventListener('input',function(e){
+    var k=e.target.getAttribute && e.target.getAttribute('data-q');
+    if(!k) return;
+    dirty[k]=true;
+    clearTimeout(timer);
+    timer=setTimeout(function(){ save(false,true); },1200);
+  });
+  form.addEventListener('change',function(e){
+    var k=e.target.getAttribute && e.target.getAttribute('data-q');
+    if(k){ dirty[k]=true; save(false,true); }
+  });
+  document.getElementById('q-save').addEventListener('click',function(e){ e.preventDefault(); save(true,false); });
+})();
+</script>
 
 <?php elseif($active_tab==='reports'): ?>
 <div class="six-page-header"><div><h1 class="six-page-title">Reports</h1></div></div>

@@ -37,7 +37,21 @@ class Six_Profile_API {
 	 * rejected rather than passed through to a column name we didn't vet.
 	 */
 	public static function writable_fields() {
-		return array(
+		// The questionnaire's own fields are writable too — an advisor's Claude
+		// session can capture answers given on a call, and a skill can write
+		// back a refined answer. Derived from the questionnaire schema rather
+		// than restated, so the two can't drift apart, and still an explicit
+		// allowlist: a column that isn't a declared question stays unwritable.
+		$questionnaire = array();
+		if ( function_exists( 'six_seo_questionnaire_fields' ) ) {
+			foreach ( six_seo_questionnaire_fields() as $key => $f ) {
+				// Identity and contact details are not an agent's to rewrite.
+				if ( in_array( $f['section'] ?? '', array( 'contact' ), true ) ) continue;
+				$questionnaire[ $key ] = $f['maps_to'] ?? $key;
+			}
+		}
+
+		return $questionnaire + array(
 			'business_name'   => 'business_name',
 			'website'         => 'website',
 			'industry'        => 'industry',
@@ -166,15 +180,39 @@ class Six_Profile_API {
 	// ── Reads ─────────────────────────────────────────────────────────────
 
 	public static function list_clients( $request ) {
-		$page  = max( 1, (int) $request->get_param( 'page' ) );
-		$per   = min( 100, max( 1, (int) ( $request->get_param( 'per_page' ) ?: 50 ) ) );
-		$users = get_users( array(
+		$page   = max( 1, (int) $request->get_param( 'page' ) );
+		$per    = min( 100, max( 1, (int) ( $request->get_param( 'per_page' ) ?: 50 ) ) );
+		$search = trim( (string) $request->get_param( 'search' ) );
+
+		$args = array(
 			'role'    => 'six_customer',
 			'number'  => $per,
 			'paged'   => $page,
 			'orderby' => 'ID',
 			'order'   => 'DESC',
-		) );
+		);
+		// Callers generally know a person or a business, not a numeric id, so
+		// searching covers the WP user fields AND the business name captured
+		// during onboarding.
+		if ( $search !== '' ) {
+			$args['search']         = '*' . $search . '*';
+			$args['search_columns'] = array( 'user_login', 'user_email', 'display_name', 'user_nicename' );
+		}
+		$users = get_users( $args );
+
+		if ( $search !== '' ) {
+			global $wpdb;
+			$by_biz = (array) $wpdb->get_col( $wpdb->prepare(
+				"SELECT user_id FROM {$wpdb->prefix}six_checkout_progress WHERE business_name LIKE %s LIMIT 50",
+				'%' . $wpdb->esc_like( $search ) . '%'
+			) );
+			$seen = wp_list_pluck( $users, 'ID' );
+			foreach ( $by_biz as $uid ) {
+				if ( in_array( (int) $uid, array_map( 'intval', $seen ), true ) ) continue;
+				$u = get_userdata( (int) $uid );
+				if ( $u ) $users[] = $u;
+			}
+		}
 
 		$out = array();
 		foreach ( $users as $u ) {
@@ -288,6 +326,29 @@ class Six_Profile_API {
 			'current_metrics'  => $metrics,
 			'field_provenance' => (array) get_user_meta( $id, self::ORIGIN_META, true ),
 		);
+
+		// The full SEO questionnaire, grouped the way it's asked. This is the
+		// depth an audit or strategy actually needs — brand story, ideal
+		// client, E-E-A-T credentials, compliance limits, content capacity —
+		// and it's why a skill can work from the profile instead of
+		// interviewing the client again. Answers resolve through the dedup
+		// rules, so a question answered during signup appears here too.
+		if ( function_exists( 'six_seo_questionnaire_answers' ) ) {
+			$answers = six_seo_questionnaire_answers( $id, $slugs );
+			$grouped = array();
+			foreach ( six_seo_questionnaire_for_client( $slugs ) as $skey => $section ) {
+				foreach ( $section['fields'] as $f ) {
+					$val = $answers[ $f['key'] ]['value'] ?? '';
+					if ( $val === '' ) continue;      // don't pad the payload with blanks
+					$grouped[ $skey ][ $f['key'] ] = array(
+						'question' => $f['label'],
+						'answer'   => $val,
+					);
+				}
+			}
+			$profile['questionnaire'] = $grouped;
+			$profile['questionnaire_progress'] = six_seo_questionnaire_progress( $id, $slugs );
+		}
 
 		return rest_ensure_response( $profile );
 	}

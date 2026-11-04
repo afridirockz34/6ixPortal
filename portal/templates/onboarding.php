@@ -1261,17 +1261,21 @@ function buildPane(slug){
     );
     h+='</div>'; // /#q-gads-rest
   } else if(slug==='seo'){
+    // Only what's needed to scope and price the work, and to make the first
+    // advisor call useful. The full questionnaire (brand, E-E-A-T,
+    // compliance, content capacity, tooling) lives in the portal after
+    // signup — see portal/data-seo-questionnaire.php. Nothing asked here is
+    // asked there again.
     h+=qSec('SEO Setup',
-      qFG('Pages you want found','<textarea class="ob-inp" id="q-seo-pages" rows="2" placeholder="e.g. '+indEx('pages')+'"></textarea>','The key pages you want ranking on Google (services, locations…)')
-      +qFG('Where you operate','<input class="ob-inp" id="q-seo-loc" placeholder="Cities or regions you serve">','The cities or regions you serve')
-      +qSlider('q-seo-bud','Monthly SEO budget',300,10000,1200)
-      +qFG('Google Search Console access?',qTog('q-seo-gsc'),'Lets us see your real search data — fine to skip if you are not sure')
-    );
-    h+=qSec('Content &amp; Keywords',
       qFG('Search terms to rank for',qTags('q-seo-kw'),'Words customers type into Google to find you — press Enter to add each')
-      +qFG('Why customers choose you','<input class="ob-inp" id="q-seo-usp" placeholder="Why should customers choose you?">','What sets you apart from competitors')
-      +qFG('Existing blog or content?',qTog('q-seo-blog'),'Any articles or resources already on your site')
-      +qFG('Anything else?','<textarea class="ob-inp" id="q-seo-extra" rows="2" placeholder="Any other info that will help rank your site…"></textarea>','Other details that could help you rank')
+      +qFG('Are you local or national?','<select class="ob-inp" id="q-seo-scope"><option value="">Choose one</option><option>Local</option><option>National</option><option>Both</option></select>','Whether you serve specific areas or the whole country')
+      +qFG('Cities or areas that matter most','<input class="ob-inp" id="q-seo-loc" placeholder="e.g. Toronto, Mississauga, Vaughan">','Leave blank if you are purely national')
+      +qSlider('q-seo-bud','Monthly SEO budget',300,10000,1200)
+    );
+    h+=qSec('Where to focus',
+      qFG('Prioritise maps or organic?','<select class="ob-inp" id="q-seo-priority"><option>No preference — do both</option><option>Maps (local / Google Business Profile)</option><option>Organic (content, meta, performance)</option></select>','We normally work both in the same month')
+      +qFG('Any previous SEO work on the site?','<textarea class="ob-inp" id="q-seo-prev" rows="2" placeholder="Roughly when, and did they leave any reporting?"></textarea>','Helps us tell past work from a fresh start')
+      +qFG('Why customers choose you','<input class="ob-inp" id="q-seo-usp" placeholder="What sets you apart from competitors?">','We reuse this across your campaigns, so you only answer it once')
     );
   } else if(slug==='google-business'){
     h+=qSec('Google Business Profile',
@@ -1637,9 +1641,10 @@ window.OB={
       }
     } else if(slug==='seo'){
       var b=$i('q-seo-bud');S.budgets[slug]=b?parseInt(b.value):0;
-      S.q.seo_pages=v('q-seo-pages');S.q.seo_loc=v('q-seo-loc');
+      S.q.seo_loc=v('q-seo-loc');
       S.q.seo_kw=getTags('q-seo-kw').join(',');S.q.seo_usp=v('q-seo-usp');
-      S.q.seo_gsc=togVal('q-seo-gsc');S.q.seo_blog=togVal('q-seo-blog');
+      S.q.seo_scope=v('q-seo-scope');S.q.seo_priority=v('q-seo-priority');
+      S.q.seo_prev_work=v('q-seo-prev');
       S.q.seo_comp=v('q-seo-comp')||'';
       S.q.seo_crm=v('q-seo-crm')||'';
       S.q.seo_reviews=v('q-seo-reviews')||'';
@@ -1699,12 +1704,12 @@ window.OB={
       setV('q-ads-usp',q.ads_usp);setV('q-ads-promo',q.ads_promo);
     } else if(slug==='seo'){
       setSlider('q-seo-bud',S.budgets['seo']);
-      setV('q-seo-pages',q.seo_pages);
       setV('q-seo-loc',q.seo_loc||q.ads_loc);          // same market as ads — carry over
       setTags('q-seo-kw',q.seo_kw||q.ads_kw);          // unified keywords — carry from ads
       setV('q-seo-usp',q.seo_usp||q.ads_usp);          // same USP as ads — carry over
-      setTog('q-seo-gsc',q.seo_gsc);setTog('q-seo-blog',q.seo_blog);
-      setV('q-seo-extra',q.seo_extra);
+      setV('q-seo-scope',q.seo_scope);
+      setV('q-seo-priority',q.seo_priority);
+      setV('q-seo-prev',q.seo_prev_work);
     } else if(slug==='google-business'){
       S.budgets['google-business']=OB.GMB_PRICE;
       setV('q-gbp-name',q.gbp_name||q.bizname);        // prefill from business name
@@ -1754,6 +1759,7 @@ window.OB={
       // SEO
       seo_pages:q.seo_pages||'',seo_loc:q.seo_loc||'',seo_kw:q.seo_kw||'',
       seo_usp:q.seo_usp||'',seo_gsc:q.seo_gsc||'',seo_blog:q.seo_blog||'',
+      seo_scope:q.seo_scope||'',seo_priority:q.seo_priority||'',seo_prev_work:q.seo_prev_work||'',
       seo_comp:q.seo_comp||'',seo_crm:q.seo_crm||'',
       seo_reviews:q.seo_reviews||'',seo_extra:q.seo_extra||'',
       seo_bud:S.budgets['seo']||0,
@@ -1797,6 +1803,7 @@ window.OB={
       // SEO
       seo_pages:q.seo_pages||'',seo_loc:q.seo_loc||'',seo_kw:q.seo_kw||'',
       seo_usp:q.seo_usp||'',seo_gsc:q.seo_gsc||'',seo_blog:q.seo_blog||'',
+      seo_scope:q.seo_scope||'',seo_priority:q.seo_priority||'',seo_prev_work:q.seo_prev_work||'',
       seo_comp:q.seo_comp||'',seo_crm:q.seo_crm||'',
       seo_reviews:q.seo_reviews||'',seo_extra:q.seo_extra||'',
       seo_bud:S.budgets['seo']||0,

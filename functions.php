@@ -81,6 +81,8 @@ $optional_files = array(
     'class-dashboard-metrics.php', // service-aware dashboard stats + connector seam
     'class-website-project.php', // website build milestones + maintenance add-on
     'class-profile-api.php',     // REST profile contract for external tools/skills
+    'class-mcp-server.php',      // same contract as MCP, for claude.ai custom connectors
+    'data-seo-questionnaire.php',// SEO questionnaire schema (form + columns + dedup rules)
     'class-growth-engine.php', // Growth Engine
     'class-stripe.php',
     'class-google-ads-calendar.php',

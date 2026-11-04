@@ -1,0 +1,121 @@
+---
+name: "seo-strategy-builder"
+description: Build the strategic, research-driven phases of a client SEO plan — foundation/brand summary, competitor analysis, keyword clustering, page architecture, internal linking, GMB strategy, GEO/AEO strategy, schema plan, content calendar, tooling/tracking setup, and a reporting/KPI framework — from a client questionnaire plus SEO-platform exports (Ahrefs, Semrush, or similar). Use for building an SEO strategy, foundation document, competitor analysis, keyword clusters, page architecture, GMB/local strategy, GEO/AEO plan, schema plan, content calendar, or a full multi-phase strategy document/PDF. Companion to seo-content-production (voice, style, content drafting) — use both together for a complete agency-style strategy document. Trigger on "build the SEO strategy for [client]", "create the foundation document", "cluster these keywords", "competitor analysis for [client]", "build a content calendar", "GEO strategy for [client]", "schema plan for [client]", or "put together the full SEO plan/PDF".
+---
+
+# SEO Strategy Builder
+
+## Why this exists
+
+A real SEO strategy document is not one piece of writing — it's a chain of smaller documents, each one feeding the next, built from real data rather than invented from general SEO knowledge. The 100-page agency deliverables clients pay thousands of dollars for are built this exact way: one foundation document, a set of research-driven phases branching off it, and a fact-check discipline that keeps dead or dying SEO advice from getting reproduced deliverable after deliverable.
+
+This skill packages that chain: what each phase needs, where the input comes from, the exact prompt pattern to produce it, and — critically — a live registry of which common SEO/schema/AI-search recommendations are actually still true, so the document this produces doesn't quietly repeat outdated tactics the way most vendor templates do.
+
+This skill covers the **research and strategy** phases. It does not draft blog posts, service pages, or other client-facing content — that's `seo-content-production`, its companion skill. Used together, the two reproduce a complete multi-phase agency SEO strategy document: this skill for everything data-driven and structural, that one for everything voice-and-copy. A third companion, `seo-audit-report`, sits upstream of both — it's for a prospect who hasn't signed on yet, producing the evidence-backed weakness report that's meant to get them to. This skill and `seo-content-production` assume the engagement already exists.
+
+## The model
+
+```
+questionnaire + SEO platform exports (Ahrefs/Semrush)
+        │
+        v
+Phase 1 — Foundation document  ─── every later phase references this by name
+        │
+        ├──> Phase 2 — Competitor analysis  ─┐
+        ├──> Phase 7/8 — Keyword clusters   ─┴──> Phase 9 — Page architecture ──> Phase 10 — Internal linking
+        ├──> Phase 5 — SEO strategy & targets                                  └──> Phase 13 — Blog topics ──> Phase 14 — Content calendar
+        ├──> Phase 6 — GMB / local strategy
+        ├──> Phase 11 — GEO/AEO strategy   (re-research every time, never templated)
+        ├──> Phase 12 — Schema plan        (re-research every time, never templated)
+        └──> Phase 17/18/19 — Tooling, tracking, reporting/KPIs
+```
+
+Phases 2, 5, 6, 11, and 12 don't depend on each other — they can all be produced in parallel once Phase 1 exists. Nothing here needs to happen in strict numeric order; Phase 1 is the only hard prerequisite.
+
+## Before starting anything: the two things that must come from real data
+
+Two categories of phase cannot be produced by prompting alone, no matter how good the prompt is — using a plausible-sounding number instead of a real one is the single most common way an AI-assisted strategy document loses credibility:
+
+- **Anything with search volume, difficulty, traffic, or ranking position** (Phase 1's baseline, Phase 2's competitor stats, Phase 7/8's keyword data) must come from an actual SEO platform export (Ahrefs Site Explorer, Keywords Explorer, Content Gap, or the Semrush equivalents). Never estimate or generate a plausible-looking number — if the data isn't provided, the output must say `[NEEDS DATA: metric name]`, not fill in a guess.
+- **Anything about current AI-search behavior or schema effectiveness** (Phase 11, Phase 12) moves faster than this skill's own reference files can stay current. Read `references/fact-check-registry.md` first, then verify anything not covered there against a fresh search before writing it into the document — see "Staying current" below.
+
+## If Ahrefs is connected, use it directly instead of asking for manual exports
+
+Check this session's tool list for tools named `mcp__Ahrefs__*` (search for them if they're deferred). If they're there, Ahrefs is connected for this session and every phase below that says "pulled from Ahrefs/Semrush" should be pulled by calling those tools directly — don't ask the client or the person running this for a manual CSV export unless Ahrefs genuinely isn't connected, or the specific data needed isn't exposed by any Ahrefs tool.
+
+A few operating rules that apply everywhere this skill touches Ahrefs:
+
+- Call the `doc` tool for a given Ahrefs tool before calling it for the first time in a session — the MCP server requires this, and the exact parameters live there, not in this skill's reference files.
+- Monetary fields (`value`, `org_cost`, `paid_cost`, `traffic_value`) come back in **USD cents** — divide by 100 before writing a dollar figure anywhere.
+- When a tool's response carries `render_with` metadata, call that render tool on the data — don't summarize or hand-transcribe raw numbers past it.
+- Several Ahrefs tools **create or change something in the live account** — a new Site Audit project, a new tracked rank-tracker project, added competitors or keywords, a deleted keyword list. Treat those as real, persistent actions on the client's paid account, not reads, and confirm with the person running this before taking one — especially before creating a new tracked project just to answer a single phase's question, when a one-off lookup would do.
+- If Ahrefs isn't connected: fall back to the manual-export pattern each reference file already describes, and say plainly that the data came from a manual export rather than a live pull.
+- There's no single Ahrefs tool matching the classic "Content Gap" UI feature (used in Phase 2) — pull the client's and each competitor's organic keywords separately and diff them, rather than assuming a one-call shortcut exists.
+
+## Where the client's answers come from
+
+Phase 1 is fed by the client questionnaire, and everything downstream inherits
+whatever Phase 1 got wrong — so this is worth getting right before any phase
+starts. Their answers can arrive three ways, and **all three are workable**:
+
+1. **The 6ix Developers portal.** If the portal connector is in this session
+   (`list_clients`, `get_client_profile`), search for them by business name,
+   pull the profile, and read its `questionnaire` block. That's the questionnaire
+   already answered, structured, with their keywords, market, competitors,
+   credentials and regulatory constraints.
+2. **A document they filled in.** Plenty of clients would rather complete a Word
+   document over email than log into a portal. Read it the same way — `.docx`,
+   PDF, a pasted email, a call transcript, or an older brand document covering
+   the same ground. It doesn't need to match the official questionnaire's
+   wording. If the portal connector is available, offer to file their answers
+   with `update_client_profile` so the next phase doesn't start from an inbox.
+3. **Neither.** Build Phase 1 from what's externally measurable, state in the
+   document that it reflects what's visible from outside, and name the two or
+   three unanswered questions that would most change the strategy.
+
+Read `references/client-context.md` for the full handling of all three, and
+`references/questionnaire-fields.md` for the key each answer maps to when
+filing a returned document back to the portal.
+
+Never invent a target market, a competitor set, or a compliance position to
+fill a gap. A wrong fact in Phase 1 is reproduced by every phase after it.
+
+## Building the document, phase by phase
+
+1. **Confirm Phase 1 exists first.** If the client doesn't have a foundation document yet, build it — read `references/phase1-foundation.md` for the exact structure and prompt pattern, fed by the client's answers (see "Where the client's answers come from" above — portal, returned document, or neither) and a baseline SEO-platform pull. Every phase after this one opens by restating "here is [Client]'s foundation document" — that's what keeps nineteen phases coherent instead of disconnected.
+2. **Pick the phase(s) being requested** and read the matching reference file — each one has the phase's required inputs, where they come from, and the exact prompt pattern:
+   - `references/phase2-competitors-and-keywords.md` — Competitor Analysis, Keyword Lists (site + local/GMB)
+   - `references/phase5-6-strategy-and-gmb.md` — SEO Strategy & targets, GMB/local strategy
+   - `references/phase9-10-architecture-linking.md` — Page Architecture, Internal Linking
+   - `references/phase11-12-geo-schema.md` — GEO/AEO Strategy, Schema Plan
+   - `references/phase13-14-content-calendar.md` — Blog Topics, Content Calendar
+   - `references/phase17-18-19-tools-tracking-reporting.md` — Tech Stack Integration, Local Tracking, Reporting/KPIs
+3. **Ground every claim in supplied data**, and flag rather than invent whatever's missing. A gap flagged as `[NEEDS CLIENT INPUT: ...]` or `[NEEDS DATA: ...]` is a normal, useful output — a filled-in guess dressed up as fact is not.
+4. **Run the fact-check before finalizing any phase touching GEO/AEO, schema, GMB, citations, or reporting metrics** — these are exactly the areas where vendor templates go stale fastest. `references/fact-check-registry.md` is a snapshot; treat it as a starting checklist to re-verify, not a substitute for checking current documentation.
+5. **Assemble the finished phases into one document** once all requested phases are built — see `references/document-assembly.md` for how the pieces fit into a single ordered deliverable (and where seo-content-production's phases slot in if the full 19-phase equivalent is being built).
+6. **Run the completeness and fact-check scan** before calling the document done: `python scripts/check_strategy_doc.py <document_file>`. It flags unresolved `[NEEDS...]` placeholders and any dead-advice language that snuck in from the fact-check registry — the same mechanical safety net `seo-content-production`'s `check_draft.py` provides for content, applied to strategy claims instead.
+
+## Why the fact-check matters
+
+An AI-assisted strategy document is only as good as its most out-of-date claim. Schema recommendations, AI-search citation tactics, and Google Business Profile rules change faster than almost anything else in SEO — a document that confidently recommends something that stopped working (or started violating policy) eighteen months ago costs a client real money and, in a regulated field, potentially real compliance exposure. `references/fact-check-registry.md` exists so that risk gets checked mechanically instead of relying on memory.
+
+## Staying current
+
+Every reference file here — especially `phase11-12-geo-schema.md` and `fact-check-registry.md` — is a snapshot as of when it was written and will go stale. Before recommending or writing into a live client document anything about AI-search visibility, schema markup, or platform-specific policy (Google Business Profile rules, review policy, structured data policy), re-verify against current documentation or a fresh search rather than trusting the file as settled fact. If something in these files has changed, update the file — a stale fact-check registry that never gets corrected becomes exactly the kind of outdated advice this skill exists to catch.
+
+## Reference files
+
+- `references/phase1-foundation.md` — the foundation/brand summary document: structure, inputs, prompt pattern
+- `references/phase2-competitors-and-keywords.md` — competitor analysis and keyword clustering (both require real platform data)
+- `references/phase5-6-strategy-and-gmb.md` — SEO strategy/targets and Google Business Profile strategy
+- `references/phase9-10-architecture-linking.md` — page architecture (URL map) and internal linking rules
+- `references/phase11-12-geo-schema.md` — GEO/AEO strategy and schema plan — the two fastest-moving, must-re-verify phases
+- `references/phase13-14-content-calendar.md` — blog topic list and content calendar
+- `references/phase17-18-19-tools-tracking-reporting.md` — tech stack documentation, local rank tracking, reporting/KPI framework
+- `references/client-context.md` — how to get the client's answers from the portal, from a document they filled in, or from neither
+- `references/questionnaire-fields.md` — generated map of every questionnaire question to the key it's stored under, for filing a returned document back to the portal
+- `assets/blank-questionnaire.md` — the questionnaire as a fillable document, for clients who'd rather answer by email than in the portal
+- `references/fact-check-registry.md` — current status of common SEO/schema/AI-search claims: what's dead, what's still real
+- `references/document-assembly.md` — how to combine every phase into one ordered final document, and how this composes with seo-content-production
+- `assets/nr-lawyers-foundation-document.md` — a complete worked example of a Phase 1 output
+- `scripts/check_strategy_doc.py` — completeness check (unresolved placeholders) and fact-check scan (dead-advice language) for an assembled strategy document
