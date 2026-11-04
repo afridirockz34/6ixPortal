@@ -259,9 +259,16 @@ class Six_Performance {
 			$proj = self::projection_due( $client_id, $key, $as_of );
 			$projected = $proj ? (float) $proj->projected_value : null;
 
+			// Average position and cost per click improve as they fall. The
+			// percentage change is still stated as the raw arithmetic, but
+			// whether that change is good news depends on the metric, so say
+			// which way is better and name the trend outright.
+			$lower = class_exists( 'Six_Dash_Metrics' ) && Six_Dash_Metrics::lower_is_better( $key );
+
 			$entry = array(
 				'metric'      => $key,
 				'current'     => $now,
+				'better_when' => $lower ? 'lower' : 'higher',
 				'source'      => $current['sources'][ $key ] ?? 'unknown',
 				'baseline'    => $baseline !== null && isset( $baseline['values'][ $key ] ) ? $baseline['values'][ $key ] : null,
 				'previous'    => $previous !== null && isset( $previous['values'][ $key ] ) ? $previous['values'][ $key ] : null,
@@ -271,6 +278,8 @@ class Six_Performance {
 
 			$entry['change_since_baseline'] = self::pct( $entry['baseline'], $now );
 			$entry['change_since_previous'] = self::pct( $entry['previous'], $now );
+			$entry['trend_since_baseline']  = self::trend( $entry['change_since_baseline'], $lower );
+			$entry['trend_since_previous']  = self::trend( $entry['change_since_previous'], $lower );
 
 			if ( $projected === null ) {
 				$entry['status']  = 'no_projection';
@@ -280,7 +289,11 @@ class Six_Performance {
 				// A 10% shortfall is noise on a small number and a problem on
 				// a large one, so judge on the ratio and leave the calling
 				// skill to decide what to do about it.
-				$ratio = $projected > 0 ? $now / $projected : ( $now > 0 ? 2 : 1 );
+				if ( $lower ) {
+					$ratio = $now > 0 ? $projected / $now : ( $projected > 0 ? 2 : 1 );
+				} else {
+					$ratio = $projected > 0 ? $now / $projected : ( $now > 0 ? 2 : 1 );
+				}
 				$entry['status'] = $ratio >= 1 ? 'ahead' : ( $ratio >= 0.85 ? 'on_track' : 'behind' );
 			}
 			$out[ $key ] = $entry;
@@ -310,6 +323,18 @@ class Six_Performance {
 	protected static function pct( $from, $to ) {
 		if ( $from === null || $from <= 0 ) return null;
 		return round( ( ( $to - $from ) / $from ) * 100, 1 );
+	}
+
+	/**
+	 * Whether a percentage change is good news, given which way the metric
+	 * improves. Stated outright so a report can't read "+167%" on average
+	 * position as a win. A move under half a percent is called flat.
+	 */
+	protected static function trend( $change, $lower_is_better ) {
+		if ( $change === null ) return null;
+		if ( abs( $change ) < 0.5 ) return 'flat';
+		$rose = $change > 0;
+		return ( $rose xor $lower_is_better ) ? 'better' : 'worse';
 	}
 
 	// ── Scheduling ────────────────────────────────────────────────────────

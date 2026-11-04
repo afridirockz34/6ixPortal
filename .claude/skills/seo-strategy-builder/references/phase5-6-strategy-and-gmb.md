@@ -25,6 +25,12 @@ falls apart in a client meeting six months later.
 
 **Where agency documents oversell, and how to avoid it here:** a specific month-by-month traffic projection ("+340% organic traffic by month 6") is the single most common way these documents overpromise. Unless there's a comparable, verifiable case study backing a specific number, state directional expectations and the *conditions* that would produce them, not a number invented to look confident.
 
+**Recording the targets once the strategy is approved.** Phase 5's numeric objectives are the only part of the strategy a later review can be measured against, so once the client signs off, write them to the portal with `save_strategy_projections` — metric key, target date, value, and a one-line note on what the target assumes. Then `capture_performance_snapshot` so the baseline is the day the work started.
+
+The honesty rule above is what decides *which* objectives get saved, and it gets stricter here rather than looser. An objective stated directionally in the document ("organic traffic should grow meaningfully") does not become a number just because the field wants one — leave it out, and the metric reports as `no_projection`, which is an honest state. Only an objective the document commits to in writing, with a date, gets saved. A target invented to fill a row outlives the conversation that produced it, becomes what every future check measures against, and makes a client who is genuinely doing well read as behind.
+
+`references/performance-tracking.md` has the tracked metric keys (only those twelve are compared), which direction each improves in, and the rest of the rules.
+
 ## Phase 6 — GMB / Local Strategy
 
 **What it produces:** a Google Business Profile optimization plan — profile completeness, posting cadence, review-request strategy, Q&A seeding — plus any other local-pack-relevant recommendations.

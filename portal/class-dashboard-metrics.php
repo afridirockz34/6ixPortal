@@ -71,6 +71,21 @@ class Six_Dash_Metrics {
 	 * customer has only one service it fills all four card slots from that
 	 * service's list; with two services they get the top two from each.
 	 */
+	/**
+	 * Is a smaller number better for this metric? Average position and cost
+	 * per click improve as they fall; everything else in the catalog improves
+	 * as it rises. Anything comparing or trending a metric must ask this —
+	 * a position sliding from 3 to 8 is not a 167% gain.
+	 */
+	public static function lower_is_better( $key ) {
+		foreach ( self::catalog() as $svc ) {
+			if ( isset( $svc['metrics'][ $key ] ) ) {
+				return ! empty( $svc['metrics'][ $key ]['lower_better'] );
+			}
+		}
+		return false;
+	}
+
 	public static function catalog() {
 		return array(
 			'seo' => array(
@@ -80,7 +95,7 @@ class Six_Dash_Metrics {
 					'organic_visitors' => array( 'label' => 'Organic Visitors', 'suffix' => '/mo' ),
 					'keywords_page1'   => array( 'label' => 'Keywords on Page 1' ),
 					'keywords_tracked' => array( 'label' => 'Keywords Tracked' ),
-					'seo_avg_position' => array( 'label' => 'Avg Position' ),
+					'seo_avg_position' => array( 'label' => 'Avg Position', 'lower_better' => true ),
 				),
 			),
 			'google-ads' => array(
@@ -90,7 +105,7 @@ class Six_Dash_Metrics {
 					'paid_clicks'     => array( 'label' => 'Ad Clicks',      'suffix' => '/mo' ),
 					'ads_leads'       => array( 'label' => 'Leads from Ads', 'suffix' => '/mo' ),
 					'ads_impressions' => array( 'label' => 'Impressions',    'suffix' => '/mo' ),
-					'ads_cpc'         => array( 'label' => 'Avg Cost / Click', 'prefix' => '$' ),
+					'ads_cpc'         => array( 'label' => 'Avg Cost / Click', 'prefix' => '$', 'lower_better' => true ),
 				),
 			),
 			'google-business' => array(

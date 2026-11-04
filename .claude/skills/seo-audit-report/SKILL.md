@@ -7,7 +7,7 @@ description: Generate a pre-sales SEO weakness/audit report for a prospect — p
 
 ## Why this exists
 
-`seo-strategy-builder` and `seo-content-production` assume someone has already signed on as a client — they build the real, full-depth strategy and content once there's an engagement. This skill is upstream of that: it produces the document that *gets* someone to sign on. The job is different in a specific way that shapes everything below: it has to be rigorous and evidence-backed (never invent a number, never pad a weakness that isn't real), but it is deliberately not a free consulting engagement. A prospect should finish reading it convinced something is costing them business and that 6ix Developers is the right people to fix it — not holding a ready-to-execute fix list they can hand to anyone.
+`seo-strategy-builder` and `seo-content-production` assume someone has already signed on as a client — they build the real, full-depth strategy and content once there's an engagement. This skill is upstream of that: it produces the document that *gets* someone to sign on. (If a session is working through the full client lifecycle — intake through implementation and ongoing monitoring — `seo-client-pipeline` is the skill that orchestrates all of this and knows which stage a given client is at; this skill is Stage 2 of that pipeline.) The job is different in a specific way that shapes everything below: it has to be rigorous and evidence-backed (never invent a number, never pad a weakness that isn't real), but it is deliberately not a free consulting engagement. A prospect should finish reading it convinced something is costing them business and that 6ix Developers is the right people to fix it — not holding a ready-to-execute fix list they can hand to anyone.
 
 That tension — be completely honest about what's broken, but don't give away how to fix it — is the one piece of judgment this skill exists to encode. Everything else (what to check, how to score it, how to structure the report) is mechanical once that line is held.
 
@@ -64,11 +64,20 @@ which, and carry on with what you have.
 
 Never invent a profile, and never treat a missing one as a blocker.
 
+**If they're already a client rather than a cold prospect** — a re-audit, an expansion into a second service, a review before renewal — call **`check_performance`** before pulling a single Ahrefs number. It says what has actually happened on the metrics we already track for them, and it is the difference between a report that reads as informed and one that insults the reader: writing "your organic visibility is stagnant" about a client whose tracked traffic has doubled under our own work is the worst possible opening line, and it's an easy mistake when the audit is run purely off an external scan.
+
+Two expected non-answers, neither of which is a problem to work around:
+
+- `has: false` with `reason: no_snapshots` — nothing has been captured for them. Normal for a prospect. Run the audit as an external scan.
+- `nothing_to_capture` from a snapshot call — they have no active services, so there is nothing to measure. Also normal pre-signature. Don't try to force a baseline; that happens when a strategy is approved, which is `seo-strategy-builder`'s job, not this skill's.
+
+And one hard rule if a check does return data: check each metric's `source`. An `estimate` is a modelled placeholder the portal generates so a new dashboard isn't blank — **it is not a measurement of their traffic**, and putting one in a report as though it were, in a document whose whole value is being evidence-backed, is exactly the kind of unsupported number this skill otherwise refuses to write. `seo-strategy-builder/references/performance-tracking.md` has the full handling.
+
 **When the report is finished**, if they exist in the portal, save it with **`save_client_artifact`** (`type: "audit_report"`) so it lands on their record and the next session can see it was already done. Writing needs a write-scoped token; if the connector is read-only, say so rather than silently skipping it.
 
 ## Building the report
 
-1. **Gather context.** Pull their portal profile as above (or read the questionnaire document if that's what you have). Confirm the domain. If they're in a regulated field, write the constraint down now, before any data — it governs what every "what to do about it" line is allowed to promise.
+1. **Gather context.** Pull their portal profile as above (or read the questionnaire document if that's what you have). Confirm the domain. If they're an existing client, run `check_performance` too, so the report doesn't contradict work we've already done for them. If they're in a regulated field, write the constraint down now, before any data — it governs what every "what to do about it" line is allowed to promise.
 2. **Pull the data.** Work through `references/audit-methodology.md`'s category list, pulling each via its mapped Ahrefs tool group. Don't skip a category because it looks fine at a glance — a category with no real finding just gets a short "healthy" line in the scorecard, which is itself useful signal (it tells the reader this wasn't a rubber-stamp report).
 3. **Score each real finding's severity** using `references/audit-methodology.md`'s rubric (Critical / High / Medium / Low) — grounded in the actual numbers pulled, not a gut feel. A finding with no supporting number isn't a finding yet; go get the number or drop it. Then compute the aggregate **SEO Health Score (0-100)** per that same file's scoring section — one weighted number across all categories, redistributing the weight of any category that wasn't run. This becomes the lead line of the executive summary and a column in the scorecard; never publish it built partly on a guess.
 4. **Route anything about schema, AI-citation tactics, GMB, or review policy through `seo-strategy-builder/references/fact-check-registry.md`** before writing a recommendation sentence about it — this skill doesn't keep its own copy of that registry; reuse the one that's already kept current.
@@ -83,6 +92,7 @@ It's tempting, especially when the data makes a fix obvious, to just write the f
 ## Reference files
 
 - `seo-strategy-builder/references/client-context.md` — getting the prospect's answers from the portal, a returned document, or neither
+- `seo-strategy-builder/references/performance-tracking.md` — reading a `check_performance` result when the subject is an existing client, and why an `estimate` can't be quoted as a measurement
 - `references/audit-methodology.md` — the audit category checklist, which Ahrefs tool group covers each one, and the severity scoring rubric
 - `references/report-template.md` — report structure and the show-the-wound-not-the-stitches pattern, with a good/bad example
 - `assets/sample-weakness-section.md` — one fully worked example category section, for calibrating tone and length

@@ -28,12 +28,19 @@ they're deferred). If it's there:
 2. **`get_client_profile`** with that id — the whole profile in one call.
 3. **`list_client_artifacts`** — check what's already been produced for them
    (a recent audit, a keyword analysis) before regenerating it.
+4. **`check_performance`** — for an existing client, where they stand against
+   where they started and against the targets a previous strategy set. Worth a
+   call before any deliverable that will characterise how they're doing.
+   `references/performance-tracking.md` covers reading it.
 
-The profile's `questionnaire` block is grouped by section, and every answer
-carries its question text, so you can read it without a key map.
-`questionnaire_progress` tells you how much is filled in; if large parts are
-blank, say so in the deliverable's framing and tell whoever is running this
-which sections to chase.
+The profile's `questionnaire` block holds two sets — `audit` (the short intake
+answered at signup) and `strategy` (the long one) — each grouped into
+`sections`, and every answer carries its question text, so you can read it
+without a key map. Unanswered questions are left out rather than returned
+blank. Each set's `progress` tells you how much is filled in and names what's
+outstanding; if large parts are blank, say so in the deliverable's framing and
+tell whoever is running this which sections to chase. The profile's `stage`
+is the quick version of the same thing.
 
 **If the connector isn't in this session, or the client isn't in the portal
 yet:** that's normal — a cold prospect won't be in there, and not every session
@@ -67,6 +74,13 @@ Two things to do with it:
   during onboarding — only overwrite one if their document is genuinely more
   current. And don't write the contact section; names, emails and addresses are
   account data, not questionnaire answers.
+
+  Writing needs a write-scoped token. If `update_client_profile` (or
+  `save_client_artifact`, used elsewhere for filing a finished deliverable)
+  fails or the connector is read-only, say so plainly rather than silently
+  skipping the write — the person running this should know their answers
+  didn't actually get filed, not discover it the next time someone looks for
+  them and finds nothing there.
 
 If their document only covers part of the ground, that's still worth having.
 Note which sections are missing rather than treating a partial return as

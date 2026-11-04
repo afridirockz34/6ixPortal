@@ -34,11 +34,15 @@ The client/team can realistically produce [N] pieces of content per
 month, reviewed and published.
 
 Sequence these into a content calendar at that pace. Prioritize by: (1)
-pages in the architecture with the highest keyword value, (2) topics that
-support pages already planned, (3) seasonal or time-sensitive topics if
-any exist, (4) everything else by funnel stage, top-of-funnel first to
-build a base of supporting content. Do not compress the timeline below
-the stated realistic capacity to make the plan look more impressive.
+pages and topics with the highest Keyword Opportunity Score (see
+keyword-scoring.md) among the architecture and topic list, (2) topics
+that support pages already planned, (3) seasonal or time-sensitive
+topics if any exist, (4) everything else by funnel stage, top-of-funnel
+first to build a base of supporting content. Do not compress the
+timeline below the stated realistic capacity to make the plan look more
+impressive.
 ```
 
 **Where this is easiest to oversell:** a content calendar that assumes a pace the client can't actually sustain is a plan that fails by month three, not a plan that's merely ambitious. Set the pace from an honest capacity conversation, not from what would make the projected timeline in Phase 5 look achievable.
+
+**This calendar gets checked, not just executed.** Once pieces from it are actually published, Phase 20's recurring retrospective compares how the scored priorities performed against what the score predicted — and feeds a revised sequence back into the next period's calendar. A calendar built here isn't the final word on sequencing; it's the first draft that the retrospective is meant to correct.
