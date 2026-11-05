@@ -26,6 +26,10 @@ Once the requested phases are built, they need to come together as one ordered d
 
 If the full 19-phase equivalent is being built for a client, produce phases 3, 4, 15, and 16 using **seo-content-production**'s setup workflow (building the client profile and confirming the content templates) at the same point Phase 1 is built here — Phase 1 and the client profile draw from the same questionnaire and should be built together, not sequentially far apart.
 
+## Phase 20 is not part of the initial document
+
+Phase 20 (`phase20-results-retrospective.md`) doesn't slot into the numbered list above — it doesn't exist yet when the initial strategy document is first assembled, because there's nothing to retrospect on until content from Phases 9-14 has actually been live for a while. Once the engagement is underway and a retrospective cadence starts (quarterly is the default), each retrospective is its own dated, appended section — "Q2 2027 Results Retrospective" — not a rewrite of the original document. Keep retrospectives in sequence as an addendum to the original strategy document (or as their own running file if the original is long enough that re-sending the whole thing each quarter is unwieldy) so the history of what was predicted versus what happened stays visible over time, rather than each retrospective silently overwriting the last.
+
 ## If only some phases are requested
 
 Most requests won't need all 19 — a client might only need a keyword strategy refresh, or a GEO/AEO strategy update, or a new content calendar. Build and check only the phases actually asked for; don't pad a narrow request into a full document. State clearly which phases the delivered document covers and which of the 19 it doesn't, so nobody mistakes a partial deliverable for the complete strategy.

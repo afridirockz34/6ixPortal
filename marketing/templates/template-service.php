@@ -15,6 +15,9 @@ remove_action( 'wp_head', 'et_load_custom_scripts' );
 
 $slug = get_post_field( 'post_name', get_queried_object_id() );
 $d    = six_service_page( $slug );
+// Calls to action written for this specific service, all pointing at the
+// onboarding form rather than a generic contact page.
+$cta  = six_service_ctas( $slug );
 if ( ! $d ) { // Assigned to an unknown page — fall back to the first service.
     $all = six_service_pages();
     $d   = reset( $all );
@@ -63,11 +66,12 @@ header( 'Content-Type: text/html; charset=utf-8' );
         <?php if ( ! empty( $d['lead'] ) ) : ?><p class="mk-lead"><?php echo esc_html( $d['lead'] ); ?></p><?php endif; ?>
         <div class="mk-hero-cta mk-center">
           <?php
-          $hc1 = $d['hero_cta1'] ?? array( 'label' => 'Get your free consultation', 'url' => '/contact-us' );
+          $hc1 = $d['hero_cta1'] ?? array( 'label' => $cta['hero']['label'], 'url' => '' );
           $hc1_url = ! empty( $hc1['url'] ) ? ( strpos( $hc1['url'], '#' ) === 0 ? $hc1['url'] : home_url( $hc1['url'] ) ) : mk_portal_url();
           ?>
           <a class="mk-btn mk-btn-primary mk-btn-lg" href="<?php echo esc_url( $hc1_url ); ?>"><?php echo esc_html( $hc1['label'] ); ?></a>
         </div>
+        <p style="font-size:.92rem;color:var(--mk-t2);margin:12px auto 0;max-width:48ch"><?php echo esc_html( $cta['hero']['sub'] ); ?></p>
       </div>
     </div>
   </section>
@@ -86,7 +90,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
         <?php endif; ?>
         <div class="mk-hero-cta">
           <?php
-          $hc1 = $d['hero_cta1'] ?? array( 'label' => 'Get your free consultation', 'url' => '/contact-us' );
+          $hc1 = $d['hero_cta1'] ?? array( 'label' => $cta['hero']['label'], 'url' => '' );
           $hc2 = $d['hero_cta2'] ?? array( 'label' => 'See where you can grow', 'url' => '' );
           $hc1_url = ! empty( $hc1['url'] ) ? ( strpos( $hc1['url'], '#' ) === 0 ? $hc1['url'] : home_url( $hc1['url'] ) ) : mk_portal_url();
           $hc2_url = ! empty( $hc2['url'] ) ? ( strpos( $hc2['url'], '#' ) === 0 ? $hc2['url'] : home_url( $hc2['url'] ) ) : mk_portal_url();
@@ -94,6 +98,7 @@ header( 'Content-Type: text/html; charset=utf-8' );
           <a class="mk-btn mk-btn-primary mk-btn-lg" href="<?php echo esc_url( $hc1_url ); ?>"><?php echo esc_html( $hc1['label'] ); ?></a>
           <a class="mk-btn mk-btn-ghost mk-btn-lg" href="<?php echo esc_url( $hc2_url ); ?>"><?php echo esc_html( $hc2['label'] ); ?></a>
         </div>
+        <p style="font-size:.92rem;color:var(--mk-t2);margin:12px 0 0;max-width:48ch"><?php echo esc_html( $cta['hero']['sub'] ); ?></p>
       </div>
     </div>
   </section>
@@ -526,7 +531,9 @@ header( 'Content-Type: text/html; charset=utf-8' );
 
   <!-- PORTAL CTA BAND -->
   <?php mk_portal_band( array(
-      'heading' => 'See how your ' . strtolower( $d['menu'] ?? 'marketing' ) . ' stacks up.',
+      'heading' => $cta['band']['heading'],
+      'text'    => $cta['band']['text'],
+      'cta'     => $cta['band']['cta'],
   ) ); ?>
 
   <!-- TESTIMONIALS -->
@@ -580,10 +587,10 @@ header( 'Content-Type: text/html; charset=utf-8' );
   <section class="mk-section-sm">
     <div class="mk-wrap">
       <div class="mk-band">
-        <div class="mk-band-text"><h2 style="font-size:clamp(1.4rem,2.6vw,1.9rem)">Ready to find out what sets 6ix Developers apart?</h2></div>
+        <div class="mk-band-text"><h2 style="font-size:clamp(1.4rem,2.6vw,1.9rem)"><?php echo esc_html( $cta['final']['heading'] ); ?></h2></div>
         <div style="display:flex;gap:12px;flex-wrap:wrap">
-          <a class="mk-btn mk-btn-primary mk-btn-lg" href="<?php echo esc_url( home_url( '/contact-us' ) ); ?>">Get free consultation now</a>
-          <a class="mk-btn mk-btn-lg" style="background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.4)" href="<?php echo esc_url( mk_portal_url() ); ?>">Get to know your marketing</a>
+          <a class="mk-btn mk-btn-primary mk-btn-lg" href="<?php echo esc_url( mk_portal_url() ); ?>"><?php echo esc_html( $cta['final']['cta'] ); ?></a>
+          <a class="mk-btn mk-btn-lg" style="background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.4)" href="<?php echo esc_url( home_url( '/contact-us' ) ); ?>">Rather talk to someone?</a>
         </div>
       </div>
     </div>

@@ -53,7 +53,7 @@ class Six_DataForSEO {
         return array( 'result' => $task['result'] ?? array() );
     }
 
-    /** Normalise a location string to a DataForSEO location_name. */
+    /** Normalize a location string to a DataForSEO location_name. */
     private static function loc( $location ) {
         $location = trim( (string) $location );
         if ( $location === '' ) return 'United States';

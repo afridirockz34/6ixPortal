@@ -341,7 +341,7 @@ function six_home_render_meta_box( $post ) {
     ?>
     <script>
     (function(){
-        // Serialise one repeater's current rows into its hidden JSON field.
+        // Serialize one repeater's current rows into its hidden JSON field.
         // Rows with every field left blank are dropped so an unused "+ Add"
         // click never saves an empty entry.
         //
@@ -503,7 +503,7 @@ add_action( 'save_post_page', function ( $post_id ) {
     }
 
     // Repeaters — validate against a known sub-field schema so only the
-    // expected keys, sanitised by type, can ever be stored.
+    // expected keys, sanitized by type, can ever be stored.
     $repeaters = array(
         'svc_cards' => array( 'image' => 'url', 'title' => 'text', 'text' => 'text', 'link' => 'text' ),
         'deepdives' => array( 'image' => 'url', 'eyebrow' => 'text', 'title' => 'text', 'text' => 'textarea', 'cta_label' => 'text', 'cta_url' => 'text' ),

@@ -227,3 +227,135 @@ function mk_icon( $name ) {
     $p = $icons[ $name ] ?? $icons['spark'];
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' . $p . '</svg>';
 }
+
+/**
+ * Calls to action written for the service whose page they sit on.
+ *
+ * Every service page used to close with the same "Get your free
+ * consultation" — a generic ask that gives the reader no reason to click
+ * from one page rather than another. These are specific to the service and
+ * all point at the onboarding form, which is the thing that actually
+ * qualifies a lead: a few questions, then we show them something real about
+ * their own site.
+ *
+ * Three shapes, because the same ask repeated three times down one page
+ * reads as a single banner nobody clicks:
+ *   hero  — the opening ask, benefit-first
+ *   band  — mid-page, framed as "see where you stand"
+ *   final — the closing ask, the most concrete of the three
+ *
+ * @param string $slug The page slug.
+ * @return array{hero:array{label:string,sub:string},band:array{heading:string,text:string,cta:string},final:array{heading:string,cta:string}}
+ */
+function six_service_ctas( $slug ) {
+    $map = array(
+        'seo-agency-toronto' => array(
+            'hero'  => array(
+                'label' => 'Show me what I’m missing',
+                'sub'   => 'Answer a few questions about your business and we’ll show you which searches your competitors are winning and you aren’t.',
+            ),
+            'band'  => array(
+                'heading' => 'Find out where your search traffic is going instead.',
+                'text'    => 'A few questions about your business and your market, and we’ll show you what your site ranks for today, who is above you, and how many visitors a month that gap is worth.',
+                'cta'     => 'See where you stand',
+            ),
+            'final' => array(
+                'heading' => 'Want to see what your site ranks for right now?',
+                'cta'     => 'Get your free SEO audit',
+            ),
+        ),
+        'ppc-google-ads-management-toronto' => array(
+            'hero'  => array(
+                'label' => 'Audit my Google Ads',
+                'sub'   => 'Already running ads? Answer a few questions and we’ll show you what they’re costing you per lead, and where that number could be.',
+            ),
+            'band'  => array(
+                'heading' => 'Find out what your ads are really costing per lead.',
+                'text'    => 'Tell us what you sell and where, and we’ll show you the real cost per click in your market, what your budget should be producing, and where spend is leaking.',
+                'cta'     => 'Check my ad spend',
+            ),
+            'final' => array(
+                'heading' => 'Running ads already? See what they should be costing you.',
+                'cta'     => 'Get your free Google Ads audit',
+            ),
+        ),
+        'ppc-agency-toronto' => array(
+            'hero'  => array(
+                'label' => 'Check my cost per lead',
+                'sub'   => 'A few questions about what you sell, and we’ll show you what a lead should cost in your market.',
+            ),
+            'band'  => array(
+                'heading' => 'See what a lead should cost you in your market.',
+                'text'    => 'Real click costs for your services and your cities, against what you are paying now.',
+                'cta'     => 'Check my cost per lead',
+            ),
+            'final' => array(
+                'heading' => 'Know what you should be paying for a lead?',
+                'cta'     => 'Get your free paid-search audit',
+            ),
+        ),
+        'website-design-agency-toronto' => array(
+            'hero'  => array(
+                'label' => 'Review my current site',
+                'sub'   => 'Answer a few questions and we’ll show you what your current site is costing you in enquiries that never arrive.',
+            ),
+            'band'  => array(
+                'heading' => 'See what your current site is costing you.',
+                'text'    => 'We’ll check how it loads, how it reads on a phone, and where visitors are giving up before they contact you.',
+                'cta'     => 'Review my site',
+            ),
+            'final' => array(
+                'heading' => 'Curious what your current site is losing you?',
+                'cta'     => 'Get your free website review',
+            ),
+        ),
+        'social-media-marketing-agency-toronto' => array(
+            'hero'  => array(
+                'label' => 'See where my audience is',
+                'sub'   => 'A few questions about your customers, and we’ll show you which channels are actually worth your time.',
+            ),
+            'band'  => array(
+                'heading' => 'See which channels are worth your time.',
+                'text'    => 'Tell us who buys from you and we’ll show you where those people actually are — and what it costs to reach them there.',
+                'cta'     => 'See where my audience is',
+            ),
+            'final' => array(
+                'heading' => 'Not sure which channels are worth it?',
+                'cta'     => 'Get your free channel review',
+            ),
+        ),
+        'digital-marketing-agency-toronto' => array(
+            'hero'  => array(
+                'label' => 'Show me where to start',
+                'sub'   => 'Answer a few questions and we’ll show you which channel would move the needle fastest for your business.',
+            ),
+            'band'  => array(
+                'heading' => 'Find out which channel would move fastest for you.',
+                'text'    => 'A few questions about your business, your market and your goals, and we’ll show you where the quickest return is — and where it is not.',
+                'cta'     => 'Show me where to start',
+            ),
+            'final' => array(
+                'heading' => 'Not sure where your budget should go first?',
+                'cta'     => 'Get your free growth review',
+            ),
+        ),
+    );
+
+    // A service page we have not written copy for still gets something
+    // specific rather than falling back to "free consultation".
+    return $map[ $slug ] ?? array(
+        'hero'  => array(
+            'label' => 'See where you stand',
+            'sub'   => 'Answer a few questions about your business and we’ll show you where you stand against the people you compete with.',
+        ),
+        'band'  => array(
+            'heading' => 'See where you stand against your competitors.',
+            'text'    => 'A few questions about your business and your market, and we’ll show you what is working, what is not, and what it is worth fixing first.',
+            'cta'     => 'See where you stand',
+        ),
+        'final' => array(
+            'heading' => 'Want to see where you actually stand?',
+            'cta'     => 'Get your free review',
+        ),
+    );
+}

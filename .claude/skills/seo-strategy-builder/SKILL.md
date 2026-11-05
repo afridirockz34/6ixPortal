@@ -1,6 +1,6 @@
 ---
 name: "seo-strategy-builder"
-description: Build the strategic, research-driven phases of a client SEO plan — foundation/brand summary, competitor analysis, keyword clustering, page architecture, internal linking, GMB strategy, GEO/AEO strategy, schema plan, content calendar, tooling/tracking setup, and a reporting/KPI framework — from a client questionnaire plus SEO-platform exports (Ahrefs, Semrush, or similar). Use for building an SEO strategy, foundation document, competitor analysis, keyword clusters, page architecture, GMB/local strategy, GEO/AEO plan, schema plan, content calendar, or a full multi-phase strategy document/PDF. Companion to seo-content-production (voice, style, content drafting) — use both together for a complete agency-style strategy document. Trigger on "build the SEO strategy for [client]", "create the foundation document", "cluster these keywords", "competitor analysis for [client]", "build a content calendar", "GEO strategy for [client]", "schema plan for [client]", or "put together the full SEO plan/PDF".
+description: Build the research-driven phases of a client SEO plan — foundation/brand summary, competitor analysis, scored & intent-classified keyword clustering, page architecture, internal linking, GMB strategy, GEO/AEO strategy, schema plan, content calendar, tooling/tracking, reporting/KPIs, and a recurring retrospective checking outcomes against the targets the strategy committed to — from a client questionnaire plus SEO-platform data (Ahrefs, Semrush). Use for any of these phases individually, the full strategy document/PDF, or a review of how a live strategy is tracking against plan. Companion to seo-content-production (voice, style, drafting). Trigger on "build the SEO strategy for [client]", "create the foundation document", "cluster these keywords", "competitor analysis for [client]", "build a content calendar", "GEO strategy for [client]", "schema plan for [client]", "put together the full SEO plan/PDF", "quarterly retrospective for [client]", or "how is [client] tracking against the plan".
 ---
 
 # SEO Strategy Builder
@@ -11,7 +11,7 @@ A real SEO strategy document is not one piece of writing — it's a chain of sma
 
 This skill packages that chain: what each phase needs, where the input comes from, the exact prompt pattern to produce it, and — critically — a live registry of which common SEO/schema/AI-search recommendations are actually still true, so the document this produces doesn't quietly repeat outdated tactics the way most vendor templates do.
 
-This skill covers the **research and strategy** phases. It does not draft blog posts, service pages, or other client-facing content — that's `seo-content-production`, its companion skill. Used together, the two reproduce a complete multi-phase agency SEO strategy document: this skill for everything data-driven and structural, that one for everything voice-and-copy. A third companion, `seo-audit-report`, sits upstream of both — it's for a prospect who hasn't signed on yet, producing the evidence-backed weakness report that's meant to get them to. This skill and `seo-content-production` assume the engagement already exists.
+This skill covers the **research and strategy** phases. It does not draft blog posts, service pages, or other client-facing content — that's `seo-content-production`, its companion skill. Used together, the two reproduce a complete multi-phase agency SEO strategy document: this skill for everything data-driven and structural, that one for everything voice-and-copy. A third companion, `seo-audit-report`, sits upstream of both — it's for a prospect who hasn't signed on yet, producing the evidence-backed weakness report that's meant to get them to. This skill and `seo-content-production` assume the engagement already exists. A fourth, `seo-client-pipeline`, sits above all three — it orchestrates the whole client lifecycle in one session, from intake through this skill's phases, into implementing the approved strategy on the live site, and the recurring performance checks that can send work back through this skill's Phase 20.
 
 ## The model
 
@@ -22,15 +22,24 @@ questionnaire + SEO platform exports (Ahrefs/Semrush)
 Phase 1 — Foundation document  ─── every later phase references this by name
         │
         ├──> Phase 2 — Competitor analysis  ─┐
-        ├──> Phase 7/8 — Keyword clusters   ─┴──> Phase 9 — Page architecture ──> Phase 10 — Internal linking
-        ├──> Phase 5 — SEO strategy & targets                                  └──> Phase 13 — Blog topics ──> Phase 14 — Content calendar
+        ├──> Phase 7/8 — Keyword clusters,  ─┴──> Phase 9 — Page architecture ──> Phase 10 — Internal linking
+        │    scored + intent-classified                                       └──> Phase 13 — Blog topics ──> Phase 14 — Content calendar
+        ├──> Phase 5 — SEO strategy & targets
         ├──> Phase 6 — GMB / local strategy
         ├──> Phase 11 — GEO/AEO strategy   (re-research every time, never templated)
         ├──> Phase 12 — Schema plan        (re-research every time, never templated)
         └──> Phase 17/18/19 — Tooling, tracking, reporting/KPIs
+                   │
+                   v
+     approved ──> targets saved to the portal + baseline captured
+                   │
+                   v
+     Phase 20 — Results retrospective (recurring, quarterly default)
+                   │
+                   └──> feeds revised priorities back into Phase 7/8 and Phase 14
 ```
 
-Phases 2, 5, 6, 11, and 12 don't depend on each other — they can all be produced in parallel once Phase 1 exists. Nothing here needs to happen in strict numeric order; Phase 1 is the only hard prerequisite.
+Phases 2, 5, 6, 11, and 12 don't depend on each other — they can all be produced in parallel once Phase 1 exists. Nothing here needs to happen in strict numeric order; Phase 1 is the only hard prerequisite. Phase 20 is the one phase that's structurally different from the rest: it doesn't run once at setup, it runs again on a cadence for the life of the engagement, checking the earlier phases against what actually happened and revising them.
 
 ## Before starting anything: the two things that must come from real data
 
@@ -96,10 +105,52 @@ fill a gap. A wrong fact in Phase 1 is reproduced by every phase after it.
    - `references/phase11-12-geo-schema.md` — GEO/AEO Strategy, Schema Plan
    - `references/phase13-14-content-calendar.md` — Blog Topics, Content Calendar
    - `references/phase17-18-19-tools-tracking-reporting.md` — Tech Stack Integration, Local Tracking, Reporting/KPIs
-3. **Ground every claim in supplied data**, and flag rather than invent whatever's missing. A gap flagged as `[NEEDS CLIENT INPUT: ...]` or `[NEEDS DATA: ...]` is a normal, useful output — a filled-in guess dressed up as fact is not.
-4. **Run the fact-check before finalizing any phase touching GEO/AEO, schema, GMB, citations, or reporting metrics** — these are exactly the areas where vendor templates go stale fastest. `references/fact-check-registry.md` is a snapshot; treat it as a starting checklist to re-verify, not a substitute for checking current documentation.
-5. **Assemble the finished phases into one document** once all requested phases are built — see `references/document-assembly.md` for how the pieces fit into a single ordered deliverable (and where seo-content-production's phases slot in if the full 19-phase equivalent is being built).
-6. **Run the completeness and fact-check scan** before calling the document done: `python scripts/check_strategy_doc.py <document_file>`. It flags unresolved `[NEEDS...]` placeholders and any dead-advice language that snuck in from the fact-check registry — the same mechanical safety net `seo-content-production`'s `check_draft.py` provides for content, applied to strategy claims instead.
+   - `references/phase20-results-retrospective.md` — Results Retrospective (recurring — only once there's something live to check against)
+3. **Score and classify every keyword, not just list it.** Read `references/keyword-scoring.md` before Phase 7/8 and apply it there — a Keyword Opportunity Score (0-100, weighted on volume, difficulty, position gap, and the client's own stated business value) and a Search Intent Classification for every keyword. Carry both through Phase 9, 10, 13, and 14 rather than re-deriving priority order by feel in each one; this is what keeps "build a strategy" from meaning "produce a plausible-looking document" instead of "produce a prioritized, defensible plan."
+4. **Ground every claim in supplied data**, and flag rather than invent whatever's missing. A gap flagged as `[NEEDS CLIENT INPUT: ...]` or `[NEEDS DATA: ...]` is a normal, useful output — a filled-in guess dressed up as fact is not.
+5. **Run the fact-check before finalizing any phase touching GEO/AEO, schema, GMB, citations, or reporting metrics** — these are exactly the areas where vendor templates go stale fastest. `references/fact-check-registry.md` is a snapshot; treat it as a starting checklist to re-verify, not a substitute for checking current documentation.
+6. **Assemble the finished phases into one document** once all requested phases are built — see `references/document-assembly.md` for how the pieces fit into a single ordered deliverable (and where seo-content-production's phases slot in if the full 19-phase equivalent is being built). Phase 20 is never part of this initial assembly — see that file for why.
+7. **Run the completeness and fact-check scan** before calling the document done: `python scripts/check_strategy_doc.py <document_file>`. It flags unresolved `[NEEDS...]` placeholders and any dead-advice language that snuck in from the fact-check registry — the same mechanical safety net `seo-content-production`'s `check_draft.py` provides for content, applied to strategy claims instead.
+8. **Once the strategy is approved, record its targets and take a baseline.** A strategy whose targets live only in a PDF can't be checked against later — the review two months on can only say the number moved, not whether it moved as far as we said it would, and Phase 20 then has nothing to retrospect against but whatever someone remembers to paste in. If the portal connector is in this session: `save_client_artifact` the document, `save_strategy_projections` for the targets Phase 5 actually commits to, and `capture_performance_snapshot` so the baseline is where they stood the day the work started. Read `references/performance-tracking.md` first — it covers the metric keys, and the rule that only targets the strategy argues for in writing get saved. A target invented to fill a row makes every later comparison meaningless.
+9. **Once content is live, run Phase 20 on a recurring cadence** (quarterly by default) to check whether the scored priorities actually performed, and feed what's learned back into the next period's Phase 7/8 and Phase 14. A strategy that's never checked against results is a one-shot guess no matter how well-sourced its first draft was.
+
+## When the request is a check rather than a new document
+
+"How are they tracking", a retrospective, a monthly report — none of these is a
+request to rebuild the strategy. They're reads against what the last one
+committed to, and they run off stored targets rather than pasted ones.
+
+Start with **`check_performance`** — it returns current, baseline, previous and
+projected for every tracked metric in one call, with a status per metric. That
+covers what Phase 20 and Phase 19 both otherwise ask to be pasted in: the
+targets Phase 5 set and the prior check to compare against. Then pull the live
+Ahrefs side for the ranking and keyword detail the portal doesn't hold, and
+write it up in the format Phase 19 established.
+
+Which depth to run:
+
+- **A full retrospective** — `references/phase20-results-retrospective.md`.
+  That's where the judgment lives: which keyword bets paid off, which stalled,
+  and what the next period's priorities should be. Quarterly by default.
+- **A lighter pulse check**, if `seo-client-pipeline` is driving the session —
+  that skill runs the biweekly check and monthly report and escalates into
+  Phase 20 when something warrants it. Don't run a full retrospective for a
+  routine biweekly.
+
+`references/performance-tracking.md` covers how to read the result. Three
+things to get right, because each is a way a report goes wrong:
+
+- A metric reporting `no_projection` means **no target was ever set**, not that
+  the client is failing. Never count it as a miss.
+- Check `source` before quoting a number. An `estimate` is a modelled
+  placeholder, not a measurement, and must not be presented to a client as
+  their actual traffic.
+- Use the `trend_*` fields rather than the sign of the percentage. Average
+  position and cost per click improve as they fall.
+
+If the check shows metrics genuinely behind, that's the input to step 6 of the
+engagement — another round of changes — not a reason to quietly revise the old
+targets so they look met.
 
 ## Why the fact-check matters
 
@@ -113,12 +164,15 @@ Every reference file here — especially `phase11-12-geo-schema.md` and `fact-ch
 
 - `references/phase1-foundation.md` — the foundation/brand summary document: structure, inputs, prompt pattern
 - `references/phase2-competitors-and-keywords.md` — competitor analysis and keyword clustering (both require real platform data)
+- `references/keyword-scoring.md` — the Keyword Opportunity Score (0-100) and Search Intent Classification applied in Phase 7/8 and carried through Phases 9, 10, 13, and 14
 - `references/phase5-6-strategy-and-gmb.md` — SEO strategy/targets and Google Business Profile strategy
 - `references/phase9-10-architecture-linking.md` — page architecture (URL map) and internal linking rules
 - `references/phase11-12-geo-schema.md` — GEO/AEO strategy and schema plan — the two fastest-moving, must-re-verify phases
 - `references/phase13-14-content-calendar.md` — blog topic list and content calendar
 - `references/phase17-18-19-tools-tracking-reporting.md` — tech stack documentation, local rank tracking, reporting/KPI framework
+- `references/phase20-results-retrospective.md` — the recurring retrospective that checks actual results against Phase 5's targets and the Keyword Opportunity Scores, and revises priorities going forward
 - `references/client-context.md` — how to get the client's answers from the portal, from a document they filled in, or from neither
+- `references/performance-tracking.md` — snapshots and projections: the tracked metric keys, how to read a `check_performance` result, and the rules for saving a target you can stand behind
 - `references/questionnaire-fields.md` — generated map of every questionnaire question to the key it's stored under, for filing a returned document back to the portal
 - `assets/blank-strategy-questionnaire.md` — the strategy questionnaire as a fillable document, for clients who'd rather answer by email
 - `assets/blank-audit-questionnaire.md` — the short audit intake sheet, for a prospect who isn't in the portal yet

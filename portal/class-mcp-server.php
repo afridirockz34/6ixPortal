@@ -64,13 +64,13 @@ class Six_MCP_Server {
 	 */
 	public static function authenticate( $request ) {
 		// Requests from Anthropic's infrastructure are server-to-server and
-		// carry no Origin. A browser-issued Origin we don't recognise is
+		// carry no Origin. A browser-issued Origin we don't recognize is
 		// rejected outright — belt and braces, since token auth (never
 		// cookies) already means a hostile page can't authenticate at all.
 		$origin = $request->get_header( 'origin' );
 		if ( $origin && untrailingslashit( $origin ) !== untrailingslashit( site_url() )
 		     && untrailingslashit( $origin ) !== untrailingslashit( home_url() ) ) {
-			return new WP_Error( 'six_bad_origin', 'Unrecognised Origin.', array( 'status' => 403 ) );
+			return new WP_Error( 'six_bad_origin', 'Unrecognized Origin.', array( 'status' => 403 ) );
 		}
 		return Six_Profile_API::require_read( $request );
 	}
@@ -138,6 +138,58 @@ class Six_MCP_Server {
 				),
 			),
 			array(
+				'name'        => 'check_performance',
+				'title'       => 'Check current performance',
+				'description' => 'Where a client stands now, against where they started, where they were at the last check, and where the strategy said they would be by now. Returns a per-metric status of ahead / on_track / behind / no_projection, plus a summary count. This is the read for a bi-weekly or monthly review. A metric nobody projected comes back as no_projection with projected=null — that means no target was ever set, not that they are failing, so do not treat it as a miss. If there are no snapshots at all, capture one first.',
+				'inputSchema' => array(
+					'type'       => 'object',
+					'properties' => array(
+						'client_id' => array( 'type' => 'integer', 'description' => 'The client id, from list_clients.' ),
+						'as_of'     => array( 'type' => 'string', 'description' => 'Optional YYYY-MM-DD to judge projections against. Defaults to today.' ),
+					),
+					'required'   => array( 'client_id' ),
+				),
+			),
+			array(
+				'name'        => 'capture_performance_snapshot',
+				'title'       => 'Capture a performance snapshot',
+				'description' => 'Record where the client stands right now, so future checks have something to compare against. Snapshots are also captured automatically each period; calling this is for taking one on demand, e.g. a baseline at the moment a strategy is approved. At most one snapshot is kept per client per week — calling it again in the same week refreshes that week rather than adding a duplicate. Requires a write-scoped token.',
+				'inputSchema' => array(
+					'type'       => 'object',
+					'properties' => array(
+						'client_id' => array( 'type' => 'integer', 'description' => 'The client id, from list_clients.' ),
+					),
+					'required'   => array( 'client_id' ),
+				),
+			),
+			array(
+				'name'        => 'save_strategy_projections',
+				'title'       => 'Save what the strategy projects',
+				'description' => 'Record what a strategy commits to, so a later check can ask whether we are where we said we would be rather than only whether the number went up. Save these when a strategy is approved. Each projection is a metric, a target date and a value — e.g. organic_visitors reaching 4000 by 2027-03-01. Re-running the strategy supersedes an earlier target for the same metric and date. Only project what the strategy actually argues for; an invented target makes every future comparison meaningless. Requires a write-scoped token.',
+				'inputSchema' => array(
+					'type'       => 'object',
+					'properties' => array(
+						'client_id'   => array( 'type' => 'integer', 'description' => 'The client id, from list_clients.' ),
+						'artifact_id' => array( 'type' => 'integer', 'description' => 'Optional id of the saved strategy artifact these came from.' ),
+						'projections' => array(
+							'type'  => 'array',
+							'description' => 'The targets the strategy sets.',
+							'items' => array(
+								'type'       => 'object',
+								'properties' => array(
+									'metric_key'      => array( 'type' => 'string', 'description' => 'e.g. organic_visitors, keywords_page1, paid_clicks, gmb_views' ),
+									'target_date'     => array( 'type' => 'string', 'description' => 'YYYY-MM-DD the target should be met by' ),
+									'projected_value' => array( 'type' => 'number', 'description' => 'The figure projected for that date' ),
+									'note'            => array( 'type' => 'string', 'description' => 'Optional one line on what drives it' ),
+								),
+								'required' => array( 'metric_key', 'target_date', 'projected_value' ),
+							),
+						),
+					),
+					'required'   => array( 'client_id', 'projections' ),
+				),
+			),
+			array(
 				'name'        => 'list_client_artifacts',
 				'title'       => 'List saved results for a client',
 				'description' => 'Previously saved outputs for a client — keyword analyses, post schedules, audit reports — newest first. Check here before regenerating something expensive; a recent artifact may already answer the question.',
@@ -153,7 +205,7 @@ class Six_MCP_Server {
 			array(
 				'name'        => 'save_client_artifact',
 				'title'       => 'Save a result for a client',
-				'description' => 'Store output you produced against a client — a keyword analysis, a GMB post schedule, an audit report — so it shows on their dashboard and is available to later sessions. Requires a write-scoped token. Give it a stable `type` so the dashboard can recognise it.',
+				'description' => 'Store output you produced against a client — a keyword analysis, a GMB post schedule, an audit report — so it shows on their dashboard and is available to later sessions. Requires a write-scoped token. Give it a stable `type` so the dashboard can recognize it.',
 				'inputSchema' => array(
 					'type'       => 'object',
 					'properties' => array(
@@ -182,7 +234,7 @@ class Six_MCP_Server {
 
 	/**
 	 * A tool's return value. The JSON goes in `structuredContent`, and the
-	 * same JSON serialised goes in a text block — the spec asks for both, so
+	 * same JSON serialized goes in a text block — the spec asks for both, so
 	 * clients that only read text still get the data.
 	 */
 	protected static function tool_result( $data, $is_error = false ) {
@@ -299,7 +351,7 @@ class Six_MCP_Server {
 		$name = isset( $params['name'] ) ? (string) $params['name'] : '';
 		$args = isset( $params['arguments'] ) && is_array( $params['arguments'] ) ? $params['arguments'] : array();
 
-		$needs_client = array( 'get_client_profile', 'update_client_profile', 'list_client_artifacts', 'save_client_artifact' );
+		$needs_client = array( 'get_client_profile', 'update_client_profile', 'list_client_artifacts', 'save_client_artifact', 'check_performance', 'capture_performance_snapshot', 'save_strategy_projections' );
 		$client_id    = (int) ( $args['client_id'] ?? 0 );
 		if ( in_array( $name, $needs_client, true ) && $client_id <= 0 ) {
 			return self::result( $id, self::tool_result( array(
@@ -310,7 +362,7 @@ class Six_MCP_Server {
 
 		// Write tools need a write-scoped token. Reported as a tool error
 		// rather than a protocol error so the model can explain it.
-		if ( in_array( $name, array( 'update_client_profile', 'save_client_artifact', 'issue_strategy_questionnaire' ), true ) ) {
+		if ( in_array( $name, array( 'update_client_profile', 'save_client_artifact', 'issue_strategy_questionnaire', 'capture_performance_snapshot', 'save_strategy_projections' ), true ) ) {
 			$allowed = Six_Profile_API::require_write( $request );
 			if ( is_wp_error( $allowed ) ) {
 				return self::result( $id, self::tool_result( array(
@@ -362,6 +414,53 @@ class Six_MCP_Server {
 					'expires_days' => SIX_Q_TOKEN_DAYS,
 					'note'         => 'Send this link to the client. Any link issued earlier no longer works.',
 				) ) );
+
+			case 'check_performance':
+				if ( ! class_exists( 'Six_Performance' ) ) {
+					return self::result( $id, self::tool_result( array( 'error' => 'unavailable',
+						'message' => 'Performance tracking is not loaded on this site.' ), true ) );
+				}
+				return self::result( $id, self::tool_result(
+					Six_Performance::compare( $client_id, (string) ( $args['as_of'] ?? '' ) ?: null )
+				) );
+
+			case 'capture_performance_snapshot':
+				if ( ! class_exists( 'Six_Performance' ) ) {
+					return self::result( $id, self::tool_result( array( 'error' => 'unavailable',
+						'message' => 'Performance tracking is not loaded on this site.' ), true ) );
+				}
+				$snap = Six_Performance::capture( $client_id, 'api' );
+				if ( ! $snap ) {
+					return self::result( $id, self::tool_result( array(
+						'error'   => 'nothing_to_capture',
+						'message' => 'This client has no active services, so there is nothing to measure yet.',
+					), true ) );
+				}
+				return self::result( $id, self::tool_result( array(
+					'captured_at' => $snap['captured_at'],
+					'period'      => $snap['period_key'],
+					'values'      => $snap['metrics']['values'],
+					'sources'     => $snap['metrics']['sources'],
+				) ) );
+
+			case 'save_strategy_projections':
+				if ( ! class_exists( 'Six_Performance' ) ) {
+					return self::result( $id, self::tool_result( array( 'error' => 'unavailable',
+						'message' => 'Performance tracking is not loaded on this site.' ), true ) );
+				}
+				$rows = isset( $args['projections'] ) && is_array( $args['projections'] ) ? $args['projections'] : array();
+				if ( ! $rows ) {
+					return self::result( $id, self::tool_result( array(
+						'error'   => 'no_projections',
+						'message' => 'Pass a `projections` array of {metric_key, target_date, projected_value}.',
+					), true ) );
+				}
+				$res = Six_Performance::save_projections( $client_id, $rows, (int) ( $args['artifact_id'] ?? 0 ) );
+				return self::result( $id, self::tool_result( array(
+					'saved'    => $res['saved'],
+					'rejected' => $res['rejected'],
+					'note'     => $res['rejected'] ? 'Rejected entries were missing a metric_key, a YYYY-MM-DD target_date, or a value.' : '',
+				), $res['saved'] === 0 ) );
 
 			case 'list_client_artifacts':
 				return self::result( $id, self::unwrap( Six_Profile_API::list_artifacts(

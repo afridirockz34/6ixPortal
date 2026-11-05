@@ -615,7 +615,44 @@ add_action( 'wp_ajax_six_get_service_setup', function() {
     $metrics = $wpdb->get_results( $wpdb->prepare(
         "SELECT id,label,previous_value AS previous,current_value AS current,target_value AS target
          FROM {$wpdb->prefix}six_metrics WHERE client_id=%d AND service_slug=%s ORDER BY id", $client_id, $slug ), ARRAY_A );
-    wp_send_json_success( array( 'config' => (object) $config, 'metrics' => $metrics ?: array() ) );
+
+    // Everything the client already told us at onboarding, so the wizard can
+    // prefill instead of asking again. Being asked for your own target
+    // keywords and competitors a second time, by the agency you just gave
+    // them to, reads as nobody having looked at your answers.
+    $row = $wpdb->get_row( $wpdb->prepare(
+        "SELECT * FROM {$wpdb->prefix}six_checkout_progress WHERE user_id=%d", $client_id ) );
+    $answered = array();
+    if ( $row ) {
+        $from_profile = array(
+            'website_url'     => $row->website        ?? '',
+            'target_keywords' => $row->seo_keywords   ?? '',
+            'target_cities'   => $row->seo_locations  ?? '',
+            'competitors'     => $row->competitors    ?? '',
+            'target_locations'=> $row->ads_locations  ?? ( $row->seo_locations ?? '' ),
+            'objective'       => $row->goal           ?? '',
+            'primary_category'=> $row->gbp_category   ?? '',
+            'service_areas'   => $row->seo_locations  ?? '',
+            'domain'          => $row->website        ?? '',
+        );
+        foreach ( $from_profile as $k => $v ) {
+            $v = trim( (string) $v );
+            if ( $v !== '' ) $answered[ $k ] = $v;
+        }
+    }
+    // The saved config wins over the profile: an advisor who has already
+    // corrected a value must not see it reverted on the next open.
+    foreach ( $answered as $k => $v ) {
+        if ( ! isset( $config[ $k ] ) || $config[ $k ] === '' ) $config[ $k ] = $v;
+    }
+
+    wp_send_json_success( array(
+        'config'   => (object) $config,
+        'metrics'  => $metrics ?: array(),
+        // Which keys came from the client's own answers, so the UI can label
+        // them as already known rather than presenting them as fresh questions.
+        'answered' => array_keys( $answered ),
+    ) );
 } );
 
 // Service-activation wizard — save advisor-entered service info + metrics, and
@@ -687,23 +724,137 @@ add_action( 'wp_ajax_six_save_service_setup', function() {
             }
         }
     }
-    wp_send_json_success( array( 'metrics_saved' => $saved, 'activated' => $activated ) );
+
+    // Two things that have to happen the moment a service goes live, and
+    // which were previously left to somebody remembering.
+    $baseline = null;
+    $questionnaire_url = '';
+    if ( $activated ) {
+
+        // 1. The baseline snapshot. Every later "are we where we said we'd
+        //    be" comparison measures against the first snapshot on record, so
+        //    it has to be taken now — on the day the work starts — not
+        //    whenever a scheduled capture happens to run next.
+        if ( class_exists( 'Six_Performance' ) ) {
+            $snap = Six_Performance::capture( $client_id, 'service_activated' );
+            if ( $snap ) {
+                $baseline = array(
+                    'captured_at' => $snap['captured_at'],
+                    'metrics'     => count( $snap['metrics']['values'] ?? array() ),
+                );
+            }
+        }
+
+        // 2. The strategy questionnaire. SEO cannot be built without it, and
+        //    the client has no way of knowing it is their turn unless we say
+        //    so. Issuing it emails them the link and returns it here too, so
+        //    the advisor can resend it if the email goes astray.
+        if ( $slug === 'seo' && function_exists( 'six_issue_strategy_questionnaire' ) ) {
+            six_issue_strategy_questionnaire( $client_id );
+            if ( function_exists( 'six_questionnaire_link' ) ) {
+                $questionnaire_url = (string) six_questionnaire_link( $client_id );
+            }
+        }
+    }
+
+    wp_send_json_success( array(
+        'metrics_saved'     => $saved,
+        'activated'         => $activated,
+        'baseline'          => $baseline,
+        'questionnaire_url' => $questionnaire_url,
+    ) );
 } );
 
-// AI-suggested metrics for a service (activation step). Grounded in live data
-// where connected, else industry benchmarks — returned in prev/current/target
-// form for the advisor to review and save.
+/**
+ * Current metrics for a service, read from the client's connected sources.
+ *
+ * This is deliberately a *measurement*, not a suggestion. Whatever the
+ * advisor accepts here becomes the client's starting figure and the baseline
+ * every future report compares against, so a plausible-looking invented
+ * number would quietly corrupt months of reporting. Each row therefore says
+ * where it came from, and a metric nothing can measure is returned with an
+ * empty value for the advisor to fill in by hand rather than guessed at.
+ */
 add_action( 'wp_ajax_six_suggest_metrics', function() {
     check_ajax_referer( 'six_nonce', 'nonce' );
     if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
-    if ( ! class_exists( 'Six_AI_Strategist' ) ) wp_send_json_error( 'AI Strategist not available.' );
     $client_id = intval( $_POST['client_id'] ?? 0 );
     $slug      = sanitize_key( $_POST['service_slug'] ?? '' );
     if ( ! $client_id || ! $slug ) wp_send_json_error( 'Missing client or service.' );
     @set_time_limit( 90 );
-    $r = Six_AI_Strategist::suggest_metrics( $client_id, $slug );
-    if ( isset( $r['error'] ) ) wp_send_json_error( $r['error'] );
-    wp_send_json_success( $r );
+
+    $rows    = array();
+    $sources = array();
+
+    // ── SEO: Ahrefs for organic reality, Search Console where linked ──────
+    if ( $slug === 'seo' ) {
+        $seo    = function_exists( 'six_seo_provider' ) ? six_seo_provider() : '';
+        $domain = class_exists( 'Six_AI_Strategist' ) ? Six_AI_Strategist::client_domain( $client_id ) : '';
+        $loc    = class_exists( 'Six_AI_Strategist' ) ? Six_AI_Strategist::target_location( $client_id ) : '';
+
+        if ( $seo && $domain && method_exists( $seo, 'site_metrics' ) ) {
+            $m = $seo::site_metrics( $domain, $loc );
+            if ( empty( $m['error'] ) ) {
+                $sources[] = ( $seo === 'Six_Ahrefs' ? 'Ahrefs' : 'DataForSEO' ) . ' (' . $domain . ')';
+                $rows[] = array( 'label' => 'Organic Visitors', 'previous' => '', 'current' => (string) $m['organic_traffic'],
+                                 'target' => '', 'source' => 'Ahrefs estimate' );
+                $rows[] = array( 'label' => 'Keywords on Page 1', 'previous' => '', 'current' => (string) $m['keywords_top3'],
+                                 'target' => '', 'source' => 'Ahrefs — top 3' );
+                $rows[] = array( 'label' => 'Keywords Tracked', 'previous' => '', 'current' => (string) $m['organic_keywords'],
+                                 'target' => '', 'source' => 'Ahrefs — total ranked' );
+            } else {
+                $sources[] = 'Ahrefs unavailable: ' . $m['error'];
+            }
+        } elseif ( ! $seo ) {
+            $sources[] = 'No SEO data provider configured — add the Ahrefs API token in 6ix Portal → Integrations.';
+        } elseif ( ! $domain ) {
+            $sources[] = 'No website saved for this client, so organic figures cannot be measured.';
+        }
+    }
+
+    // ── Google Ads: the account's own last-30-day numbers ─────────────────
+    if ( $slug === 'google-ads' && class_exists( 'Six_Google_Ads' ) ) {
+        $m = Six_Google_Ads::get_campaign_metrics_for_client( $client_id, 'LAST_30_DAYS' );
+        if ( is_array( $m ) && $m ) {
+            $sources[] = 'Google Ads (last 30 days)';
+            if ( isset( $m['clicks'] ) )      $rows[] = array( 'label' => 'Ad Clicks',      'previous' => '', 'current' => (string) intval( $m['clicks'] ),      'target' => '', 'source' => 'Google Ads' );
+            if ( isset( $m['impressions'] ) ) $rows[] = array( 'label' => 'Impressions',    'previous' => '', 'current' => (string) intval( $m['impressions'] ), 'target' => '', 'source' => 'Google Ads' );
+            if ( isset( $m['conversions'] ) ) $rows[] = array( 'label' => 'Leads from Ads', 'previous' => '', 'current' => (string) intval( $m['conversions'] ), 'target' => '', 'source' => 'Google Ads' );
+            if ( isset( $m['cpc'] ) )         $rows[] = array( 'label' => 'Avg Cost / Click','previous' => '', 'current' => (string) round( (float) $m['cpc'], 2 ), 'target' => '', 'source' => 'Google Ads' );
+        } else {
+            $sources[] = 'Google Ads is not returning data for this client yet.';
+        }
+    }
+
+    // ── Anything with a site: the page itself, measured directly ──────────
+    if ( in_array( $slug, array( 'seo', 'website' ), true ) && class_exists( 'Six_Ahrefs' ) ) {
+        $url = (string) get_user_meta( $client_id, 'six_site_url', true );
+        if ( ! $url ) {
+            global $wpdb;
+            $url = (string) $wpdb->get_var( $wpdb->prepare(
+                "SELECT website FROM {$wpdb->prefix}six_checkout_progress WHERE user_id=%d", $client_id ) );
+        }
+        if ( $url ) {
+            $p = Six_Ahrefs::onpage( $url );
+            if ( empty( $p['error'] ) ) {
+                $sources[] = 'Live page check of ' . $p['url'];
+                $rows[] = array( 'label' => 'Page Load (ms)', 'previous' => '', 'current' => (string) $p['load_time_ms'], 'target' => '', 'source' => 'Measured now' );
+                $rows[] = array( 'label' => 'On-page Issues', 'previous' => '', 'current' => (string) count( $p['issues'] ), 'target' => '', 'source' => 'Measured now' );
+            }
+        }
+    }
+
+    if ( ! $rows ) {
+        wp_send_json_error( $sources
+            ? implode( ' ', $sources )
+            : 'Nothing is connected yet for this service, so there are no real figures to read. Fill the account IDs in on the previous step, or enter the metrics by hand.' );
+    }
+
+    wp_send_json_success( array(
+        'metrics' => $rows,
+        'sources' => $sources,
+        'note'    => 'These are current measured values. Targets are left blank on purpose — set them from the strategy, not from a guess.',
+    ) );
 } );
 
 add_action( 'wp_ajax_six_delete_metric', function() {
@@ -1120,7 +1271,7 @@ function six_ajax_ai_insight() {
         ),
         'body' => wp_json_encode( array(
             'model'      => 'claude-haiku-4-5-20251001', // cheapest + fastest model
-            'max_tokens' => 350,                          // kept low to minimise cost
+            'max_tokens' => 350,                          // kept low to minimize cost
             'messages'   => array(
                 array( 'role' => 'user', 'content' => $prompt )
             ),
@@ -1537,7 +1688,7 @@ add_action( 'wp_ajax_six_test_meta', function() {
     if ( ! $raw_acct ) wp_send_json_error('No Ad Account ID set.');
     // An ad account must be addressed as act_<digits>. A bare numeric ID is read
     // by Graph as a generic object and fails with "does not exist / missing
-    // permissions". Normalise it (also strips act_ dupes and separators).
+    // permissions". Normalize it (also strips act_ dupes and separators).
     $account_id = class_exists('Six_Meta') ? Six_Meta::acct( $raw_acct ) : ( 'act_' . preg_replace('/[^0-9]/','',$raw_acct) );
     if ( ! $account_id || $account_id === 'act_' ) wp_send_json_error('Ad Account ID has no digits. Use the numeric ID from Ads Manager (e.g. act_1234567890 or 1234567890).');
     $gver = class_exists('Six_Meta') ? Six_Meta::API_VERSION : 'v23.0';
@@ -1654,7 +1805,7 @@ add_action( 'wp_ajax_six_save_client_datasource', function() {
         'six_client_domain','six_target_location',
     );
     if(!$client_id||!in_array($key,$allowed)) wp_send_json_error('Not allowed.');
-    // Normalise a domain to a bare host so the SEO tools accept it.
+    // Normalize a domain to a bare host so the SEO tools accept it.
     if ( $key === 'six_client_domain' && $value !== '' ) {
         $value = preg_replace('#^https?://#i','',$value);
         $value = preg_replace('#^www\.#i','',$value);
@@ -1711,13 +1862,16 @@ add_action( 'wp_ajax_six_test_client_datasource', function() {
         $t = $r['totals'] ?? array();
         wp_send_json_success( array('message'=>'Meta Ads connected — $'.number_format($t['spend']??0,2).' spend, '.number_format($t['leads']??0).' leads in the last 30 days.') );
     }
-    if ( $source === 'dataforseo' ) {
-        if ( ! class_exists('Six_AI_Strategist') || ! class_exists('Six_DataForSEO') ) wp_send_json_error('DataForSEO integration unavailable.');
+    if ( $source === 'dataforseo' || $source === 'ahrefs' || $source === 'seo_data' ) {
+        if ( ! class_exists('Six_AI_Strategist') ) wp_send_json_error('AI Strategist unavailable.');
+        $seo = six_seo_provider();
+        if ( ! $seo ) wp_send_json_error('No SEO data provider configured. Add the Ahrefs API token in 6ix Portal → Integrations.');
+        $label  = $seo === 'Six_Ahrefs' ? 'Ahrefs' : 'DataForSEO';
         $domain = Six_AI_Strategist::client_domain( $client_id );
         if ( ! $domain ) wp_send_json_error('No website/domain saved for this client.');
-        $r = Six_DataForSEO::ranked_keywords( $domain, Six_AI_Strategist::target_location($client_id), 1 );
+        $r = $seo::ranked_keywords( $domain, Six_AI_Strategist::target_location($client_id), 1 );
         if ( isset($r['error']) ) wp_send_json_error( $r['error'] );
-        wp_send_json_success( array('message'=>'DataForSEO reachable for '.$domain.'.') );
+        wp_send_json_success( array('message'=>$label.' reachable for '.$domain.'.') );
     }
     wp_send_json_error('Unknown source.');
 });
@@ -1739,7 +1893,8 @@ add_action( 'wp_ajax_six_competitor_analysis', function() {
     if ( $last && ( time() - $last ) < $window && ! empty( $saved ) ) {
         wp_send_json_success( array( 'locked' => true, 'ran_at' => $last, 'next_at' => $last + $window, 'data' => $saved ) );
     }
-    if ( ! class_exists( 'Six_DataForSEO' ) ) wp_send_json_error( 'Competitor data source is not configured.' );
+    $seo = six_seo_provider();
+    if ( ! $seo ) wp_send_json_error( 'Competitor data source is not configured. Add the Ahrefs API token in 6ix Portal → Integrations.' );
 
     $domain = class_exists( 'Six_AI_Strategist' ) ? Six_AI_Strategist::client_domain( $uid ) : '';
     if ( ! $domain ) {
@@ -1750,7 +1905,7 @@ add_action( 'wp_ajax_six_competitor_analysis', function() {
     if ( ! $domain ) wp_send_json_error( 'Add your website URL in your profile first, then run the analysis.' );
 
     $loc = class_exists( 'Six_AI_Strategist' ) ? Six_AI_Strategist::target_location( $uid ) : '';
-    $res     = Six_DataForSEO::competitors( $domain, $loc, 12 );
+    $res     = $seo::competitors( $domain, $loc, 12 );
     $api_err = $res['error'] ?? '';   // an empty set is common for small sites — fall through
 
     $rows = array();
@@ -1777,16 +1932,31 @@ add_action( 'wp_ajax_six_competitor_analysis', function() {
         $ck = $wpdb->get_row( $wpdb->prepare(
             "SELECT competitors, seo_keywords, ads_keywords FROM {$wpdb->prefix}six_checkout_progress WHERE user_id=%d", $uid ) );
 
-        $row_from_domain = function ( $dom, $insight ) use ( $loc, $domain ) {
+        $row_from_domain = function ( $dom, $insight ) use ( $loc, $domain, $seo ) {
             $dom = preg_replace( '/^https?:\/\//', '', trim( (string) $dom ) );
             $dom = preg_replace( '/^www\./', '', $dom );
             $dom = preg_replace( '#/.*$#', '', $dom );
             if ( ! $dom || strpos( $dom, '.' ) === false || $dom === $domain ) return null;
-            $rk = Six_DataForSEO::ranked_keywords( $dom, $loc, 100 );
+            $rk = $seo::ranked_keywords( $dom, $loc, 100 );
             if ( isset( $rk['error'] ) || empty( $rk['ranked_keywords'] ) ) return null;
             $kws = $rk['ranked_keywords'];
-            $vol = 0; foreach ( $kws as $k ) $vol += intval( $k['volume'] ?? 0 );
-            return array( 'domain' => $dom, 'visits' => (int) round( $vol * 0.20 ), 'keywords' => count( $kws ), 'shared' => 0, 'insight' => $insight );
+
+            // Monthly organic visitors. The provider reports this directly, so
+            // read it rather than multiplying total search volume by a made-up
+            // share — the old 20%-of-volume guess was wrong by an order of
+            // magnitude on any domain that doesn't rank near the top.
+            $visits = 0;
+            if ( method_exists( $seo, 'site_metrics' ) ) {
+                $sm = $seo::site_metrics( $dom, $loc );
+                if ( empty( $sm['error'] ) ) $visits = (int) ( $sm['organic_traffic'] ?? 0 );
+            }
+            if ( ! $visits ) {
+                // Per-keyword traffic estimates, summed. Still the provider's
+                // own numbers, just assembled from the rows we already hold.
+                foreach ( $kws as $k ) $visits += intval( $k['traffic'] ?? 0 );
+            }
+
+            return array( 'domain' => $dom, 'visits' => $visits, 'keywords' => count( $kws ), 'shared' => 0, 'insight' => $insight );
         };
 
         // A) Competitors the customer named during onboarding.
@@ -1795,19 +1965,40 @@ add_action( 'wp_ajax_six_competitor_analysis', function() {
             if ( $r ) { $rows[] = $r; if ( count( $rows ) >= 8 ) break; }
         }
 
-        // B) Still nothing? Whoever ranks page-1 for their top keyword.
+        // B) Still nothing? Whoever ranks page 1 for the terms they target.
+        //
+        // This used strtok() and so only ever looked at the FIRST keyword,
+        // which for a client who listed five services meant the competitor
+        // set reflected one of them. It now walks several terms and merges
+        // the results, counting how many of the client's keywords each rival
+        // ranks for so the most relevant surface first.
         if ( empty( $rows ) ) {
-            $kw = trim( strtok( (string) ( $ck->seo_keywords ?: $ck->ads_keywords ?: '' ), ',' ) );
-            if ( $kw ) {
-                $serp = Six_DataForSEO::serp( $kw, $loc, 10 );
-                $seen = array();
+            $kw_raw  = (string) ( $ck->seo_keywords ?: $ck->ads_keywords ?: '' );
+            $kw_list = array_slice( array_values( array_filter( array_map( 'trim',
+                preg_split( '/[\n,;]+/', $kw_raw ) ) ) ), 0, 5 );
+
+            $hits = array();   // domain => array( count, keywords[] )
+            foreach ( $kw_list as $kw ) {
+                $serp = $seo::serp( $kw, $loc, 10 );
                 foreach ( (array) ( $serp['results'] ?? array() ) as $it ) {
                     $du = preg_replace( '/^www\./', '', (string) ( $it['domain'] ?? '' ) );
-                    if ( ! $du || $du === $domain || isset( $seen[ $du ] ) ) continue;
-                    $seen[ $du ] = 1;
-                    $r = $row_from_domain( $du, 'Ranks page 1 for “' . $kw . '”' );
-                    if ( $r ) { $rows[] = $r; if ( count( $rows ) >= 6 ) break; }
+                    if ( ! $du || $du === $domain ) continue;
+                    if ( ! isset( $hits[ $du ] ) ) $hits[ $du ] = array( 'n' => 0, 'kw' => array() );
+                    $hits[ $du ]['n']++;
+                    if ( count( $hits[ $du ]['kw'] ) < 3 ) $hits[ $du ]['kw'][] = $kw;
                 }
+            }
+            // Most of the client's terms first — a domain ranking for four of
+            // their five keywords is a real competitor; one that appears once
+            // may be incidental.
+            uasort( $hits, function ( $a, $b ) { return $b['n'] <=> $a['n']; } );
+
+            foreach ( $hits as $du => $h ) {
+                $label = $h['n'] > 1
+                    ? 'Ranks page 1 for ' . $h['n'] . ' of your keywords'
+                    : 'Ranks page 1 for “' . $h['kw'][0] . '”';
+                $r = $row_from_domain( $du, $label );
+                if ( $r ) { $rows[] = $r; if ( count( $rows ) >= 6 ) break; }
             }
         }
     }
@@ -2562,4 +2753,51 @@ add_action( 'wp_ajax_six_questionnaire_link', function () {
         if ( $lead ) Six_Odoo::post_note( $lead, 'Questionnaire link generated for the client (previous link, if any, is now invalid).' );
     }
     wp_send_json_success( array( 'link' => $link, 'expires_days' => SIX_Q_TOKEN_DAYS ) );
+} );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADVISOR → CONNECT CLAUDE — mint and revoke API tokens.
+//
+// Advisors do not have WP Admin, so connecting a Claude session previously
+// meant asking an administrator to mint a token. These two handlers let them
+// do it themselves from the advisor dashboard.
+//
+// The plaintext is returned exactly once and never stored; only a SHA-256
+// hash is kept, so a lost token can be revoked but never recovered.
+// ─────────────────────────────────────────────────────────────────────────────
+add_action( 'wp_ajax_six_advisor_create_token', function () {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) {
+        wp_send_json_error( 'Permission denied.' );
+    }
+    if ( ! class_exists( 'Six_Profile_API' ) ) {
+        wp_send_json_error( 'The profile API is not available on this site.' );
+    }
+    $label = sanitize_text_field( wp_unslash( $_POST['label'] ?? '' ) );
+    $scope = ( ( $_POST['scope'] ?? 'read' ) === 'write' ) ? 'write' : 'read';
+    if ( $label === '' ) wp_send_json_error( 'Give the token a name so it can be identified later.' );
+
+    // Who minted it, kept in the label: the token list is shared across
+    // advisors, and "Claude" twice with no owner is impossible to audit.
+    $me = wp_get_current_user();
+    if ( $me && $me->display_name ) $label .= ' (' . $me->display_name . ')';
+
+    $plain = Six_Profile_API::create_token( $label, $scope );
+    if ( ! $plain ) wp_send_json_error( 'Could not create the token.' );
+
+    wp_send_json_success( array( 'token' => $plain, 'scope' => $scope, 'label' => $label ) );
+} );
+
+add_action( 'wp_ajax_six_advisor_revoke_token', function () {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) {
+        wp_send_json_error( 'Permission denied.' );
+    }
+    if ( ! class_exists( 'Six_Profile_API' ) ) {
+        wp_send_json_error( 'The profile API is not available on this site.' );
+    }
+    $id = sanitize_text_field( wp_unslash( $_POST['id'] ?? '' ) );
+    if ( $id === '' ) wp_send_json_error( 'No token specified.' );
+    Six_Profile_API::revoke_token( $id );
+    wp_send_json_success();
 } );

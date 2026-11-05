@@ -85,12 +85,15 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 
 /* Typography */
 .ob-eye{font-family:'Bricolage Grotesque',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--pk);margin-bottom:8px;}
-.ob-ttl{font-family:'Bricolage Grotesque',sans-serif;font-size:26px;font-weight:700;line-height:1.2;margin-bottom:8px;letter-spacing:-.5px;}
+.ob-ttl{font-family:'Bricolage Grotesque',sans-serif;font-size:28px;font-weight:700;line-height:1.2;margin-bottom:8px;letter-spacing:-.5px;color:var(--t1);}
 .ob-dsc{font-size:14px;color:var(--t2);line-height:1.7;margin-bottom:28px;}
 
 /* Form */
 .ob-fg{margin-bottom:16px;}
-.ob-lbl{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--t3);margin-bottom:6px;}
+/* Field titles: black and two steps larger than before (11 -> 13px). The
+   grey --t3 made them read as secondary to their own help text. Descriptions
+   (.ob-sublbl) are intentionally left as they were. */
+.ob-lbl{display:block;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--t1);margin-bottom:6px;}
 .ob-sublbl{font-size:12.5px;font-weight:400;line-height:1.4;color:var(--t2);margin:-2px 0 8px;text-transform:none;letter-spacing:0;}
 .ob-inp{width:100%;background:var(--d3);border:1px solid var(--bdr);border-radius:10px;padding:12px 16px;
   color:var(--t1);font-family:'Onest',sans-serif;font-size:14px;outline:none;transition:var(--tr);-webkit-appearance:none;}
@@ -338,6 +341,12 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .ob-kpi-stat{background:rgba(255,255,255,.13);backdrop-filter:blur(4px);border-radius:12px;padding:10px 8px;text-align:center;border:1px solid rgba(255,255,255,.1)}
 .ob-kpi-val{font-size:15px;font-weight:700;display:block;letter-spacing:-.3px;line-height:1.15}
 .ob-kpi-lbl{font-size:9px;opacity:.65;margin-top:3px;letter-spacing:.3px;line-height:1.3}
+.ob-hero-rows{position:relative;z-index:1;margin-top:14px;border-top:1px solid rgba(255,255,255,.18);padding-top:4px}
+.ob-hero-row{display:flex;justify-content:space-between;align-items:baseline;gap:14px;
+  padding:9px 0;border-bottom:1px solid rgba(255,255,255,.1);font-size:12.5px}
+.ob-hero-row:last-child{border-bottom:none}
+.ob-hero-row span{opacity:.75}
+.ob-hero-row strong{font-weight:700;text-align:right}
 /* Data badge */
 .ob-data-badge{font-size:8.5px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;padding:2px 7px;border-radius:20px;background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.25)}
 .ob-data-est{background:rgba(255,200,60,.2);color:#ffe082;border-color:rgba(255,200,60,.3)}
@@ -382,6 +391,11 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .ob-done-dsc{font-size:14px;color:var(--t2);line-height:1.7;max-width:380px;margin:0 auto 28px;}
 /* Spinner */
 .ob-spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;}
+.ob-note-quoted{display:flex;gap:10px;align-items:flex-start;background:rgba(255,102,153,.07);
+  border:1px solid rgba(255,102,153,.25);border-radius:10px;padding:12px 14px;margin-top:4px;
+  font-size:13px;line-height:1.6;color:var(--t2);}
+.ob-note-quoted strong{color:var(--t1);}
+.ob-note-quoted svg{color:var(--pk);}
 @keyframes spin{to{transform:rotate(360deg);}}
 
 /* ─── Mobile ─── */
@@ -487,7 +501,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   </a>
   <div class="ob-side-content">
     <h2 class="ob-side-hl">Your <span>marketing strategy</span> starts here.</h2>
-    <p class="ob-side-desc">Tell us about your business, pick your services, and we'll build a personalised growth plan in minutes.</p>
+    <p class="ob-side-desc">Tell us about your business, pick your services, and we'll build a personalized growth plan in minutes.</p>
     <div class="ob-steps-nav" id="ob-sidebar-steps">
       <div class="ob-step-item" data-step="1"><div class="ob-step-num">1</div><div class="ob-step-lbl">Create Account</div></div>
       <div class="ob-step-item" data-step="2"><div class="ob-step-num">2</div><div class="ob-step-lbl">Select Services</div></div>
@@ -517,7 +531,11 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
         <?php echo wp_json_encode($u->first_name);?>,<?php echo wp_json_encode($u->last_name);?>,
         <?php echo wp_json_encode(get_user_meta($u->ID,'billing_phone',true)?:'');?>);
     });</script>
-    <?php else:?>
+    <?php endif;?>
+    <?php // Always rendered, so this panel is never blank. Hidden for a
+          // signed-in visitor, who is moved straight past it by the resume
+          // script above. ?>
+    <div id="ob-login-form"<?php if(is_user_logged_in()) echo ' style="display:none"'; ?>>
     <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:20px;font-weight:800;color:var(--t1);margin-bottom:32px">6ix Developers</div>
     <div class="ob-eye">Welcome</div>
     <h1 class="ob-ttl">Let's get started.</h1>
@@ -548,15 +566,15 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
     <div class="ob-btnrow" style="margin-top:20px">
       <button class="ob-btn ob-primary" style="flex:1" id="ob-login-btn" onclick="OB.handleEmail()">Continue &rarr;</button>
     </div>
-    <div id="ob-s1-back-wrap" style="display:none;margin-top:10px"><button class="ob-btn ob-ghost" style="width:100%" onclick="OB.backToEmail()">&larr; Use a different email</button></div>
-    <?php endif;?>
+    <div id="ob-s1-back-wrap" style="display:none;margin-top:10px"><button class="ob-btn ob-ghost" style="width:100%" onclick="OB.useDifferentEmail()">&larr; Use a different email</button></div>
+    </div><!-- /#ob-login-form -->
   </div>
 
   <!-- STEP 1: Account -->
   <div class="ob-panel" id="ob-s1">
     <div class="ob-eye">Step 1 of 5 &middot; Account</div>
     <h2 class="ob-ttl" id="s1-ttl">Tell us about yourself.</h2>
-    <p class="ob-dsc" id="s1-dsc">Your advisor will use these details to personalise your consultation.</p>
+    <p class="ob-dsc" id="s1-dsc">Your advisor will use these details to personalize your consultation.</p>
     <div class="ob-alert e" id="s1-err"></div>
     <div class="ob-g2">
       <div class="ob-fg"><label class="ob-lbl">First Name *</label><input class="ob-inp" id="s1-first" placeholder="Alex" autocomplete="given-name"></div>
@@ -612,7 +630,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
         <div class="ob-svc-bar"></div><div class="ob-svc-chk"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
         <div class="ob-svc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
         <div class="ob-svc-name">Google Business Profile</div>
-        <div class="ob-svc-desc">Dominate local search and drive walk-ins with an optimised Google Business listing.</div>
+        <div class="ob-svc-desc">Dominate local search and drive walk-ins with an optimized Google Business listing.</div>
       </div>
       <div class="ob-svc" data-svc="website" style="--c:#7C5CBF">
         <div class="ob-svc-bar"></div><div class="ob-svc-chk"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
@@ -636,7 +654,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   <div class="ob-panel" id="ob-s3a">
     <div class="ob-eye">Step 3 of 5 &middot; Business Profile</div>
     <h2 class="ob-ttl">Tell us about your business.</h2>
-    <p class="ob-dsc">This is the foundation of your personalised growth plan.</p>
+    <p class="ob-dsc">This is the foundation of your personalized growth plan.</p>
     <div class="ob-alert e" id="s3a-err"></div>
     <div class="ob-g2">
       <div class="ob-fg"><label class="ob-lbl">Business Name *</label><input class="ob-inp" id="q-biz" placeholder="Acme Corp" autocomplete="organization"></div>
@@ -758,7 +776,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
          audit can't be written safely without it: a regulated profession
          changes what we're allowed to claim. Part of the audit intake set
          (see six_seo_questionnaire_audit_keys()). -->
-    <div class="ob-fg"><label class="ob-lbl">Is yours a regulated profession?</label>
+    <div class="ob-fg"><label class="ob-lbl">Is your profession regulated?</label>
       <div class="ob-sublbl" style="font-size:11px;color:var(--t3);margin-bottom:6px">Law, medicine, finance and similar. It changes what we can say in your marketing, so we check early.</div>
       <input class="ob-inp" id="q-regulated" placeholder="e.g. Law Society of Ontario — or 'no'">
     </div>
@@ -875,7 +893,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
     <!-- ── Trust note ────────────────────────────────────────────────── -->
     <div class="ob-trust-n">
       <div class="ob-trust-ico"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
-      <div class="ob-trust-txt"><strong>10-day free consultation &mdash; no charge today.</strong> Your card is securely verified via Stripe but will not be charged until you and your advisor confirm the engagement.</div>
+      <div class="ob-trust-txt"><strong>Free consultation &mdash; no charge today.</strong> Your card is securely verified via Stripe but will not be charged until you and your advisor confirm the engagement.</div>
     </div>
 
     <!-- ── Dual path selection ────────────────────────────────────────── -->
@@ -897,13 +915,13 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
         <div class="ob-contract">
           <div class="ob-contract-hdr">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            <span>Service Agreement &amp; Authorisation</span>
+            <span>Service Agreement &amp; Authorization</span>
           </div>
           <div class="ob-contract-body" id="ob-contract-text">
             <?php
             $agreement_page = get_page_by_path('service-agreement');
             if($agreement_page){ echo apply_filters('the_content', $agreement_page->post_content); }
-            else { echo '<p>By signing below you agree to the 6ix Developers Service Agreement, including a 10-day free consultation period. No charge will be made until the engagement is confirmed by your advisor.</p>'; }
+            else { echo '<p>By signing below you agree to the 6ix Developers Service Agreement, including a free consultation period. No charge will be made until the engagement is confirmed by your advisor.</p>'; }
             ?>
           </div>
         </div>
@@ -1014,6 +1032,11 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 (function(){
 'use strict';
 var PREFILL_EMAIL=<?php echo wp_json_encode($js_data['prefill_email']??'');?>;
+// Switching to a different email while signed in has to end the WordPress
+// session too. Clearing the JavaScript state alone left the visitor still
+// authenticated as the previous account, so the page simply re-resumed it.
+var LOGGED_IN=<?php echo is_user_logged_in() ? 'true' : 'false'; ?>;
+var SWITCH_ACCOUNT_URL=<?php echo wp_json_encode( wp_logout_url( add_query_arg( 'switch', '1', home_url( '/onboarding/' ) ) ) ); ?>;
 var S={
   step:0,
   userId:<?php echo intval($js_data['user_id']??0);?>,
@@ -1059,7 +1082,7 @@ var VALID = {
     return d.length===10;                                       // plain NANP
   },
   /** Format as the customer types. NANP gets (416) 555-0100; anything typed
-      with a leading + is treated as international and only normalised. */
+      with a leading + is treated as international and only normalized. */
   formatPhone:function(s){
     var intl=/^\s*\+/.test(s||'');
     var d=VALID.phoneDigits(s);
@@ -1121,7 +1144,7 @@ function panel(id){document.querySelectorAll('.ob-panel').forEach(function(p){p.
 function prog(n){
   var pr=$i('ob-prog'),fi=$i('ob-prog-fill'),lb=$i('ob-prog-lbl');
   if(!pr)return;
-  // Normalise sub-steps (3a/3b/3c → 3) so the sidebar always highlights a stage.
+  // Normalize sub-steps (3a/3b/3c → 3) so the sidebar always highlights a stage.
   var num;
   if(typeof n==='string'){
     if(n==='3a'||n==='3b'||n==='3c'){num=3;}
@@ -1153,7 +1176,8 @@ var SM={'google-ads':{name:'Google Ads',color:'#4285F4'},'seo':{name:'SEO',color
   'google-business':{name:'Google Business',color:'#FBBC04'},'website':{name:'Website',color:'#7C5CBF'}};
 
 /* ── Questionnaire builders ── */
-function qSec(title,html){return'<div style="margin-bottom:22px"><div style="font-size:12px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--bdr)">'+title+'</div>'+html+'</div>';}
+/* Section heading: black, 14px (was grey 12px) - see .ob-lbl above. */
+function qSec(title,html){return'<div style="margin-bottom:22px"><div style="font-size:14px;font-weight:700;color:var(--t1);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--bdr)">'+title+'</div>'+html+'</div>';}
 function qFG(lbl,inp,sub){return'<div class="ob-fg"><label class="ob-lbl">'+lbl+'</label>'+(sub?'<div class="ob-sublbl">'+sub+'</div>':'')+inp+'</div>';}
 function qSlider(id,lbl,mn,mx,def){
   return qFG(lbl,'<div><input type="range" class="ob-slider" id="'+id+'" min="'+mn+'" max="'+mx+'" value="'+def+'" step="100" oninput="OB.sl(this)">'
@@ -1278,10 +1302,14 @@ function buildPane(slug){
       qFG('Search terms to rank for',qTags('q-seo-kw'),'Words customers type into Google to find you — press Enter to add each')
       +qFG('Are you local or national?','<select class="ob-inp" id="q-seo-scope"><option value="">Choose one</option><option>Local</option><option>National</option><option>Both</option></select>','Whether you serve specific areas or the whole country')
       +qFG('Cities or areas that matter most','<input class="ob-inp" id="q-seo-loc" placeholder="e.g. Toronto, Mississauga, Vaughan">','Leave blank if you are purely national')
-      +qSlider('q-seo-bud','Monthly SEO budget',300,10000,1200)
+      +'<div class="ob-note-quoted">'
+        +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>'
+        +'<div><strong>SEO is scoped after your audit.</strong> We audit your site first, show you what we found, '
+        +'and only then quote the work &mdash; so the price matches what your site actually needs rather than a number you picked before anyone looked.</div>'
+      +'</div>'
     );
     h+=qSec('Where to focus',
-      qFG('Prioritise maps or organic?','<select class="ob-inp" id="q-seo-priority"><option>No preference — do both</option><option>Maps (local / Google Business Profile)</option><option>Organic (content, meta, performance)</option></select>','We normally work both in the same month')
+      qFG('Prioritize maps or organic?','<select class="ob-inp" id="q-seo-priority"><option>No preference — do both</option><option>Maps (local / Google Business Profile)</option><option>Organic (content, meta, performance)</option></select>','We normally work both in the same month')
       +qFG('Any previous SEO work on the site?','<textarea class="ob-inp" id="q-seo-prev" rows="2" placeholder="Roughly when, and did they leave any reporting?"></textarea>','Helps us tell past work from a fresh start')
       +qFG('Why customers choose you','<input class="ob-inp" id="q-seo-usp" placeholder="What sets you apart from competitors?">','We reuse this across your campaigns, so you only answer it once')
     );
@@ -1292,7 +1320,7 @@ function buildPane(slug){
       +qFG('Services to highlight','<textarea class="ob-inp" id="q-gbp-svcs" rows="2" placeholder="e.g. '+indEx('services')+'"></textarea>','The services you want featured on your profile')
       +qFG('Business hours',qHours('gbp'),'When you are open to customers')
       +qFG('Current rating','<input class="ob-inp" id="q-gbp-rating" placeholder="e.g. 4.7 stars, 120 reviews" style="max-width:240px">','Your star rating and review count, if you have one')
-      +qFixedPrice('Your investment',499,'Google Business Profile management is a flat monthly rate \u2014 posts, optimisation and reporting included.')
+      +qFixedPrice('Your investment',499,'Google Business Profile management is a flat monthly rate \u2014 posts, optimization and reporting included.')
     );
   } else if(slug==='website'){
     h+=qSec('Website Project',
@@ -1451,7 +1479,12 @@ window.OB={
     var pw=$i('ob-pw-sec');if(pw)pw.style.display='none';
     var hint=$i('ob-hint');if(hint)hint.textContent='';
     var back=$i('ob-s1-back-wrap');if(back)back.style.display='none';
+    // The form is hidden on first render for a signed-in visitor; show it,
+    // otherwise this switches to a panel with nothing in it.
+    var form=$i('ob-login-form');if(form)form.style.display='';
+    var em=$i('ob-email');if(em)em.value='';
     panel('ob-login');prog(0);
+    if(em)em.focus();
   },
 
   handleEmail:function(){
@@ -1490,9 +1523,9 @@ window.OB={
       btn.disabled=false;
       if(r.success){
         if(r.data.nonce)S.nonce=r.data.nonce;
-        if(r.data.redirect_url){window.location.href=r.data.redirect_url;return;}
+        if(r.data.redirect_url){GE.leaveOnPurpose();window.location.href=r.data.redirect_url;return;}
         S.userId=r.data.user_id;S.email=email;
-        if(r.data.has_completed_checkout){window.location.replace('<?php echo esc_js(home_url('/portal/'));?>');}
+        if(r.data.has_completed_checkout){GE.leaveOnPurpose();window.location.replace('<?php echo esc_js(home_url('/portal/'));?>');}
         else{
           // Always refetch THIS account's own saved state before deciding
           // which step to resume at \u2014 S.q/svcs/budgets may still hold a
@@ -1511,9 +1544,29 @@ window.OB={
     });
   },
 
+  /**
+   * Show or hide the create-password field from the actual account state, and
+   * report whether a password is genuinely required.
+   *
+   * The rule is simply: we only need a password when we are about to create
+   * an account. Previously this was driven by S.isNew alone, which goes back
+   * to true whenever the visitor returns to the email panel — so after going
+   * back to edit a name, step 1 demanded a password while the field itself was
+   * still hidden from the earlier prefill. That is unsatisfiable: you cannot
+   * fill in a box you cannot see. Tying the requirement to the field's own
+   * visibility makes that state impossible to reach.
+   */
+  _syncPasswordField:function(){
+    var wrap=$i('s1-pw-wrap');
+    var creating = !S.userId && S.isNew && !S.isGoogle;
+    if(wrap) wrap.style.display = creating ? '' : 'none';
+    if(!creating){ var pw=$i('s1-pw'); if(pw) pw.value=''; }
+    return creating;
+  },
+
   doStep1:function(){
     var first=v('s1-first'),last=v('s1-last'),phone=v('s1-phone'),pw=$i('s1-pw')?$i('s1-pw').value:'';
-    var needsPw = S.isNew && !S.isGoogle;
+    var needsPw = OB._syncPasswordField();
     if(!validateFields('s1-err',[
       ['s1-first', !!first,                 'Please enter your first name.'],
       ['s1-first', VALID.name(first),       'Please enter your full first name.'],
@@ -1528,7 +1581,7 @@ window.OB={
     var btn=$i('s1-btn');btn.innerHTML='<span class="ob-spin"></span> Saving\u2026';btn.disabled=true;
     var d={action:'six_create_personal_account',email:S.email,first:first,last:last,phone:phone,
       utm_source:S.utm.source,utm_medium:S.utm.medium,utm_campaign:S.utm.campaign};
-    if(S.isNew&&!S.isGoogle)d.password=pw;
+    if(needsPw)d.password=pw;
     post(d).then(function(res){
       btn.disabled=false;btn.textContent='Select Services \u2192';
       if(res.success){
@@ -1592,7 +1645,7 @@ window.OB={
     var meta={
       'google-ads':      {name:'Google Ads',           ttl:'Set up your Google Ads campaign.',   dsc:'These details help us build exactly the right campaign structure for you.'},
       'seo':             {name:'SEO',                  ttl:'Set up your SEO strategy.',          dsc:'A few details to tailor your organic growth plan to your market.'},
-      'google-business': {name:'Google Business Profile',ttl:'Optimise your local presence.',    dsc:'These details power your local search strategy.'},
+      'google-business': {name:'Google Business Profile',ttl:'Optimize your local presence.',    dsc:'These details power your local search strategy.'},
       'website':         {name:'Website',              ttl:'Plan your website project.',         dsc:'Tell us what you need so we can scope the right solution.'},
     };
     var m=meta[slug]||{name:slug,ttl:'Service details.',dsc:''};
@@ -1650,7 +1703,11 @@ window.OB={
         S.q.gads_challenge=v('q-gads-challenge');
       }
     } else if(slug==='seo'){
-      var b=$i('q-seo-bud');S.budgets[slug]=b?parseInt(b.value):0;
+      // No budget is collected for SEO: the advisor quotes it once the audit
+      // is done. Explicitly zero rather than absent, so the monthly total and
+      // the checkout summary both treat it as "not yet priced" instead of
+      // reading a stale value from an earlier visit.
+      S.budgets[slug]=0;
       S.q.seo_loc=v('q-seo-loc');
       S.q.seo_kw=getTags('q-seo-kw').join(',');S.q.seo_usp=v('q-seo-usp');
       S.q.seo_scope=v('q-seo-scope');S.q.seo_priority=v('q-seo-priority');
@@ -1713,7 +1770,6 @@ window.OB={
       setTags('q-ads-kw',q.ads_kw||q.seo_kw);          // unified keywords — carry from seo
       setV('q-ads-usp',q.ads_usp);setV('q-ads-promo',q.ads_promo);
     } else if(slug==='seo'){
-      setSlider('q-seo-bud',S.budgets['seo']);
       setV('q-seo-loc',q.seo_loc||q.ads_loc);          // same market as ads — carry over
       setTags('q-seo-kw',q.seo_kw||q.ads_kw);          // unified keywords — carry from ads
       setV('q-seo-usp',q.seo_usp||q.ads_usp);          // same USP as ads — carry over
@@ -1838,7 +1894,7 @@ window.OB={
     var tot=OB._monthlyTotal();
     S.score=Math.min(97,20+(svcs.length*10)+(tot>=5000?15:tot>=2000?10:tot>0?5:0)+(q.website?8:0)+(q.industry?5:0));
 
-    var msgs=['Analysing your market and competition...','Pulling live keyword data from Google Ads...','Projecting your reach and lead volume...','Building your tailored 60-day roadmap...'];
+    var msgs=['Analyzing your market and competition...','Pulling live keyword data from Google Ads...','Projecting your reach and lead volume...','Building your tailored 60-day roadmap...'];
     var mi=0,msgEl=$i('ob-s4-loading-msg');
     if(msgEl) msgEl.textContent=msgs[0];
     var msgTimer=setInterval(function(){mi=(mi+1)%msgs.length;if(msgEl)msgEl.textContent=msgs[mi];},2500);
@@ -1894,12 +1950,12 @@ window.OB={
                     'We map your highest-intent keywords and the exact pages or campaigns that will capture demand from buyers actively searching in '+mktLoc+'.',
                     'We install conversion tracking, call and form attribution, and reporting so every lead is measured back to the channel that produced it.'],
             outcome:'Everything live and tracking'},
-          {week:'Week 3–4',phase:isSeo&&!isAds?'Optimise & publish':'Launch',title:isSeo&&!isAds?'On-page & content live':'Campaigns go live',
-            points:[(isSeo&&!isAds?'We optimise your priority pages for the target keywords and publish the first content pieces built to rank in '+mktLoc+' within weeks.':'We launch tightly-themed campaigns across '+ch+', targeting the exact buyers searching for '+ind+' services in '+mktLoc+' right now.'),
+          {week:'Week 3–4',phase:isSeo&&!isAds?'Optimize & publish':'Launch',title:isSeo&&!isAds?'On-page & content live':'Campaigns go live',
+            points:[(isSeo&&!isAds?'We optimize your priority pages for the target keywords and publish the first content pieces built to rank in '+mktLoc+' within weeks.':'We launch tightly-themed campaigns across '+ch+', targeting the exact buyers searching for '+ind+' services in '+mktLoc+' right now.'),
                     'We A/B test headlines, offers and landing pages so the highest-converting message wins and your cost per lead starts trending down quickly.',
                     'We monitor performance daily and adjust targeting, bids or on-page signals so momentum builds steadily through the first full month of data.'],
             outcome:'First results within 30 days'},
-          {week:'Month 2',phase:'Optimise',title:'Data-driven refinement',
+          {week:'Month 2',phase:'Optimize',title:'Data-driven refinement',
             points:['We double down on the keywords, pages and audiences that are producing leads, and cut or rework anything that is underdelivering on budget.',
                     'We expand the winning themes with fresh '+(isSeo?'content and internal links':'ad groups and creative')+' so results compound instead of plateauing in month two.',
                     'We deliver a clear performance report showing leads, cost per lead and exactly what we are changing next, with no jargon or guesswork.'],
@@ -1923,82 +1979,117 @@ window.OB={
     var phaseColors=['#4285F4','#1B9E52','#FF6699','#9C27B0'];
     var backed=plan.data_backed;
 
-    // ── Hero card ─────────────────────────────────────────────────────────
-    var kpiHtml='';
-    kpis.forEach(function(k){
-      kpiHtml+='<div class="ob-kpi-stat"><span class="ob-kpi-val">'+k.value+'</span><div class="ob-kpi-lbl">'+k.label+'</div></div>';
-    });
-    // Trim sub to max 18 words
-    // Prefer the sharpest single insight (DataForSEO-backed) as the hero
-    // sub-line; fall back to plan.sub. This replaces the old empty "Key
-    // Insight" card that showed a label with no text.
-    var sub=plan.insight||plan.sub||'';
-    var subWords=sub.split(' ');
-    if(subWords.length>28) sub=subWords.slice(0,28).join(' ')+'…';
-    // When the plan is grounded in real keyword/CPC data we show the numeric
-    // projection. When it isn't, precise-looking ranges read as fake — so we
-    // drop the numbers and show an honest "we'll benchmark this together" line
-    // instead of a hollow estimate box.
-    var heroLabel = backed ? 'Your Growth Estimate' : 'Your Opportunity Snapshot';
-    var heroStats = backed
-      ? (kpiHtml?'<div class="ob-plan-hero-stats">'+kpiHtml+'</div>':'')
-      : '<div class="ob-plan-hero-sub" style="margin-top:10px">Your advisor will benchmark these against your real account data and share firm numbers within one business day — no guesswork.</div>';
-    $i('ob-plan-hero').innerHTML=
-      '<div class="ob-plan-hero-label">'+heroLabel+
-        (backed?'<span class="ob-data-badge">Data-Backed ✓</span>':'<span class="ob-data-badge ob-data-est">Advisor will verify</span>')+
-      '</div>'+
-      '<div class="ob-plan-hero-headline">'+(plan.headline||'Your tailored growth plan is ready.')+'</div>'+
-      (sub?'<div class="ob-plan-hero-sub">'+sub+'</div>':'')+
-      heroStats;
+    // ── Hero card: the measured comparison ────────────────────────────────
+    // Everything in here comes from plan.snapshot, which the server measured
+    // directly — it never passes through the language model, so the numbers
+    // a prospect reads cannot come back altered. A figure we could not
+    // measure is omitted rather than estimated.
+    var snap = plan.snapshot || {};
+    var mkt  = plan.market || '';
+    var nf   = function(n){ return Number(n).toLocaleString(); };
 
-    // ── Insight cards (structured: what/why/action per service) ───────────
-    var insHtml='';
-    // Structured insights array — what/why/action per service.
-    // Dedupe first: the model occasionally repeats an insight, which used to
-    // render the What/Why/Action block twice.
-    if(plan.insights&&plan.insights.length){
-      var _seen={};
-      var _uniq=plan.insights.filter(function(ins){
-        if(!ins||!ins.what) return false;
-        var sig=(ins.what+'|'+(ins.action||'')).toLowerCase().replace(/\s+/g,' ').trim();
-        if(_seen[sig]) return false; _seen[sig]=1; return true;
-      // Show only the single best opportunity (what / why / action). The model
-      // is asked for one; this cap guarantees it even if extras come back.
-      }).slice(0,1);
-      _uniq.forEach(function(ins){
-        var whyBlock = ins.why ?
-            '<div style="display:flex;align-items:flex-start;gap:10px">'+
-              '<div class="ob-insight-ico" style="flex-shrink:0"><svg viewBox="0 0 24 24" fill="none" stroke="var(--pk)" stroke-width="2" width="15" height="15"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg></div>'+
-              '<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--pk);margin-bottom:4px">Why it matters</div>'+
-              '<div style="font-size:13px;color:var(--t2);line-height:1.5">'+ins.why+'</div></div>'+
-            '</div>' : '';
-        var actionBlock = ins.action ?
-            '<div style="display:flex;align-items:flex-start;gap:10px;background:rgba(255,255,255,0.04);border-radius:8px;padding:10px 12px">'+
-              '<div class="ob-insight-ico" style="flex-shrink:0"><svg viewBox="0 0 24 24" fill="none" stroke="#56D364" stroke-width="2" width="15" height="15"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>'+
-              '<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#56D364;margin-bottom:4px">Action</div>'+
-              '<div style="font-size:13px;font-weight:600;color:var(--t1);line-height:1.5">'+ins.action+'</div></div>'+
-            '</div>' : '';
-        insHtml+=
-          '<div class="ob-insight-card" style="flex-direction:column;align-items:flex-start;gap:10px;padding:16px 18px">'+
-            '<div style="display:flex;align-items:flex-start;gap:10px">'+
-              '<div class="ob-insight-ico" style="flex-shrink:0"><svg viewBox="0 0 24 24" fill="none" stroke="var(--cy)" stroke-width="2" width="15" height="15"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>'+
-              '<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--cy);margin-bottom:4px">What&#39;s happening</div>'+
-              '<div style="font-size:13px;color:var(--t1);line-height:1.5">'+ins.what+'</div></div>'+
-            '</div>'+
-            whyBlock+actionBlock+
-          '</div>';
-      });
+    var heroLabel, heroBody = '';
+
+    if (snap.has && snap.visitors !== null && snap.visitors !== undefined) {
+      heroLabel = 'What we found on your site';
+
+      // The headline comparison: their traffic against the best comparable
+      // site in the same market. Both figures are measured.
+      var topComp = (snap.competitors || [])[0];
+      var line;
+      if (topComp) {
+        line = '<strong>' + nf(snap.visitors) + '</strong> people a month find '
+             + (q.bizname || 'your site') + ' through search. '
+             + '<strong>' + topComp.domain + '</strong> gets <strong>' + nf(topComp.visitors) + '</strong>'
+             + ' from the same kind of searches' + (mkt ? ' in ' + mkt : '') + '.';
+      } else {
+        line = '<strong>' + nf(snap.visitors) + '</strong> people a month find '
+             + (q.bizname || 'your site') + ' through search'
+             + (mkt ? ' in ' + mkt : '') + '.';
+      }
+      heroBody += '<div class="ob-plan-hero-sub" style="font-size:14px;opacity:.95;max-width:100%">' + line + '</div>';
+
+      // Three figures, all about the same thing the headline is about:
+      // visitors. Deliberately not keyword or location counts — those belong
+      // in the rows underneath, not in the box that carries the comparison.
+      var stats = [];
+      stats.push({ v: nf(snap.visitors), l: 'Visitors you get a month from search' });
+      if (topComp) {
+        stats.push({ v: nf(topComp.visitors), l: 'What ' + topComp.domain + ' gets' });
+      }
+      if (snap.gap) {
+        stats.push({ v: nf(snap.gap.behind_by), l: 'Visitors a month going to them instead of you' });
+      }
+      stats = stats.slice(0, 3);
+      if (stats.length) {
+        heroBody += '<div class="ob-plan-hero-stats">' + stats.map(function(st){
+          return '<div class="ob-kpi-stat"><span class="ob-kpi-val">' + st.v + '</span>'
+               + '<div class="ob-kpi-lbl">' + st.l + '</div></div>';
+        }).join('') + '</div>';
+      }
+
+      // Where you stand, and what is sitting just out of reach. Both rows are
+      // differences between measured numbers, never a promise of a result.
+      var rows = '';
+      if (snap.ranking) {
+        rows += '<div class="ob-hero-row"><span>Where you rank today</span><strong>'
+             +  nf(snap.ranking.top3) + ' in the top 3, of ' + nf(snap.ranking.total) + ' terms you appear for</strong></div>';
+      }
+      if (snap.quick_wins && snap.quick_wins.volume) {
+        rows += '<div class="ob-hero-row"><span>Searches you sit one page away from</span><strong>'
+             +  nf(snap.quick_wins.volume) + ' a month'
+             +  (snap.quick_wins.count ? ', across ' + nf(snap.quick_wins.count) + ' terms' : '')
+             +  '</strong></div>';
+      }
+      if (snap.gap) {
+        // Framed as room to grow, which is what it is: the distance between
+        // two measured figures. Not a forecast, and not a promise.
+        rows += '<div class="ob-hero-row"><span>Room to grow in this market</span><strong>+'
+             +  nf(snap.gap.behind_by) + ' visitors a month</strong></div>';
+      }
+      if (rows) heroBody += '<div class="ob-hero-rows">' + rows + '</div>';
+
+    } else {
+      // Nothing measurable — usually a brand-new domain with no footprint, or
+      // no website given. Say that plainly; it is a real finding, and far
+      // better than a confident-looking number nobody can stand behind.
+      heroLabel = 'Your opportunity snapshot';
+      heroBody = '<div class="ob-plan-hero-sub" style="font-size:14px;opacity:.95;max-width:100%">'
+        + (snap.domain
+            ? 'We could not find an established search footprint for <strong>' + snap.domain + '</strong> yet. For a newer site that is normal — and it means almost every search in your market is currently going to someone else.'
+            : 'Add your website and we can show you exactly where you stand against the other businesses competing for your customers.')
+        + '</div>';
     }
-    $i('ob-insight-cards').innerHTML=insHtml;
+
+    $i('ob-plan-hero').innerHTML =
+      '<div class="ob-plan-hero-label">' + heroLabel +
+        (snap.has ? '<span class="ob-data-badge">Measured ✓</span>' : '') +
+      '</div>' +
+      '<div class="ob-plan-hero-headline">' + (plan.headline || 'Here is where you stand.') + '</div>' +
+      heroBody;
+
+    // The What's happening / Why it matters / Action block used to sit here.
+    // Removed: it restated in three paragraphs what the roadmap below already
+    // says in sequence, and being model-written it was the part most prone to
+    // vague or unfinished sentences.
+    var ic=$i('ob-insight-cards'); if(ic){ ic.innerHTML=''; ic.style.display='none'; }
 
     // ── 60-day roadmap ────────────────────────────────────────────────────
     var rmHtml='<div class="ob-roadmap-wrap">';
     roadmap.forEach(function(ph,i){
       var col=phaseColors[i%phaseColors.length];
       var pts=(ph.points||[]).slice(0,3).map(function(p){
-        // Trim to max 12 words
-        var words=p.split(' ');
-        if(words.length>12) p=words.slice(0,12).join(' ')+'…';
+        // Previously truncated at 12 words with an ellipsis, which is what
+        // produced the unfinished sentences on this page: the model is asked
+        // for complete 18-25 word sentences and then had two thirds of each
+        // one cut off. Show them whole. If one comes back genuinely
+        // overlong, cut at the last sentence boundary rather than mid-clause.
+        p = String(p || '').trim();
+        if (p.length > 180) {
+          var cut = p.slice(0, 180);
+          var stop = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('; '));
+          p = stop > 80 ? cut.slice(0, stop + 1) : cut.replace(/[\s,;:-]+$/, '') + '.';
+        }
         return '<li>'+p+'</li>';
       }).join('');
       rmHtml+=
@@ -2063,11 +2154,24 @@ window.OB={
   /* Recurring monthly spend. Website development is a one-time project, not a
      retainer, so it is deliberately excluded — including it would inflate
      every "per month" figure we show and store. */
+  /**
+   * The recurring monthly figure shown at checkout.
+   *
+   * Excludes 'website' (a one-off build, not a monthly fee) and 'seo', which
+   * the advisor quotes after the audit. A service with no price yet must not
+   * silently contribute 0 to a total presented as complete - the checkout
+   * summary labels it instead, via _quotedServices() below.
+   */
   _monthlyTotal:function(){
     return Object.keys(S.budgets||{}).reduce(function(sum,slug){
-      if(slug==='website') return sum;
+      if(slug==='website'||slug==='seo') return sum;
       return sum + (parseInt(S.budgets[slug])||0);
     },0);
+  },
+
+  /** Selected services whose price is still to be quoted by an advisor. */
+  _quotedServices:function(){
+    return (S.svcs||[]).filter(function(s){ return s==='seo'; });
   },
 
   // Which S.q answers belong to which service. Used to clear ONLY the
@@ -2139,6 +2243,15 @@ window.OB={
    */
   useDifferentEmail:function(){
     if(!window.confirm('Start again with a different email address? The details you entered on this step will not be carried over.')) return;
+    // Signed in: the WordPress session has to go too, or the page just
+    // resumes the same account on the next load. The round trip also clears
+    // the nonce and saved state cleanly, which an in-page reset cannot do.
+    if(typeof LOGGED_IN!=='undefined' && LOGGED_IN && typeof SWITCH_ACCOUNT_URL==='string' && SWITCH_ACCOUNT_URL){
+      try{ OB._clearLocal&&OB._clearLocal(); }catch(e){}
+      if(typeof GE!=='undefined') GE.leaveOnPurpose();
+      window.location.href=SWITCH_ACCOUNT_URL;
+      return;
+    }
     OB.backToEmail();
   },
 
@@ -2151,6 +2264,7 @@ window.OB={
     if(S.userId)post({action:'six_save_checkout_step',step:n,user_id:S.userId});
     if(typeof GE!=='undefined')GE.onStep(n);
     if(n===5)OB._initStep5();   // advisor card + call-time chips (also on resume)
+    if(n===1)OB._syncPasswordField();   // never ask for a password we already have
 
     // ── Restore field values when navigating back ─────────────────────────
     var q=S.q;
@@ -2472,7 +2586,7 @@ window.OB={
         panel('ob-complete');
         var pr=$i('ob-prog'); if(pr) pr.style.display='none';
         setTimeout(function(){
-          window.location.replace('<?php echo esc_js(home_url('/portal/')); ?>');
+          GE.leaveOnPurpose();window.location.replace('<?php echo esc_js(home_url('/portal/')); ?>');
         }, 3000);
       } else {
         alert2('s5-err', r.data||'Something went wrong. Please try again.');
@@ -2486,12 +2600,12 @@ window.addEventListener('NSLAfterFormLogin',function(){
   post({action:'six_google_login_complete'}).then(function(res){
     if(!res.success)return;
     // Advisors / sales / admins: server tells us where they belong
-    if(res.data.redirect_url){window.location.replace(res.data.redirect_url);return;}
+    if(res.data.redirect_url){GE.leaveOnPurpose();window.location.replace(res.data.redirect_url);return;}
     S.userId=res.data.user_id;S.email=res.data.email;S.advisor=res.data.advisor;
     S.isGoogle=true;S.isNew=false;if(res.data.nonce)S.nonce=res.data.nonce;
     S.q.first=res.data.first||'';S.q.last=res.data.last||'';S.q.phone=res.data.phone||'';
     // Completed customers go straight to their dashboard
-    if(res.data.completed){window.location.replace('<?php echo esc_js(home_url('/portal/'));?>');return;}
+    if(res.data.completed){GE.leaveOnPurpose();window.location.replace('<?php echo esc_js(home_url('/portal/'));?>');return;}
     var f=$i('s1-first'),l=$i('s1-last'),e=$i('s1-email'),p=$i('s1-phone'),pw=$i('s1-pw-wrap');
     if(f)f.value=S.q.first;if(l)l.value=S.q.last;if(e)e.value=S.email;if(p)p.value=S.q.phone;
     if(pw)pw.style.display='none';
@@ -2568,9 +2682,18 @@ var GE = {
     post({action:'six_save_checkout_step',step:GE._stepNum(),user_id:S.userId}).catch(function(){});
   },
 
+  // Marks the next unload as a deliberate move by the visitor (logging in,
+  // being redirected to the portal, finishing checkout) rather than them
+  // giving up. Without this, every successful login fired an abandonment
+  // email, because window.location triggers beforeunload exactly like
+  // closing the tab does.
+  _intentional: false,
+  leaveOnPurpose: function(){ GE._intentional = true; },
+
   // Send abandon — fires once per page session
   send: function(){
     if(GE._fired) return;
+    if(GE._intentional) return;   // they are moving on, not dropping out
     if(S.step==='done') return;
     if(!S.userId && !S.email) return;
     if((Date.now()-GE._pageStart)<8000) return; // ignore bounces under 8s
@@ -2626,19 +2749,52 @@ document.addEventListener('DOMContentLoaded',function(){
   // Heartbeat every 30s — keeps server-side stale detection accurate
   setInterval(function(){ GE.heartbeat(); }, 30000);
 
-  // Inactivity timer — 3 minutes
-  var inactTimer, lastAct=Date.now();
-  function resetInact(){
-    lastAct=Date.now();
+  // Inactivity timer.
+  //
+  // This used to be three minutes, and it did not listen for mouse movement.
+  // Step 4 is a full growth plan with a roadmap to read — anyone actually
+  // reading it sat still for three minutes and got an abandonment email while
+  // they were on the page. Two changes:
+  //
+  //   - Pointer movement, wheel and focus now count as being present, so
+  //     reading resets the clock instead of looking like a dropout.
+  //   - A visible tab gets 15 minutes. Only a backgrounded tab is judged
+  //     after 5, because that is the case where they really did wander off.
+  var IDLE_VISIBLE = 900000;   // 15 min — reading, thinking, taking a call
+  var IDLE_HIDDEN  = 300000;   // 5 min  — tab is in the background
+  var inactTimer, lastMove = 0;
+
+  function idleLimit(){ return document.hidden ? IDLE_HIDDEN : IDLE_VISIBLE; }
+  function armInact(){
     clearTimeout(inactTimer);
-    inactTimer=setTimeout(function(){
-      if(S.step!=='done') GE.send();
-    },180000);
+    inactTimer = setTimeout(function(){
+      // Re-check on firing: the tab may have come back to the foreground
+      // since the timer was set, which earns the longer allowance.
+      if(S.step==='done' || GE._intentional) return;
+      GE.send();
+    }, idleLimit());
   }
-  ['mousedown','keydown','touchstart','scroll','click','input'].forEach(function(ev){
+  function resetInact(){ armInact(); }
+
+  // Pointer movement fires continuously, so throttle it to once a second —
+  // re-arming a timer on every mousemove is pure overhead.
+  function resetInactThrottled(){
+    var now = Date.now();
+    if(now - lastMove < 1000) return;
+    lastMove = now;
+    armInact();
+  }
+
+  ['mousedown','keydown','keyup','touchstart','scroll','click','input','change','focus'].forEach(function(ev){
     document.addEventListener(ev,resetInact,{passive:true});
   });
-  resetInact();
+  ['mousemove','pointermove','wheel','touchmove'].forEach(function(ev){
+    document.addEventListener(ev,resetInactThrottled,{passive:true});
+  });
+  // Coming back to the tab is activity, and switching away shortens the clock.
+  document.addEventListener('visibilitychange',function(){ armInact(); });
+  window.addEventListener('focus',resetInact);
+  armInact();
 
   // Page close — beforeunload fires on Chrome/Firefox/Edge desktop
   window.addEventListener('beforeunload',function(){

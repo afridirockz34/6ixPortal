@@ -759,13 +759,21 @@ if ( $web_proj && $web_proj['total'] > 0 ):
       t.textContent = val>=1000 ? (Math.round(val/100)/10)+'k' : Math.round(val);
       yl.appendChild(t);
     }
+    // Real dates. The axis used to read "Wk 1 … Wk 12", which told a client
+    // nothing about when any of it happened; the server now sends a date and
+    // a short label with every point. Pick four evenly spaced ticks for
+    // whatever number of points came back, and keep the first and last.
     var xl = document.getElementById('vis-xlbl'); xl.innerHTML='';
-    [0,3,7,11].forEach(function(i){
+    var ticks = [];
+    if (n <= 4) { for (var ti=0; ti<n; ti++) ticks.push(ti); }
+    else { ticks = [0, Math.round((n-1)/3), Math.round(2*(n-1)/3), n-1]; }
+    ticks.filter(function(v,i,a){ return a.indexOf(v)===i; }).forEach(function(i){
       var t = document.createElementNS(ns,'text');
       t.setAttribute('x',X(i)); t.setAttribute('y',H-9);
-      t.setAttribute('text-anchor','middle'); t.setAttribute('font-size','10');
+      t.setAttribute('text-anchor', i===0 ? 'start' : (i===n-1 ? 'end' : 'middle'));
+      t.setAttribute('font-size','10');
       t.setAttribute('fill',lbl()); t.setAttribute('font-family','monospace');
-      t.textContent = 'Wk ' + (i+1);
+      t.textContent = (pts[i] && pts[i].label) ? pts[i].label : ('Wk ' + (i+1));
       xl.appendChild(t);
     });
 
@@ -791,8 +799,12 @@ if ( $web_proj && $web_proj['total'] > 0 ):
     var bg     = isDark ? '#0B0F1A' : '#F4F6FB';
     var strong = isDark ? '#fff' : '#0f1428';
     var muted  = isDark ? 'rgba(255,255,255,.32)' : 'rgba(15,20,40,.4)';
-    var live   = VIS.source === 'live';
-    var lift   = VIS.current_mo - VIS.baseline_mo;
+    var measured = VIS.source === 'measured';
+    var live     = measured || VIS.source === 'live';
+    var lift     = VIS.current_mo - VIS.baseline_mo;
+    var badge    = measured ? 'Measured' : (VIS.source === 'live' ? 'Live' : 'Projected');
+    var lastMo   = VIS.last_month || null;
+    var target   = VIS.target || null;
 
     mount.innerHTML = [
     '<div id="analytics-root" style="background:'+bg+';padding:20px 22px 14px;font-family:var(--font-body);transition:background .3s">',
@@ -802,7 +814,7 @@ if ( $web_proj && $web_proj['total'] > 0 ):
     '        <div style="font-size:15px;font-weight:700;letter-spacing:-.01em;color:'+(isDark?'rgba(255,255,255,.9)':'rgba(15,20,40,.9)')+'">Visitors</div>',
     '        <span style="font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;'
          + (live ? 'color:#0b3b1e;background:#56D364' : 'color:#5b4708;background:#E3B341')
-         + ';padding:2.5px 7px;border-radius:5px">' + (live ? 'Live' : 'Projected') + '</span>',
+         + ';padding:2.5px 7px;border-radius:5px">' + badge + '</span>',
     '      </div>',
     '      <div style="font-size:11.5px;color:'+muted+';margin-top:4px">Where you were heading without us, versus where you are now</div>',
     '    </div>',
@@ -811,6 +823,19 @@ if ( $web_proj && $web_proj['total'] > 0 ):
     '      <div style="font-size:10.5px;color:'+muted+'">visitors / mo'+(lift>0?' · +'+fmt(lift)+' vs before':'')+'</div>',
     '    </div>',
     '  </div>',
+    // Last month's actual figure and the target the strategy committed to.
+    // Both are omitted entirely when absent rather than shown as a zero or a
+    // placeholder: a target only appears once somebody has actually saved
+    // one, so this line can never show a number nobody stands behind.
+    ((lastMo || target) ?
+    '  <div style="display:flex;flex-wrap:wrap;gap:18px;margin-top:10px;padding-top:10px;border-top:1px solid '+(isDark?'rgba(255,255,255,.08)':'rgba(15,20,40,.08)')+'">'
+      + (lastMo ?
+        '<div><div style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:'+muted+'">'+lastMo.label+'</div>'
+        + '<div style="font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;color:'+strong+'">'+fmt(lastMo.value)+' <span style="font-size:10.5px;font-weight:400;color:'+muted+'">visitors</span></div></div>' : '')
+      + (target ?
+        '<div><div style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:'+muted+'">Target &middot; '+target.label+'</div>'
+        + '<div style="font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;color:#FF6699">'+fmt(target.value)+' <span style="font-size:10.5px;font-weight:400;color:'+muted+'">visitors</span></div></div>' : '')
+    + '  </div>' : ''),
     '  <div style="display:flex;gap:16px;margin:12px 0 2px;font-size:11px;color:'+muted+'">',
     '    <span style="display:flex;align-items:center;gap:6px"><span style="width:14px;height:2.6px;border-radius:2px;background:#FF6699;display:inline-block"></span>With 6ix Developers</span>',
     '    <span style="display:flex;align-items:center;gap:6px"><span style="width:14px;height:0;border-top:2px dashed '+(isDark?'rgba(255,255,255,.45)':'rgba(15,20,40,.4)')+';display:inline-block"></span>Without us</span>',
@@ -975,7 +1000,7 @@ $opp_types=array(
             <?php if($has_content): ?>
             <div style="font-size:13px;color:var(--text1);line-height:1.75;padding:12px 14px;background:var(--dark4);border-radius:10px"><?php echo esc_html($clean); ?></div>
             <?php else: ?>
-            <div class="six-opp-teaser" style="font-size:12px;color:var(--text3);line-height:1.7;padding:4px 0">Select <strong>See Insight</strong> to generate your personalised analysis.</div>
+            <div class="six-opp-teaser" style="font-size:12px;color:var(--text3);line-height:1.7;padding:4px 0">Select <strong>See Insight</strong> to generate your personalized analysis.</div>
             <div class="six-ai-loading" style="display:none;margin-top:8px"><span class="six-ai-spinner"></span> <span style="font-size:12px;color:var(--text3)">Analysing…</span></div>
             <?php endif; ?>
         </div>
@@ -1004,7 +1029,7 @@ $opp_types=array(
 $domain  = $website_url ? preg_replace('/^www\./','',(parse_url($website_url,PHP_URL_HOST)??'')) : '';
 $has_data = $domain || $ai_industry || ($checkout->competitors ?? '');
 $saved_comps = array_filter(array_map('trim', explode(',', $checkout->competitors ?? '')));
-$ctx     = "Business: {$ai_business}, Industry: {$ai_industry}, Website: ".($domain?:'not set').", Location: ".($checkout->location??'not set').", Current services: ".($ai_svc_names?:'none').". Known competitors: ".($comp_str?:'analyse typical industry competitors').". Available 6ix services: Google Ads, SEO, , Website Development.";
+$ctx     = "Business: {$ai_business}, Industry: {$ai_industry}, Website: ".($domain?:'not set').", Location: ".($checkout->location??'not set').", Current services: ".($ai_svc_names?:'none').". Known competitors: ".($comp_str?:'analyze typical industry competitors').". Available 6ix services: Google Ads, SEO, , Website Development.";
 ?>
 <?php
 $comp_saved  = get_user_meta($user_id,'six_comp_analysis_data',true);
@@ -1041,7 +1066,7 @@ $comp_rows   = (is_array($comp_saved) && !empty($comp_saved['rows'])) ? $comp_sa
     </div>
 </div>
 <div id="comp-meta" style="font-size:12px;color:var(--text3);margin-bottom:10px">
-    <?php if($comp_last): ?>Last analysed <?php echo date('M j, Y', $comp_last); ?> &middot; next available <?php echo date('M j, Y', $comp_next); ?><?php else: ?>Run your first analysis to pull live competitor data into the table below.<?php endif; ?>
+    <?php if($comp_last): ?>Last analyzed <?php echo date('M j, Y', $comp_last); ?> &middot; next available <?php echo date('M j, Y', $comp_next); ?><?php else: ?>Run your first analysis to pull live competitor data into the table below.<?php endif; ?>
 </div>
 
 <div class="six-card">
@@ -1100,11 +1125,11 @@ $comp_rows   = (is_array($comp_saved) && !empty($comp_saved['rows'])) ? $comp_sa
     }).join('');
   }
   btn.addEventListener('click',function(){
-    btn.textContent='Analysing…'; btn.disabled=true; if(msg){msg.style.color='var(--text3)';msg.textContent='Pulling live competitor data — this can take a moment…';}
+    btn.textContent='Analyzing…'; btn.disabled=true; if(msg){msg.style.color='var(--text3)';msg.textContent='Pulling live competitor data — this can take a moment…';}
     post({action:'six_competitor_analysis'}).then(function(r){
       if(r&&r.success&&r.data&&r.data.data){
         render(r.data.data.rows||[]);
-        if(meta) meta.innerHTML='Last analysed '+fmtDate(r.data.ran_at)+' &middot; next available '+fmtDate(r.data.next_at);
+        if(meta) meta.innerHTML='Last analyzed '+fmtDate(r.data.ran_at)+' &middot; next available '+fmtDate(r.data.next_at);
         if(msg){msg.style.color='var(--success)';msg.textContent=r.data.locked?'Showing your saved analysis (one run per month).':'Analysis complete and saved.';}
         // Lock the button until next month.
         btn.className='six-btn six-btn-ghost'; btn.style.opacity='.65'; btn.style.cursor='not-allowed';
@@ -1127,7 +1152,7 @@ $comp_rows   = (is_array($comp_saved) && !empty($comp_saved['rows'])) ? $comp_sa
 $all_svc_defs=array(
     array('slug'=>'google-ads',       'name'=>'Google Ads',              'desc'=>'Paid search campaigns that drive immediate, high-intent leads.'),
     array('slug'=>'seo',              'name'=>'SEO',                     'desc'=>'Long-term organic visibility that compounds month over month.'),
-    array('slug'=>'google-business',  'name'=>'Google Business Profile', 'desc'=>'Dominate local search and drive walk-ins with an optimised listing.'),
+    array('slug'=>'google-business',  'name'=>'Google Business Profile', 'desc'=>'Dominate local search and drive walk-ins with an optimized listing.'),
     array('slug'=>'website',          'name'=>'Website Development',     'desc'=>'Conversion-optimised websites built for growth.'),
 );
 foreach($all_svc_defs as $def):
@@ -1210,12 +1235,52 @@ foreach(array_slice($s_mets, 0, 6) as $m) {
     $chart_prev[]    = floatval(preg_replace('/[^0-9.]/','',$m->previous_value));
     $chart_target[]  = floatval(preg_replace('/[^0-9.]/','',$m->target_value));
 }
+// A real trend over time, where we have one.
+//
+// "Performance Trend" was a bar chart of the current metric values with a
+// Previous series beside them — and previous/target are blank for most
+// metrics, so it rendered as a row of lonely bars with nothing to compare
+// against. That is what made it look empty: there was no trend in it.
+//
+// Snapshots give us actual values on actual dates, so when two or more exist
+// this becomes the line chart the heading already promises. Nothing is
+// modelled: with fewer than two captures it falls back to the bar comparison
+// rather than drawing a curve through a single point.
+$trend = array( 'has' => false, 'labels' => array(), 'series' => array() );
+if ( class_exists( 'Six_Performance' ) && class_exists( 'Six_Dash_Metrics' ) ) {
+    $hist = array_reverse( Six_Performance::history( $user_id, 26 ) );   // oldest first
+    if ( count( $hist ) >= 2 ) {
+        $cat  = Six_Dash_Metrics::catalog();
+        $keys = array_keys( $cat[ $svc_slug ]['metrics'] ?? array() );
+        $labels = array();
+        foreach ( $hist as $h ) $labels[] = gmdate( 'j M', strtotime( $h['captured_at'] ) );
+
+        $series = array();
+        foreach ( $keys as $k ) {
+            $vals = array(); $any = false;
+            foreach ( $hist as $h ) {
+                if ( isset( $h['values'][ $k ] ) ) { $vals[] = (float) $h['values'][ $k ]; $any = true; }
+                else { $vals[] = null; }
+            }
+            if ( ! $any ) continue;   // a metric nothing ever captured adds an empty line
+            $series[] = array(
+                'key'    => $k,
+                'label'  => $cat[ $svc_slug ]['metrics'][ $k ]['label'] ?? $k,
+                'values' => $vals,
+                'lower_better' => Six_Dash_Metrics::lower_is_better( $k ),
+            );
+        }
+        if ( $series ) $trend = array( 'has' => true, 'labels' => $labels, 'series' => $series );
+    }
+}
+
 $chart_json = json_encode(array(
     'labels'  => $chart_labels,
     'current' => $chart_current,
     'prev'    => $chart_prev,
     'target'  => $chart_target,
     'color'   => $sd['color'],
+    'trend'   => $trend,
 ));
 ?>
 
@@ -1288,11 +1353,11 @@ $chart_json = json_encode(array(
 </div>
 
 <!-- Performance Chart -->
-<?php if(count($s_mets) >= 2): ?>
+<?php if(count($s_mets) >= 2 || !empty($trend['has'])): ?>
 <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:20px;overflow:hidden;max-width:100%">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
         <div style="font-size:13px;font-weight:700">Performance Trend</div>
-        <div style="display:flex;align-items:center;gap:14px">
+        <div style="display:flex;align-items:center;gap:14px<?php echo !empty($trend['has'])?';display:none':''; ?>">
             <div style="display:flex;align-items:center;gap:5px"><div style="width:10px;height:3px;background:<?php echo $sd['color']; ?>;border-radius:2px"></div><span style="font-size:10px;color:var(--text3)">Current</span></div>
             <div style="display:flex;align-items:center;gap:5px"><div style="width:10px;height:3px;background:rgba(255,255,255,0.2);border-radius:2px"></div><span style="font-size:10px;color:var(--text3)">Previous</span></div>
             <div style="display:flex;align-items:center;gap:5px"><div style="width:10px;height:3px;border-top:2px dashed #56D364"></div><span style="font-size:10px;color:var(--text3)">Target</span></div>
@@ -1307,13 +1372,54 @@ $chart_json = json_encode(array(
 (function(){
     var d=<?php echo $chart_json; ?>;
     var canvas=document.getElementById('svc-perf-chart');
-    if(!canvas||!d.labels.length)return;
+    if(!canvas) return;
+    if(!(d.trend && d.trend.has) && !d.labels.length) return;
     if(window.Chart){initChart();return;}
     var script=document.createElement('script');
     script.src='https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js';
     script.onload=initChart;
     document.head.appendChild(script);
     function initChart(){
+        // A real time series when snapshots exist, otherwise the original
+        // current-vs-previous comparison.
+        if (d.trend && d.trend.has) {
+            var palette = ['#FF6699','#6ACAFD','#56D364','#E3B341','#8781BA'];
+            new Chart(canvas,{
+                type:'line',
+                data:{
+                    labels:d.trend.labels,
+                    datasets:d.trend.series.map(function(sr,i){
+                        var c = palette[i % palette.length];
+                        return {
+                            label: sr.label + (sr.lower_better ? ' (lower is better)' : ''),
+                            data: sr.values,
+                            borderColor: c,
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointBackgroundColor: c,
+                            tension: 0.25,
+                            spanGaps: true
+                        };
+                    })
+                },
+                options:{
+                    responsive:true, maintainAspectRatio:false,
+                    animation:{duration:500,resize:{duration:0}},
+                    interaction:{mode:'index',intersect:false},
+                    plugins:{
+                        legend:{display:true,position:'bottom',
+                            labels:{color:'rgba(255,255,255,0.55)',boxWidth:10,boxHeight:3,font:{size:10},padding:12}},
+                        tooltip:{backgroundColor:'rgba(13,17,23,0.95)',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:10,titleFont:{size:11},bodyFont:{size:11}}
+                    },
+                    scales:{
+                        x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'rgba(255,255,255,0.35)',font:{size:10}},border:{display:false}},
+                        y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'rgba(255,255,255,0.35)',font:{size:10}},beginAtZero:true,border:{display:false}}
+                    }
+                }
+            });
+            return;
+        }
         new Chart(canvas,{
             type:'bar',
             data:{
@@ -1779,7 +1885,7 @@ $next_billing=date('M 1, Y',strtotime('first day of next month'));
 <?php endif; ?>
 
 <?php elseif($active_tab==='profile'): ?>
-<div class="six-page-header"><div><h1 class="six-page-title">Profile</h1><p class="six-page-sub">Your information — used by AI for personalised insights</p></div></div>
+<div class="six-page-header"><div><h1 class="six-page-title">Profile</h1><p class="six-page-sub">Your information — used by AI for personalized insights</p></div></div>
 <div id="profile-saved-msg" style="display:none;background:rgba(86,211,100,0.1);border:1px solid rgba(86,211,100,0.3);color:var(--success);padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px">✓ Profile saved successfully.</div>
 <div id="profile-error-msg" style="display:none;background:rgba(255,107,107,0.1);border:1px solid var(--danger);color:var(--danger);padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px"></div>
 <div class="six-grid-2" style="margin-bottom:16px">
@@ -2551,7 +2657,7 @@ if(compBtn){
         if(!ctxEl){alert('Please complete your profile first.');return;}
         var ctx=ctxEl.dataset.value||'';
         document.getElementById('competitor-results').style.display='block';
-        compBtn.textContent='\u23f3 Analysing\u2026';compBtn.disabled=true;
+        compBtn.textContent='\u23f3 Analyzing\u2026';compBtn.disabled=true;
         var panels=[
             {id:'ai-comp-landscape-body',prompt:'You are a 6ix Developers competitive analyst. '+ctx+' In 4 bullet points, identify 4 competitors or competitor types. For each: what they do better AND which 6ix service closes that gap. Use \u2192 bullets. Max 100 words. Be specific to the industry.'},
             {id:'ai-comp-gaps-body',prompt:'You are a 6ix Developers market analyst. '+ctx+' Identify 3 specific keyword or traffic gaps where competitors are winning. For each: name it, quantify the loss, name the 6ix service that fixes it. Use \u2192 bolded gap name. Max 90 words.'},

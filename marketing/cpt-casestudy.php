@@ -219,7 +219,7 @@ add_action( 'add_meta_boxes', function () {
             echo '<textarea name="' . esc_attr( $k ) . '" rows="' . intval( $rows ) . '" placeholder="' . esc_attr( $ph ) . '">' . esc_textarea( $g( $k ) ) . '</textarea></div>';
         };
 
-        echo '<p style="color:#666;margin-top:0">The <strong>title</strong> is the client / organisation name (e.g. “College for Adult Learning”). '
+        echo '<p style="color:#666;margin-top:0">The <strong>title</strong> is the client / organization name (e.g. “College for Adult Learning”). '
            . 'Fill the sections below — colours and layout are applied automatically to match the site.</p>';
 
         // ── Featured image picker — shown in the listing/blurb card (home
@@ -397,7 +397,7 @@ add_action( 'save_post_six_case_study', function ( $post_id ) {
         update_post_meta( $post_id, 'six_cs_background', sanitize_textarea_field( wp_unslash( $_POST['six_cs_background'] ) ) );
     }
 
-    // Objectives / Achievements — icon-picker rows, serialised to JSON by the
+    // Objectives / Achievements — icon-picker rows, serialized to JSON by the
     // repeater's JS just before submit. Validate each icon against the
     // allowed set so only real theme icons can ever be stored.
     $allowed_icons = six_cs_selectable_icons();

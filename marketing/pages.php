@@ -64,7 +64,7 @@ function six_service_pages() {
                     array( 'title' => 'Advanced/Ecommerce', 'text' => 'Perfect for large companies, or if you already have a lot of existing content on your website. Also great for e-commerce companies selling products online.' ),
                 ),
                 'qa' => array(
-                    array( 'q' => 'What if I want to promote my website?',   'a' => 'We also specialise in Google Ads campaigns. Click here to request a quote.' ),
+                    array( 'q' => 'What if I want to promote my website?',   'a' => 'We also specialize in Google Ads campaigns. Click here to request a quote.' ),
                     array( 'q' => 'What happens after my website is done?', 'a' => 'We also offer website management packages. Though not mandatory, website management is incredibly important when you own a website to have the backup you need In case of security breaches, malware, viruses, or even just the website crashing.' ),
                 ),
             ),
@@ -139,7 +139,7 @@ function six_service_pages() {
                 array( 'q' => 'Are there any monthly maintenance plans?', 'a' => 'It is important for the security of your website to have someone regularly back it up, and provide assistance incase of malware or virus attacks, hackers, website crashes, etc. It also allows your website to be updated professionally every month if need be. Therefore, we do offer a range of monthly plans. Please contact us for more information.' ),
                 array( 'q' => 'Do I own the website?', 'a' => 'Yes! We do not operate under contracts, so you will 100% own your website once it is up and running.' ),
                 array( 'q' => 'What do you need from me to get started?', 'a' => 'We will need your existing content, or link to your website if we are copying your content. We will also need you to provide us with your logo and images – we recommend images be between 100kB and 600kB. Finally, we will need to know your website outline, contact form information, and your domain/hosting login.' ),
-                array( 'q' => 'How do I promote my new website?', 'a' => 'We specialise in Google Ads campaigns for all types of businesses. Click here to get a quote.' ),
+                array( 'q' => 'How do I promote my new website?', 'a' => 'We specialize in Google Ads campaigns for all types of businesses. Click here to get a quote.' ),
             ),
         ),
 
@@ -372,7 +372,7 @@ function six_service_pages() {
                 ) ),
                 array( 'icon' => 'website', 'image' => SIX_MK_URL . 'assets/img/seo-on-page.png', 'title' => 'On-Page SEO', 'paras' => array(
                     'On-Page SEO is where rankings are won or lost. Before building your strategy, our team runs a full technical diagnosis of your website and fixes every internal issue holding you back — page speed, mobile responsiveness, crawlability and a clean, logical site structure.',
-                    'We then optimise the elements search engines rely on most: your titles, meta descriptions, headers, image tags, URLs and internal links — all aligned to the keywords your customers are actually searching, so Google understands exactly what each page is about.',
+                    'We then optimize the elements search engines rely on most: your titles, meta descriptions, headers, image tags, URLs and internal links — all aligned to the keywords your customers are actually searching, so Google understands exactly what each page is about.',
                 ) ),
                 array( 'icon' => 'link', 'image' => SIX_MK_URL . 'assets/img/seo-off-page-link-building.png', 'title' => 'Off-Page SEO Link Building', 'paras' => array(
                     "Our premium SEO writer works to include you in the news cycle. Our news desk identifies high quality news publishers in your industry and creates news stories that include your business's research on facts in the story.",

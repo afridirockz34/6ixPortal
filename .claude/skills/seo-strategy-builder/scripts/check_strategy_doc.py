@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Mechanical completeness and fact-check scan for an assembled SEO strategy
-document (Phase 1, 2, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 17, 18, or 19
+document (Phase 1, 2, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 17, 18, 19, or 20
 content, or any combination).
 
 Two kinds of thing get checked:
@@ -40,9 +40,9 @@ PLACEHOLDER_PATTERN = re.compile(r"\[NEEDS (?:CLIENT INPUT|DATA)\s*:?[^\]]*\]", 
 # documents phrase phase headings inconsistently ("## Phase 1: ...",
 # "# Foundation Document (Phase 1): ...", "# Phase 7/8: Keyword Clusters"),
 # so this pulls every 1-2 digit number out of a candidate heading line
-# rather than requiring one rigid position/separator. Capped at 19 (the
-# highest phase number this system uses) to avoid picking up unrelated
-# numbers like a year.
+# rather than requiring one rigid position/separator. Capped at 20 (the
+# highest phase number this system uses, including the recurring results
+# retrospective) to avoid picking up unrelated numbers like a year.
 HEADING_LINE_PATTERN = re.compile(r"^#{1,6}\s+(.*)$", re.MULTILINE)
 HEADING_NUMBER_PATTERN = re.compile(r"\b(\d{1,2})\b")
 
@@ -97,7 +97,7 @@ def find_phase_headings(text: str) -> set:
         if re.search(r"phase", line, re.IGNORECASE) or re.match(r"^\d", line.strip()):
             for n in HEADING_NUMBER_PATTERN.findall(line):
                 num = int(n)
-                if 1 <= num <= 19:
+                if 1 <= num <= 20:
                     phases.add(num)
     return phases
 

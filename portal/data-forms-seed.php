@@ -277,6 +277,20 @@ function six_system_email_seed_defaults() {
 			'sms_body'        => "Hi {client_name}, it's Anastasia from 6ix Developers — looks like you got interrupted setting up your account. Your progress is saved, pick back up here: {resume_url}",
 		),
 		array(
+			// Sent when the advisor approves the services, which is the moment
+			// the strategy questionnaire becomes the client's next action. The
+			// link opens the form directly so they never have to remember a
+			// portal password to fill it in — that is how a questionnaire
+			// never gets completed.
+			'key'             => 'strategy_questionnaire',
+			'title'           => 'System: Strategy Questionnaire Requested',
+			'owner_subject'   => 'Strategy questionnaire sent — {client_name}',
+			'owner_body'      => "The strategy questionnaire was sent to {client_name}.\n\nTheir link: {questionnaire_url}\n\n{all_fields}",
+			'customer_enabled'=> 1,
+			'customer_subject'=> 'Next step: a few questions so we can build your strategy',
+			'customer_body'   => "Hi {client_name},\n\nYour audit is done and your services are set up — thank you. There is one more step before we start building.\n\nThe questions below cover the things only you can answer: your story, who your best customers are, what you can and cannot say in your market, and how much content your team can realistically support. They shape the whole strategy, so it is worth doing properly — most people take about fifteen minutes.\n\nOpen the questionnaire here: {questionnaire_url}\n\nYou do not need to log in, and your answers save as you go, so you can stop and come back.\n\nIf anything is unclear, just reply to this email.\n\nThe 6ix Developers team",
+		),
+		array(
 			// Was hardcoded PHP inside Six_Odoo::sync_form_submission() — the
 			// instant auto-text every new website-form/Meta lead gets the
 			// moment they land in "New Auto". SMS-only: the email side of a
@@ -299,7 +313,15 @@ function six_system_email_seed_defaults() {
 }
 
 add_action( 'wp_loaded', function () {
-	if ( get_option( 'six_system_emails_seeded_v2' ) ) return;
+	// Top up rather than run once. The old guard was a single option flag, so
+	// a template added to the defaults later never appeared on a site that had
+	// already seeded — it would simply be missing, and six_send_system_email()
+	// would log "template not found" at the moment it was needed. The per-key
+	// existence check below already makes this idempotent; the flag only
+	// decides whether it is worth walking the list at all.
+	$sig = md5( implode( ',', wp_list_pluck( six_system_email_seed_defaults(), 'key' ) ) );
+	if ( get_option( 'six_system_emails_seeded_sig' ) === $sig ) return;
+	update_option( 'six_system_emails_seeded_sig', $sig );
 	update_option( 'six_system_emails_seeded_v2', 1 );
 
 	foreach ( six_system_email_seed_defaults() as $f ) {
