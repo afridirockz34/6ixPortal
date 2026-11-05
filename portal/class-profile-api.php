@@ -117,10 +117,36 @@ class Six_Profile_API {
 	// ── Auth ──────────────────────────────────────────────────────────────
 
 	/** Pull the bearer token off the request, from either accepted header. */
+	/**
+	 * Pull the token out of whichever header the caller used.
+	 *
+	 * Deliberately permissive about WHERE the token arrives, while staying
+	 * strict about whether it is valid. claude.ai's custom-connector dialog
+	 * only lets you pick from a short list of pre-approved header names
+	 * (authorization, x-api-key, x-auth-token) — anything else is rejected at
+	 * save time — and it sends the value exactly as typed, adding no "Bearer "
+	 * prefix of its own. Accepting only one spelling turned a reasonable
+	 * choice in that dialog into a silent 401 with nothing to debug.
+	 *
+	 * Every path below still ends at the same constant-time hash comparison,
+	 * so this widens the ways a correct token can be presented, not the set
+	 * of tokens that are accepted.
+	 */
 	protected static function presented_token( $request ) {
-		$auth = $request->get_header( 'authorization' );
-		if ( $auth && stripos( $auth, 'bearer ' ) === 0 ) return trim( substr( $auth, 7 ) );
-		return trim( (string) $request->get_header( 'x_6ix_token' ) );
+		$auth = trim( (string) $request->get_header( 'authorization' ) );
+		if ( $auth !== '' ) {
+			// "Bearer <token>", or the bare token if the prefix was omitted.
+			if ( stripos( $auth, 'bearer ' ) === 0 ) return trim( substr( $auth, 7 ) );
+			return $auth;
+		}
+		foreach ( array( 'x_6ix_token', 'x_api_key', 'x_auth_token' ) as $h ) {
+			$v = trim( (string) $request->get_header( $h ) );
+			if ( $v !== '' ) {
+				if ( stripos( $v, 'bearer ' ) === 0 ) return trim( substr( $v, 7 ) );
+				return $v;
+			}
+		}
+		return '';
 	}
 
 	/**
