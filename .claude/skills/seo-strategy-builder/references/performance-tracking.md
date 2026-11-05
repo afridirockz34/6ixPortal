@@ -172,6 +172,14 @@ So:
 - **Say what each target assumes.** The `note` field is one line; use it for the
   condition the target depends on ("assumes the 14 planned location pages
   publish on schedule"). Six months later, that line is what explains a miss.
+- **One exception, for the gap before a strategy exists.** A client's chart has
+  no target line until something saves one, and that can be weeks. An audit may
+  save a *provisional* figure — grounded in the competitor benchmark it
+  measured, never a percentage uplift chosen for effect — so the dashboard has
+  something real to plot. It must say "provisional, from the audit" in the
+  note, and the strategy supersedes it on approval. The reason for the strict
+  framing is that a check reading "behind" against a number nobody committed to
+  is worse than showing no line at all.
 
 ---
 

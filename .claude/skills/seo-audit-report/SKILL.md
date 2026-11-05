@@ -84,6 +84,9 @@ And one hard rule if a check does return data: check each metric's `source`. An 
 5. **Write the report** following `references/report-template.md` — executive summary, scorecard, one section per weakness category (what's wrong, why it costs them business, a one-sentence teaser of the fix, never the full fix), then a closing section naming the service that would address it and a clear next step. Keep every teaser to the "show the wound, not the stitches" line the template demonstrates.
 6. **Run the check before calling it done**: `python scripts/check_audit_report.py <report_file>`. It flags unresolved `[NEEDS DATA]` placeholders, any weakness section missing a severity rating, a missing closing CTA, and any section that reads like it drifted into a full step-by-step fix instead of a one-line teaser.
 7. **File it against their record.** If they're in the portal, `save_client_artifact` with `type: "audit_report"` — the finished report, the SEO Health Score, and the date. It then shows on their profile, and the next person to open them sees the audit already exists instead of commissioning it twice.
+8. **Give the portal a figure to chart against, if the audit supports one.** The client's dashboard plots their visitors against a target line, and before any strategy exists there is nothing to draw. Where the audit has established a defensible number — typically the traffic comparable competitors already attract on the same terms — save it with `save_strategy_projections` as `organic_visitors`, dated to the horizon the audit argues for, with a `note` naming what it is derived from.
+
+   Two conditions, both firm. It has to be grounded in something measured, normally the competitor benchmark rather than a percentage uplift picked for effect. And it is explicitly provisional: say so in the note, because the strategy will supersede it with a real target, and a later check that reads "behind" against a placeholder nobody committed to is worse than no line at all. If the audit does not support a number, save nothing — the chart simply omits the target, which is the honest state. See `seo-strategy-builder/references/performance-tracking.md`.
 
 ## Why the "show the wound, not the stitches" line matters
 
@@ -92,7 +95,7 @@ It's tempting, especially when the data makes a fix obvious, to just write the f
 ## Reference files
 
 - `seo-strategy-builder/references/client-context.md` — getting the prospect's answers from the portal, a returned document, or neither
-- `seo-strategy-builder/references/performance-tracking.md` — reading a `check_performance` result when the subject is an existing client, and why an `estimate` can't be quoted as a measurement
+- `seo-strategy-builder/references/performance-tracking.md` — reading a `check_performance` result when the subject is an existing client, why an `estimate` can't be quoted as a measurement, and the rules for saving a provisional target
 - `references/audit-methodology.md` — the audit category checklist, which Ahrefs tool group covers each one, and the severity scoring rubric
 - `references/report-template.md` — report structure and the show-the-wound-not-the-stitches pattern, with a good/bad example
 - `assets/sample-weakness-section.md` — one fully worked example category section, for calibrating tone and length
