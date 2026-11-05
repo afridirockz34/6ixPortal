@@ -341,6 +341,12 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .ob-kpi-stat{background:rgba(255,255,255,.13);backdrop-filter:blur(4px);border-radius:12px;padding:10px 8px;text-align:center;border:1px solid rgba(255,255,255,.1)}
 .ob-kpi-val{font-size:15px;font-weight:700;display:block;letter-spacing:-.3px;line-height:1.15}
 .ob-kpi-lbl{font-size:9px;opacity:.65;margin-top:3px;letter-spacing:.3px;line-height:1.3}
+.ob-hero-rows{position:relative;z-index:1;margin-top:14px;border-top:1px solid rgba(255,255,255,.18);padding-top:4px}
+.ob-hero-row{display:flex;justify-content:space-between;align-items:baseline;gap:14px;
+  padding:9px 0;border-bottom:1px solid rgba(255,255,255,.1);font-size:12.5px}
+.ob-hero-row:last-child{border-bottom:none}
+.ob-hero-row span{opacity:.75}
+.ob-hero-row strong{font-weight:700;text-align:right}
 /* Data badge */
 .ob-data-badge{font-size:8.5px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;padding:2px 7px;border-radius:20px;background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.25)}
 .ob-data-est{background:rgba(255,200,60,.2);color:#ffe082;border-color:rgba(255,200,60,.3)}
@@ -1973,82 +1979,117 @@ window.OB={
     var phaseColors=['#4285F4','#1B9E52','#FF6699','#9C27B0'];
     var backed=plan.data_backed;
 
-    // ── Hero card ─────────────────────────────────────────────────────────
-    var kpiHtml='';
-    kpis.forEach(function(k){
-      kpiHtml+='<div class="ob-kpi-stat"><span class="ob-kpi-val">'+k.value+'</span><div class="ob-kpi-lbl">'+k.label+'</div></div>';
-    });
-    // Trim sub to max 18 words
-    // Prefer the sharpest single insight (DataForSEO-backed) as the hero
-    // sub-line; fall back to plan.sub. This replaces the old empty "Key
-    // Insight" card that showed a label with no text.
-    var sub=plan.insight||plan.sub||'';
-    var subWords=sub.split(' ');
-    if(subWords.length>28) sub=subWords.slice(0,28).join(' ')+'…';
-    // When the plan is grounded in real keyword/CPC data we show the numeric
-    // projection. When it isn't, precise-looking ranges read as fake — so we
-    // drop the numbers and show an honest "we'll benchmark this together" line
-    // instead of a hollow estimate box.
-    var heroLabel = backed ? 'Your Growth Estimate' : 'Your Opportunity Snapshot';
-    var heroStats = backed
-      ? (kpiHtml?'<div class="ob-plan-hero-stats">'+kpiHtml+'</div>':'')
-      : '<div class="ob-plan-hero-sub" style="margin-top:10px">Your advisor will benchmark these against your real account data and share firm numbers within one business day — no guesswork.</div>';
-    $i('ob-plan-hero').innerHTML=
-      '<div class="ob-plan-hero-label">'+heroLabel+
-        (backed?'<span class="ob-data-badge">Data-Backed ✓</span>':'<span class="ob-data-badge ob-data-est">Advisor will verify</span>')+
-      '</div>'+
-      '<div class="ob-plan-hero-headline">'+(plan.headline||'Your tailored growth plan is ready.')+'</div>'+
-      (sub?'<div class="ob-plan-hero-sub">'+sub+'</div>':'')+
-      heroStats;
+    // ── Hero card: the measured comparison ────────────────────────────────
+    // Everything in here comes from plan.snapshot, which the server measured
+    // directly — it never passes through the language model, so the numbers
+    // a prospect reads cannot come back altered. A figure we could not
+    // measure is omitted rather than estimated.
+    var snap = plan.snapshot || {};
+    var mkt  = plan.market || '';
+    var nf   = function(n){ return Number(n).toLocaleString(); };
 
-    // ── Insight cards (structured: what/why/action per service) ───────────
-    var insHtml='';
-    // Structured insights array — what/why/action per service.
-    // Dedupe first: the model occasionally repeats an insight, which used to
-    // render the What/Why/Action block twice.
-    if(plan.insights&&plan.insights.length){
-      var _seen={};
-      var _uniq=plan.insights.filter(function(ins){
-        if(!ins||!ins.what) return false;
-        var sig=(ins.what+'|'+(ins.action||'')).toLowerCase().replace(/\s+/g,' ').trim();
-        if(_seen[sig]) return false; _seen[sig]=1; return true;
-      // Show only the single best opportunity (what / why / action). The model
-      // is asked for one; this cap guarantees it even if extras come back.
-      }).slice(0,1);
-      _uniq.forEach(function(ins){
-        var whyBlock = ins.why ?
-            '<div style="display:flex;align-items:flex-start;gap:10px">'+
-              '<div class="ob-insight-ico" style="flex-shrink:0"><svg viewBox="0 0 24 24" fill="none" stroke="var(--pk)" stroke-width="2" width="15" height="15"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg></div>'+
-              '<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--pk);margin-bottom:4px">Why it matters</div>'+
-              '<div style="font-size:13px;color:var(--t2);line-height:1.5">'+ins.why+'</div></div>'+
-            '</div>' : '';
-        var actionBlock = ins.action ?
-            '<div style="display:flex;align-items:flex-start;gap:10px;background:rgba(255,255,255,0.04);border-radius:8px;padding:10px 12px">'+
-              '<div class="ob-insight-ico" style="flex-shrink:0"><svg viewBox="0 0 24 24" fill="none" stroke="#56D364" stroke-width="2" width="15" height="15"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>'+
-              '<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#56D364;margin-bottom:4px">Action</div>'+
-              '<div style="font-size:13px;font-weight:600;color:var(--t1);line-height:1.5">'+ins.action+'</div></div>'+
-            '</div>' : '';
-        insHtml+=
-          '<div class="ob-insight-card" style="flex-direction:column;align-items:flex-start;gap:10px;padding:16px 18px">'+
-            '<div style="display:flex;align-items:flex-start;gap:10px">'+
-              '<div class="ob-insight-ico" style="flex-shrink:0"><svg viewBox="0 0 24 24" fill="none" stroke="var(--cy)" stroke-width="2" width="15" height="15"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>'+
-              '<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--cy);margin-bottom:4px">What&#39;s happening</div>'+
-              '<div style="font-size:13px;color:var(--t1);line-height:1.5">'+ins.what+'</div></div>'+
-            '</div>'+
-            whyBlock+actionBlock+
-          '</div>';
-      });
+    var heroLabel, heroBody = '';
+
+    if (snap.has && snap.visitors !== null && snap.visitors !== undefined) {
+      heroLabel = 'What we found on your site';
+
+      // The headline comparison: their traffic against the best comparable
+      // site in the same market. Both figures are measured.
+      var topComp = (snap.competitors || [])[0];
+      var line;
+      if (topComp) {
+        line = '<strong>' + nf(snap.visitors) + '</strong> people a month find '
+             + (q.bizname || 'your site') + ' through search. '
+             + '<strong>' + topComp.domain + '</strong> gets <strong>' + nf(topComp.visitors) + '</strong>'
+             + ' from the same kind of searches' + (mkt ? ' in ' + mkt : '') + '.';
+      } else {
+        line = '<strong>' + nf(snap.visitors) + '</strong> people a month find '
+             + (q.bizname || 'your site') + ' through search'
+             + (mkt ? ' in ' + mkt : '') + '.';
+      }
+      heroBody += '<div class="ob-plan-hero-sub" style="font-size:14px;opacity:.95;max-width:100%">' + line + '</div>';
+
+      // Three figures, all about the same thing the headline is about:
+      // visitors. Deliberately not keyword or location counts — those belong
+      // in the rows underneath, not in the box that carries the comparison.
+      var stats = [];
+      stats.push({ v: nf(snap.visitors), l: 'Visitors you get a month from search' });
+      if (topComp) {
+        stats.push({ v: nf(topComp.visitors), l: 'What ' + topComp.domain + ' gets' });
+      }
+      if (snap.gap) {
+        stats.push({ v: nf(snap.gap.behind_by), l: 'Visitors a month going to them instead of you' });
+      }
+      stats = stats.slice(0, 3);
+      if (stats.length) {
+        heroBody += '<div class="ob-plan-hero-stats">' + stats.map(function(st){
+          return '<div class="ob-kpi-stat"><span class="ob-kpi-val">' + st.v + '</span>'
+               + '<div class="ob-kpi-lbl">' + st.l + '</div></div>';
+        }).join('') + '</div>';
+      }
+
+      // Where you stand, and what is sitting just out of reach. Both rows are
+      // differences between measured numbers, never a promise of a result.
+      var rows = '';
+      if (snap.ranking) {
+        rows += '<div class="ob-hero-row"><span>Where you rank today</span><strong>'
+             +  nf(snap.ranking.top3) + ' in the top 3, of ' + nf(snap.ranking.total) + ' terms you appear for</strong></div>';
+      }
+      if (snap.quick_wins && snap.quick_wins.volume) {
+        rows += '<div class="ob-hero-row"><span>Searches you sit one page away from</span><strong>'
+             +  nf(snap.quick_wins.volume) + ' a month'
+             +  (snap.quick_wins.count ? ', across ' + nf(snap.quick_wins.count) + ' terms' : '')
+             +  '</strong></div>';
+      }
+      if (snap.gap) {
+        // Framed as room to grow, which is what it is: the distance between
+        // two measured figures. Not a forecast, and not a promise.
+        rows += '<div class="ob-hero-row"><span>Room to grow in this market</span><strong>+'
+             +  nf(snap.gap.behind_by) + ' visitors a month</strong></div>';
+      }
+      if (rows) heroBody += '<div class="ob-hero-rows">' + rows + '</div>';
+
+    } else {
+      // Nothing measurable — usually a brand-new domain with no footprint, or
+      // no website given. Say that plainly; it is a real finding, and far
+      // better than a confident-looking number nobody can stand behind.
+      heroLabel = 'Your opportunity snapshot';
+      heroBody = '<div class="ob-plan-hero-sub" style="font-size:14px;opacity:.95;max-width:100%">'
+        + (snap.domain
+            ? 'We could not find an established search footprint for <strong>' + snap.domain + '</strong> yet. For a newer site that is normal — and it means almost every search in your market is currently going to someone else.'
+            : 'Add your website and we can show you exactly where you stand against the other businesses competing for your customers.')
+        + '</div>';
     }
-    $i('ob-insight-cards').innerHTML=insHtml;
+
+    $i('ob-plan-hero').innerHTML =
+      '<div class="ob-plan-hero-label">' + heroLabel +
+        (snap.has ? '<span class="ob-data-badge">Measured ✓</span>' : '') +
+      '</div>' +
+      '<div class="ob-plan-hero-headline">' + (plan.headline || 'Here is where you stand.') + '</div>' +
+      heroBody;
+
+    // The What's happening / Why it matters / Action block used to sit here.
+    // Removed: it restated in three paragraphs what the roadmap below already
+    // says in sequence, and being model-written it was the part most prone to
+    // vague or unfinished sentences.
+    var ic=$i('ob-insight-cards'); if(ic){ ic.innerHTML=''; ic.style.display='none'; }
 
     // ── 60-day roadmap ────────────────────────────────────────────────────
     var rmHtml='<div class="ob-roadmap-wrap">';
     roadmap.forEach(function(ph,i){
       var col=phaseColors[i%phaseColors.length];
       var pts=(ph.points||[]).slice(0,3).map(function(p){
-        // Trim to max 12 words
-        var words=p.split(' ');
-        if(words.length>12) p=words.slice(0,12).join(' ')+'…';
+        // Previously truncated at 12 words with an ellipsis, which is what
+        // produced the unfinished sentences on this page: the model is asked
+        // for complete 18-25 word sentences and then had two thirds of each
+        // one cut off. Show them whole. If one comes back genuinely
+        // overlong, cut at the last sentence boundary rather than mid-clause.
+        p = String(p || '').trim();
+        if (p.length > 180) {
+          var cut = p.slice(0, 180);
+          var stop = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('; '));
+          p = stop > 80 ? cut.slice(0, stop + 1) : cut.replace(/[\s,;:-]+$/, '') + '.';
+        }
         return '<li>'+p+'</li>';
       }).join('');
       rmHtml+=

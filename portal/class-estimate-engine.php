@@ -99,6 +99,10 @@ class Six_EstimateEngine {
         // Tag whether real keyword data was used
         $plan['data_backed'] = ! empty($kw);
 
+        // Measured figures for the plan page, kept out of the model's hands.
+        $plan['snapshot'] = self::snapshot( $co, $services, $kw_location );
+        $plan['market']   = $kw_location;
+
         // Cache the real market keyword economics so the post-onboarding growth
         // projection can ground itself (avg CPC + volume) without a live API call
         // on every dashboard load.
@@ -120,6 +124,101 @@ class Six_EstimateEngine {
         return $plan;
     }
 
+
+    /**
+     * The measured picture of where this prospect stands right now.
+     *
+     * Separate from market_intel(), which writes prose for the prompt. This
+     * returns numbers for the page to render directly, so the headline
+     * figures a prospect reads are never passed through a language model and
+     * cannot come back altered.
+     *
+     * Everything here is measured or absent. There is no modelled fallback:
+     * a figure we could not read is simply missing, and the page omits that
+     * row rather than showing an invented one.
+     */
+    private static function snapshot( $co, array $svcs, string $location ): array {
+        $out = array( 'has' => false, 'domain' => '', 'visitors' => null, 'competitors' => array(),
+                      'ranking' => null, 'gap' => null, 'quick_wins' => null );
+
+        $seo = function_exists( 'six_seo_provider' ) ? six_seo_provider() : '';
+        if ( ! $seo ) return $out;
+
+        $domain = self::normalize_domain( $co->website ?? '' );
+        if ( ! $domain ) return $out;
+        $out['domain'] = $domain;
+
+        // The client's own organic reality.
+        if ( method_exists( $seo, 'site_metrics' ) ) {
+            try {
+                $m = $seo::site_metrics( $domain, $location );
+                if ( empty( $m['error'] ) ) {
+                    $out['has']      = true;
+                    $out['visitors'] = (int) $m['organic_traffic'];
+                    $out['ranking']  = array(
+                        'top3'     => (int) $m['keywords_top3'],
+                        'total'    => (int) $m['organic_keywords'],
+                    );
+                }
+            } catch ( \Throwable $e ) {}
+        }
+
+        // Comparable competitors and what they pull in. The provider already
+        // filters out the aggregators that would otherwise top this list.
+        try {
+            $cp = $seo::competitors( $domain, $location, 6 );
+            if ( empty( $cp['error'] ) ) {
+                foreach ( $cp['competitors'] as $c ) {
+                    if ( empty( $c['organic_traffic'] ) ) continue;
+                    $out['competitors'][] = array(
+                        'domain'   => $c['domain'],
+                        'visitors' => (int) $c['organic_traffic'],
+                        'keywords' => (int) $c['organic_keywords'],
+                    );
+                    if ( count( $out['competitors'] ) >= 3 ) break;
+                }
+            }
+        } catch ( \Throwable $e ) {}
+
+        // The gap: what comparable sites in this market currently attract
+        // that this one does not. A measured difference between two real
+        // figures, not a projection of what we would achieve.
+        if ( $out['visitors'] !== null && $out['competitors'] ) {
+            $best = 0;
+            foreach ( $out['competitors'] as $c ) $best = max( $best, $c['visitors'] );
+            if ( $best > $out['visitors'] ) {
+                $out['gap'] = array(
+                    'leader'    => $best,
+                    'behind_by' => $best - $out['visitors'],
+                );
+            }
+            $out['has'] = true;
+        }
+
+        // Terms already on page two: the traffic currently going to whoever
+        // sits above them. Real volume on real rankings.
+        try {
+            $rk = $seo::ranked_keywords( $domain, $location, 100 );
+            if ( empty( $rk['error'] ) && ! empty( $rk['ranked_keywords'] ) ) {
+                $vol = 0; $n = 0; $examples = array();
+                foreach ( $rk['ranked_keywords'] as $r ) {
+                    $pos = (int) ( $r['position'] ?? 0 );
+                    if ( $pos >= 11 && $pos <= 30 && ! empty( $r['volume'] ) ) {
+                        $vol += (int) $r['volume']; $n++;
+                        if ( count( $examples ) < 3 ) {
+                            $examples[] = array( 'keyword' => $r['keyword'], 'position' => $pos, 'volume' => (int) $r['volume'] );
+                        }
+                    }
+                }
+                if ( $n ) {
+                    $out['has'] = true;
+                    $out['quick_wins'] = array( 'count' => $n, 'volume' => $vol, 'examples' => $examples );
+                }
+            }
+        } catch ( \Throwable $e ) {}
+
+        return $out;
+    }
 
     private static function normalize_domain( $url ): string {
         $d = preg_replace( '#^https?://#i', '', trim( (string) $url ) );
@@ -680,7 +779,12 @@ class Six_EstimateEngine {
         $L[] = "Business: {$biz}";
         $L[] = "Industry: {$ind}";
         $L[] = "Target market: {$loc}";
-        if ($biz_loc && $biz_loc !== $loc) $L[] = "Business address: {$biz_loc}";
+        if ($biz_loc && $biz_loc !== $loc) {
+            // Where they are based, which is frequently NOT where they sell.
+            // Labelled emphatically because the model was otherwise writing
+            // plans aimed at the town the office happens to sit in.
+            $L[] = "Where they are based (CONTEXT ONLY — do NOT target this, do NOT name it as their market): {$biz_loc}";
+        }
         $L[] = "Services: {$svc_str}";
         $L[] = "Monthly investment: \${$total}";
         $L[] = "Goals: {$goals}";
@@ -722,15 +826,20 @@ class Six_EstimateEngine {
         $L[] = "Avg deal value in {$ind}: \${$deal_val} (context only — NEVER project revenue or ROI from it, we do not guarantee returns)";
         $L[] = '';
         if ( ! empty( $intel['has'] ) ) {
-            $L[] = '=== LIVE MARKET INTELLIGENCE (real DataForSEO data pulled for THIS client — your biggest weapon) ===';
+            $L[] = '=== LIVE MARKET INTELLIGENCE (real data pulled for THIS client — your biggest weapon) ===';
             $L[] = '- ' . $intel['text'];
             $L[] = 'Weave these EXACT numbers, keyword names and competitor domains into your headline, insight and roadmap. Naming their real page-2 keywords, real competitors and real search volumes is what makes this feel personally researched — lead with the most striking fact. Never contradict or round these figures.';
             $L[] = '';
         }
         $L[] = '';
+        $L[] = '=== WHAT THIS PAGE IS ===';
+        $L[] = 'This is the last thing a prospect reads before deciding whether to work with us, and it is a teaser of the audit we would do for them — not the audit itself. Show them what is wrong and what it is costing them, specifically and with real numbers. Name the fix only as something the engagement delivers; do not write the step-by-step fix itself. Show the wound, not the stitches.';
+        $L[] = 'Tone: direct and specific, never breathless. No "unlock", "supercharge", "dominate", "game-changing", "leverage". A sentence a competent consultant would say out loud to a client\'s face.';
+        $L[] = 'Do not promise or imply a guaranteed result, a revenue figure or a return. State what is measurable now and what the gap is.';
+        $L[] = '';
         $L[] = '=== REQUIRED JSON OUTPUT ===';
         $L[] = 'Return ONLY valid JSON. No markdown fences, no text outside the JSON object.';
-        $L[] = 'Every insight must cite a REAL number (CPC, keyword volume, competitor name, industry stat).';
+        $L[] = 'Every roadmap point must cite a REAL number (keyword volume, competitor name, current ranking, industry stat) wherever one is available.';
         $L[] = 'NEVER use generic phrases like "optimize your presence" or "improve performance".';
         $L[] = 'ALWAYS name their specific keyword, service, location, or business.';
         $L[] = '';
@@ -748,7 +857,9 @@ class Six_EstimateEngine {
         if ( $has_gbp )  $L[] = 'Google Business Profile focus: local map-pack ranking, review velocity/rating, calls and direction requests, photos and posts.';
         if ( $has_web )  $L[] = 'Website focus: conversion rate, page speed, mobile UX, and the highest-impact pages/CTAs to build first.';
         $L[] = 'Choose KPI labels that match their services — e.g. for SEO use "Est. Organic Leads / Mo", "Keywords on Page 1", "Traffic Growth"; for Google Ads use lead, CPC and click labels. NEVER use a revenue or ROI label — we do not guarantee returns.';
-        $L[] = 'LENGTH RULE: every roadmap "points" item and every insight "what"/"why"/"action" must be a COMPLETE sentence of 18–25 words. Never output fragments, never truncate, never end with an ellipsis ("…"). Titles stay short (about 5 words).';
+        $L[] = 'LENGTH RULE: every roadmap "points" item must be a COMPLETE sentence of 18–25 words. Never output fragments, never truncate, never end with an ellipsis ("…"). Titles stay short (about 5 words).';
+        $L[] = 'RESULT RULE: every roadmap point says what the client GETS, not what we do internally. "We audit your site structure" is activity; "Your highest-value service pages start appearing for the terms buyers actually search" is a result. Lead each point with the outcome and mention the work only as the means to it. Each phase\'s "outcome" field is the single measurable change they should expect by the end of it.';
+        $L[] = 'KEYWORD RULE: they gave us several target terms and all of them matter. Spread the roadmap across the full set rather than building every phase around the first one, and where you name a term, vary which one you name.';
         $L[] = '';
         // Build service-specific insight instructions
         $svc_insight_instructions = array();
@@ -1048,10 +1159,18 @@ class Six_EstimateEngine {
         foreach ( $ordered as $p ) {
             if ( $p !== '' ) return self::clean_city_list( $p );
         }
-        // Last resort: the general location/city field, with any street line stripped.
-        $loc = trim( (string) ( $co->location ?? '' ) ) ?: trim( (string) ( $co->business_address ?? '' ) );
-        $loc = self::strip_street( $loc );
-        return $loc !== '' ? $loc : 'their area';
+        // A client who said they are national, or who left the optional
+        // "cities that matter most" field blank, has no city market — and
+        // their office address is not one. Falling back to it produced plans
+        // aimed at wherever the business happens to be registered, which is
+        // the thing the client noticed and objected to.
+        $scope = strtolower( trim( (string) ( $co->seo_scope ?? '' ) ) );
+        if ( $scope === 'national' ) return 'Canada';
+
+        // Last resort: the general city field only. The street address is
+        // deliberately not consulted.
+        $loc = self::strip_street( trim( (string) ( $co->location ?? '' ) ) );
+        return $loc !== '' ? $loc : 'Canada';
     }
 
     /** Drop a leading street line: "1550 South Gateway Rd, Mississauga" → "Mississauga". */

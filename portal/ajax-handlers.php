@@ -1965,19 +1965,40 @@ add_action( 'wp_ajax_six_competitor_analysis', function() {
             if ( $r ) { $rows[] = $r; if ( count( $rows ) >= 8 ) break; }
         }
 
-        // B) Still nothing? Whoever ranks page-1 for their top keyword.
+        // B) Still nothing? Whoever ranks page 1 for the terms they target.
+        //
+        // This used strtok() and so only ever looked at the FIRST keyword,
+        // which for a client who listed five services meant the competitor
+        // set reflected one of them. It now walks several terms and merges
+        // the results, counting how many of the client's keywords each rival
+        // ranks for so the most relevant surface first.
         if ( empty( $rows ) ) {
-            $kw = trim( strtok( (string) ( $ck->seo_keywords ?: $ck->ads_keywords ?: '' ), ',' ) );
-            if ( $kw ) {
+            $kw_raw  = (string) ( $ck->seo_keywords ?: $ck->ads_keywords ?: '' );
+            $kw_list = array_slice( array_values( array_filter( array_map( 'trim',
+                preg_split( '/[\n,;]+/', $kw_raw ) ) ) ), 0, 5 );
+
+            $hits = array();   // domain => array( count, keywords[] )
+            foreach ( $kw_list as $kw ) {
                 $serp = $seo::serp( $kw, $loc, 10 );
-                $seen = array();
                 foreach ( (array) ( $serp['results'] ?? array() ) as $it ) {
                     $du = preg_replace( '/^www\./', '', (string) ( $it['domain'] ?? '' ) );
-                    if ( ! $du || $du === $domain || isset( $seen[ $du ] ) ) continue;
-                    $seen[ $du ] = 1;
-                    $r = $row_from_domain( $du, 'Ranks page 1 for “' . $kw . '”' );
-                    if ( $r ) { $rows[] = $r; if ( count( $rows ) >= 6 ) break; }
+                    if ( ! $du || $du === $domain ) continue;
+                    if ( ! isset( $hits[ $du ] ) ) $hits[ $du ] = array( 'n' => 0, 'kw' => array() );
+                    $hits[ $du ]['n']++;
+                    if ( count( $hits[ $du ]['kw'] ) < 3 ) $hits[ $du ]['kw'][] = $kw;
                 }
+            }
+            // Most of the client's terms first — a domain ranking for four of
+            // their five keywords is a real competitor; one that appears once
+            // may be incidental.
+            uasort( $hits, function ( $a, $b ) { return $b['n'] <=> $a['n']; } );
+
+            foreach ( $hits as $du => $h ) {
+                $label = $h['n'] > 1
+                    ? 'Ranks page 1 for ' . $h['n'] . ' of your keywords'
+                    : 'Ranks page 1 for “' . $h['kw'][0] . '”';
+                $r = $row_from_domain( $du, $label );
+                if ( $r ) { $rows[] = $r; if ( count( $rows ) >= 6 ) break; }
             }
         }
     }
