@@ -1630,7 +1630,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         <div id="ai-chat-log" role="log" aria-live="polite" aria-relevant="additions text" aria-label="Conversation with the AI Strategist" style="padding:14px 18px;max-height:520px;overflow-y:auto;display:flex;flex-direction:column;gap:14px">
             <div id="ai-chat-empty" style="text-align:center;padding:26px 10px;color:var(--text3)">
                 <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:4px">Ask anything, or pick a mode above</div>
-                <div style="font-size:12px;line-height:1.6">The strategist pulls real keyword, SERP and on-page data to analyse Google Ads &amp; SEO, research keywords, and build strategy for this client.</div>
+                <div style="font-size:12px;line-height:1.6">The strategist pulls real keyword, SERP and on-page data to analyze Google Ads &amp; SEO, research keywords, and build strategy for this client.</div>
             </div>
         </div>
 
@@ -1675,7 +1675,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             hideEmpty();
             var d=document.createElement('div'); d.id='ai-typing';
             d.style.cssText='align-self:flex-start;color:var(--text3);font-size:12px;padding:8px 4px';
-            d.innerHTML='<span class="six-ai-spinner"></span> Analysing — pulling live data…';
+            d.innerHTML='<span class="six-ai-spinner"></span> Analyzing — pulling live data…';
             log.appendChild(d); log.scrollTop=log.scrollHeight;
         }
         function rmTyping(){ var t=document.getElementById('ai-typing'); if(t) t.remove(); }
@@ -1789,11 +1789,11 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         }
 
         var starters={
-            keywords:'Do professional keyword research for this client: pull real search volumes and expansion ideas, cluster by intent, and recommend a prioritised target keyword list with rationale.',
+            keywords:'Do professional keyword research for this client: pull real search volumes and expansion ideas, cluster by intent, and recommend a prioritized target keyword list with rationale.',
             gads_audit:'Run a full Google Ads audit and opportunity analysis for this client using real keyword and CPC data. Cover demand, budget outlook, structure, negatives, and expected outcomes.',
-            seo_audit:'Run an SEO analysis for this client: on-page signals, the keywords they and competitors rank for, content and technical gaps, prioritised by impact.',
+            seo_audit:'Run an SEO analysis for this client: on-page signals, the keywords they and competitors rank for, content and technical gaps, prioritized by impact.',
             strategy:'Build a complete 90-day digital marketing strategy for this client, grounded in real data, with monthly milestones, channel mix, budget allocation, KPIs and expected results.',
-            performance:'Review this client’s current performance and connected accounts, and recommend concrete next actions and optimisations.'
+            performance:'Review this client’s current performance and connected accounts, and recommend concrete next actions and optimizations.'
         };
         root.querySelectorAll('.ai-mode-btn').forEach(function(b){
             b.addEventListener('click',function(){

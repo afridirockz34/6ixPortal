@@ -220,7 +220,7 @@ $total_hot      = count($hot_leads);
 
     <?php elseif($active_tab==='call-queue'): ?>
         <div class="six-page-header">
-            <div><h1 class="six-page-title">Call Queue</h1><p class="six-page-sub">Hot leads prioritised for outreach</p></div>
+            <div><h1 class="six-page-title">Call Queue</h1><p class="six-page-sub">Hot leads prioritized for outreach</p></div>
         </div>
         <?php if(empty($hot_leads)):?>
         <div class="six-card"><div class="six-card-body" style="text-align:center;padding:40px;color:var(--text3)">No hot leads right now. Hot leads are those with a score of 70+.</div></div>

@@ -1120,7 +1120,7 @@ function six_ajax_ai_insight() {
         ),
         'body' => wp_json_encode( array(
             'model'      => 'claude-haiku-4-5-20251001', // cheapest + fastest model
-            'max_tokens' => 350,                          // kept low to minimise cost
+            'max_tokens' => 350,                          // kept low to minimize cost
             'messages'   => array(
                 array( 'role' => 'user', 'content' => $prompt )
             ),
@@ -1537,7 +1537,7 @@ add_action( 'wp_ajax_six_test_meta', function() {
     if ( ! $raw_acct ) wp_send_json_error('No Ad Account ID set.');
     // An ad account must be addressed as act_<digits>. A bare numeric ID is read
     // by Graph as a generic object and fails with "does not exist / missing
-    // permissions". Normalise it (also strips act_ dupes and separators).
+    // permissions". Normalize it (also strips act_ dupes and separators).
     $account_id = class_exists('Six_Meta') ? Six_Meta::acct( $raw_acct ) : ( 'act_' . preg_replace('/[^0-9]/','',$raw_acct) );
     if ( ! $account_id || $account_id === 'act_' ) wp_send_json_error('Ad Account ID has no digits. Use the numeric ID from Ads Manager (e.g. act_1234567890 or 1234567890).');
     $gver = class_exists('Six_Meta') ? Six_Meta::API_VERSION : 'v23.0';
@@ -1654,7 +1654,7 @@ add_action( 'wp_ajax_six_save_client_datasource', function() {
         'six_client_domain','six_target_location',
     );
     if(!$client_id||!in_array($key,$allowed)) wp_send_json_error('Not allowed.');
-    // Normalise a domain to a bare host so the SEO tools accept it.
+    // Normalize a domain to a bare host so the SEO tools accept it.
     if ( $key === 'six_client_domain' && $value !== '' ) {
         $value = preg_replace('#^https?://#i','',$value);
         $value = preg_replace('#^www\.#i','',$value);

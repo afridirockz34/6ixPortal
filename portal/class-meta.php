@@ -24,7 +24,7 @@ class Six_Meta {
         return (bool) get_option( 'six_meta_access_token', '' );
     }
 
-    /** Normalise an ad account ID to the act_<digits> form Meta expects. */
+    /** Normalize an ad account ID to the act_<digits> form Meta expects. */
     public static function acct( $id ) {
         $digits = preg_replace( '/[^0-9]/', '', str_replace( 'act_', '', (string) $id ) );
         return $digits ? 'act_' . $digits : '';

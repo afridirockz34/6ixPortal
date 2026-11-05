@@ -1084,7 +1084,7 @@ Status: "
     }
 
     /**
-     * Build the abandoned checkout email (personalised by business type + step).
+     * Build the abandoned checkout email (personalized by business type + step).
      */
     public static function build_abandoned_email( $user_id, $step, $co=null ) {
         global $wpdb;
@@ -1100,7 +1100,7 @@ Status: "
         $step_context = array(
             1 => "You've already told us about {$biz} — you're just a few steps from your free evaluation.",
             2 => "You've selected your marketing services — now let us show you what's possible.",
-            3 => "Your personalised strategy is ready and waiting for you.",
+            3 => "Your personalized strategy is ready and waiting for you.",
             4 => "You were one click away from starting your 10-day free consultation.",
         );
         $context_line = $step_context[$step] ?? "Your free business evaluation is waiting.";
@@ -1157,7 +1157,7 @@ Status: "
             return false;
         }
 
-        // Normalise to E.164 format (+1XXXXXXXXXX for North American numbers)
+        // Normalize to E.164 format (+1XXXXXXXXXX for North American numbers)
         $to_phone = preg_replace('/[^+\d]/', '', $to_phone);
         // Add +1 if it's a 10-digit North American number with no country code
         if (strlen($to_phone) === 10 && $to_phone[0] !== '+') {
@@ -1171,7 +1171,7 @@ Status: "
             error_log('6ix Twilio: Invalid phone number: ' . $to_phone);
             return false;
         }
-        error_log('6ix Twilio: Normalised phone → ' . $to_phone);
+        error_log('6ix Twilio: Normalized phone → ' . $to_phone);
 
         $response = wp_remote_post(
             "https://api.twilio.com/2010-04-01/Accounts/{$sid}/Messages.json",
@@ -1239,7 +1239,7 @@ Fix: Verify this number at console.twilio.com → Verified Caller IDs";
     }
 
     /**
-     * Build the abandoned checkout SMS (personalised).
+     * Build the abandoned checkout SMS (personalized).
      */
     public static function build_abandoned_sms( $user_id, $co=null ) {
         global $wpdb;
@@ -1788,12 +1788,12 @@ Best,
 
         if ($score >= 70 && $status === 'abandoned')
             return " HIGH SCORE ABANDONMENT: {$name} scored {$score}/100. "
-                 . "Recommend: Immediate phone outreach. Personalised email with service recap.";
+                 . "Recommend: Immediate phone outreach. Personalized email with service recap.";
 
         // Mid-intent
         if ($score >= 40 && $step >= 2 && $status === 'abandoned')
             return " WARM LEAD: {$name} reached step {$step}/4 (score {$score}/100). "
-                 . "Recommend: Send personalised email within 10 minutes. Follow up tomorrow.";
+                 . "Recommend: Send personalized email within 10 minutes. Follow up tomorrow.";
 
         if ($score >= 40 && $status === 'in_progress')
             return " IN PROGRESS: {$name} is completing onboarding (score {$score}/100). "

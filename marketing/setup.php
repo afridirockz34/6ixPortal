@@ -155,7 +155,7 @@ add_action( 'wp_loaded', function () {
             update_post_meta( $id, 'six_cs_achievements_json', wp_json_encode( array(
                 array( 'icon' => 'ads',    'text' => 'Rebuilt and re-organised existing Google Ads campaigns to sharply reduce cost per conversion.' ),
                 array( 'icon' => 'layers', 'text' => 'Created targeted landing pages for specific courses.' ),
-                array( 'icon' => 'gauge',  'text' => 'Provided input on the optimisation of the sales process.' ),
+                array( 'icon' => 'gauge',  'text' => 'Provided input on the optimization of the sales process.' ),
                 array( 'icon' => 'chart',  'text' => 'Set up landing-page split tests to steadily improve conversion rates.' ),
                 array( 'icon' => 'users',  'text' => 'Implemented automated email campaigns to qualify and convert enquiries into sales.' ),
             ) ) );

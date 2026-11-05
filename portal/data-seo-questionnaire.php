@@ -165,7 +165,7 @@ function six_seo_questionnaire_schema() {
 				array( 'key' => 'seo_content_workflow', 'label' => 'How does blog/content production work today?', 'type' => 'textarea', 'maps_to' => 'seo_blog' ),
 				array( 'key' => 'seo_approver', 'label' => 'Who approves new content, and what is their email?', 'type' => 'text',
 				       'help' => 'We SEO-optimise it, then it needs a yes from your side before it goes live.' ),
-				array( 'key' => 'seo_priority', 'label' => 'Prioritise maps or organic?', 'type' => 'select',
+				array( 'key' => 'seo_priority', 'label' => 'Prioritize maps or organic?', 'type' => 'select',
 				       'options' => array( 'No preference — do both', 'Maps (local / Google Business Profile)', 'Organic (content, meta, performance)' ),
 				       'help' => 'We normally work both in the same month.' ),
 				array( 'key' => 'seo_topics',      'label' => 'Topics to cover — and any to stay away from', 'type' => 'textarea' ),

@@ -96,7 +96,7 @@ function six_admin_settings() {
         $mask = str_repeat( '•', 12 );
         foreach ( $all_fields as $f ) {
             if ( isset( $_POST[$f] ) && $_POST[$f] !== $mask ) {
-                // Unslash before sanitising: WordPress adds slashes to $_POST, and
+                // Unslash before sanitizing: WordPress adds slashes to $_POST, and
                 // API secrets can contain quotes/backslashes. Without this a
                 // password like a"b would be stored as a\"b and fail auth (401).
                 update_option( $f, sanitize_text_field( wp_unslash( $_POST[$f] ) ) );
@@ -195,7 +195,7 @@ function six_admin_settings() {
     </style>
     <div class="wrap">
         <h1>6ix Portal — Integration Settings</h1>
-        <p style="color:#646970;font-size:13px;max-width:760px">Each card below is one integration. Fill in the fields, then <strong>Save All Settings</strong> at the bottom. Password fields marked “leave blank to keep existing” are write-only for security. Per-client IDs (Google Ads customer ID, GA4 property, Meta ad account) are set by advisors on each client’s Data Sources tab — the credentials here authorise all of them.</p>
+        <p style="color:#646970;font-size:13px;max-width:760px">Each card below is one integration. Fill in the fields, then <strong>Save All Settings</strong> at the bottom. Password fields marked “leave blank to keep existing” are write-only for security. Per-client IDs (Google Ads customer ID, GA4 property, Meta ad account) are set by advisors on each client’s Data Sources tab — the credentials here authorize all of them.</p>
 
         <form method="post">
             <?php wp_nonce_field( 'six_settings' ); ?>

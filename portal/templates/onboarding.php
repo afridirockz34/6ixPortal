@@ -85,12 +85,15 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 
 /* Typography */
 .ob-eye{font-family:'Bricolage Grotesque',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--pk);margin-bottom:8px;}
-.ob-ttl{font-family:'Bricolage Grotesque',sans-serif;font-size:26px;font-weight:700;line-height:1.2;margin-bottom:8px;letter-spacing:-.5px;}
+.ob-ttl{font-family:'Bricolage Grotesque',sans-serif;font-size:28px;font-weight:700;line-height:1.2;margin-bottom:8px;letter-spacing:-.5px;color:var(--t1);}
 .ob-dsc{font-size:14px;color:var(--t2);line-height:1.7;margin-bottom:28px;}
 
 /* Form */
 .ob-fg{margin-bottom:16px;}
-.ob-lbl{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--t3);margin-bottom:6px;}
+/* Field titles: black and two steps larger than before (11 -> 13px). The
+   grey --t3 made them read as secondary to their own help text. Descriptions
+   (.ob-sublbl) are intentionally left as they were. */
+.ob-lbl{display:block;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--t1);margin-bottom:6px;}
 .ob-sublbl{font-size:12.5px;font-weight:400;line-height:1.4;color:var(--t2);margin:-2px 0 8px;text-transform:none;letter-spacing:0;}
 .ob-inp{width:100%;background:var(--d3);border:1px solid var(--bdr);border-radius:10px;padding:12px 16px;
   color:var(--t1);font-family:'Onest',sans-serif;font-size:14px;outline:none;transition:var(--tr);-webkit-appearance:none;}
@@ -382,6 +385,11 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .ob-done-dsc{font-size:14px;color:var(--t2);line-height:1.7;max-width:380px;margin:0 auto 28px;}
 /* Spinner */
 .ob-spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;}
+.ob-note-quoted{display:flex;gap:10px;align-items:flex-start;background:rgba(255,102,153,.07);
+  border:1px solid rgba(255,102,153,.25);border-radius:10px;padding:12px 14px;margin-top:4px;
+  font-size:13px;line-height:1.6;color:var(--t2);}
+.ob-note-quoted strong{color:var(--t1);}
+.ob-note-quoted svg{color:var(--pk);}
 @keyframes spin{to{transform:rotate(360deg);}}
 
 /* ─── Mobile ─── */
@@ -487,7 +495,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   </a>
   <div class="ob-side-content">
     <h2 class="ob-side-hl">Your <span>marketing strategy</span> starts here.</h2>
-    <p class="ob-side-desc">Tell us about your business, pick your services, and we'll build a personalised growth plan in minutes.</p>
+    <p class="ob-side-desc">Tell us about your business, pick your services, and we'll build a personalized growth plan in minutes.</p>
     <div class="ob-steps-nav" id="ob-sidebar-steps">
       <div class="ob-step-item" data-step="1"><div class="ob-step-num">1</div><div class="ob-step-lbl">Create Account</div></div>
       <div class="ob-step-item" data-step="2"><div class="ob-step-num">2</div><div class="ob-step-lbl">Select Services</div></div>
@@ -560,7 +568,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   <div class="ob-panel" id="ob-s1">
     <div class="ob-eye">Step 1 of 5 &middot; Account</div>
     <h2 class="ob-ttl" id="s1-ttl">Tell us about yourself.</h2>
-    <p class="ob-dsc" id="s1-dsc">Your advisor will use these details to personalise your consultation.</p>
+    <p class="ob-dsc" id="s1-dsc">Your advisor will use these details to personalize your consultation.</p>
     <div class="ob-alert e" id="s1-err"></div>
     <div class="ob-g2">
       <div class="ob-fg"><label class="ob-lbl">First Name *</label><input class="ob-inp" id="s1-first" placeholder="Alex" autocomplete="given-name"></div>
@@ -616,7 +624,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
         <div class="ob-svc-bar"></div><div class="ob-svc-chk"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
         <div class="ob-svc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
         <div class="ob-svc-name">Google Business Profile</div>
-        <div class="ob-svc-desc">Dominate local search and drive walk-ins with an optimised Google Business listing.</div>
+        <div class="ob-svc-desc">Dominate local search and drive walk-ins with an optimized Google Business listing.</div>
       </div>
       <div class="ob-svc" data-svc="website" style="--c:#7C5CBF">
         <div class="ob-svc-bar"></div><div class="ob-svc-chk"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
@@ -640,7 +648,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   <div class="ob-panel" id="ob-s3a">
     <div class="ob-eye">Step 3 of 5 &middot; Business Profile</div>
     <h2 class="ob-ttl">Tell us about your business.</h2>
-    <p class="ob-dsc">This is the foundation of your personalised growth plan.</p>
+    <p class="ob-dsc">This is the foundation of your personalized growth plan.</p>
     <div class="ob-alert e" id="s3a-err"></div>
     <div class="ob-g2">
       <div class="ob-fg"><label class="ob-lbl">Business Name *</label><input class="ob-inp" id="q-biz" placeholder="Acme Corp" autocomplete="organization"></div>
@@ -762,7 +770,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
          audit can't be written safely without it: a regulated profession
          changes what we're allowed to claim. Part of the audit intake set
          (see six_seo_questionnaire_audit_keys()). -->
-    <div class="ob-fg"><label class="ob-lbl">Is yours a regulated profession?</label>
+    <div class="ob-fg"><label class="ob-lbl">Is your profession regulated?</label>
       <div class="ob-sublbl" style="font-size:11px;color:var(--t3);margin-bottom:6px">Law, medicine, finance and similar. It changes what we can say in your marketing, so we check early.</div>
       <input class="ob-inp" id="q-regulated" placeholder="e.g. Law Society of Ontario — or 'no'">
     </div>
@@ -879,7 +887,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
     <!-- ── Trust note ────────────────────────────────────────────────── -->
     <div class="ob-trust-n">
       <div class="ob-trust-ico"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
-      <div class="ob-trust-txt"><strong>10-day free consultation &mdash; no charge today.</strong> Your card is securely verified via Stripe but will not be charged until you and your advisor confirm the engagement.</div>
+      <div class="ob-trust-txt"><strong>Free consultation &mdash; no charge today.</strong> Your card is securely verified via Stripe but will not be charged until you and your advisor confirm the engagement.</div>
     </div>
 
     <!-- ── Dual path selection ────────────────────────────────────────── -->
@@ -901,13 +909,13 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
         <div class="ob-contract">
           <div class="ob-contract-hdr">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            <span>Service Agreement &amp; Authorisation</span>
+            <span>Service Agreement &amp; Authorization</span>
           </div>
           <div class="ob-contract-body" id="ob-contract-text">
             <?php
             $agreement_page = get_page_by_path('service-agreement');
             if($agreement_page){ echo apply_filters('the_content', $agreement_page->post_content); }
-            else { echo '<p>By signing below you agree to the 6ix Developers Service Agreement, including a 10-day free consultation period. No charge will be made until the engagement is confirmed by your advisor.</p>'; }
+            else { echo '<p>By signing below you agree to the 6ix Developers Service Agreement, including a free consultation period. No charge will be made until the engagement is confirmed by your advisor.</p>'; }
             ?>
           </div>
         </div>
@@ -1068,7 +1076,7 @@ var VALID = {
     return d.length===10;                                       // plain NANP
   },
   /** Format as the customer types. NANP gets (416) 555-0100; anything typed
-      with a leading + is treated as international and only normalised. */
+      with a leading + is treated as international and only normalized. */
   formatPhone:function(s){
     var intl=/^\s*\+/.test(s||'');
     var d=VALID.phoneDigits(s);
@@ -1130,7 +1138,7 @@ function panel(id){document.querySelectorAll('.ob-panel').forEach(function(p){p.
 function prog(n){
   var pr=$i('ob-prog'),fi=$i('ob-prog-fill'),lb=$i('ob-prog-lbl');
   if(!pr)return;
-  // Normalise sub-steps (3a/3b/3c → 3) so the sidebar always highlights a stage.
+  // Normalize sub-steps (3a/3b/3c → 3) so the sidebar always highlights a stage.
   var num;
   if(typeof n==='string'){
     if(n==='3a'||n==='3b'||n==='3c'){num=3;}
@@ -1162,7 +1170,8 @@ var SM={'google-ads':{name:'Google Ads',color:'#4285F4'},'seo':{name:'SEO',color
   'google-business':{name:'Google Business',color:'#FBBC04'},'website':{name:'Website',color:'#7C5CBF'}};
 
 /* ── Questionnaire builders ── */
-function qSec(title,html){return'<div style="margin-bottom:22px"><div style="font-size:12px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--bdr)">'+title+'</div>'+html+'</div>';}
+/* Section heading: black, 14px (was grey 12px) - see .ob-lbl above. */
+function qSec(title,html){return'<div style="margin-bottom:22px"><div style="font-size:14px;font-weight:700;color:var(--t1);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--bdr)">'+title+'</div>'+html+'</div>';}
 function qFG(lbl,inp,sub){return'<div class="ob-fg"><label class="ob-lbl">'+lbl+'</label>'+(sub?'<div class="ob-sublbl">'+sub+'</div>':'')+inp+'</div>';}
 function qSlider(id,lbl,mn,mx,def){
   return qFG(lbl,'<div><input type="range" class="ob-slider" id="'+id+'" min="'+mn+'" max="'+mx+'" value="'+def+'" step="100" oninput="OB.sl(this)">'
@@ -1287,10 +1296,14 @@ function buildPane(slug){
       qFG('Search terms to rank for',qTags('q-seo-kw'),'Words customers type into Google to find you — press Enter to add each')
       +qFG('Are you local or national?','<select class="ob-inp" id="q-seo-scope"><option value="">Choose one</option><option>Local</option><option>National</option><option>Both</option></select>','Whether you serve specific areas or the whole country')
       +qFG('Cities or areas that matter most','<input class="ob-inp" id="q-seo-loc" placeholder="e.g. Toronto, Mississauga, Vaughan">','Leave blank if you are purely national')
-      +qSlider('q-seo-bud','Monthly SEO budget',300,10000,1200)
+      +'<div class="ob-note-quoted">'
+        +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>'
+        +'<div><strong>SEO is scoped after your audit.</strong> We audit your site first, show you what we found, '
+        +'and only then quote the work &mdash; so the price matches what your site actually needs rather than a number you picked before anyone looked.</div>'
+      +'</div>'
     );
     h+=qSec('Where to focus',
-      qFG('Prioritise maps or organic?','<select class="ob-inp" id="q-seo-priority"><option>No preference — do both</option><option>Maps (local / Google Business Profile)</option><option>Organic (content, meta, performance)</option></select>','We normally work both in the same month')
+      qFG('Prioritize maps or organic?','<select class="ob-inp" id="q-seo-priority"><option>No preference — do both</option><option>Maps (local / Google Business Profile)</option><option>Organic (content, meta, performance)</option></select>','We normally work both in the same month')
       +qFG('Any previous SEO work on the site?','<textarea class="ob-inp" id="q-seo-prev" rows="2" placeholder="Roughly when, and did they leave any reporting?"></textarea>','Helps us tell past work from a fresh start')
       +qFG('Why customers choose you','<input class="ob-inp" id="q-seo-usp" placeholder="What sets you apart from competitors?">','We reuse this across your campaigns, so you only answer it once')
     );
@@ -1301,7 +1314,7 @@ function buildPane(slug){
       +qFG('Services to highlight','<textarea class="ob-inp" id="q-gbp-svcs" rows="2" placeholder="e.g. '+indEx('services')+'"></textarea>','The services you want featured on your profile')
       +qFG('Business hours',qHours('gbp'),'When you are open to customers')
       +qFG('Current rating','<input class="ob-inp" id="q-gbp-rating" placeholder="e.g. 4.7 stars, 120 reviews" style="max-width:240px">','Your star rating and review count, if you have one')
-      +qFixedPrice('Your investment',499,'Google Business Profile management is a flat monthly rate \u2014 posts, optimisation and reporting included.')
+      +qFixedPrice('Your investment',499,'Google Business Profile management is a flat monthly rate \u2014 posts, optimization and reporting included.')
     );
   } else if(slug==='website'){
     h+=qSec('Website Project',
@@ -1626,7 +1639,7 @@ window.OB={
     var meta={
       'google-ads':      {name:'Google Ads',           ttl:'Set up your Google Ads campaign.',   dsc:'These details help us build exactly the right campaign structure for you.'},
       'seo':             {name:'SEO',                  ttl:'Set up your SEO strategy.',          dsc:'A few details to tailor your organic growth plan to your market.'},
-      'google-business': {name:'Google Business Profile',ttl:'Optimise your local presence.',    dsc:'These details power your local search strategy.'},
+      'google-business': {name:'Google Business Profile',ttl:'Optimize your local presence.',    dsc:'These details power your local search strategy.'},
       'website':         {name:'Website',              ttl:'Plan your website project.',         dsc:'Tell us what you need so we can scope the right solution.'},
     };
     var m=meta[slug]||{name:slug,ttl:'Service details.',dsc:''};
@@ -1684,7 +1697,11 @@ window.OB={
         S.q.gads_challenge=v('q-gads-challenge');
       }
     } else if(slug==='seo'){
-      var b=$i('q-seo-bud');S.budgets[slug]=b?parseInt(b.value):0;
+      // No budget is collected for SEO: the advisor quotes it once the audit
+      // is done. Explicitly zero rather than absent, so the monthly total and
+      // the checkout summary both treat it as "not yet priced" instead of
+      // reading a stale value from an earlier visit.
+      S.budgets[slug]=0;
       S.q.seo_loc=v('q-seo-loc');
       S.q.seo_kw=getTags('q-seo-kw').join(',');S.q.seo_usp=v('q-seo-usp');
       S.q.seo_scope=v('q-seo-scope');S.q.seo_priority=v('q-seo-priority');
@@ -1747,7 +1764,6 @@ window.OB={
       setTags('q-ads-kw',q.ads_kw||q.seo_kw);          // unified keywords — carry from seo
       setV('q-ads-usp',q.ads_usp);setV('q-ads-promo',q.ads_promo);
     } else if(slug==='seo'){
-      setSlider('q-seo-bud',S.budgets['seo']);
       setV('q-seo-loc',q.seo_loc||q.ads_loc);          // same market as ads — carry over
       setTags('q-seo-kw',q.seo_kw||q.ads_kw);          // unified keywords — carry from ads
       setV('q-seo-usp',q.seo_usp||q.ads_usp);          // same USP as ads — carry over
@@ -1872,7 +1888,7 @@ window.OB={
     var tot=OB._monthlyTotal();
     S.score=Math.min(97,20+(svcs.length*10)+(tot>=5000?15:tot>=2000?10:tot>0?5:0)+(q.website?8:0)+(q.industry?5:0));
 
-    var msgs=['Analysing your market and competition...','Pulling live keyword data from Google Ads...','Projecting your reach and lead volume...','Building your tailored 60-day roadmap...'];
+    var msgs=['Analyzing your market and competition...','Pulling live keyword data from Google Ads...','Projecting your reach and lead volume...','Building your tailored 60-day roadmap...'];
     var mi=0,msgEl=$i('ob-s4-loading-msg');
     if(msgEl) msgEl.textContent=msgs[0];
     var msgTimer=setInterval(function(){mi=(mi+1)%msgs.length;if(msgEl)msgEl.textContent=msgs[mi];},2500);
@@ -1928,12 +1944,12 @@ window.OB={
                     'We map your highest-intent keywords and the exact pages or campaigns that will capture demand from buyers actively searching in '+mktLoc+'.',
                     'We install conversion tracking, call and form attribution, and reporting so every lead is measured back to the channel that produced it.'],
             outcome:'Everything live and tracking'},
-          {week:'Week 3–4',phase:isSeo&&!isAds?'Optimise & publish':'Launch',title:isSeo&&!isAds?'On-page & content live':'Campaigns go live',
-            points:[(isSeo&&!isAds?'We optimise your priority pages for the target keywords and publish the first content pieces built to rank in '+mktLoc+' within weeks.':'We launch tightly-themed campaigns across '+ch+', targeting the exact buyers searching for '+ind+' services in '+mktLoc+' right now.'),
+          {week:'Week 3–4',phase:isSeo&&!isAds?'Optimize & publish':'Launch',title:isSeo&&!isAds?'On-page & content live':'Campaigns go live',
+            points:[(isSeo&&!isAds?'We optimize your priority pages for the target keywords and publish the first content pieces built to rank in '+mktLoc+' within weeks.':'We launch tightly-themed campaigns across '+ch+', targeting the exact buyers searching for '+ind+' services in '+mktLoc+' right now.'),
                     'We A/B test headlines, offers and landing pages so the highest-converting message wins and your cost per lead starts trending down quickly.',
                     'We monitor performance daily and adjust targeting, bids or on-page signals so momentum builds steadily through the first full month of data.'],
             outcome:'First results within 30 days'},
-          {week:'Month 2',phase:'Optimise',title:'Data-driven refinement',
+          {week:'Month 2',phase:'Optimize',title:'Data-driven refinement',
             points:['We double down on the keywords, pages and audiences that are producing leads, and cut or rework anything that is underdelivering on budget.',
                     'We expand the winning themes with fresh '+(isSeo?'content and internal links':'ad groups and creative')+' so results compound instead of plateauing in month two.',
                     'We deliver a clear performance report showing leads, cost per lead and exactly what we are changing next, with no jargon or guesswork.'],
@@ -2097,11 +2113,24 @@ window.OB={
   /* Recurring monthly spend. Website development is a one-time project, not a
      retainer, so it is deliberately excluded — including it would inflate
      every "per month" figure we show and store. */
+  /**
+   * The recurring monthly figure shown at checkout.
+   *
+   * Excludes 'website' (a one-off build, not a monthly fee) and 'seo', which
+   * the advisor quotes after the audit. A service with no price yet must not
+   * silently contribute 0 to a total presented as complete - the checkout
+   * summary labels it instead, via _quotedServices() below.
+   */
   _monthlyTotal:function(){
     return Object.keys(S.budgets||{}).reduce(function(sum,slug){
-      if(slug==='website') return sum;
+      if(slug==='website'||slug==='seo') return sum;
       return sum + (parseInt(S.budgets[slug])||0);
     },0);
+  },
+
+  /** Selected services whose price is still to be quoted by an advisor. */
+  _quotedServices:function(){
+    return (S.svcs||[]).filter(function(s){ return s==='seo'; });
   },
 
   // Which S.q answers belong to which service. Used to clear ONLY the

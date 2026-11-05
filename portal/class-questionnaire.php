@@ -151,7 +151,7 @@ class Six_Questionnaire {
                     if ( ! empty($field['shared']) ) {
                         // Shared field: only include first occurrence
                         $base_id = preg_replace('/^(ads|seo|gbp|web)_/', '', $field['id']);
-                        // Normalise to common key
+                        // Normalize to common key
                         $share_key = isset(self::$shared_fields[$base_id]) ? $base_id : $field['label'];
                         if ( in_array($share_key, $seen_shared) ) continue;
                         $seen_shared[] = $share_key;

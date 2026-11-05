@@ -352,7 +352,7 @@ code { font-family: var(--fmono); font-size: 11.5px; background: var(--surface2)
   <div class="sh">Six core systems</div>
   <p class="sh-sub">Each system serves a distinct purpose and shares data with the others automatically.</p>
   <div class="tile-grid">
-    <div class="tile"><div class="tile-num">01</div><div class="tile-title">Onboarding System</div><div class="tile-desc">A consultative four-step flow that collects business intelligence, selects services, generates a personalised strategy, and establishes payment via Stripe — without charging the client on day one.</div></div>
+    <div class="tile"><div class="tile-num">01</div><div class="tile-title">Onboarding System</div><div class="tile-desc">A consultative four-step flow that collects business intelligence, selects services, generates a personalized strategy, and establishes payment via Stripe — without charging the client on day one.</div></div>
     <div class="tile"><div class="tile-num">02</div><div class="tile-title">Customer Dashboard</div><div class="tile-desc">Each client's personal interface: active services, KPI metrics, AI-generated recommendations, advisor messages, performance reports, and billing — all scoped exclusively to their account.</div></div>
     <div class="tile"><div class="tile-num">03</div><div class="tile-title">Advisor Dashboard</div><div class="tile-desc">A full customer intelligence centre. Advisors view all client data, manage services and budgets, generate AI strategies, upload reports, and control the engagement without leaving one screen.</div></div>
     <div class="tile"><div class="tile-num">04</div><div class="tile-title">AI Strategy Engine</div><div class="tile-desc">Nine strategy generators — SEO, Google Ads, Social Media, Brand, Quick Wins, Competitor Alerts, ROI, Service Gaps, Budget — powered by Claude AI using real client context including metrics and competitor data.</div></div>
@@ -422,7 +422,7 @@ code { font-family: var(--fmono); font-size: 11.5px; background: var(--surface2)
       <div class="jspine"><div class="jnum">4</div><div class="jspine-line"></div></div>
       <div class="jbody">
         <div class="jbody-title">Strategy Review</div>
-        <div class="jbody-desc">A personalised strategy statement is generated from the client's service combination, industry, and goals. Growth insights specific to their challenge are shown alongside auto-populated goal chips. The client confirms before proceeding.</div>
+        <div class="jbody-desc">A personalized strategy statement is generated from the client's service combination, industry, and goals. Growth insights specific to their challenge are shown alongside auto-populated goal chips. The client confirms before proceeding.</div>
         <div class="jdetails">
           <div class="jd"><div class="jd-label">What They See</div><div class="jd-val">Strategy statement · 2–4 growth insights · Confirmed goal list · Support channels overview</div></div>
           <div class="jd"><div class="jd-label">AI Involvement</div><div class="jd-val">Generated client-side from template logic using their inputs. No Claude API call at this stage.</div></div>
@@ -438,7 +438,7 @@ code { font-family: var(--fmono); font-size: 11.5px; background: var(--surface2)
         <div class="jbody-desc">The client sees their assigned advisor, a summary of their selected plan, and the service agreement. They type their full name as a digital signature and add a payment method via Stripe. The card is verified and saved — no charge is made. A 10-day consultation period begins.</div>
         <div class="jdetails">
           <div class="jd"><div class="jd-label">Data Collected</div><div class="jd-val">Digital signature (full name typed) · Stripe payment method ID — card details are never stored on our servers</div></div>
-          <div class="jd"><div class="jd-label">Payment Logic</div><div class="jd-val">Stripe SetupIntent. Card authorised only. No charge until the advisor activates services after the consultation.</div></div>
+          <div class="jd"><div class="jd-label">Payment Logic</div><div class="jd-val">Stripe SetupIntent. Card authorized only. No charge until the advisor activates services after the consultation.</div></div>
           <div class="jd"><div class="jd-label">Destination</div><div class="jd-val">Signature → user meta · Stripe ID → user meta · Odoo lead → "Consultation Active"</div></div>
           <div class="jd"><div class="jd-label">Advisor Notification</div><div class="jd-val">Assigned advisor receives an in-app notification. New client appears in their list immediately.</div></div>
         </div>
@@ -627,7 +627,7 @@ code { font-family: var(--fmono); font-size: 11.5px; background: var(--surface2)
     <div class="int-head"><div><div class="int-head-name">Google Ads</div><div class="int-head-sub">MCC manager account · per-client Customer IDs</div></div><span class="int-badge">Per Client</span></div>
     <div class="int-body">
       <div class="int-col"><h5>ID Collected</h5><p>Google Ads Customer ID in format <code>123-456-7890</code>. Entered during onboarding (Step 2) or by the advisor in the Data Sources tab.</p></div>
-      <div class="int-col"><h5>Purpose</h5><p>Grants our MCC manager account read-only access to campaign data. No ad changes are ever made without explicit client authorisation.</p></div>
+      <div class="int-col"><h5>Purpose</h5><p>Grants our MCC manager account read-only access to campaign data. No ad changes are ever made without explicit client authorization.</p></div>
       <div class="int-col"><h5>Output</h5><p>Pulls impressions, clicks, spend, and conversions into <code>six_metrics</code>. Visible in the Google Ads service tab and the advisor metrics panel.</p></div>
     </div>
   </div>

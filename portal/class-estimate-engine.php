@@ -667,7 +667,7 @@ class Six_EstimateEngine {
         if ( $is_ga_audit ) {
             $L[] = 'This client ALREADY RUNS Google Ads. Write a hyper-specific 60-day IMPROVEMENT plan — an initial audit of what they already run, surfacing the highest-impact opportunities to get more leads from the same or better spend. This plan is the LAST thing they see before entering their credit card.';
             $L[] = 'Your job: make them feel that 6ix Developers has already reviewed their setup, spotted exactly where money is leaking, and that continuing alone would keep costing them.';
-            $L[] = 'Do NOT talk about "setting up" or "launching" campaigns from scratch — they are live. Talk about auditing, fixing, optimising, and scaling what exists.';
+            $L[] = 'Do NOT talk about "setting up" or "launching" campaigns from scratch — they are live. Talk about auditing, fixing, optimizing, and scaling what exists.';
             $L[] = 'Frame the opportunities by IMPACT: the first is their Biggest Opportunity, then Opportunity #2, #3. Every line must reference their actual campaigns, keywords, location, competitors, budget, or the specific problems they described. Zero generic filler.';
         } else {
             $L[] = 'Write a hyper-specific 60-day growth plan for a prospective client. This plan is the LAST thing they see before entering their credit card.';
@@ -731,7 +731,7 @@ class Six_EstimateEngine {
         $L[] = '=== REQUIRED JSON OUTPUT ===';
         $L[] = 'Return ONLY valid JSON. No markdown fences, no text outside the JSON object.';
         $L[] = 'Every insight must cite a REAL number (CPC, keyword volume, competitor name, industry stat).';
-        $L[] = 'NEVER use generic phrases like "optimise your presence" or "improve performance".';
+        $L[] = 'NEVER use generic phrases like "optimize your presence" or "improve performance".';
         $L[] = 'ALWAYS name their specific keyword, service, location, or business.';
         $L[] = '';
         // ── Service-scoping: only speak to the channels they actually chose ──
@@ -757,7 +757,7 @@ class Six_EstimateEngine {
         if ( strpos($svc_str,'SEO') !== false )
             $svc_insight_instructions[] = 'SEO insight: describe their keyword gap with a number, why long-tail terms in ' . $ind . ' convert better, and the #1 on-page or technical action.';
         if ( strpos($svc_str,'Google Business') !== false )
-            $svc_insight_instructions[] = 'GBP insight: explain their current rating (' . ($co->gbp_rating ?? 'unknown') . ') vs local competition, why map pack visibility drives walk-ins for ' . $ind . ', and 1 specific optimisation (photos, posts, or Q&A).';
+            $svc_insight_instructions[] = 'GBP insight: explain their current rating (' . ($co->gbp_rating ?? 'unknown') . ') vs local competition, why map pack visibility drives walk-ins for ' . $ind . ', and 1 specific optimization (photos, posts, or Q&A).';
         if ( strpos($svc_str,'Website') !== false )
             $svc_insight_instructions[] = 'Website insight: identify 1 conversion friction point common in ' . $ind . ', explain why load speed or headline copy affects cost per lead, and name the highest-impact page to build first.';
 
@@ -783,7 +783,7 @@ class Six_EstimateEngine {
             $L[] = '  ],';
             $L[] = '  "roadmap": [';
             $L[] = '    {"week":"Days 1–15","phase":"Audit & Fix","title":"5-word title","points":["what we audit first in their account","the top leak we fix (cite their stated problem)","expected early win with a number"]},';
-            $L[] = '    {"week":"Days 16–30","phase":"Optimise","title":"5-word title","points":["bidding or targeting change citing their keyword/CPC $' . $avg_cpc . '","what we cut vs double down on","updated cost-per-lead or lead number"]},';
+            $L[] = '    {"week":"Days 16–30","phase":"Optimize","title":"5-word title","points":["bidding or targeting change citing their keyword/CPC $' . $avg_cpc . '","what we cut vs double down on","updated cost-per-lead or lead number"]},';
             $L[] = '    {"week":"Days 31–45","phase":"Expand","title":"5-word title","points":["new campaign type or keyword group to add","competitor gap we exploit (name one)","incremental lead projection"]},';
             $L[] = '    {"week":"Days 46–60","phase":"Scale","title":"5-word title","points":["scale step tied to their goal","budget reallocation to top performers","Month 2 lead volume projection"]}';
             $L[] = '  ]';
@@ -813,7 +813,7 @@ class Six_EstimateEngine {
         $L[] = '  "roadmap": [';
         $L[] = '    {"week":"Week 1–2","phase":"Foundation","title":"5-word title","points":["specific setup action","configuration or audit step","expected first outcome with a number"]},';
         $L[] = '    {"week":"Week 3–4","phase":"Launch","title":"5-word title","points":["go-live action","targeting decision citing their keyword or category","first measurable milestone"]},';
-        $L[] = '    {"week":"Day 30–45","phase":"Optimise","title":"5-word title","points":["data-driven cut or scale decision","what underperforms vs what wins in ' . $ind . '","updated lead or ranking number"]},';
+        $L[] = '    {"week":"Day 30–45","phase":"Optimize","title":"5-word title","points":["data-driven cut or scale decision","what underperforms vs what wins in ' . $ind . '","updated lead or ranking number"]},';
         $L[] = '    {"week":"Day 46–60","phase":"Scale","title":"5-word title","points":["expansion step specific to their goal","new keyword group or content piece to add","Month 2 lead or traffic projection"]}';
         $L[] = '  ]';
         $L[] = '}';
@@ -991,14 +991,14 @@ class Six_EstimateEngine {
                     'title'  => 'Campaigns go live — first data in',
                     'points' => array(
                         "Launch {$ch} targeting {$ind} buyers in {$loc}",
-                        "Run A/B tests on headlines and landing page CTAs to maximise conversion rate",
+                        "Run A/B tests on headlines and landing page CTAs to maximize conversion rate",
                         "Daily monitoring — adjust bids and targeting based on early signals",
                     ),
                     'outcome' => "First {$lo}–" . round($hi*0.6) . " leads within 30 days",
                 ),
                 array(
                     'week'   => 'Month 2',
-                    'phase'  => 'Optimise',
+                    'phase'  => 'Optimize',
                     'title'  => 'Data-driven refinement',
                     'points' => array(
                         "Identify top-converting keywords and audiences — double down on winners",
@@ -1063,7 +1063,7 @@ class Six_EstimateEngine {
         return $addr;
     }
 
-    /** Normalise a comma/newline list of cities to at most three, comma-joined. */
+    /** Normalize a comma/newline list of cities to at most three, comma-joined. */
     private static function clean_city_list( string $s ): string {
         $parts = array_filter( array_map( 'trim', preg_split( '/[,;\n]+/', $s ) ) );
         $parts = array_slice( array_values( $parts ), 0, 3 );

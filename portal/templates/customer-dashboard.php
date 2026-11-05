@@ -975,7 +975,7 @@ $opp_types=array(
             <?php if($has_content): ?>
             <div style="font-size:13px;color:var(--text1);line-height:1.75;padding:12px 14px;background:var(--dark4);border-radius:10px"><?php echo esc_html($clean); ?></div>
             <?php else: ?>
-            <div class="six-opp-teaser" style="font-size:12px;color:var(--text3);line-height:1.7;padding:4px 0">Select <strong>See Insight</strong> to generate your personalised analysis.</div>
+            <div class="six-opp-teaser" style="font-size:12px;color:var(--text3);line-height:1.7;padding:4px 0">Select <strong>See Insight</strong> to generate your personalized analysis.</div>
             <div class="six-ai-loading" style="display:none;margin-top:8px"><span class="six-ai-spinner"></span> <span style="font-size:12px;color:var(--text3)">Analysing…</span></div>
             <?php endif; ?>
         </div>
@@ -1004,7 +1004,7 @@ $opp_types=array(
 $domain  = $website_url ? preg_replace('/^www\./','',(parse_url($website_url,PHP_URL_HOST)??'')) : '';
 $has_data = $domain || $ai_industry || ($checkout->competitors ?? '');
 $saved_comps = array_filter(array_map('trim', explode(',', $checkout->competitors ?? '')));
-$ctx     = "Business: {$ai_business}, Industry: {$ai_industry}, Website: ".($domain?:'not set').", Location: ".($checkout->location??'not set').", Current services: ".($ai_svc_names?:'none').". Known competitors: ".($comp_str?:'analyse typical industry competitors').". Available 6ix services: Google Ads, SEO, , Website Development.";
+$ctx     = "Business: {$ai_business}, Industry: {$ai_industry}, Website: ".($domain?:'not set').", Location: ".($checkout->location??'not set').", Current services: ".($ai_svc_names?:'none').". Known competitors: ".($comp_str?:'analyze typical industry competitors').". Available 6ix services: Google Ads, SEO, , Website Development.";
 ?>
 <?php
 $comp_saved  = get_user_meta($user_id,'six_comp_analysis_data',true);
@@ -1041,7 +1041,7 @@ $comp_rows   = (is_array($comp_saved) && !empty($comp_saved['rows'])) ? $comp_sa
     </div>
 </div>
 <div id="comp-meta" style="font-size:12px;color:var(--text3);margin-bottom:10px">
-    <?php if($comp_last): ?>Last analysed <?php echo date('M j, Y', $comp_last); ?> &middot; next available <?php echo date('M j, Y', $comp_next); ?><?php else: ?>Run your first analysis to pull live competitor data into the table below.<?php endif; ?>
+    <?php if($comp_last): ?>Last analyzed <?php echo date('M j, Y', $comp_last); ?> &middot; next available <?php echo date('M j, Y', $comp_next); ?><?php else: ?>Run your first analysis to pull live competitor data into the table below.<?php endif; ?>
 </div>
 
 <div class="six-card">
@@ -1100,11 +1100,11 @@ $comp_rows   = (is_array($comp_saved) && !empty($comp_saved['rows'])) ? $comp_sa
     }).join('');
   }
   btn.addEventListener('click',function(){
-    btn.textContent='Analysing…'; btn.disabled=true; if(msg){msg.style.color='var(--text3)';msg.textContent='Pulling live competitor data — this can take a moment…';}
+    btn.textContent='Analyzing…'; btn.disabled=true; if(msg){msg.style.color='var(--text3)';msg.textContent='Pulling live competitor data — this can take a moment…';}
     post({action:'six_competitor_analysis'}).then(function(r){
       if(r&&r.success&&r.data&&r.data.data){
         render(r.data.data.rows||[]);
-        if(meta) meta.innerHTML='Last analysed '+fmtDate(r.data.ran_at)+' &middot; next available '+fmtDate(r.data.next_at);
+        if(meta) meta.innerHTML='Last analyzed '+fmtDate(r.data.ran_at)+' &middot; next available '+fmtDate(r.data.next_at);
         if(msg){msg.style.color='var(--success)';msg.textContent=r.data.locked?'Showing your saved analysis (one run per month).':'Analysis complete and saved.';}
         // Lock the button until next month.
         btn.className='six-btn six-btn-ghost'; btn.style.opacity='.65'; btn.style.cursor='not-allowed';
@@ -1127,7 +1127,7 @@ $comp_rows   = (is_array($comp_saved) && !empty($comp_saved['rows'])) ? $comp_sa
 $all_svc_defs=array(
     array('slug'=>'google-ads',       'name'=>'Google Ads',              'desc'=>'Paid search campaigns that drive immediate, high-intent leads.'),
     array('slug'=>'seo',              'name'=>'SEO',                     'desc'=>'Long-term organic visibility that compounds month over month.'),
-    array('slug'=>'google-business',  'name'=>'Google Business Profile', 'desc'=>'Dominate local search and drive walk-ins with an optimised listing.'),
+    array('slug'=>'google-business',  'name'=>'Google Business Profile', 'desc'=>'Dominate local search and drive walk-ins with an optimized listing.'),
     array('slug'=>'website',          'name'=>'Website Development',     'desc'=>'Conversion-optimised websites built for growth.'),
 );
 foreach($all_svc_defs as $def):
@@ -1779,7 +1779,7 @@ $next_billing=date('M 1, Y',strtotime('first day of next month'));
 <?php endif; ?>
 
 <?php elseif($active_tab==='profile'): ?>
-<div class="six-page-header"><div><h1 class="six-page-title">Profile</h1><p class="six-page-sub">Your information — used by AI for personalised insights</p></div></div>
+<div class="six-page-header"><div><h1 class="six-page-title">Profile</h1><p class="six-page-sub">Your information — used by AI for personalized insights</p></div></div>
 <div id="profile-saved-msg" style="display:none;background:rgba(86,211,100,0.1);border:1px solid rgba(86,211,100,0.3);color:var(--success);padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px">✓ Profile saved successfully.</div>
 <div id="profile-error-msg" style="display:none;background:rgba(255,107,107,0.1);border:1px solid var(--danger);color:var(--danger);padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px"></div>
 <div class="six-grid-2" style="margin-bottom:16px">
@@ -2551,7 +2551,7 @@ if(compBtn){
         if(!ctxEl){alert('Please complete your profile first.');return;}
         var ctx=ctxEl.dataset.value||'';
         document.getElementById('competitor-results').style.display='block';
-        compBtn.textContent='\u23f3 Analysing\u2026';compBtn.disabled=true;
+        compBtn.textContent='\u23f3 Analyzing\u2026';compBtn.disabled=true;
         var panels=[
             {id:'ai-comp-landscape-body',prompt:'You are a 6ix Developers competitive analyst. '+ctx+' In 4 bullet points, identify 4 competitors or competitor types. For each: what they do better AND which 6ix service closes that gap. Use \u2192 bullets. Max 100 words. Be specific to the industry.'},
             {id:'ai-comp-gaps-body',prompt:'You are a 6ix Developers market analyst. '+ctx+' Identify 3 specific keyword or traffic gaps where competitors are winning. For each: name it, quantify the loss, name the 6ix service that fixes it. Use \u2192 bolded gap name. Max 90 words.'},

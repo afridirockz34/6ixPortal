@@ -111,7 +111,7 @@ class Six_Analytics {
     public static function gsc_summary( $site, $days = 28 ) {
         $site = trim( (string) $site );
         if ( ! $site ) return array( 'error' => 'No Search Console site for this client.' );
-        // Normalise to a GSC property identifier.
+        // Normalize to a GSC property identifier.
         if ( strpos( $site, 'sc-domain:' ) !== 0 && strpos( $site, 'http' ) !== 0 ) {
             $domain = preg_replace( '#^www\.#', '', preg_replace( '#/.*$#', '', $site ) );
             $site = 'sc-domain:' . $domain;

@@ -64,13 +64,13 @@ class Six_MCP_Server {
 	 */
 	public static function authenticate( $request ) {
 		// Requests from Anthropic's infrastructure are server-to-server and
-		// carry no Origin. A browser-issued Origin we don't recognise is
+		// carry no Origin. A browser-issued Origin we don't recognize is
 		// rejected outright — belt and braces, since token auth (never
 		// cookies) already means a hostile page can't authenticate at all.
 		$origin = $request->get_header( 'origin' );
 		if ( $origin && untrailingslashit( $origin ) !== untrailingslashit( site_url() )
 		     && untrailingslashit( $origin ) !== untrailingslashit( home_url() ) ) {
-			return new WP_Error( 'six_bad_origin', 'Unrecognised Origin.', array( 'status' => 403 ) );
+			return new WP_Error( 'six_bad_origin', 'Unrecognized Origin.', array( 'status' => 403 ) );
 		}
 		return Six_Profile_API::require_read( $request );
 	}
@@ -205,7 +205,7 @@ class Six_MCP_Server {
 			array(
 				'name'        => 'save_client_artifact',
 				'title'       => 'Save a result for a client',
-				'description' => 'Store output you produced against a client — a keyword analysis, a GMB post schedule, an audit report — so it shows on their dashboard and is available to later sessions. Requires a write-scoped token. Give it a stable `type` so the dashboard can recognise it.',
+				'description' => 'Store output you produced against a client — a keyword analysis, a GMB post schedule, an audit report — so it shows on their dashboard and is available to later sessions. Requires a write-scoped token. Give it a stable `type` so the dashboard can recognize it.',
 				'inputSchema' => array(
 					'type'       => 'object',
 					'properties' => array(
@@ -234,7 +234,7 @@ class Six_MCP_Server {
 
 	/**
 	 * A tool's return value. The JSON goes in `structuredContent`, and the
-	 * same JSON serialised goes in a text block — the spec asks for both, so
+	 * same JSON serialized goes in a text block — the spec asks for both, so
 	 * clients that only read text still get the data.
 	 */
 	protected static function tool_result( $data, $is_error = false ) {

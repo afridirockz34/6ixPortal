@@ -128,7 +128,7 @@ class Six_Ahrefs {
 
     /**
      * Resolve a free-text location to the two-letter country Ahrefs wants.
-     * Deliberately conservative: an unrecognised Canadian city still has to
+     * Deliberately conservative: an unrecognized Canadian city still has to
      * resolve to Canada, not to the US default, or every local-SEO number
      * would silently describe the wrong country.
      */

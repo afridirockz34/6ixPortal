@@ -27,7 +27,7 @@ class Six_AI_Strategist {
     // Interactive chat uses the FAST model so replies come back in seconds, not
     // minutes — the deep model (Opus) is reserved for the heavy Strategy/Audit
     // modes the advisor triggers explicitly. Deep + 6 tool loops on every quick
-    // question was why chat sat on "Analysing…" for minutes.
+    // question was why chat sat on "Analyzing…" for minutes.
     private static $deep_modes = array( 'strategy', 'gads_audit', 'seo_audit', 'performance' );
 
     public static function model_for( $mode ) {
@@ -222,7 +222,7 @@ class Six_AI_Strategist {
             ),
             array(
                 'name' => 'google_ads_performance',
-                'description' => "Pull the client's LIVE Google Ads performance (last 30 days): spend, clicks, impressions, conversions, CPC, CPA and per-campaign breakdown. Use before making Google Ads optimisation claims.",
+                'description' => "Pull the client's LIVE Google Ads performance (last 30 days): spend, clicks, impressions, conversions, CPC, CPA and per-campaign breakdown. Use before making Google Ads optimization claims.",
                 'input_schema' => array( 'type'=>'object', 'properties'=>new stdClass() ),
             ),
             array(
@@ -306,10 +306,10 @@ class Six_AI_Strategist {
             case 'keyword_difficulty':
                 return $seo::keyword_difficulty( $input['keywords'] ?? array(), $loc );
             case 'ranked_keywords':
-                if ( ! $domain ) return array( 'error' => 'No domain to analyse. Add the client\'s Website in the Data Sources tab, or specify a domain.' );
+                if ( ! $domain ) return array( 'error' => 'No domain to analyze. Add the client\'s Website in the Data Sources tab, or specify a domain.' );
                 return $seo::ranked_keywords( $domain, $loc, $input['limit'] ?? 50 );
             case 'competitor_domains':
-                if ( ! $domain ) return array( 'error' => 'No domain to analyse. Add the client\'s Website in the Data Sources tab, or specify a domain.' );
+                if ( ! $domain ) return array( 'error' => 'No domain to analyze. Add the client\'s Website in the Data Sources tab, or specify a domain.' );
                 return $seo::competitors( $domain, $loc );
             case 'live_serp':
                 return $seo::serp( $input['keyword'] ?? '', $loc );
@@ -418,18 +418,18 @@ class Six_AI_Strategist {
     private static function system_prompt( $client_id, $mode ) {
         $mode_briefs = array(
             'chat'        => 'Act as a senior digital marketing strategist. Answer the advisor precisely and back claims with data you pull via tools.',
-            'keywords'    => 'Run professional keyword research: pull volumes/ideas/difficulty, cluster by intent, and recommend a prioritised target list with rationale.',
+            'keywords'    => 'Run professional keyword research: pull volumes/ideas/difficulty, cluster by intent, and recommend a prioritized target list with rationale.',
             'gads_audit'  => 'Perform a Google Ads audit and opportunity analysis: demand sizing, keyword/CPC economics, structure, negatives, budget allocation and expected outcomes.',
-            'seo_audit'   => 'Perform an SEO analysis: on-page signals, ranked keywords, competitor gaps, content and technical recommendations, prioritised by impact/effort.',
+            'seo_audit'   => 'Perform an SEO analysis: on-page signals, ranked keywords, competitor gaps, content and technical recommendations, prioritized by impact/effort.',
             'strategy'    => 'Build a complete 90-day digital marketing strategy with monthly milestones, channel mix, budget allocation, KPIs and expected results grounded in real data.',
-            'performance' => 'Review the current performance data and recommend concrete next actions and optimisations.',
+            'performance' => 'Review the current performance data and recommend concrete next actions and optimizations.',
         );
         $brief = $mode_briefs[ $mode ] ?? $mode_briefs['chat'];
 
         $sys  = "You are the 6ix Developers AI Strategist — an elite Google Ads and SEO analyst working alongside a human advisor at a professional digital marketing agency. "
               . "Your job: deliver rigorous, specific, data-backed analysis and strategy for the client below. "
               . "Use the available tools to pull REAL keyword, SERP, on-page and performance data before making numeric claims — never invent volumes or CPCs. "
-              . "Be concise but complete. Use clear headings and bullet points. Give concrete numbers, prioritised recommendations, and the reasoning behind them. "
+              . "Be concise but complete. Use clear headings and bullet points. Give concrete numbers, prioritized recommendations, and the reasoning behind them. "
               . "When you lack a data point, say so and either pull it with a tool or state the assumption.\n"
               . "TOOL BUDGET: you have a limited number of tool rounds. Call several tools in parallel in one turn when you can, gather only the data the question actually needs, then STOP calling tools and write your full answer. Do not keep pulling more data once you can already answer.\n\n"
               . "TASK FOCUS: {$brief}\n\n"
@@ -588,7 +588,7 @@ class Six_AI_Strategist {
         }
 
         // If the loop ran out while the model was still calling tools, make one
-        // final pass WITHOUT tools so it must synthesise an answer from
+        // final pass WITHOUT tools so it must synthesize an answer from
         // everything gathered rather than returning the "ran out of steps" stub.
         if ( $final_text === '' && $tools_used ) {
             $messages[] = array( 'role'=>'user', 'content'=>
