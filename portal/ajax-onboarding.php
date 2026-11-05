@@ -804,6 +804,26 @@ function six_track_abandoned_checkout() {
     if ( ! $step  ) $step  = intval( get_user_meta($user_id,'six_checkout_step', true) ?: 0 );
     if ( ! $score ) $score = intval( get_user_meta($user_id,'six_checkout_score',true) ?: 0 );
 
+    // Last line of defence: ignore an abandon signal for somebody who is
+    // demonstrably still here.
+    //
+    // The browser sends this on unload, and an unload happens for reasons that
+    // are not abandonment at all — logging in, being redirected to the portal,
+    // a reload. The client now flags deliberate navigation, but the client is
+    // the least trustworthy part of this: it can be a stale tab, a prefetch,
+    // or a beacon that was queued before the visitor came back. The onboarding
+    // page beats a heartbeat every 30 seconds, so a recent heartbeat is solid
+    // evidence the visitor is mid-session and should not be chased.
+    $last = get_user_meta( $user_id, 'six_last_activity', true );
+    if ( $last ) {
+        $idle = time() - strtotime( $last );
+        if ( $idle >= 0 && $idle < 4 * MINUTE_IN_SECONDS ) {
+            error_log( "6ix Abandon AJAX: ignored for uid={$user_id} — active {$idle}s ago" );
+            wp_send_json_success( array( 'note' => 'still_active', 'idle_seconds' => $idle ) );
+            return;
+        }
+    }
+
     // Delegate to Growth Engine — single authoritative abandon handler
     if ( class_exists('Six_Growth_Engine') ) {
         Six_Growth_Engine::on_abandon( $user_id, $step, $score );

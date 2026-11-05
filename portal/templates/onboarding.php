@@ -517,7 +517,11 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
         <?php echo wp_json_encode($u->first_name);?>,<?php echo wp_json_encode($u->last_name);?>,
         <?php echo wp_json_encode(get_user_meta($u->ID,'billing_phone',true)?:'');?>);
     });</script>
-    <?php else:?>
+    <?php endif;?>
+    <?php // Always rendered, so this panel is never blank. Hidden for a
+          // signed-in visitor, who is moved straight past it by the resume
+          // script above. ?>
+    <div id="ob-login-form"<?php if(is_user_logged_in()) echo ' style="display:none"'; ?>>
     <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:20px;font-weight:800;color:var(--t1);margin-bottom:32px">6ix Developers</div>
     <div class="ob-eye">Welcome</div>
     <h1 class="ob-ttl">Let's get started.</h1>
@@ -548,8 +552,8 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
     <div class="ob-btnrow" style="margin-top:20px">
       <button class="ob-btn ob-primary" style="flex:1" id="ob-login-btn" onclick="OB.handleEmail()">Continue &rarr;</button>
     </div>
-    <div id="ob-s1-back-wrap" style="display:none;margin-top:10px"><button class="ob-btn ob-ghost" style="width:100%" onclick="OB.backToEmail()">&larr; Use a different email</button></div>
-    <?php endif;?>
+    <div id="ob-s1-back-wrap" style="display:none;margin-top:10px"><button class="ob-btn ob-ghost" style="width:100%" onclick="OB.useDifferentEmail()">&larr; Use a different email</button></div>
+    </div><!-- /#ob-login-form -->
   </div>
 
   <!-- STEP 1: Account -->
@@ -1014,6 +1018,11 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 (function(){
 'use strict';
 var PREFILL_EMAIL=<?php echo wp_json_encode($js_data['prefill_email']??'');?>;
+// Switching to a different email while signed in has to end the WordPress
+// session too. Clearing the JavaScript state alone left the visitor still
+// authenticated as the previous account, so the page simply re-resumed it.
+var LOGGED_IN=<?php echo is_user_logged_in() ? 'true' : 'false'; ?>;
+var SWITCH_ACCOUNT_URL=<?php echo wp_json_encode( wp_logout_url( add_query_arg( 'switch', '1', home_url( '/onboarding/' ) ) ) ); ?>;
 var S={
   step:0,
   userId:<?php echo intval($js_data['user_id']??0);?>,
@@ -1451,7 +1460,12 @@ window.OB={
     var pw=$i('ob-pw-sec');if(pw)pw.style.display='none';
     var hint=$i('ob-hint');if(hint)hint.textContent='';
     var back=$i('ob-s1-back-wrap');if(back)back.style.display='none';
+    // The form is hidden on first render for a signed-in visitor; show it,
+    // otherwise this switches to a panel with nothing in it.
+    var form=$i('ob-login-form');if(form)form.style.display='';
+    var em=$i('ob-email');if(em)em.value='';
     panel('ob-login');prog(0);
+    if(em)em.focus();
   },
 
   handleEmail:function(){
@@ -1490,9 +1504,9 @@ window.OB={
       btn.disabled=false;
       if(r.success){
         if(r.data.nonce)S.nonce=r.data.nonce;
-        if(r.data.redirect_url){window.location.href=r.data.redirect_url;return;}
+        if(r.data.redirect_url){GE.leaveOnPurpose();window.location.href=r.data.redirect_url;return;}
         S.userId=r.data.user_id;S.email=email;
-        if(r.data.has_completed_checkout){window.location.replace('<?php echo esc_js(home_url('/portal/'));?>');}
+        if(r.data.has_completed_checkout){GE.leaveOnPurpose();window.location.replace('<?php echo esc_js(home_url('/portal/'));?>');}
         else{
           // Always refetch THIS account's own saved state before deciding
           // which step to resume at \u2014 S.q/svcs/budgets may still hold a
@@ -1511,9 +1525,29 @@ window.OB={
     });
   },
 
+  /**
+   * Show or hide the create-password field from the actual account state, and
+   * report whether a password is genuinely required.
+   *
+   * The rule is simply: we only need a password when we are about to create
+   * an account. Previously this was driven by S.isNew alone, which goes back
+   * to true whenever the visitor returns to the email panel — so after going
+   * back to edit a name, step 1 demanded a password while the field itself was
+   * still hidden from the earlier prefill. That is unsatisfiable: you cannot
+   * fill in a box you cannot see. Tying the requirement to the field's own
+   * visibility makes that state impossible to reach.
+   */
+  _syncPasswordField:function(){
+    var wrap=$i('s1-pw-wrap');
+    var creating = !S.userId && S.isNew && !S.isGoogle;
+    if(wrap) wrap.style.display = creating ? '' : 'none';
+    if(!creating){ var pw=$i('s1-pw'); if(pw) pw.value=''; }
+    return creating;
+  },
+
   doStep1:function(){
     var first=v('s1-first'),last=v('s1-last'),phone=v('s1-phone'),pw=$i('s1-pw')?$i('s1-pw').value:'';
-    var needsPw = S.isNew && !S.isGoogle;
+    var needsPw = OB._syncPasswordField();
     if(!validateFields('s1-err',[
       ['s1-first', !!first,                 'Please enter your first name.'],
       ['s1-first', VALID.name(first),       'Please enter your full first name.'],
@@ -1528,7 +1562,7 @@ window.OB={
     var btn=$i('s1-btn');btn.innerHTML='<span class="ob-spin"></span> Saving\u2026';btn.disabled=true;
     var d={action:'six_create_personal_account',email:S.email,first:first,last:last,phone:phone,
       utm_source:S.utm.source,utm_medium:S.utm.medium,utm_campaign:S.utm.campaign};
-    if(S.isNew&&!S.isGoogle)d.password=pw;
+    if(needsPw)d.password=pw;
     post(d).then(function(res){
       btn.disabled=false;btn.textContent='Select Services \u2192';
       if(res.success){
@@ -2139,6 +2173,15 @@ window.OB={
    */
   useDifferentEmail:function(){
     if(!window.confirm('Start again with a different email address? The details you entered on this step will not be carried over.')) return;
+    // Signed in: the WordPress session has to go too, or the page just
+    // resumes the same account on the next load. The round trip also clears
+    // the nonce and saved state cleanly, which an in-page reset cannot do.
+    if(typeof LOGGED_IN!=='undefined' && LOGGED_IN && typeof SWITCH_ACCOUNT_URL==='string' && SWITCH_ACCOUNT_URL){
+      try{ OB._clearLocal&&OB._clearLocal(); }catch(e){}
+      if(typeof GE!=='undefined') GE.leaveOnPurpose();
+      window.location.href=SWITCH_ACCOUNT_URL;
+      return;
+    }
     OB.backToEmail();
   },
 
@@ -2151,6 +2194,7 @@ window.OB={
     if(S.userId)post({action:'six_save_checkout_step',step:n,user_id:S.userId});
     if(typeof GE!=='undefined')GE.onStep(n);
     if(n===5)OB._initStep5();   // advisor card + call-time chips (also on resume)
+    if(n===1)OB._syncPasswordField();   // never ask for a password we already have
 
     // ── Restore field values when navigating back ─────────────────────────
     var q=S.q;
@@ -2472,7 +2516,7 @@ window.OB={
         panel('ob-complete');
         var pr=$i('ob-prog'); if(pr) pr.style.display='none';
         setTimeout(function(){
-          window.location.replace('<?php echo esc_js(home_url('/portal/')); ?>');
+          GE.leaveOnPurpose();window.location.replace('<?php echo esc_js(home_url('/portal/')); ?>');
         }, 3000);
       } else {
         alert2('s5-err', r.data||'Something went wrong. Please try again.');
@@ -2486,12 +2530,12 @@ window.addEventListener('NSLAfterFormLogin',function(){
   post({action:'six_google_login_complete'}).then(function(res){
     if(!res.success)return;
     // Advisors / sales / admins: server tells us where they belong
-    if(res.data.redirect_url){window.location.replace(res.data.redirect_url);return;}
+    if(res.data.redirect_url){GE.leaveOnPurpose();window.location.replace(res.data.redirect_url);return;}
     S.userId=res.data.user_id;S.email=res.data.email;S.advisor=res.data.advisor;
     S.isGoogle=true;S.isNew=false;if(res.data.nonce)S.nonce=res.data.nonce;
     S.q.first=res.data.first||'';S.q.last=res.data.last||'';S.q.phone=res.data.phone||'';
     // Completed customers go straight to their dashboard
-    if(res.data.completed){window.location.replace('<?php echo esc_js(home_url('/portal/'));?>');return;}
+    if(res.data.completed){GE.leaveOnPurpose();window.location.replace('<?php echo esc_js(home_url('/portal/'));?>');return;}
     var f=$i('s1-first'),l=$i('s1-last'),e=$i('s1-email'),p=$i('s1-phone'),pw=$i('s1-pw-wrap');
     if(f)f.value=S.q.first;if(l)l.value=S.q.last;if(e)e.value=S.email;if(p)p.value=S.q.phone;
     if(pw)pw.style.display='none';
@@ -2568,9 +2612,18 @@ var GE = {
     post({action:'six_save_checkout_step',step:GE._stepNum(),user_id:S.userId}).catch(function(){});
   },
 
+  // Marks the next unload as a deliberate move by the visitor (logging in,
+  // being redirected to the portal, finishing checkout) rather than them
+  // giving up. Without this, every successful login fired an abandonment
+  // email, because window.location triggers beforeunload exactly like
+  // closing the tab does.
+  _intentional: false,
+  leaveOnPurpose: function(){ GE._intentional = true; },
+
   // Send abandon — fires once per page session
   send: function(){
     if(GE._fired) return;
+    if(GE._intentional) return;   // they are moving on, not dropping out
     if(S.step==='done') return;
     if(!S.userId && !S.email) return;
     if((Date.now()-GE._pageStart)<8000) return; // ignore bounces under 8s
@@ -2626,19 +2679,52 @@ document.addEventListener('DOMContentLoaded',function(){
   // Heartbeat every 30s — keeps server-side stale detection accurate
   setInterval(function(){ GE.heartbeat(); }, 30000);
 
-  // Inactivity timer — 3 minutes
-  var inactTimer, lastAct=Date.now();
-  function resetInact(){
-    lastAct=Date.now();
+  // Inactivity timer.
+  //
+  // This used to be three minutes, and it did not listen for mouse movement.
+  // Step 4 is a full growth plan with a roadmap to read — anyone actually
+  // reading it sat still for three minutes and got an abandonment email while
+  // they were on the page. Two changes:
+  //
+  //   - Pointer movement, wheel and focus now count as being present, so
+  //     reading resets the clock instead of looking like a dropout.
+  //   - A visible tab gets 15 minutes. Only a backgrounded tab is judged
+  //     after 5, because that is the case where they really did wander off.
+  var IDLE_VISIBLE = 900000;   // 15 min — reading, thinking, taking a call
+  var IDLE_HIDDEN  = 300000;   // 5 min  — tab is in the background
+  var inactTimer, lastMove = 0;
+
+  function idleLimit(){ return document.hidden ? IDLE_HIDDEN : IDLE_VISIBLE; }
+  function armInact(){
     clearTimeout(inactTimer);
-    inactTimer=setTimeout(function(){
-      if(S.step!=='done') GE.send();
-    },180000);
+    inactTimer = setTimeout(function(){
+      // Re-check on firing: the tab may have come back to the foreground
+      // since the timer was set, which earns the longer allowance.
+      if(S.step==='done' || GE._intentional) return;
+      GE.send();
+    }, idleLimit());
   }
-  ['mousedown','keydown','touchstart','scroll','click','input'].forEach(function(ev){
+  function resetInact(){ armInact(); }
+
+  // Pointer movement fires continuously, so throttle it to once a second —
+  // re-arming a timer on every mousemove is pure overhead.
+  function resetInactThrottled(){
+    var now = Date.now();
+    if(now - lastMove < 1000) return;
+    lastMove = now;
+    armInact();
+  }
+
+  ['mousedown','keydown','keyup','touchstart','scroll','click','input','change','focus'].forEach(function(ev){
     document.addEventListener(ev,resetInact,{passive:true});
   });
-  resetInact();
+  ['mousemove','pointermove','wheel','touchmove'].forEach(function(ev){
+    document.addEventListener(ev,resetInactThrottled,{passive:true});
+  });
+  // Coming back to the tab is activity, and switching away shortens the clock.
+  document.addEventListener('visibilitychange',function(){ armInact(); });
+  window.addEventListener('focus',resetInact);
+  armInact();
 
   // Page close — beforeunload fires on Chrome/Firefox/Edge desktop
   window.addEventListener('beforeunload',function(){
