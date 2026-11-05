@@ -3903,34 +3903,56 @@ function sixDirectApprove(btn, serviceId, clientId) {
 // name (six_gads_customer_id, six_ga4_property_id, six_gsc_site,
 // six_gbp_location_id, six_meta_ad_account_id) auto-connect the client's live
 // data when saved.
+/**
+ * Service setup fields.
+ *
+ * `g` groups each field:
+ *   'int'  — an integration the advisor has to connect. These are the only
+ *            things this step genuinely needs from them, and they are what
+ *            makes live metrics work.
+ *   'ans'  — something the client already answered at onboarding. Prefilled
+ *            from their profile and shown for confirmation, not asked afresh.
+ *   'note' — free text.
+ *
+ * The split exists because the wizard used to ask an SEO client for their
+ * target keywords, cities and competitors a second time, having already
+ * collected all three during signup.
+ */
 var SIX_SVC_FIELDS = {
   'google-ads': [
-    {k:'six_gads_customer_id', label:'Google Ads Account ID (Customer ID)', ph:'123-456-7890'},
-    {k:'six_ga4_property_id', label:'GA4 Property ID (optional)', ph:'e.g. 312345678'},
-    {k:'objective', label:'Primary objective', ph:'Leads / Calls / Sales'},
-    {k:'target_locations', label:'Target locations', ph:'Toronto, Mississauga, GTA'},
-    {k:'landing_url', label:'Landing page URL', ph:'https://…'},
-    {k:'notes', label:'Setup notes', ph:'Anything the team should know', ta:true}
+    {k:'six_gads_customer_id', label:'Google Ads Account ID (Customer ID)', ph:'123-456-7890', g:'int'},
+    {k:'six_ga4_property_id', label:'GA4 Property ID', ph:'e.g. 312345678', g:'int'},
+    {k:'six_gtm_container_id', label:'Google Tag / GTM Container ID', ph:'GTM-XXXXXXX', g:'int'},
+    {k:'six_meta_ad_account_id', label:'Meta Ad Account ID', ph:'act_1234567890', g:'int'},
+    {k:'landing_url', label:'Landing page URL', ph:'https://…', g:'int'},
+    {k:'objective', label:'Primary objective', ph:'Leads / Calls / Sales', g:'ans'},
+    {k:'target_locations', label:'Target locations', ph:'Toronto, Mississauga, GTA', g:'ans'},
+    {k:'notes', label:'Setup notes', ph:'Anything the team should know', ta:true, g:'note'}
   ],
   'seo': [
-    {k:'website_url', label:'Website URL', ph:'https://…'},
-    {k:'six_gsc_site', label:'Search Console property (optional)', ph:'https://example.com/ or sc-domain:example.com'},
-    {k:'target_keywords', label:'Target keywords', ph:'plumber toronto, emergency plumber…', ta:true},
-    {k:'target_cities', label:'Target cities', ph:'Toronto, Vaughan, Markham'},
-    {k:'competitors', label:'Competitor sites', ph:'competitor1.com, competitor2.com'},
-    {k:'notes', label:'Setup notes', ph:'', ta:true}
+    {k:'website_url', label:'Website URL', ph:'https://…', g:'int'},
+    {k:'six_gsc_site', label:'Search Console property', ph:'https://example.com/ or sc-domain:example.com', g:'int'},
+    {k:'six_ga4_property_id', label:'GA4 Property ID', ph:'e.g. 312345678', g:'int'},
+    {k:'six_gtm_container_id', label:'Google Tag / GTM Container ID', ph:'GTM-XXXXXXX', g:'int'},
+    {k:'six_gbp_location_id', label:'Google Business Profile ID', ph:'Place ID or listing name', g:'int'},
+    {k:'target_keywords', label:'Target keywords', ph:'plumber toronto, emergency plumber…', ta:true, g:'ans'},
+    {k:'target_cities', label:'Target cities', ph:'Toronto, Vaughan, Markham', g:'ans'},
+    {k:'competitors', label:'Competitor sites', ph:'competitor1.com, competitor2.com', g:'ans'},
+    {k:'notes', label:'Setup notes', ph:'', ta:true, g:'note'}
   ],
   'google-business': [
-    {k:'six_gbp_location_id', label:'GBP Location / Listing ID', ph:'Place ID or listing name'},
-    {k:'primary_category', label:'Primary category', ph:'e.g. Plumber'},
-    {k:'service_areas', label:'Service areas', ph:'Toronto, GTA'},
-    {k:'notes', label:'Setup notes', ph:'', ta:true}
+    {k:'six_gbp_location_id', label:'GBP Location / Listing ID', ph:'Place ID or listing name', g:'int'},
+    {k:'website_url', label:'Website URL', ph:'https://…', g:'int'},
+    {k:'primary_category', label:'Primary category', ph:'e.g. Plumber', g:'ans'},
+    {k:'service_areas', label:'Service areas', ph:'Toronto, GTA', g:'ans'},
+    {k:'notes', label:'Setup notes', ph:'', ta:true, g:'note'}
   ],
   'website': [
-    {k:'domain', label:'Domain', ph:'example.com'},
-    {k:'scope', label:'Project scope / pages', ph:'Home, Services, About, Contact…', ta:true},
-    {k:'timeline', label:'Target timeline', ph:'e.g. 4 weeks'},
-    {k:'notes', label:'Setup notes', ph:'', ta:true}
+    {k:'domain', label:'Domain', ph:'example.com', g:'int'},
+    {k:'six_ga4_property_id', label:'GA4 Property ID', ph:'e.g. 312345678', g:'int'},
+    {k:'scope', label:'Project scope / pages', ph:'Home, Services, About, Contact…', ta:true, g:'ans'},
+    {k:'timeline', label:'Target timeline', ph:'e.g. 4 weeks', g:'ans'},
+    {k:'notes', label:'Setup notes', ph:'', ta:true, g:'note'}
   ]
 };
 
@@ -3964,6 +3986,7 @@ function sixServiceWizard(serviceId, clientId, slug, name, activateMode){
   post({action:'six_get_service_setup',client_id:clientId,service_slug:slug}).then(function(r){
     if(r&&r.success&&r.data){
       if(r.data.config) W.config=r.data.config||{};
+      W.answered = r.data.answered || [];
       if(r.data.metrics&&r.data.metrics.length) W.metrics=r.data.metrics.map(function(m){return {label:m.label,previous:m.previous,current:m.current,target:m.target};});
     }
     render();
@@ -3981,20 +4004,48 @@ function sixServiceWizard(serviceId, clientId, slug, name, activateMode){
     if(W.step===1) renderStep1(); else if(W.step===2) renderStep2(); else renderStep3();
   }
   function renderStep1(){
-    var h='<div style="font-size:12px;color:var(--text3,#8a8a99);margin-bottom:14px">Enter what you know — account IDs you fill in here connect the client’s live data automatically.</div>';
-    fields.forEach(function(f){
+    var answered = W.answered || [];
+    function fieldHtml(f){
       var v=esc(W.config[f.k]||'');
-      h+='<div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:600;color:var(--text2,#b5b5c5);margin-bottom:5px">'+esc(f.label)+'</label>'
+      var known = answered.indexOf(f.k) > -1 && v !== '';
+      return '<div style="margin-bottom:12px">'
+        +'<label style="display:flex;align-items:center;gap:7px;font-size:11px;font-weight:600;color:var(--text2,#b5b5c5);margin-bottom:5px">'
+          +esc(f.label)
+          +(known?'<span style="font-size:9px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#56D364;background:rgba(86,211,100,.12);border:1px solid rgba(86,211,100,.3);border-radius:4px;padding:1px 5px">From their answers</span>':'')
+        +'</label>'
         +(f.ta? '<textarea class="six-input" data-ck="'+f.k+'" rows="2" placeholder="'+esc(f.ph||'')+'" style="width:100%;font-size:12px;padding:8px 10px;resize:vertical">'+v+'</textarea>'
               : '<input class="six-input" data-ck="'+f.k+'" value="'+v+'" placeholder="'+esc(f.ph||'')+'" style="width:100%;font-size:12px;padding:8px 10px">')
         +'</div>';
-    });
+    }
+    function group(g){ return fields.filter(function(f){ return (f.g||'note')===g; }); }
+    function head(t,sub){
+      return '<div style="margin:2px 0 10px"><div style="font-size:11px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;color:var(--text1,#fff)">'+t+'</div>'
+        +(sub?'<div style="font-size:11px;color:var(--text3,#8a8a99);margin-top:3px;line-height:1.5">'+sub+'</div>':'')+'</div>';
+    }
+
+    var h='';
+    var ints=group('int'), ans=group('ans'), notes=group('note');
+
+    if(ints.length){
+      h+=head('Connect their data','Account IDs the team needs. Each one you fill in starts pulling that client’s live numbers — which is what the metrics step below reads from.');
+      ints.forEach(function(f){ h+=fieldHtml(f); });
+    }
+    if(ans.length){
+      h+='<div style="height:10px"></div>'
+        +head('From their onboarding answers','Already collected when they signed up. Confirm or correct — you do not need to re-enter anything that looks right.');
+      ans.forEach(function(f){ h+=fieldHtml(f); });
+    }
+    if(notes.length){
+      h+='<div style="height:10px"></div>';
+      notes.forEach(function(f){ h+=fieldHtml(f); });
+    }
     body.innerHTML=h;
   }
   function renderStep2(){
     body.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap">'
       +'<div style="font-size:12px;color:var(--text3,#8a8a99)">Metrics the customer will see — previous / current / target.</div>'
-      +'<button id="wiz-suggest" class="six-btn six-btn-ghost six-btn-sm" style="font-size:11px;color:var(--pink,#ff4d8d)">✨ Suggest with AI</button></div>'
+      +'<button id="wiz-suggest" class="six-btn six-btn-ghost six-btn-sm" style="font-size:11px;color:var(--pink,#ff4d8d)">Read current figures</button></div>'
+      +'<div id="wiz-sources" style="display:none;font-size:11px;line-height:1.6;color:var(--text3,#8a8a99);background:var(--dark3,#1c1c24);border:1px solid var(--border,#2a2a35);border-radius:8px;padding:9px 11px;margin-bottom:10px"></div>'
       +'<div id="wiz-metrics"></div>'
       +'<button id="wiz-addm" class="six-btn six-btn-ghost six-btn-sm" style="font-size:11px;margin-top:8px">+ Add metric row</button>';
     var list=body.querySelector('#wiz-metrics');
@@ -4011,12 +4062,29 @@ function sixServiceWizard(serviceId, clientId, slug, name, activateMode){
     if(W.metrics.length) W.metrics.forEach(addRow); else addRow();
     body.querySelector('#wiz-addm').onclick=function(){ addRow(); };
     body.querySelector('#wiz-suggest').onclick=function(){
-      var sb=this; sb.disabled=true; sb.textContent='Thinking…';
+      var sb=this; sb.disabled=true; sb.textContent='Reading…';
+      var srcEl=body.querySelector('#wiz-sources');
       post({action:'six_suggest_metrics',client_id:clientId,service_slug:slug}).then(function(r){
-        sb.disabled=false; sb.textContent='✨ Suggest with AI';
-        if(r&&r.success&&r.data&&r.data.metrics&&r.data.metrics.length){ r.data.metrics.forEach(addRow); }
-        else { msgEl.textContent=(r&&r.data&&(r.data.message||r.data))||'No suggestions.'; }
-      }).catch(function(){ sb.disabled=false; sb.textContent='✨ Suggest with AI'; msgEl.textContent='Network error.'; });
+        sb.disabled=false; sb.textContent='Read current figures';
+        if(r&&r.success&&r.data&&r.data.metrics&&r.data.metrics.length){
+          // Replace rather than append: reading twice should not leave two
+          // copies of every metric for the advisor to clean up.
+          collectStep2();
+          var keep=W.metrics.filter(function(m){
+            return !r.data.metrics.some(function(n){ return (n.label||'')===m.label; });
+          });
+          list.innerHTML=''; keep.concat(r.data.metrics).forEach(addRow);
+          if(srcEl){
+            var html='<strong style="color:var(--text2,#b5b5c5)">Read from:</strong> '+(r.data.sources||[]).map(esc).join(' · ');
+            if(r.data.note) html+='<div style="margin-top:5px">'+esc(r.data.note)+'</div>';
+            srcEl.innerHTML=html; srcEl.style.display='block';
+          }
+        } else {
+          var m=(r&&r.data&&(r.data.message||r.data))||'Nothing connected to read from yet.';
+          if(srcEl){ srcEl.innerHTML=esc(m); srcEl.style.display='block'; }
+          msgEl.textContent='';
+        }
+      }).catch(function(){ sb.disabled=false; sb.textContent='Read current figures'; msgEl.textContent='Network error.'; });
     };
   }
   function renderStep3(){
@@ -4041,7 +4109,36 @@ function sixServiceWizard(serviceId, clientId, slug, name, activateMode){
     nextBtn.disabled=true; nextBtn.textContent='Saving…';
     post({action:'six_save_service_setup',client_id:clientId,service_id:serviceId,service_slug:slug,activate:W.activate?1:0,config:JSON.stringify(W.config),metrics:JSON.stringify(W.metrics)})
     .then(function(r){
-      if(r&&r.success){ nextBtn.textContent=W.activate?'Activated ✓':'Saved ✓'; setTimeout(function(){ location.reload(); },700); }
+      if(r&&r.success){
+        nextBtn.textContent=W.activate?'Activated ✓':'Saved ✓';
+        var d=r.data||{};
+        // When activating we report what else happened rather than reloading
+        // straight past it — the advisor needs the questionnaire link in
+        // hand in case the client's copy of the email goes astray.
+        if(W.activate && (d.questionnaire_url || d.baseline)){
+          var h='<div style="padding:4px 0 2px"><div style="font-size:13px;font-weight:700;color:#56D364;margin-bottom:10px">Service activated</div>';
+          if(d.baseline){
+            h+='<div style="font-size:12px;color:var(--text2,#b5b5c5);margin-bottom:10px">Baseline snapshot taken ('+esc(String(d.baseline.metrics))+' metrics, '+esc(String(d.baseline.captured_at))+'). Every future check compares against this.</div>';
+          }
+          if(d.questionnaire_url){
+            h+='<div style="font-size:12px;color:var(--text2,#b5b5c5);margin-bottom:6px">The strategy questionnaire has been emailed to the client. Their link, if you need to send it again:</div>'
+              +'<div style="display:flex;gap:6px"><input class="six-input" id="wiz-qlink" readonly value="'+esc(d.questionnaire_url)+'" style="flex:1;font-size:11px;padding:7px 9px">'
+              +'<button id="wiz-qcopy" class="six-btn six-btn-ghost six-btn-sm" style="font-size:11px">Copy</button></div>';
+          }
+          h+='<div style="margin-top:14px"><button id="wiz-done" class="six-btn six-btn-primary six-btn-sm" style="font-size:12px">Done</button></div></div>';
+          body.innerHTML=h;
+          stepsEl.textContent='';
+          backBtn.style.visibility='hidden'; nextBtn.style.display='none';
+          var cp=body.querySelector('#wiz-qcopy');
+          if(cp) cp.onclick=function(){
+            var f=body.querySelector('#wiz-qlink'); f.select();
+            try{ document.execCommand('copy'); cp.textContent='Copied'; }catch(e){ cp.textContent='Select and copy'; }
+          };
+          body.querySelector('#wiz-done').onclick=function(){ location.reload(); };
+          return;
+        }
+        setTimeout(function(){ location.reload(); },700);
+      }
       else { nextBtn.disabled=false; nextBtn.textContent=W.activate?'Activate service':'Save setup'; msgEl.textContent=(r&&r.data)||'Error saving.'; }
     })
     .catch(function(){ nextBtn.disabled=false; nextBtn.textContent=W.activate?'Activate service':'Save setup'; msgEl.textContent='Network error.'; });

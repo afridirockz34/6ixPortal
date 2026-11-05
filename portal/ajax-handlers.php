@@ -615,7 +615,44 @@ add_action( 'wp_ajax_six_get_service_setup', function() {
     $metrics = $wpdb->get_results( $wpdb->prepare(
         "SELECT id,label,previous_value AS previous,current_value AS current,target_value AS target
          FROM {$wpdb->prefix}six_metrics WHERE client_id=%d AND service_slug=%s ORDER BY id", $client_id, $slug ), ARRAY_A );
-    wp_send_json_success( array( 'config' => (object) $config, 'metrics' => $metrics ?: array() ) );
+
+    // Everything the client already told us at onboarding, so the wizard can
+    // prefill instead of asking again. Being asked for your own target
+    // keywords and competitors a second time, by the agency you just gave
+    // them to, reads as nobody having looked at your answers.
+    $row = $wpdb->get_row( $wpdb->prepare(
+        "SELECT * FROM {$wpdb->prefix}six_checkout_progress WHERE user_id=%d", $client_id ) );
+    $answered = array();
+    if ( $row ) {
+        $from_profile = array(
+            'website_url'     => $row->website        ?? '',
+            'target_keywords' => $row->seo_keywords   ?? '',
+            'target_cities'   => $row->seo_locations  ?? '',
+            'competitors'     => $row->competitors    ?? '',
+            'target_locations'=> $row->ads_locations  ?? ( $row->seo_locations ?? '' ),
+            'objective'       => $row->goal           ?? '',
+            'primary_category'=> $row->gbp_category   ?? '',
+            'service_areas'   => $row->seo_locations  ?? '',
+            'domain'          => $row->website        ?? '',
+        );
+        foreach ( $from_profile as $k => $v ) {
+            $v = trim( (string) $v );
+            if ( $v !== '' ) $answered[ $k ] = $v;
+        }
+    }
+    // The saved config wins over the profile: an advisor who has already
+    // corrected a value must not see it reverted on the next open.
+    foreach ( $answered as $k => $v ) {
+        if ( ! isset( $config[ $k ] ) || $config[ $k ] === '' ) $config[ $k ] = $v;
+    }
+
+    wp_send_json_success( array(
+        'config'   => (object) $config,
+        'metrics'  => $metrics ?: array(),
+        // Which keys came from the client's own answers, so the UI can label
+        // them as already known rather than presenting them as fresh questions.
+        'answered' => array_keys( $answered ),
+    ) );
 } );
 
 // Service-activation wizard — save advisor-entered service info + metrics, and
@@ -687,23 +724,137 @@ add_action( 'wp_ajax_six_save_service_setup', function() {
             }
         }
     }
-    wp_send_json_success( array( 'metrics_saved' => $saved, 'activated' => $activated ) );
+
+    // Two things that have to happen the moment a service goes live, and
+    // which were previously left to somebody remembering.
+    $baseline = null;
+    $questionnaire_url = '';
+    if ( $activated ) {
+
+        // 1. The baseline snapshot. Every later "are we where we said we'd
+        //    be" comparison measures against the first snapshot on record, so
+        //    it has to be taken now — on the day the work starts — not
+        //    whenever a scheduled capture happens to run next.
+        if ( class_exists( 'Six_Performance' ) ) {
+            $snap = Six_Performance::capture( $client_id, 'service_activated' );
+            if ( $snap ) {
+                $baseline = array(
+                    'captured_at' => $snap['captured_at'],
+                    'metrics'     => count( $snap['metrics']['values'] ?? array() ),
+                );
+            }
+        }
+
+        // 2. The strategy questionnaire. SEO cannot be built without it, and
+        //    the client has no way of knowing it is their turn unless we say
+        //    so. Issuing it emails them the link and returns it here too, so
+        //    the advisor can resend it if the email goes astray.
+        if ( $slug === 'seo' && function_exists( 'six_issue_strategy_questionnaire' ) ) {
+            six_issue_strategy_questionnaire( $client_id );
+            if ( function_exists( 'six_questionnaire_link' ) ) {
+                $questionnaire_url = (string) six_questionnaire_link( $client_id );
+            }
+        }
+    }
+
+    wp_send_json_success( array(
+        'metrics_saved'     => $saved,
+        'activated'         => $activated,
+        'baseline'          => $baseline,
+        'questionnaire_url' => $questionnaire_url,
+    ) );
 } );
 
-// AI-suggested metrics for a service (activation step). Grounded in live data
-// where connected, else industry benchmarks — returned in prev/current/target
-// form for the advisor to review and save.
+/**
+ * Current metrics for a service, read from the client's connected sources.
+ *
+ * This is deliberately a *measurement*, not a suggestion. Whatever the
+ * advisor accepts here becomes the client's starting figure and the baseline
+ * every future report compares against, so a plausible-looking invented
+ * number would quietly corrupt months of reporting. Each row therefore says
+ * where it came from, and a metric nothing can measure is returned with an
+ * empty value for the advisor to fill in by hand rather than guessed at.
+ */
 add_action( 'wp_ajax_six_suggest_metrics', function() {
     check_ajax_referer( 'six_nonce', 'nonce' );
     if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
-    if ( ! class_exists( 'Six_AI_Strategist' ) ) wp_send_json_error( 'AI Strategist not available.' );
     $client_id = intval( $_POST['client_id'] ?? 0 );
     $slug      = sanitize_key( $_POST['service_slug'] ?? '' );
     if ( ! $client_id || ! $slug ) wp_send_json_error( 'Missing client or service.' );
     @set_time_limit( 90 );
-    $r = Six_AI_Strategist::suggest_metrics( $client_id, $slug );
-    if ( isset( $r['error'] ) ) wp_send_json_error( $r['error'] );
-    wp_send_json_success( $r );
+
+    $rows    = array();
+    $sources = array();
+
+    // ── SEO: Ahrefs for organic reality, Search Console where linked ──────
+    if ( $slug === 'seo' ) {
+        $seo    = function_exists( 'six_seo_provider' ) ? six_seo_provider() : '';
+        $domain = class_exists( 'Six_AI_Strategist' ) ? Six_AI_Strategist::client_domain( $client_id ) : '';
+        $loc    = class_exists( 'Six_AI_Strategist' ) ? Six_AI_Strategist::target_location( $client_id ) : '';
+
+        if ( $seo && $domain && method_exists( $seo, 'site_metrics' ) ) {
+            $m = $seo::site_metrics( $domain, $loc );
+            if ( empty( $m['error'] ) ) {
+                $sources[] = ( $seo === 'Six_Ahrefs' ? 'Ahrefs' : 'DataForSEO' ) . ' (' . $domain . ')';
+                $rows[] = array( 'label' => 'Organic Visitors', 'previous' => '', 'current' => (string) $m['organic_traffic'],
+                                 'target' => '', 'source' => 'Ahrefs estimate' );
+                $rows[] = array( 'label' => 'Keywords on Page 1', 'previous' => '', 'current' => (string) $m['keywords_top3'],
+                                 'target' => '', 'source' => 'Ahrefs — top 3' );
+                $rows[] = array( 'label' => 'Keywords Tracked', 'previous' => '', 'current' => (string) $m['organic_keywords'],
+                                 'target' => '', 'source' => 'Ahrefs — total ranked' );
+            } else {
+                $sources[] = 'Ahrefs unavailable: ' . $m['error'];
+            }
+        } elseif ( ! $seo ) {
+            $sources[] = 'No SEO data provider configured — add the Ahrefs API token in 6ix Portal → Integrations.';
+        } elseif ( ! $domain ) {
+            $sources[] = 'No website saved for this client, so organic figures cannot be measured.';
+        }
+    }
+
+    // ── Google Ads: the account's own last-30-day numbers ─────────────────
+    if ( $slug === 'google-ads' && class_exists( 'Six_Google_Ads' ) ) {
+        $m = Six_Google_Ads::get_campaign_metrics_for_client( $client_id, 'LAST_30_DAYS' );
+        if ( is_array( $m ) && $m ) {
+            $sources[] = 'Google Ads (last 30 days)';
+            if ( isset( $m['clicks'] ) )      $rows[] = array( 'label' => 'Ad Clicks',      'previous' => '', 'current' => (string) intval( $m['clicks'] ),      'target' => '', 'source' => 'Google Ads' );
+            if ( isset( $m['impressions'] ) ) $rows[] = array( 'label' => 'Impressions',    'previous' => '', 'current' => (string) intval( $m['impressions'] ), 'target' => '', 'source' => 'Google Ads' );
+            if ( isset( $m['conversions'] ) ) $rows[] = array( 'label' => 'Leads from Ads', 'previous' => '', 'current' => (string) intval( $m['conversions'] ), 'target' => '', 'source' => 'Google Ads' );
+            if ( isset( $m['cpc'] ) )         $rows[] = array( 'label' => 'Avg Cost / Click','previous' => '', 'current' => (string) round( (float) $m['cpc'], 2 ), 'target' => '', 'source' => 'Google Ads' );
+        } else {
+            $sources[] = 'Google Ads is not returning data for this client yet.';
+        }
+    }
+
+    // ── Anything with a site: the page itself, measured directly ──────────
+    if ( in_array( $slug, array( 'seo', 'website' ), true ) && class_exists( 'Six_Ahrefs' ) ) {
+        $url = (string) get_user_meta( $client_id, 'six_site_url', true );
+        if ( ! $url ) {
+            global $wpdb;
+            $url = (string) $wpdb->get_var( $wpdb->prepare(
+                "SELECT website FROM {$wpdb->prefix}six_checkout_progress WHERE user_id=%d", $client_id ) );
+        }
+        if ( $url ) {
+            $p = Six_Ahrefs::onpage( $url );
+            if ( empty( $p['error'] ) ) {
+                $sources[] = 'Live page check of ' . $p['url'];
+                $rows[] = array( 'label' => 'Page Load (ms)', 'previous' => '', 'current' => (string) $p['load_time_ms'], 'target' => '', 'source' => 'Measured now' );
+                $rows[] = array( 'label' => 'On-page Issues', 'previous' => '', 'current' => (string) count( $p['issues'] ), 'target' => '', 'source' => 'Measured now' );
+            }
+        }
+    }
+
+    if ( ! $rows ) {
+        wp_send_json_error( $sources
+            ? implode( ' ', $sources )
+            : 'Nothing is connected yet for this service, so there are no real figures to read. Fill the account IDs in on the previous step, or enter the metrics by hand.' );
+    }
+
+    wp_send_json_success( array(
+        'metrics' => $rows,
+        'sources' => $sources,
+        'note'    => 'These are current measured values. Targets are left blank on purpose — set them from the strategy, not from a guess.',
+    ) );
 } );
 
 add_action( 'wp_ajax_six_delete_metric', function() {

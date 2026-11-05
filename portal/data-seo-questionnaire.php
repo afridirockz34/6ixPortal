@@ -494,16 +494,34 @@ function six_strategy_questionnaire_issued_at( $client_id ) {
  * Issue it — typically right after the audit has been presented and accepted.
  * Idempotent: re-issuing keeps the original date rather than resetting it.
  */
-function six_issue_strategy_questionnaire( $client_id ) {
+function six_issue_strategy_questionnaire( $client_id, $send_email = true ) {
 	$client_id = (int) $client_id;
 	if ( ! $client_id ) return false;
-	if ( ! six_strategy_questionnaire_issued( $client_id ) ) {
+
+	$first_time = ! six_strategy_questionnaire_issued( $client_id );
+	if ( $first_time ) {
 		update_user_meta( $client_id, SIX_Q_ISSUED_META, current_time( 'mysql' ) );
 		if ( class_exists( 'Six_Odoo' ) ) {
 			$lead = (int) get_user_meta( $client_id, 'six_odoo_lead_id', true );
 			if ( $lead ) Six_Odoo::post_note( $lead, 'Strategy questionnaire issued to the client.' );
 		}
 	}
+
+	// Marking it issued and never telling the client is how it stays
+	// unanswered. Send on the first issue only, so re-issuing to recover the
+	// link for an advisor does not spam them a second time; pass false to
+	// suppress it entirely.
+	if ( $first_time && $send_email && function_exists( 'six_send_system_email' ) ) {
+		$u    = get_userdata( $client_id );
+		$link = six_questionnaire_link( $client_id );
+		if ( $u && $link ) {
+			six_send_system_email( 'strategy_questionnaire', array(
+				'client_name'       => trim( $u->first_name . ' ' . $u->last_name ) ?: $u->display_name,
+				'questionnaire_url' => $link,
+			), array( 'customer_email' => $u->user_email ) );
+		}
+	}
+
 	return true;
 }
 
