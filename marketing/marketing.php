@@ -80,6 +80,10 @@ function six_mk_is_marketing_page() {
     // Single Case Study views are rendered by a marketing template too, so they
     // need the same fonts + design system even though they aren't Pages.
     if ( is_singular( 'six_case_study' ) ) return true;
+    // 404.php is a marketing surface and uses the same header, footer and
+    // design tokens. Without this the stylesheet never loaded there, which is
+    // why the not-found page rendered as unstyled markup on a white band.
+    if ( is_404() ) return true;
     if ( ! is_page() ) return false;
     $tpl = get_page_template_slug( get_queried_object_id() );
     return $tpl && strpos( $tpl, 'marketing/templates/' ) === 0;
