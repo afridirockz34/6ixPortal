@@ -89,7 +89,8 @@ $optional_files = array(
     'class-stripe.php',
     'class-google-ads-calendar.php',
     'class-appointments.php',   // unified calls/meetings store (after calendar + odoo)
-    'class-dataforseo.php',     // DataForSEO client (keywords/labs/serp/onpage)
+    'class-ahrefs.php',         // Ahrefs API v3 client — the SEO data provider
+    'class-dataforseo.php',     // legacy DataForSEO client, kept as a fallback
     'class-analytics.php',      // GA4 + Search Console client (service account)
     'class-meta.php',           // Meta (Facebook/Instagram) Ads insights client
     'class-ai-strategist.php',  // advisor AI strategy agent (needs dataforseo + odoo)
@@ -106,6 +107,24 @@ foreach ( $optional_files as $file ) {
     if ( file_exists( $path ) ) {
         require_once $path;
     }
+}
+
+/**
+ * Which SEO data provider is live.
+ *
+ * Ahrefs is what we use now. DataForSEO is left in place so a site whose
+ * Ahrefs token hasn't been added yet keeps working instead of silently losing
+ * every keyword and competitor figure, and so there's a way back if an Ahrefs
+ * outage ever matters. Returns a class name to call statically, or '' when
+ * neither is configured — callers must handle '' rather than assume data.
+ *
+ * Both classes expose the identical method set (see class-ahrefs.php), which
+ * is what makes calling through a variable class name safe here.
+ */
+function six_seo_provider() {
+    if ( class_exists( 'Six_Ahrefs' ) && Six_Ahrefs::configured() )         return 'Six_Ahrefs';
+    if ( class_exists( 'Six_DataForSEO' ) && Six_DataForSEO::configured() ) return 'Six_DataForSEO';
+    return '';
 }
 
 // ── ENQUEUE ASSETS ──────────────────────────────────────────────────────────

@@ -130,13 +130,14 @@ class Six_EstimateEngine {
     /**
      * Deep, real market intelligence for the plan — the stuff that makes a
      * prospect feel "they already researched me". Pulls the client's actual
-     * organic rankings, real competitors, and true keyword demand from
-     * DataForSEO Labs, scoped to the selected services. Every call is guarded
-     * so one slow/failed lookup never blocks the plan.
+     * organic rankings, real competitors, and true keyword demand from the
+     * live SEO data provider (Ahrefs), scoped to the selected services. Every
+     * call is guarded so one slow/failed lookup never blocks the plan.
      */
     private static function market_intel( $co, array $svcs, string $location ): array {
         $out = array( 'has' => false, 'text' => '', 'quick_win_vol' => 0 );
-        if ( ! class_exists( 'Six_DataForSEO' ) || ! Six_DataForSEO::configured() ) return $out;
+        $seo = six_seo_provider();
+        if ( ! $seo ) return $out;
 
         $domain = self::normalize_domain( $co->website ?? '' );
         $is_seo = in_array( 'seo', $svcs, true );
@@ -147,7 +148,7 @@ class Six_EstimateEngine {
         // 1) The client's OWN rankings + page-2 "quick wins" (SEO, needs a domain).
         if ( $is_seo && $domain ) {
             try {
-                $rk = Six_DataForSEO::ranked_keywords( $domain, $location, 40 );
+                $rk = $seo::ranked_keywords( $domain, $location, 40 );
                 if ( empty( $rk['error'] ) && ! empty( $rk['ranked_keywords'] ) ) {
                     $all   = $rk['ranked_keywords'];
                     $quick = array_values( array_filter( $all, function ( $r ) { return $r['position'] >= 11 && $r['position'] <= 30 && $r['volume'] > 0; } ) );
@@ -163,7 +164,7 @@ class Six_EstimateEngine {
         // 2) Real organic competitors capturing their market (SEO/GBP, needs domain).
         if ( ( $is_seo || $is_gbp ) && $domain ) {
             try {
-                $cp = Six_DataForSEO::competitors( $domain, $location, 5 );
+                $cp = $seo::competitors( $domain, $location, 5 );
                 if ( empty( $cp['error'] ) && ! empty( $cp['competitors'] ) ) {
                     $c  = array_slice( $cp['competitors'], 0, 3 );
                     $cs = array_map( function ( $x ) { return "{$x['domain']} (~" . number_format( $x['organic_traffic'] ) . " monthly organic visits, " . number_format( $x['common_keywords'] ) . " keywords overlapping yours)"; }, $c );
@@ -176,7 +177,7 @@ class Six_EstimateEngine {
         $seed_raw = $co->seo_keywords ?: ( $co->ads_keywords ?: '' );
         if ( ( $is_seo || $is_ads ) && $seed_raw ) {
             try {
-                $ideas = Six_DataForSEO::keyword_ideas( $seed_raw, $location, 25 );
+                $ideas = $seo::keyword_ideas( $seed_raw, $location, 25 );
                 if ( empty( $ideas['error'] ) && ! empty( $ideas['ideas'] ) ) {
                     $top = array_slice( array_values( array_filter( $ideas['ideas'], function ( $r ) { return $r['volume'] > 0; } ) ), 0, 4 );
                     if ( $top ) {

@@ -286,26 +286,43 @@ class Six_AI_Strategist {
         // the model omits them.
         $loc    = trim( (string) ( $input['location'] ?? '' ) ) ?: self::target_location( $client_id );
         $domain = trim( (string) ( $input['domain'] ?? '' ) )   ?: self::client_domain( $client_id );
+
+        // The live SEO data provider (Ahrefs). Resolved once here rather than
+        // per case. Returning a tool error when nothing is configured is
+        // deliberate: the model then tells the advisor to add the key, instead
+        // of answering the question from its own training as if it were data.
+        $seo = function_exists( 'six_seo_provider' ) ? six_seo_provider() : '';
+        $needs_seo = array( 'keyword_metrics', 'keyword_ideas', 'keyword_difficulty',
+                            'ranked_keywords', 'competitor_domains', 'live_serp' );
+        if ( ! $seo && in_array( $name, $needs_seo, true ) ) {
+            return array( 'error' => 'No SEO data provider is configured, so this cannot be answered with real data. Add the Ahrefs API token in 6ix Portal → Integrations. Do not estimate these figures.' );
+        }
+
         switch ( $name ) {
             case 'keyword_metrics':
-                return Six_DataForSEO::keyword_overview( $input['keywords'] ?? array(), $loc );
+                return $seo::keyword_overview( $input['keywords'] ?? array(), $loc );
             case 'keyword_ideas':
-                return Six_DataForSEO::keyword_ideas( $input['seed_keywords'] ?? array(), $loc, $input['limit'] ?? 50 );
+                return $seo::keyword_ideas( $input['seed_keywords'] ?? array(), $loc, $input['limit'] ?? 50 );
             case 'keyword_difficulty':
-                return Six_DataForSEO::keyword_difficulty( $input['keywords'] ?? array(), $loc );
+                return $seo::keyword_difficulty( $input['keywords'] ?? array(), $loc );
             case 'ranked_keywords':
                 if ( ! $domain ) return array( 'error' => 'No domain to analyse. Add the client\'s Website in the Data Sources tab, or specify a domain.' );
-                return Six_DataForSEO::ranked_keywords( $domain, $loc, $input['limit'] ?? 50 );
+                return $seo::ranked_keywords( $domain, $loc, $input['limit'] ?? 50 );
             case 'competitor_domains':
                 if ( ! $domain ) return array( 'error' => 'No domain to analyse. Add the client\'s Website in the Data Sources tab, or specify a domain.' );
-                return Six_DataForSEO::competitors( $domain, $loc );
+                return $seo::competitors( $domain, $loc );
             case 'live_serp':
-                return Six_DataForSEO::serp( $input['keyword'] ?? '', $loc );
+                return $seo::serp( $input['keyword'] ?? '', $loc );
             case 'onpage_audit':
                 $url = trim( (string) ( $input['url'] ?? '' ) );
                 if ( $url === '' && $domain ) $url = 'https://' . $domain;
                 if ( $url === '' ) return array( 'error' => 'No URL to audit. Add the client\'s Website in the Data Sources tab, or specify a URL.' );
-                return Six_DataForSEO::onpage( $url );
+                // Called directly, not through the provider: the on-page check
+                // fetches and parses the page itself, so it needs no API token
+                // and keeps working when none is configured.
+                if ( class_exists( 'Six_Ahrefs' ) )     return Six_Ahrefs::onpage( $url );
+                if ( class_exists( 'Six_DataForSEO' ) ) return Six_DataForSEO::onpage( $url );
+                return array( 'error' => 'On-page checking is unavailable on this site.' );
             case 'client_performance':
                 return self::performance_snapshot( $client_id );
             case 'google_ads_performance':

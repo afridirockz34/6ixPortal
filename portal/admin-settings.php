@@ -79,6 +79,7 @@ function six_admin_settings() {
         'six_stripe_publishable_key', 'six_stripe_secret_key', 'six_stripe_webhook_secret',
         'six_google_client_id', 'six_google_client_secret',
         'six_gads_developer_token', 'six_gads_manager_id', 'six_gads_kw_planner_account_id',
+        'six_ahrefs_token',
         'six_dataforseo_login', 'six_dataforseo_password',
         'six_gads_client_id', 'six_gads_client_secret', 'six_gads_refresh_token',
         'six_anthropic_api_key', 'six_google_analytics_property_id', 'six_google_analytics_key',
@@ -165,6 +166,7 @@ function six_admin_settings() {
     $has_stripe = (bool) get_option('six_stripe_secret_key');
     $has_gads   = get_option('six_gads_developer_token') && get_option('six_gads_manager_id') && get_option('six_gads_refresh_token');
     $has_dfs    = get_option('six_dataforseo_login') && get_option('six_dataforseo_password');
+    $has_ahrefs = (bool) get_option('six_ahrefs_token');
     $has_gcal   = get_option('six_google_client_id') && get_option('six_google_client_secret');
     $has_ai     = (bool) get_option('six_anthropic_api_key');
     $has_ga4    = get_option('six_ga4_property_id') && get_option('six_ga4_service_account_json');
@@ -280,11 +282,71 @@ function six_admin_settings() {
                 </div>
             </div>
 
+            <!-- ═══ AHREFS ═════════════════════════════════════════════ -->
+            <div class="six-int-card">
+                <div class="six-int-head"><span class="dot" style="background:#ff6b35"></span> Ahrefs — Keyword, Competitor &amp; Ranking Data <?php echo $badge($has_ahrefs); ?></div>
+                <div class="six-int-body">
+                    <div class="hint">The live SEO data source for growth plans, audits and the AI Strategist. Create a key at <a href="https://app.ahrefs.com/account/api-keys" target="_blank">Ahrefs → Account settings → API keys</a>.</div>
+                    <div class="six-fld"><label>API Key</label><input type="password" name="six_ahrefs_token" value="<?php echo $s('six_ahrefs_token', true); ?>" placeholder="••••••••"><div class="desc">The API key, not your Ahrefs password. Needed for keyword volume, competitor and ranking data.</div></div>
+                    <div class="desc" style="margin-bottom:8px">
+                        Responses are cached per domain for <?php echo esc_html( class_exists('Six_Ahrefs') ? Six_Ahrefs::CACHE_DAYS : 30 ); ?> days, so a prospect reloading the onboarding plan does not spend units twice.
+                        Organic data is country-level — a keyword's volume is the national figure, not one city's.
+                    </div>
+                    <div class="six-int-test">
+                        <button type="button" class="button" id="six-ahrefs-test">Test connection</button>
+                        <button type="button" class="button" id="six-ahrefs-flush">Clear cached data</button>
+                        <span id="six-ahrefs-test-result" style="font-weight:600"></span>
+                    </div>
+                    <div id="six-ahrefs-detail" style="margin-top:10px;font-size:12px;display:none"></div>
+                    <div class="desc">Save the key first. The test walks every endpoint this site uses and reports each one separately, so a single broken endpoint is visible rather than silently returning nothing.</div>
+                    <script>
+                    (function(){
+                        var btn=document.getElementById('six-ahrefs-test'),
+                            flush=document.getElementById('six-ahrefs-flush'),
+                            out=document.getElementById('six-ahrefs-test-result'),
+                            detail=document.getElementById('six-ahrefs-detail');
+                        if(!btn) return;
+                        var nonce='<?php echo esc_js( wp_create_nonce('six_ahrefs_test') ); ?>';
+                        btn.addEventListener('click',function(){
+                            btn.disabled=true; out.style.color='#666'; out.textContent='Testing…'; detail.style.display='none';
+                            var fd=new FormData(); fd.append('action','six_test_ahrefs'); fd.append('nonce',nonce);
+                            fetch(ajaxurl,{method:'POST',body:fd,credentials:'same-origin'})
+                                .then(function(r){return r.json();})
+                                .then(function(res){
+                                    btn.disabled=false;
+                                    var d=(res&&res.data)||{}, rows=d.results||{}, html='', ok=0, total=0;
+                                    Object.keys(rows).forEach(function(k){
+                                        total++; if(rows[k].ok) ok++;
+                                        html+='<div style="display:flex;gap:8px;padding:3px 0"><span style="width:16px;color:'+(rows[k].ok?'#155724':'#a00')+'">'+(rows[k].ok?'✓':'✕')+'</span>'
+                                            +'<code style="min-width:170px">'+k+'</code><span style="color:#555">'+(rows[k].detail||'')+'</span></div>';
+                                    });
+                                    out.style.color=(ok===total&&total>0)?'#155724':(ok>0?'#856404':'#a00');
+                                    out.textContent=total?(ok+' of '+total+' endpoints OK'):(d.message||'Test failed.');
+                                    if(html){ detail.innerHTML=html; detail.style.display='block'; }
+                                })
+                                .catch(function(){ btn.disabled=false; out.style.color='#a00'; out.textContent='Request failed.'; });
+                        });
+                        flush.addEventListener('click',function(){
+                            flush.disabled=true; out.style.color='#666'; out.textContent='Clearing…';
+                            var fd=new FormData(); fd.append('action','six_flush_ahrefs'); fd.append('nonce',nonce);
+                            fetch(ajaxurl,{method:'POST',body:fd,credentials:'same-origin'})
+                                .then(function(r){return r.json();})
+                                .then(function(res){
+                                    flush.disabled=false; out.style.color='#155724';
+                                    out.textContent=((res&&res.data&&res.data.message)||'Cache cleared.');
+                                })
+                                .catch(function(){ flush.disabled=false; out.style.color='#a00'; out.textContent='Request failed.'; });
+                        });
+                    })();
+                    </script>
+                </div>
+            </div>
+
             <!-- ═══ DATAFORSEO ═════════════════════════════════════════ -->
             <div class="six-int-card">
                 <div class="six-int-head"><span class="dot" style="background:#00b894"></span> DataForSEO — Keyword &amp; SEO Data <?php echo $badge($has_dfs); ?></div>
                 <div class="six-int-body">
-                    <div class="hint">Real CPC, search volume, rankings and on-page data. Free trial at <a href="https://dataforseo.com" target="_blank">dataforseo.com</a>.</div>
+                    <div class="hint"><strong>Fallback only.</strong> Ahrefs above is the provider in use. These credentials are only consulted when no Ahrefs key is set, so a missing Ahrefs key does not wipe every keyword and competitor figure on the site. Safe to leave blank.</div>
                     <div class="six-fld"><label>Login (account email)</label><input type="text" name="six_dataforseo_login" value="<?php echo $s('six_dataforseo_login'); ?>" placeholder="your@email.com"></div>
                     <div class="six-fld"><label>API Password</label><input type="password" name="six_dataforseo_password" value="<?php echo $s('six_dataforseo_password', true); ?>" placeholder="••••••••"><div class="desc">The API password from DataForSEO → API Access — not your website login.</div></div>
                     <div class="six-int-test">
@@ -1170,4 +1232,39 @@ function six_admin_api_tokens() {
         </table>
     </div>
     <?php
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Ahrefs — live connection test and cache flush (admin only, Integrations page)
+//
+// The test walks every endpoint the site actually calls and reports each one
+// separately. That matters because the one thing about an API client that
+// cannot be proven without a live key is whether each REST path is right — a
+// typo would otherwise surface weeks later as a quietly empty result rather
+// than an error.
+// ─────────────────────────────────────────────────────────────────────────────
+add_action( 'wp_ajax_six_test_ahrefs', 'six_ajax_test_ahrefs' );
+function six_ajax_test_ahrefs() {
+    if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( array( 'message' => 'Not permitted.' ) );
+    check_ajax_referer( 'six_ahrefs_test', 'nonce' );
+
+    if ( ! class_exists( 'Six_Ahrefs' ) ) {
+        wp_send_json_error( array( 'message' => 'The Ahrefs client is not loaded on this site.' ) );
+    }
+    if ( ! Six_Ahrefs::configured() ) {
+        wp_send_json_error( array( 'message' => 'Save an Ahrefs API key first, then test.' ) );
+    }
+    wp_send_json_success( array( 'results' => Six_Ahrefs::test_connection() ) );
+}
+
+add_action( 'wp_ajax_six_flush_ahrefs', 'six_ajax_flush_ahrefs' );
+function six_ajax_flush_ahrefs() {
+    if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( array( 'message' => 'Not permitted.' ) );
+    check_ajax_referer( 'six_ahrefs_test', 'nonce' );
+
+    if ( ! class_exists( 'Six_Ahrefs' ) ) {
+        wp_send_json_error( array( 'message' => 'The Ahrefs client is not loaded on this site.' ) );
+    }
+    $n = Six_Ahrefs::flush_cache();
+    wp_send_json_success( array( 'message' => 'Cache cleared (' . intval( $n ) . ' row' . ( $n === 1 ? '' : 's' ) . ' removed). The next lookup for each domain will be a fresh pull.' ) );
 }

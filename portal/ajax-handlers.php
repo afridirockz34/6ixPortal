@@ -1711,13 +1711,16 @@ add_action( 'wp_ajax_six_test_client_datasource', function() {
         $t = $r['totals'] ?? array();
         wp_send_json_success( array('message'=>'Meta Ads connected — $'.number_format($t['spend']??0,2).' spend, '.number_format($t['leads']??0).' leads in the last 30 days.') );
     }
-    if ( $source === 'dataforseo' ) {
-        if ( ! class_exists('Six_AI_Strategist') || ! class_exists('Six_DataForSEO') ) wp_send_json_error('DataForSEO integration unavailable.');
+    if ( $source === 'dataforseo' || $source === 'ahrefs' || $source === 'seo_data' ) {
+        if ( ! class_exists('Six_AI_Strategist') ) wp_send_json_error('AI Strategist unavailable.');
+        $seo = six_seo_provider();
+        if ( ! $seo ) wp_send_json_error('No SEO data provider configured. Add the Ahrefs API token in 6ix Portal → Integrations.');
+        $label  = $seo === 'Six_Ahrefs' ? 'Ahrefs' : 'DataForSEO';
         $domain = Six_AI_Strategist::client_domain( $client_id );
         if ( ! $domain ) wp_send_json_error('No website/domain saved for this client.');
-        $r = Six_DataForSEO::ranked_keywords( $domain, Six_AI_Strategist::target_location($client_id), 1 );
+        $r = $seo::ranked_keywords( $domain, Six_AI_Strategist::target_location($client_id), 1 );
         if ( isset($r['error']) ) wp_send_json_error( $r['error'] );
-        wp_send_json_success( array('message'=>'DataForSEO reachable for '.$domain.'.') );
+        wp_send_json_success( array('message'=>$label.' reachable for '.$domain.'.') );
     }
     wp_send_json_error('Unknown source.');
 });
@@ -1739,7 +1742,8 @@ add_action( 'wp_ajax_six_competitor_analysis', function() {
     if ( $last && ( time() - $last ) < $window && ! empty( $saved ) ) {
         wp_send_json_success( array( 'locked' => true, 'ran_at' => $last, 'next_at' => $last + $window, 'data' => $saved ) );
     }
-    if ( ! class_exists( 'Six_DataForSEO' ) ) wp_send_json_error( 'Competitor data source is not configured.' );
+    $seo = six_seo_provider();
+    if ( ! $seo ) wp_send_json_error( 'Competitor data source is not configured. Add the Ahrefs API token in 6ix Portal → Integrations.' );
 
     $domain = class_exists( 'Six_AI_Strategist' ) ? Six_AI_Strategist::client_domain( $uid ) : '';
     if ( ! $domain ) {
@@ -1750,7 +1754,7 @@ add_action( 'wp_ajax_six_competitor_analysis', function() {
     if ( ! $domain ) wp_send_json_error( 'Add your website URL in your profile first, then run the analysis.' );
 
     $loc = class_exists( 'Six_AI_Strategist' ) ? Six_AI_Strategist::target_location( $uid ) : '';
-    $res     = Six_DataForSEO::competitors( $domain, $loc, 12 );
+    $res     = $seo::competitors( $domain, $loc, 12 );
     $api_err = $res['error'] ?? '';   // an empty set is common for small sites — fall through
 
     $rows = array();
@@ -1777,16 +1781,31 @@ add_action( 'wp_ajax_six_competitor_analysis', function() {
         $ck = $wpdb->get_row( $wpdb->prepare(
             "SELECT competitors, seo_keywords, ads_keywords FROM {$wpdb->prefix}six_checkout_progress WHERE user_id=%d", $uid ) );
 
-        $row_from_domain = function ( $dom, $insight ) use ( $loc, $domain ) {
+        $row_from_domain = function ( $dom, $insight ) use ( $loc, $domain, $seo ) {
             $dom = preg_replace( '/^https?:\/\//', '', trim( (string) $dom ) );
             $dom = preg_replace( '/^www\./', '', $dom );
             $dom = preg_replace( '#/.*$#', '', $dom );
             if ( ! $dom || strpos( $dom, '.' ) === false || $dom === $domain ) return null;
-            $rk = Six_DataForSEO::ranked_keywords( $dom, $loc, 100 );
+            $rk = $seo::ranked_keywords( $dom, $loc, 100 );
             if ( isset( $rk['error'] ) || empty( $rk['ranked_keywords'] ) ) return null;
             $kws = $rk['ranked_keywords'];
-            $vol = 0; foreach ( $kws as $k ) $vol += intval( $k['volume'] ?? 0 );
-            return array( 'domain' => $dom, 'visits' => (int) round( $vol * 0.20 ), 'keywords' => count( $kws ), 'shared' => 0, 'insight' => $insight );
+
+            // Monthly organic visitors. The provider reports this directly, so
+            // read it rather than multiplying total search volume by a made-up
+            // share — the old 20%-of-volume guess was wrong by an order of
+            // magnitude on any domain that doesn't rank near the top.
+            $visits = 0;
+            if ( method_exists( $seo, 'site_metrics' ) ) {
+                $sm = $seo::site_metrics( $dom, $loc );
+                if ( empty( $sm['error'] ) ) $visits = (int) ( $sm['organic_traffic'] ?? 0 );
+            }
+            if ( ! $visits ) {
+                // Per-keyword traffic estimates, summed. Still the provider's
+                // own numbers, just assembled from the rows we already hold.
+                foreach ( $kws as $k ) $visits += intval( $k['traffic'] ?? 0 );
+            }
+
+            return array( 'domain' => $dom, 'visits' => $visits, 'keywords' => count( $kws ), 'shared' => 0, 'insight' => $insight );
         };
 
         // A) Competitors the customer named during onboarding.
@@ -1799,7 +1818,7 @@ add_action( 'wp_ajax_six_competitor_analysis', function() {
         if ( empty( $rows ) ) {
             $kw = trim( strtok( (string) ( $ck->seo_keywords ?: $ck->ads_keywords ?: '' ), ',' ) );
             if ( $kw ) {
-                $serp = Six_DataForSEO::serp( $kw, $loc, 10 );
+                $serp = $seo::serp( $kw, $loc, 10 );
                 $seen = array();
                 foreach ( (array) ( $serp['results'] ?? array() ) as $it ) {
                     $du = preg_replace( '/^www\./', '', (string) ( $it['domain'] ?? '' ) );
