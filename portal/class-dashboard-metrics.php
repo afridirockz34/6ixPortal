@@ -348,34 +348,110 @@ class Six_Dash_Metrics {
 			return array( 'has' => false, 'source' => 'none', 'baseline_mo' => 0, 'current_mo' => 0, 'points' => array() );
 		}
 
-		// 12 weeks. The "without us" line drifts gently (markets don't stand
-		// perfectly still); the "with us" line follows a logistic ramp from the
-		// baseline up to today's combined figure.
-		$points = array();
-		$raw = array();
-		for ( $w = 1; $w <= 12; $w++ ) $raw[ $w ] = 1 / ( 1 + exp( -0.7 * ( $w - 6 ) ) );
-		$lo = min( $raw ); $hi = max( $raw );
+		// ── Real captured history, when we have any ──────────────────────
+		// Snapshots are the actual measured figure on an actual date. Where
+		// two or more exist they are plotted directly, because a real series
+		// beats a modelled one and the dates on the axis are then true.
+		$measured = array();
+		if ( class_exists( 'Six_Performance' ) ) {
+			$hist = Six_Performance::history( $user_id, 26 );
+			foreach ( array_reverse( $hist ) as $h ) {     // oldest first
+				$v = 0;
+				foreach ( array( 'organic_visitors', 'paid_clicks', 'gmb_views' ) as $vk ) {
+					if ( ! empty( $h['values'][ $vk ] ) ) $v += (int) $h['values'][ $vk ];
+				}
+				if ( $v > 0 ) $measured[] = array( 'date' => substr( $h['captured_at'], 0, 10 ), 'value' => $v );
+			}
+		}
 
-		for ( $w = 1; $w <= 12; $w++ ) {
-			$f      = ( $raw[ $w ] - $lo ) / max( $hi - $lo, 0.0001 );   // 0..1
-			$before = (int) round( $baseline * ( 1 - 0.02 * abs( sin( $w / 2 ) ) ) );
-			// The with-us line can never sit below the without-us line — the
-			// ramp starts at the baseline, and the drift above only moves
-			// downward, so a early-week wobble can't read as us having made
-			// their traffic worse.
-			$after  = (int) round( $baseline + ( $current - $baseline ) * $f );
-			$points[] = array(
-				'w'      => $w,
-				'before' => $before,
-				'after'  => max( $before, $after ),
-			);
+		$points = array();
+		$week   = 7 * DAY_IN_SECONDS;
+
+		if ( count( $measured ) >= 2 ) {
+			// What actually happened. The "without us" line stays flat at the
+			// baseline, because that is the claim being made: this is where
+			// they were when we started and they have not moved since on
+			// their own.
+			foreach ( $measured as $m ) {
+				$points[] = array(
+					'date'   => $m['date'],
+					'label'  => gmdate( 'j M', strtotime( $m['date'] ) ),
+					'before' => $baseline,
+					'after'  => max( $baseline, $m['value'] ),
+				);
+			}
+			$source  = 'measured';
+			$current = (int) end( $measured )['value'];
+		} else {
+			// No history yet. A modelled ramp from the baseline to today's
+			// figure, on real weekly dates ending this week — the axis said
+			// "Wk 1..Wk 12", which told a reader nothing about when any of it
+			// happened.
+			$raw = array();
+			for ( $w = 1; $w <= 12; $w++ ) $raw[ $w ] = 1 / ( 1 + exp( -0.7 * ( $w - 6 ) ) );
+			$lo = min( $raw ); $hi = max( $raw );
+			$start = time() - 11 * $week;
+
+			for ( $w = 1; $w <= 12; $w++ ) {
+				$f      = ( $raw[ $w ] - $lo ) / max( $hi - $lo, 0.0001 );   // 0..1
+				$before = (int) round( $baseline * ( 1 - 0.02 * abs( sin( $w / 2 ) ) ) );
+				// The with-us line can never sit below the without-us line —
+				// the ramp starts at the baseline, and the drift above only
+				// moves downward, so an early-week wobble can't read as us
+				// having made their traffic worse.
+				$after  = (int) round( $baseline + ( $current - $baseline ) * $f );
+				$ts     = $start + ( $w - 1 ) * $week;
+				$points[] = array(
+					'date'   => gmdate( 'Y-m-d', $ts ),
+					'label'  => gmdate( 'j M', $ts ),
+					'before' => $before,
+					'after'  => max( $before, $after ),
+				);
+			}
+			$source = $is_live ? 'live' : 'projected';
+		}
+
+		// Last full calendar month, which is the figure a client actually
+		// recognises — "last month" beats "the trailing 30 days".
+		$last_month = null;
+		if ( $measured ) {
+			$from = gmdate( 'Y-m-01', strtotime( 'first day of last month' ) );
+			$to   = gmdate( 'Y-m-t',  strtotime( 'last day of last month' ) );
+			$vals = array();
+			foreach ( $measured as $m ) {
+				if ( $m['date'] >= $from && $m['date'] <= $to ) $vals[] = $m['value'];
+			}
+			if ( $vals ) {
+				$last_month = array(
+					'value' => (int) round( array_sum( $vals ) / count( $vals ) ),
+					'label' => gmdate( 'F Y', strtotime( $from ) ),
+				);
+			}
+		}
+
+		// Where the strategy says this should get to. Stored by
+		// save_strategy_projections when a strategy is approved, so this is a
+		// target somebody committed to in writing — not a number generated
+		// here. Null until one exists, and the chart simply omits it.
+		$target = null;
+		if ( class_exists( 'Six_Performance' ) ) {
+			$p = Six_Performance::projection_due( $user_id, 'organic_visitors', gmdate( 'Y-m-d', strtotime( '+10 years' ) ) );
+			if ( $p && (float) $p->projected_value > 0 ) {
+				$target = array(
+					'value' => (int) round( (float) $p->projected_value ),
+					'date'  => (string) $p->target_date,
+					'label' => gmdate( 'M Y', strtotime( (string) $p->target_date ) ),
+				);
+			}
 		}
 
 		return array(
 			'has'         => true,
-			'source'      => $is_live ? 'live' : 'projected',
+			'source'      => $source,
 			'baseline_mo' => $baseline,
 			'current_mo'  => $current,
+			'last_month'  => $last_month,
+			'target'      => $target,
 			'points'      => $points,
 		);
 	}
