@@ -221,6 +221,9 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 <span class="six-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span> Google Ads
                 <?php if(!$mcc_configured):?><span style="font-size:9px;color:var(--warning);margin-left:auto">Setup</span><?php endif;?>
             </a>
+            <a href="?tab=claude" class="six-nav-item <?php echo $active_tab==='claude'?'active':'';?>">
+                <span class="six-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M12 2a5 5 0 0 1 5 5v1a4 4 0 0 1 0 8v1a5 5 0 0 1-10 0v-1a4 4 0 0 1 0-8V7a5 5 0 0 1 5-5z"/><path d="M12 8v8"/></svg></span> Connect Claude
+            </a>
             <a href="?tab=intelligence" class="six-nav-item <?php echo $active_tab==='intelligence'?'active':'';?>">
                 <span class="six-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></span> Drop-off Funnel
                 <?php
@@ -3747,6 +3750,8 @@ function advCompleteOnboarding(clientId){
         include SIX_PLUGIN_DIR . 'templates/advisor-tab-form-submissions.php';
     /* ════════════ PRIORITY LEADS ════════════ */ elseif($active_tab==='priority-leads'):
         include SIX_PLUGIN_DIR . 'templates/advisor-tab-priority-leads.php';
+    /* ════════════ CONNECT CLAUDE ════════════ */ elseif($active_tab==='claude'):
+        include SIX_PLUGIN_DIR . 'templates/advisor-tab-claude.php';
     endif;?>
     </main>
 </div>

@@ -2754,3 +2754,50 @@ add_action( 'wp_ajax_six_questionnaire_link', function () {
     }
     wp_send_json_success( array( 'link' => $link, 'expires_days' => SIX_Q_TOKEN_DAYS ) );
 } );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADVISOR → CONNECT CLAUDE — mint and revoke API tokens.
+//
+// Advisors do not have WP Admin, so connecting a Claude session previously
+// meant asking an administrator to mint a token. These two handlers let them
+// do it themselves from the advisor dashboard.
+//
+// The plaintext is returned exactly once and never stored; only a SHA-256
+// hash is kept, so a lost token can be revoked but never recovered.
+// ─────────────────────────────────────────────────────────────────────────────
+add_action( 'wp_ajax_six_advisor_create_token', function () {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) {
+        wp_send_json_error( 'Permission denied.' );
+    }
+    if ( ! class_exists( 'Six_Profile_API' ) ) {
+        wp_send_json_error( 'The profile API is not available on this site.' );
+    }
+    $label = sanitize_text_field( wp_unslash( $_POST['label'] ?? '' ) );
+    $scope = ( ( $_POST['scope'] ?? 'read' ) === 'write' ) ? 'write' : 'read';
+    if ( $label === '' ) wp_send_json_error( 'Give the token a name so it can be identified later.' );
+
+    // Who minted it, kept in the label: the token list is shared across
+    // advisors, and "Claude" twice with no owner is impossible to audit.
+    $me = wp_get_current_user();
+    if ( $me && $me->display_name ) $label .= ' (' . $me->display_name . ')';
+
+    $plain = Six_Profile_API::create_token( $label, $scope );
+    if ( ! $plain ) wp_send_json_error( 'Could not create the token.' );
+
+    wp_send_json_success( array( 'token' => $plain, 'scope' => $scope, 'label' => $label ) );
+} );
+
+add_action( 'wp_ajax_six_advisor_revoke_token', function () {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) {
+        wp_send_json_error( 'Permission denied.' );
+    }
+    if ( ! class_exists( 'Six_Profile_API' ) ) {
+        wp_send_json_error( 'The profile API is not available on this site.' );
+    }
+    $id = sanitize_text_field( wp_unslash( $_POST['id'] ?? '' ) );
+    if ( $id === '' ) wp_send_json_error( 'No token specified.' );
+    Six_Profile_API::revoke_token( $id );
+    wp_send_json_success();
+} );
