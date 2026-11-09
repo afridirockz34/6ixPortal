@@ -2039,8 +2039,18 @@ window.OB={
     var mkt  = plan.market || '';
     var nf   = function(n){ return Number(n).toLocaleString(); };
     var biz  = q.bizname || 'your site';
-    var conf = snap.confidence || 'no_data';
     var topComp = (snap.competitors || [])[0];
+
+    // A plan saved before the server started stating its confidence still has
+    // real competitor figures in it, and showing that client "we have very
+    // little on your market" while holding a leader's traffic would be wrong.
+    // Same rule the server applies (Six_Estimate_Engine::MIN_COMPARABLE_TRAFFIC).
+    var conf = snap.confidence;
+    if (!conf) {
+      if (topComp && topComp.visitors >= 50) conf = 'comparable';
+      else if (snap.ranking && snap.ranking.total > 0) conf = 'thin_market';
+      else conf = 'no_data';
+    }
 
     var heroLabel, heroBody = '', showBadge = false;
 

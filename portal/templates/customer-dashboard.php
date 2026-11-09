@@ -421,6 +421,11 @@ foreach ( $dash_cards as $_c ) { if ( $_c['source'] !== 'estimate' ) { $all_esti
             <span style="font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:<?php echo esc_attr($card['accent'][0]); ?>;background:rgba(0,0,0,.04);padding:2.5px 7px;border-radius:5px;white-space:nowrap"><?php echo esc_html($card['svc_label']); ?></span>
         </div>
         <div class="six-kc-val"><?php echo esc_html($card['value']); ?></div>
+        <?php /* What the number is, in words. A figure with no unit is one
+                 nobody can check — a month's visitors or a day's? */ ?>
+        <?php if ( ! empty($card['unit']) ): ?>
+        <div style="font-size:10.5px;color:var(--text3);margin-top:-2px;margin-bottom:4px"><?php echo esc_html($card['unit']); ?></div>
+        <?php endif; ?>
         <?php if ( $c_trend !== null ): ?>
         <div class="six-kc-trend <?php echo $c_trend>=0?'up':'dn'; ?>">
             <?php if($c_trend>=0): ?>
@@ -1320,7 +1325,13 @@ $chart_json = json_encode(array(
     ?>
     <div style="padding:18px 20px;border-right:1px solid rgba(255,255,255,0.05)">
         <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text3);margin-bottom:6px"><?php echo esc_html($met->label); ?></div>
-        <div style="font-size:22px;font-weight:800;font-family:var(--font-head);color:var(--text1);line-height:1;margin-bottom:6px"><?php echo esc_html($met->current_value); ?></div>
+        <div style="font-size:22px;font-weight:800;font-family:var(--font-head);color:var(--text1);line-height:1;margin-bottom:4px"><?php echo esc_html($met->current_value); ?></div>
+        <?php /* The unit, so the figure says what it is a count of and over
+                 what period, rather than leaving the customer to guess. */
+        $met_unit = $met->unit ?: ( class_exists('Six_Dash_Metrics') ? Six_Dash_Metrics::unit_for( $met->label ) : '' );
+        if ( $met_unit ): ?>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:6px"><?php echo esc_html($met_unit); ?></div>
+        <?php else: ?><div style="height:2px"></div><?php endif; ?>
         <?php if($tr!==null): ?>
         <div style="display:flex;align-items:center;gap:4px">
             <span style="font-size:10px;font-weight:700;color:<?php echo $tr>=0?'var(--success)':'var(--danger)'; ?>"><?php echo $tr>=0?'↑':'↓'; ?><?php echo abs($tr); ?>%</span>
@@ -1342,7 +1353,11 @@ $chart_json = json_encode(array(
         $mc  = $pct>=75?'var(--success)':($pct>=40?$sd['color']:'var(--warning)');
     ?>
     <div style="display:flex;align-items:center;gap:16px;padding:12px 20px;border-bottom:1px solid rgba(255,255,255,0.04);<?php echo $i===count($s_mets)-1?'border-bottom:none':''; ?>">
-        <div style="width:140px;flex-shrink:0;font-size:12px;color:var(--text2)"><?php echo esc_html($met->label); ?></div>
+        <div style="width:140px;flex-shrink:0;font-size:12px;color:var(--text2)">
+            <?php echo esc_html($met->label); ?>
+            <?php $row_unit = $met->unit ?: ( class_exists('Six_Dash_Metrics') ? Six_Dash_Metrics::unit_for( $met->label ) : '' );
+            if ( $row_unit ): ?><div style="font-size:10px;color:var(--text3)"><?php echo esc_html($row_unit); ?></div><?php endif; ?>
+        </div>
         <div style="flex:1;height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden">
             <div style="height:100%;width:<?php echo $pct; ?>%;background:<?php echo $mc; ?>;border-radius:3px;transition:width 1s ease"></div>
         </div>

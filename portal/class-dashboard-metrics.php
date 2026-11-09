@@ -86,39 +86,133 @@ class Six_Dash_Metrics {
 		return false;
 	}
 
+	/**
+	 * Every metric carries a 'unit': the period or quantity the number is in,
+	 * written out. "1,240" on its own is unreadable — a month's visitors, a
+	 * day's, a running total? The suffix is the compact form shown beside the
+	 * figure; the unit is the plain-language one shown under it and beside the
+	 * box an advisor types it into, so the number that reaches the customer
+	 * means what the advisor meant.
+	 */
 	public static function catalog() {
 		return array(
 			'seo' => array(
 				'label'   => 'SEO',
 				'accent'  => array( '#56D364', '#10b981' ),
 				'metrics' => array(
-					'organic_visitors' => array( 'label' => 'Organic Visitors', 'suffix' => '/mo' ),
-					'keywords_page1'   => array( 'label' => 'Keywords on Page 1' ),
-					'keywords_tracked' => array( 'label' => 'Keywords Tracked' ),
-					'seo_avg_position' => array( 'label' => 'Avg Position', 'lower_better' => true ),
+					'organic_visitors' => array( 'label' => 'Organic Visitors', 'suffix' => '/mo', 'unit' => 'visitors per month' ),
+					'keywords_page1'   => array( 'label' => 'Keywords on Page 1', 'unit' => 'keywords, right now' ),
+					'keywords_tracked' => array( 'label' => 'Keywords Tracked',   'unit' => 'keywords, right now' ),
+					'seo_avg_position' => array( 'label' => 'Avg Position', 'lower_better' => true, 'unit' => 'average rank across tracked keywords' ),
 				),
 			),
 			'google-ads' => array(
 				'label'   => 'Google Ads',
 				'accent'  => array( '#6ACAFD', '#3b82f6' ),
 				'metrics' => array(
-					'paid_clicks'     => array( 'label' => 'Ad Clicks',      'suffix' => '/mo' ),
-					'ads_leads'       => array( 'label' => 'Leads from Ads', 'suffix' => '/mo' ),
-					'ads_impressions' => array( 'label' => 'Impressions',    'suffix' => '/mo' ),
-					'ads_cpc'         => array( 'label' => 'Avg Cost / Click', 'prefix' => '$', 'lower_better' => true ),
+					'paid_clicks'     => array( 'label' => 'Ad Clicks',      'suffix' => '/mo', 'unit' => 'clicks per month' ),
+					'ads_leads'       => array( 'label' => 'Leads from Ads', 'suffix' => '/mo', 'unit' => 'leads per month' ),
+					'ads_impressions' => array( 'label' => 'Impressions',    'suffix' => '/mo', 'unit' => 'impressions per month' ),
+					'ads_cpc'         => array( 'label' => 'Avg Cost / Click', 'prefix' => '$', 'lower_better' => true, 'unit' => 'dollars per click' ),
 				),
 			),
 			'google-business' => array(
 				'label'   => 'Google Business',
 				'accent'  => array( '#FF6699', '#8781BA' ),
 				'metrics' => array(
-					'gmb_views'      => array( 'label' => 'Map Views',          'suffix' => '/mo' ),
-					'gmb_calls'      => array( 'label' => 'Calls from Maps',    'suffix' => '/mo' ),
-					'gmb_directions' => array( 'label' => 'Direction Requests', 'suffix' => '/mo' ),
-					'gmb_posts'      => array( 'label' => 'Posts This Month' ),
+					'gmb_views'      => array( 'label' => 'Map Views',          'suffix' => '/mo', 'unit' => 'views per month' ),
+					'gmb_calls'      => array( 'label' => 'Calls from Maps',    'suffix' => '/mo', 'unit' => 'calls per month' ),
+					'gmb_directions' => array( 'label' => 'Direction Requests', 'suffix' => '/mo', 'unit' => 'requests per month' ),
+					'gmb_posts'      => array( 'label' => 'Posts This Month',   'unit' => 'posts per month' ),
 				),
 			),
 		);
+	}
+
+	/**
+	 * Metrics that belong to the client rather than to one service — the
+	 * graph's starting line, and the business figures an advisor confirms.
+	 * They have no card of their own but are stored and edited the same way.
+	 */
+	public static function extra_metrics() {
+		return array(
+			'visitors_baseline' => array( 'label' => 'Visitors Before Us', 'unit' => 'visitors per month, before we started',
+			                              'hint' => 'The baseline the visitors graph is drawn from.' ),
+			'total_visitors'    => array( 'label' => 'Total Visitors',  'unit' => 'sessions per month, all sources' ),
+			'new_customers'     => array( 'label' => 'New Customers',   'unit' => 'new customers per month' ),
+			'sales_revenue'     => array( 'label' => 'Sales Revenue',   'prefix' => '$', 'unit' => 'dollars per month' ),
+		);
+	}
+
+	/**
+	 * Every metric an advisor can set for this client, flattened and keyed, so
+	 * the advisor UI is generated from the same catalog the customer's cards
+	 * are rendered from.
+	 *
+	 * This is the whole point: a hand-written list of advisor fields drifts
+	 * from the cards, and then an advisor fills in four boxes that reach
+	 * nothing while the metric the customer actually sees has no box at all.
+	 *
+	 * @param array $slugs  The client's active services.
+	 * @param bool  $extras Include the client-level metrics too.
+	 * @return array[] key => label, unit, hint, service, service_label, prefix, suffix, on_card
+	 */
+	public static function editable_metrics( array $slugs, $extras = true ) {
+		$out = array();
+		$catalog = self::catalog();
+		foreach ( self::card_services( $slugs ) as $slug ) {
+			foreach ( $catalog[ $slug ]['metrics'] as $key => $m ) {
+				$out[ $key ] = array(
+					'key'           => $key,
+					'label'         => $m['label'],
+					'unit'          => $m['unit'] ?? '',
+					'hint'          => '',
+					'service'       => $slug,
+					'service_label' => $catalog[ $slug ]['label'],
+					'prefix'        => $m['prefix'] ?? '',
+					'suffix'        => $m['suffix'] ?? '',
+					'on_card'       => true,
+				);
+			}
+		}
+		if ( $extras ) {
+			foreach ( self::extra_metrics() as $key => $m ) {
+				$out[ $key ] = array(
+					'key'           => $key,
+					'label'         => $m['label'],
+					'unit'          => $m['unit'] ?? '',
+					'hint'          => $m['hint'] ?? '',
+					'service'       => '',
+					'service_label' => 'Your business',
+					'prefix'        => $m['prefix'] ?? '',
+					'suffix'        => $m['suffix'] ?? '',
+					'on_card'       => false,
+				);
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * The unit text for a metric, by key OR by label.
+	 *
+	 * By label too because six_metrics rows are keyed on the advisor's typed
+	 * label, and the rows a measurement wrote carry the catalog's own label —
+	 * so "Organic Visitors" in that table can still be shown with its unit
+	 * instead of as a bare number.
+	 */
+	public static function unit_for( $key_or_label ) {
+		$needle = strtolower( trim( (string) $key_or_label ) );
+		if ( $needle === '' ) return '';
+		foreach ( self::catalog() as $svc ) {
+			foreach ( $svc['metrics'] as $key => $m ) {
+				if ( $needle === $key || $needle === strtolower( $m['label'] ) ) return $m['unit'] ?? '';
+			}
+		}
+		foreach ( self::extra_metrics() as $key => $m ) {
+			if ( $needle === $key || $needle === strtolower( $m['label'] ) ) return $m['unit'] ?? '';
+		}
+		return '';
 	}
 
 	/**
@@ -273,6 +367,7 @@ class Six_Dash_Metrics {
 					'svc_label' => $svc['label'],
 					'label'   => $meta['label'],
 					'value'   => self::format( $raw, $meta ),
+					'unit'    => $meta['unit'] ?? '',
 					'sub'     => $sub,
 					'source'  => $src,
 					'accent'  => $svc['accent'],

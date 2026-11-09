@@ -1417,24 +1417,33 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             : array();
         $kpi_vals_adv = array();
         foreach( $kpi_rows_adv as $r ) $kpi_vals_adv[$r->kpi_key] = $r->kpi_value;
-        $kpi_fields = array(
-            'new_customers'  => array('label'=>'New Customers',    'ph'=>'e.g. 40,841',      'hint'=>'Monthly new customer count'),
-            'sales_revenue'  => array('label'=>'Sales Revenue',    'ph'=>'e.g. $30,816',    'hint'=>'Monthly revenue figure'),
-            'total_visitors' => array('label'=>'Total Visitors',   'ph'=>'e.g. 520,612',     'hint'=>'Monthly website sessions'),
-            'organic_visitors' => array('label'=>'Organic Visitors','ph'=>'e.g. 3,400',  'hint'=>'Monthly organic sessions (SEO card)'),
-            'paid_clicks'      => array('label'=>'Paid Clicks',     'ph'=>'e.g. 1,250',  'hint'=>'Monthly Google Ads clicks'),
-            'keywords_page1'   => array('label'=>'Keywords on Page 1','ph'=>'e.g. 24',    'hint'=>'Keywords ranking in the top 10'),
-            'visitors_baseline'=> array('label'=>'Visitors Before Us','ph'=>'e.g. 900',   'hint'=>'Monthly visitors before we started — baseline for the graph'));
+
+        // Generated from the same catalog the customer's cards are rendered
+        // from, narrowed to the services this client actually has. The list
+        // used to be written out by hand here, which meant three fields that
+        // no card reads, no field at all for Google Business, and an advisor
+        // filling the panel in while the customer's dashboard carried on
+        // showing industry benchmarks.
+        $kpi_slugs = (array) $wpdb->get_col( $wpdb->prepare(
+            "SELECT service_slug FROM {$wpdb->prefix}six_client_services WHERE client_id=%d AND status='active'",
+            $view_client_id ) );
+        $kpi_fields = class_exists('Six_Dash_Metrics')
+            ? Six_Dash_Metrics::editable_metrics( $kpi_slugs, true )
+            : array();
         foreach( $kpi_fields as $key => $f ):
         ?>
         <div>
-            <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);display:block;margin-bottom:6px"><?php echo esc_html($f['label']); ?></label>
+            <label style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:6px">
+                <?php echo esc_html($f['label']); ?>
+                <?php if ( ! empty($f['service_label']) ): ?><span style="font-weight:600;letter-spacing:0;text-transform:none;font-size:10px;color:var(--text3);opacity:.75"><?php echo esc_html($f['service_label']); ?></span><?php endif; ?>
+                <?php if ( ! empty($f['on_card']) ): ?><span style="font-weight:700;letter-spacing:0;text-transform:none;font-size:9px;color:#56D364;background:rgba(86,211,100,.12);border-radius:4px;padding:1px 5px">On their dashboard</span><?php endif; ?>
+            </label>
             <div style="display:flex;gap:6px">
                 <input class="ob-input" style="flex:1;font-size:12px;padding:8px 12px"
                     type="text"
                     id="kpi-<?php echo esc_attr($key); ?>"
                     value="<?php echo esc_attr($kpi_vals_adv[$key] ?? ''); ?>"
-                    placeholder="<?php echo esc_attr($f['ph']); ?>"
+                    placeholder="<?php echo esc_attr( $f['prefix'] ? $f['prefix'] . '0' : '0' ); ?>"
                     data-kpi="<?php echo esc_attr($key); ?>"
                     data-client="<?php echo esc_attr($view_client_id); ?>">
                 <button onclick="sixSaveKpi(this)" data-kpi="<?php echo esc_attr($key); ?>" data-client="<?php echo esc_attr($view_client_id); ?>"
@@ -1442,9 +1451,14 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                     onmouseover="this.style.background='rgba(106,202,253,.2)'" onmouseout="this.style.background='rgba(106,202,253,.1)'"
                 >Save</button>
             </div>
-            <div style="font-size:10px;color:var(--text3);margin-top:4px"><?php echo esc_html($f['hint']); ?></div>
+            <?php /* The unit, always. "1,240" is not a figure anyone can
+                     check unless it says what of, and over what period. */ ?>
+            <div style="font-size:10px;color:var(--text3);margin-top:4px"><?php echo esc_html( trim( $f['unit'] . ( $f['hint'] ? ' · ' . $f['hint'] : '' ) ) ); ?></div>
         </div>
         <?php endforeach; ?>
+        <?php if ( empty($kpi_fields) ): ?>
+        <div style="grid-column:1/-1;font-size:12px;color:var(--text3)">No active services yet, so there are no dashboard figures to set. Activate a service first.</div>
+        <?php endif; ?>
         </div>
         <div id="kpi-save-msg" style="display:none;margin-top:12px;font-size:12px;color:#56D364"></div>
     </div>
@@ -3974,7 +3988,7 @@ var SIX_SVC_FIELDS = {
 
 window.sixServiceWizard = sixServiceWizard;
 function sixServiceWizard(serviceId, clientId, slug, name, activateMode){
-  var W = { step:1, activate:!!activateMode, config:{}, metrics:[] };
+  var W = { step:1, activate:!!activateMode, config:{}, metrics:[], catalog:[], kpis:{}, budget:0 };
   var esc=function(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
   var fields = SIX_SVC_FIELDS[slug] || [{k:'account_id',label:'Account / Reference ID',ph:''},{k:'notes',label:'Setup notes',ph:'',ta:true}];
 
@@ -4003,13 +4017,33 @@ function sixServiceWizard(serviceId, clientId, slug, name, activateMode){
     if(r&&r.success&&r.data){
       if(r.data.config) W.config=r.data.config||{};
       W.answered = r.data.answered || [];
-      if(r.data.metrics&&r.data.metrics.length) W.metrics=r.data.metrics.map(function(m){return {label:m.label,previous:m.previous,current:m.current,target:m.target};});
+      // The metrics the customer's cards are actually built from, and what the
+      // advisor has already confirmed for each.
+      W.catalog = r.data.catalog || [];
+      W.kpis    = r.data.kpis || {};
+      W.budget  = r.data.budget || 0;
+      if(r.data.metrics&&r.data.metrics.length) W.metrics=r.data.metrics.map(function(m){return {label:m.label,unit:m.unit,previous:m.previous,current:m.current,target:m.target};});
     }
     render();
   }).catch(render);
 
-  function collectStep1(){ body.querySelectorAll('[data-ck]').forEach(function(el){ W.config[el.dataset.ck]=el.value; }); }
-  function collectStep2(){ W.metrics=[]; body.querySelectorAll('.wiz-mrow').forEach(function(row){ var l=(row.querySelector('.m-label').value||'').trim(); if(!l) return; W.metrics.push({label:l,previous:row.querySelector('.m-prev').value,current:row.querySelector('.m-cur').value,target:row.querySelector('.m-tgt').value}); }); }
+  function collectStep1(){
+    body.querySelectorAll('[data-ck]').forEach(function(el){ W.config[el.dataset.ck]=el.value; });
+    var b=body.querySelector('#wiz-budget');
+    if(b) W.budget = b.value===''? '' : parseFloat(b.value);
+  }
+  function collectStep2(){
+    // The catalog rows go to the customer's stat cards; the free rows go to
+    // the service's detail table. Two different homes, collected separately.
+    body.querySelectorAll('.wiz-krow').forEach(function(row){
+      W.kpis[row.dataset.key] = { current: row.querySelector('.k-cur').value, previous: row.querySelector('.k-prev').value };
+    });
+    W.metrics=[];
+    body.querySelectorAll('.wiz-mrow').forEach(function(row){
+      var l=(row.querySelector('.m-label').value||'').trim(); if(!l) return;
+      W.metrics.push({label:l,previous:row.querySelector('.m-prev').value,current:row.querySelector('.m-cur').value,target:row.querySelector('.m-tgt').value,unit:row.querySelector('.m-unit').value});
+    });
+  }
 
   function render(){
     var titles={1:'Service details',2:'Performance metrics',3:'Review'};
@@ -4055,22 +4089,65 @@ function sixServiceWizard(serviceId, clientId, slug, name, activateMode){
       h+='<div style="height:10px"></div>';
       notes.forEach(function(f){ h+=fieldHtml(f); });
     }
+    // The budget. What the client picked at signup was a guess made before
+    // anyone had looked at their site; the advisor sets the real figure here.
+    h+='<div style="height:10px"></div>'
+      +head('Monthly budget','What they will actually be billed for this service. The figure they selected during signup is prefilled — change it to what you have quoted them. Changing it emails them the new amount.')
+      +'<div style="display:flex;align-items:center;gap:8px">'
+        +'<span style="font-size:13px;color:var(--text2,#b5b5c5)">$</span>'
+        +'<input class="six-input" id="wiz-budget" type="number" min="0" step="1" value="'+esc(W.budget||'')+'" style="width:140px;font-size:12px;padding:8px 10px">'
+        +'<span style="font-size:12px;color:var(--text3,#8a8a99)">per month</span>'
+      +'</div>';
     body.innerHTML=h;
   }
   function renderStep2(){
     body.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap">'
-      +'<div style="font-size:12px;color:var(--text3,#8a8a99)">Metrics the customer will see — previous / current / target.</div>'
+      +'<div style="font-size:12px;color:var(--text3,#8a8a99)">The numbers on their dashboard. Leave one blank and they see an industry benchmark instead.</div>'
       +'<button id="wiz-suggest" class="six-btn six-btn-ghost six-btn-sm" style="font-size:11px;color:var(--pink,#ff4d8d)">Read current figures</button></div>'
       +'<div id="wiz-sources" style="display:none;font-size:11px;line-height:1.6;color:var(--text3,#8a8a99);background:var(--dark3,#1c1c24);border:1px solid var(--border,#2a2a35);border-radius:8px;padding:9px 11px;margin-bottom:10px"></div>'
+      +'<div id="wiz-kpis"></div>'
+      +'<div style="font-size:11px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;color:var(--text1,#fff);margin:18px 0 4px">Anything else worth showing</div>'
+      +'<div style="font-size:11px;color:var(--text3,#8a8a99);margin-bottom:10px;line-height:1.5">Extra rows appear in the service’s detail table, not on the four cards above.</div>'
       +'<div id="wiz-metrics"></div>'
       +'<button id="wiz-addm" class="six-btn six-btn-ghost six-btn-sm" style="font-size:11px;margin-top:8px">+ Add metric row</button>';
+
+    // ── The cards' own metrics: fixed rows, named and with their unit stated,
+    //    because "1,240" with no unit is a number the customer cannot read and
+    //    a number the advisor can enter wrong.
+    var klist=body.querySelector('#wiz-kpis');
+    var KGRID='display:grid;grid-template-columns:1fr 110px 110px;gap:8px;align-items:center';
+    if((W.catalog||[]).length){
+      var head=document.createElement('div');
+      head.style.cssText=KGRID+';margin-bottom:6px';
+      head.innerHTML='<div></div>'
+        +'<div style="font-size:9.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3,#8a8a99)">Last month</div>'
+        +'<div style="font-size:9.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3,#8a8a99)">Now</div>';
+      klist.appendChild(head);
+    }
+    (W.catalog||[]).forEach(function(c){
+      var have=W.kpis[c.key]||{};
+      var row=document.createElement('div'); row.className='wiz-krow'; row.dataset.key=c.key;
+      row.style.cssText=KGRID+';margin-bottom:8px';
+      row.innerHTML='<div><div style="font-size:12px;font-weight:600;color:var(--text1,#fff)">'+esc(c.label)+'</div>'
+          +'<div style="font-size:10.5px;color:var(--text3,#8a8a99);margin-top:2px">'+esc(c.unit||'')+'</div></div>'
+        +'<input class="six-input k-prev" value="'+esc(have.previous||'')+'" placeholder="—" style="width:100%;min-width:0;font-size:12px;padding:6px 8px">'
+        +'<input class="six-input k-cur" value="'+esc(have.current||'')+'" placeholder="—" style="width:100%;min-width:0;font-size:12px;padding:6px 8px">';
+      klist.appendChild(row);
+    });
+    if(!(W.catalog||[]).length) klist.innerHTML='<div style="font-size:12px;color:var(--text3,#8a8a99)">This service has no dashboard cards — it is tracked by delivery milestones instead.</div>';
+
     var list=body.querySelector('#wiz-metrics');
     function addRow(m){ m=m||{}; var row=document.createElement('div'); row.className='wiz-mrow';
-      row.style.cssText='display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:6px;align-items:center;margin-bottom:6px';
-      row.innerHTML='<input class="six-input m-label" placeholder="Metric" value="'+esc(m.label||'')+'" style="font-size:12px;padding:6px 8px">'
-        +'<input class="six-input m-prev" placeholder="prev" value="'+esc(m.previous||'')+'" style="font-size:12px;padding:6px 8px">'
-        +'<input class="six-input m-cur" placeholder="current" value="'+esc(m.current||'')+'" style="font-size:12px;padding:6px 8px">'
-        +'<input class="six-input m-tgt" placeholder="target" value="'+esc(m.target||'')+'" style="font-size:12px;padding:6px 8px">'
+      // min-width:0 on every cell, because a grid track is min-content wide by
+      // default and an <input>'s min-content is its whole size attribute —
+      // five of them in a 560px modal silently push the last two off the edge.
+      var cell='font-size:12px;padding:6px 8px;min-width:0';
+      row.style.cssText='display:grid;grid-template-columns:1.5fr 1.3fr .75fr .75fr .75fr auto;gap:6px;align-items:center;margin-bottom:6px';
+      row.innerHTML='<input class="six-input m-label" placeholder="Metric" value="'+esc(m.label||'')+'" style="'+cell+'">'
+        +'<input class="six-input m-unit" placeholder="per month" value="'+esc(m.unit||'')+'" style="'+cell+'">'
+        +'<input class="six-input m-prev" placeholder="prev" value="'+esc(m.previous||'')+'" style="'+cell+'">'
+        +'<input class="six-input m-cur" placeholder="now" value="'+esc(m.current||'')+'" style="'+cell+'">'
+        +'<input class="six-input m-tgt" placeholder="target" value="'+esc(m.target||'')+'" style="'+cell+'">'
         +'<button class="m-del" title="Remove" style="background:none;border:none;color:var(--text3,#8a8a99);cursor:pointer;font-size:16px">&times;</button>';
       row.querySelector('.m-del').onclick=function(){ row.remove(); };
       list.appendChild(row);
@@ -4086,10 +4163,23 @@ function sixServiceWizard(serviceId, clientId, slug, name, activateMode){
           // Replace rather than append: reading twice should not leave two
           // copies of every metric for the advisor to clean up.
           collectStep2();
-          var keep=W.metrics.filter(function(m){
-            return !r.data.metrics.some(function(n){ return (n.label||'')===m.label; });
+          // A measurement that matches one of the cards fills that card's own
+          // box. Reading live figures that then sat in a free-text row the
+          // dashboard never looks at was the whole problem.
+          var keyed = {};
+          r.data.metrics.forEach(function(n){ if(n.key) keyed[n.key]=n; });
+          body.querySelectorAll('.wiz-krow').forEach(function(row){
+            var n=keyed[row.dataset.key]; if(!n) return;
+            if(n.current!=='' && n.current!=null) row.querySelector('.k-cur').value=n.current;
+            if(n.previous) row.querySelector('.k-prev').value=n.previous;
+            row.style.outline='1px solid rgba(86,211,100,.45)';
+            row.style.outlineOffset='3px';
           });
-          list.innerHTML=''; keep.concat(r.data.metrics).forEach(addRow);
+          var rest=r.data.metrics.filter(function(n){ return !n.key; });
+          var keep=W.metrics.filter(function(m){
+            return !rest.some(function(n){ return (n.label||'')===m.label; });
+          });
+          list.innerHTML=''; keep.concat(rest).forEach(addRow);
           if(srcEl){
             var html='<strong style="color:var(--text2,#b5b5c5)">Read from:</strong> '+(r.data.sources||[]).map(esc).join(' · ');
             if(r.data.note) html+='<div style="margin-top:5px">'+esc(r.data.note)+'</div>';
@@ -4109,11 +4199,27 @@ function sixServiceWizard(serviceId, clientId, slug, name, activateMode){
     h+='<div style="padding:8px 12px;background:var(--dark3,#1c1c24);font-size:11px;font-weight:700;color:var(--text3,#8a8a99)">Service details</div>';
     var any=false;
     fields.forEach(function(f){ var v=W.config[f.k]; if(v){ any=true; h+='<div style="display:flex;gap:10px;padding:7px 12px;border-top:1px solid var(--border,#2a2a35);font-size:12px"><div style="width:150px;color:var(--text3,#8a8a99);flex-shrink:0">'+esc(f.label)+'</div><div style="flex:1;word-break:break-word">'+esc(v)+'</div></div>'; } });
+    if(W.budget!==''&&W.budget!=null){ any=true; h+='<div style="display:flex;gap:10px;padding:7px 12px;border-top:1px solid var(--border,#2a2a35);font-size:12px"><div style="width:150px;color:var(--text3,#8a8a99);flex-shrink:0">Monthly budget</div><div style="flex:1;font-weight:600">$'+esc(W.budget)+'/mo</div></div>'; }
     if(!any) h+='<div style="padding:8px 12px;font-size:12px;color:var(--text3,#8a8a99)">No details entered.</div>';
     h+='</div>';
-    h+='<div style="border:1px solid var(--border,#2a2a35);border-radius:10px;overflow:hidden"><div style="padding:8px 12px;background:var(--dark3,#1c1c24);font-size:11px;font-weight:700;color:var(--text3,#8a8a99)">Metrics ('+W.metrics.length+')</div>';
-    if(W.metrics.length) W.metrics.forEach(function(m){ h+='<div style="display:flex;gap:10px;padding:7px 12px;border-top:1px solid var(--border,#2a2a35);font-size:12px"><div style="flex:1;font-weight:600">'+esc(m.label)+'</div><div style="color:var(--text3,#8a8a99)">'+esc(m.previous||'–')+' &rarr; '+esc(m.current||'–')+' &rarr; target '+esc(m.target||'–')+'</div></div>'; });
-    else h+='<div style="padding:8px 12px;font-size:12px;color:var(--text3,#8a8a99)">No metrics yet — the customer sees “Metrics coming soon”.</div>';
+
+    // The cards first, because these are the numbers the customer opens the
+    // dashboard to see.
+    var filled=(W.catalog||[]).filter(function(c){ var k=W.kpis[c.key]||{}; return (k.current||'')!==''; });
+    h+='<div style="border:1px solid var(--border,#2a2a35);border-radius:10px;overflow:hidden;margin-bottom:14px"><div style="padding:8px 12px;background:var(--dark3,#1c1c24);font-size:11px;font-weight:700;color:var(--text3,#8a8a99)">Their dashboard cards ('+filled.length+' of '+(W.catalog||[]).length+' set)</div>';
+    (W.catalog||[]).forEach(function(c){
+      var k=W.kpis[c.key]||{};
+      var cur=(k.current||'')!=='' ? esc(k.current) : '<span style="color:var(--warning,#e3b341)">industry benchmark</span>';
+      h+='<div style="display:flex;gap:10px;padding:7px 12px;border-top:1px solid var(--border,#2a2a35);font-size:12px">'
+        +'<div style="flex:1"><div style="font-weight:600">'+esc(c.label)+'</div><div style="font-size:10.5px;color:var(--text3,#8a8a99)">'+esc(c.unit||'')+'</div></div>'
+        +'<div style="color:var(--text3,#8a8a99);text-align:right">'+esc(k.previous||'–')+' &rarr; '+cur+'</div></div>';
+    });
+    if(!(W.catalog||[]).length) h+='<div style="padding:8px 12px;font-size:12px;color:var(--text3,#8a8a99)">This service has no dashboard cards.</div>';
+    h+='</div>';
+
+    h+='<div style="border:1px solid var(--border,#2a2a35);border-radius:10px;overflow:hidden"><div style="padding:8px 12px;background:var(--dark3,#1c1c24);font-size:11px;font-weight:700;color:var(--text3,#8a8a99)">Detail table ('+W.metrics.length+')</div>';
+    if(W.metrics.length) W.metrics.forEach(function(m){ h+='<div style="display:flex;gap:10px;padding:7px 12px;border-top:1px solid var(--border,#2a2a35);font-size:12px"><div style="flex:1;font-weight:600">'+esc(m.label)+(m.unit?'<span style="font-weight:400;color:var(--text3,#8a8a99)"> · '+esc(m.unit)+'</span>':'')+'</div><div style="color:var(--text3,#8a8a99)">'+esc(m.previous||'–')+' &rarr; '+esc(m.current||'–')+' &rarr; target '+esc(m.target||'–')+'</div></div>'; });
+    else h+='<div style="padding:8px 12px;font-size:12px;color:var(--text3,#8a8a99)">Nothing extra — the cards above are what they see.</div>';
     h+='</div>';
     body.innerHTML=h;
   }
@@ -4123,16 +4229,33 @@ function sixServiceWizard(serviceId, clientId, slug, name, activateMode){
     if(W.step===1){ collectStep1(); W.step=2; render(); return; }
     if(W.step===2){ collectStep2(); W.step=3; render(); return; }
     nextBtn.disabled=true; nextBtn.textContent='Saving…';
-    post({action:'six_save_service_setup',client_id:clientId,service_id:serviceId,service_slug:slug,activate:W.activate?1:0,config:JSON.stringify(W.config),metrics:JSON.stringify(W.metrics)})
+    post({action:'six_save_service_setup',client_id:clientId,service_id:serviceId,service_slug:slug,activate:W.activate?1:0,
+          config:JSON.stringify(W.config),metrics:JSON.stringify(W.metrics),kpis:JSON.stringify(W.kpis),
+          budget:(W.budget===''||W.budget==null)?'':String(W.budget)})
     .then(function(r){
       if(r&&r.success){
-        nextBtn.textContent=W.activate?'Activated ✓':'Saved ✓';
         var d=r.data||{};
+        // A figure that did not reach the table the customer's cards read is
+        // not a save, whatever the rest of the request did.
+        var bad=Object.keys(d.kpis_failed||{});
+        if(bad.length){
+          nextBtn.disabled=false; nextBtn.textContent=W.activate?'Activate service':'Save setup';
+          msgEl.style.color='var(--danger,#D93B3B)';
+          msgEl.textContent=(d.kpis_failed._table||(bad.length+' dashboard figure(s) could not be saved.'));
+          return;
+        }
+        nextBtn.textContent=W.activate?'Activated ✓':'Saved ✓';
         // When activating we report what else happened rather than reloading
         // straight past it — the advisor needs the questionnaire link in
         // hand in case the client's copy of the email goes astray.
-        if(W.activate && (d.questionnaire_url || d.baseline)){
+        if(W.activate && (d.questionnaire_url || d.baseline || d.budget_changed)){
           var h='<div style="padding:4px 0 2px"><div style="font-size:13px;font-weight:700;color:#56D364;margin-bottom:10px">Service activated</div>';
+          if(d.budget_changed){
+            h+='<div style="font-size:12px;color:var(--text2,#b5b5c5);margin-bottom:10px">Budget set to $'+esc(String(d.budget_changed.to))+'/mo (they had selected $'+esc(String(d.budget_changed.from))+'/mo). They have been emailed the new amount.</div>';
+          }
+          if(d.kpis_saved){
+            h+='<div style="font-size:12px;color:var(--text2,#b5b5c5);margin-bottom:10px">'+esc(String(d.kpis_saved))+' dashboard figure'+(d.kpis_saved===1?'':'s')+' saved — their cards now show your numbers instead of benchmarks.</div>';
+          }
           if(d.baseline){
             h+='<div style="font-size:12px;color:var(--text2,#b5b5c5);margin-bottom:10px">Baseline snapshot taken ('+esc(String(d.baseline.metrics))+' metrics, '+esc(String(d.baseline.captured_at))+'). Every future check compares against this.</div>';
           }
