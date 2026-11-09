@@ -268,6 +268,62 @@ _Please don't type passwords here — just tell us what exists, and we'll set up
 
 ---
 
+## Your Google Business Profile
+
+_This is what decides whether you show up in the map results when somebody nearby searches for what you do._
+
+**Is the profile claimed and verified, and who manages it today?**
+
+> 
+
+**What category is the profile set to?**
+
+_The main one Google shows under your business name. If you are not sure, we will check._
+
+> 
+
+**Do customers come to you, or do you go to them?**
+
+_This changes how Google shows you, and how far out we measure your visibility._
+
+- [ ] They come to us at our address
+- [ ] We travel to them
+- [ ] Both
+
+**Which areas do you actually want calls from?**
+
+_Name the suburbs, towns or postal areas. Being specific here is what stops us measuring you in places you do not serve._
+
+> 
+
+**Who replies to reviews, and how quickly?**
+
+> 
+
+**How do you ask customers for reviews today?**
+
+_Even "we do not" is a useful answer — it is the most common one._
+
+> 
+
+**Are your opening hours on the profile correct, including holidays?** _(optional)_
+
+> 
+
+**Who can supply photos, and how often?** _(optional)_
+
+_Photos of the real place and real work, not stock._
+
+> 
+
+**Has the listing ever been suspended, duplicated, or had its address changed?** _(optional)_
+
+_A past suspension changes what we can safely do, so it is worth saying now._
+
+> 
+
+---
+
 ## Content production
 
 **Who writes your content today?**
