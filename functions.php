@@ -79,6 +79,7 @@ $optional_files = array(
     'class-lead-pipeline.php', // Lead Automation Flow — response window, recovery sequence, win-back (needs Six_Odoo)
     'class-estimate-engine.php', // Estimate Engine — real data growth plans
     'class-dashboard-metrics.php', // service-aware dashboard stats + connector seam
+    'class-unread.php',          // "something new in here" dots for the customer sidebar
     'class-performance.php',     // performance snapshots over time + strategy projections
     'class-website-project.php', // website build milestones + maintenance add-on
     'class-profile-api.php',     // REST profile contract for external tools/skills
@@ -90,6 +91,7 @@ $optional_files = array(
     'class-google-ads-calendar.php',
     'class-appointments.php',   // unified calls/meetings store (after calendar + odoo)
     'class-ahrefs.php',         // Ahrefs API v3 client — the SEO data provider
+    'class-brightlocal.php',    // BrightLocal API client — local pack / GBP data
     'class-dataforseo.php',     // legacy DataForSEO client, kept as a fallback
     'class-analytics.php',      // GA4 + Search Console client (service account)
     'class-meta.php',           // Meta (Facebook/Instagram) Ads insights client

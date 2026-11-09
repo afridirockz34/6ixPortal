@@ -70,7 +70,7 @@ _If you're unsure about a question or want to talk it through first, leave it bl
 | `seo_paid_links` | Any previous paid backlinking? | select | one of: No / Yes / Not sure |
 | `seo_engagement` | How well does the site engage visitors today? | textarea |  |
 | `seo_conversion_type` | How do people usually get in touch? | select | one of: Mostly form submissions / Mostly phone calls / Both about equally / Online purchases |
-| `seo_crm_tools` | How do you track those enquiries today? | text | from signup |
+| `seo_crm_tools` | How do you track those inquiries today? | text | from signup |
 | `seo_self_check_terms` | Search terms you type in yourself to check your rankings | textarea | optional |
 | `seo_profitable_services` | Your most profitable services | textarea |  |
 | `seo_lifetime_value` | Lifetime value of a typical customer | text | optional |

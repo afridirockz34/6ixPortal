@@ -240,19 +240,22 @@ function mk_icon( $name ) {
  *
  * Three shapes, because the same ask repeated three times down one page
  * reads as a single banner nobody clicks:
- *   hero  — the opening ask, benefit-first
+ *   hero  — the opening ask, benefit-first. A label only: the hero already
+ *           carries the page's lead paragraph, and a third line of body
+ *           text under the buttons was unreadable over the photo heroes
+ *           and redundant with the band below, which says the same thing
+ *           where there is room for it.
  *   band  — mid-page, framed as "see where you stand"
  *   final — the closing ask, the most concrete of the three
  *
  * @param string $slug The page slug.
- * @return array{hero:array{label:string,sub:string},band:array{heading:string,text:string,cta:string},final:array{heading:string,cta:string}}
+ * @return array{hero:array{label:string},band:array{heading:string,text:string,cta:string},final:array{heading:string,cta:string}}
  */
 function six_service_ctas( $slug ) {
     $map = array(
         'seo-agency-toronto' => array(
             'hero'  => array(
                 'label' => 'Show me what I’m missing',
-                'sub'   => 'Answer a few questions about your business and we’ll show you which searches your competitors are winning and you aren’t.',
             ),
             'band'  => array(
                 'heading' => 'Find out where your search traffic is going instead.',
@@ -267,7 +270,6 @@ function six_service_ctas( $slug ) {
         'ppc-google-ads-management-toronto' => array(
             'hero'  => array(
                 'label' => 'Audit my Google Ads',
-                'sub'   => 'Already running ads? Answer a few questions and we’ll show you what they’re costing you per lead, and where that number could be.',
             ),
             'band'  => array(
                 'heading' => 'Find out what your ads are really costing per lead.',
@@ -282,7 +284,6 @@ function six_service_ctas( $slug ) {
         'ppc-agency-toronto' => array(
             'hero'  => array(
                 'label' => 'Check my cost per lead',
-                'sub'   => 'A few questions about what you sell, and we’ll show you what a lead should cost in your market.',
             ),
             'band'  => array(
                 'heading' => 'See what a lead should cost you in your market.',
@@ -297,7 +298,6 @@ function six_service_ctas( $slug ) {
         'website-design-agency-toronto' => array(
             'hero'  => array(
                 'label' => 'Review my current site',
-                'sub'   => 'Answer a few questions and we’ll show you what your current site is costing you in enquiries that never arrive.',
             ),
             'band'  => array(
                 'heading' => 'See what your current site is costing you.',
@@ -312,7 +312,6 @@ function six_service_ctas( $slug ) {
         'social-media-marketing-agency-toronto' => array(
             'hero'  => array(
                 'label' => 'See where my audience is',
-                'sub'   => 'A few questions about your customers, and we’ll show you which channels are actually worth your time.',
             ),
             'band'  => array(
                 'heading' => 'See which channels are worth your time.',
@@ -327,7 +326,6 @@ function six_service_ctas( $slug ) {
         'digital-marketing-agency-toronto' => array(
             'hero'  => array(
                 'label' => 'Show me where to start',
-                'sub'   => 'Answer a few questions and we’ll show you which channel would move the needle fastest for your business.',
             ),
             'band'  => array(
                 'heading' => 'Find out which channel would move fastest for you.',
@@ -346,7 +344,6 @@ function six_service_ctas( $slug ) {
     return $map[ $slug ] ?? array(
         'hero'  => array(
             'label' => 'See where you stand',
-            'sub'   => 'Answer a few questions about your business and we’ll show you where you stand against the people you compete with.',
         ),
         'band'  => array(
             'heading' => 'See where you stand against your competitors.',

@@ -157,7 +157,7 @@ add_action( 'wp_loaded', function () {
                 array( 'icon' => 'layers', 'text' => 'Created targeted landing pages for specific courses.' ),
                 array( 'icon' => 'gauge',  'text' => 'Provided input on the optimization of the sales process.' ),
                 array( 'icon' => 'chart',  'text' => 'Set up landing-page split tests to steadily improve conversion rates.' ),
-                array( 'icon' => 'users',  'text' => 'Implemented automated email campaigns to qualify and convert enquiries into sales.' ),
+                array( 'icon' => 'users',  'text' => 'Implemented automated email campaigns to qualify and convert inquiries into sales.' ),
             ) ) );
             update_post_meta( $id, 'six_cs_kr1_value', '300%+' );
             update_post_meta( $id, 'six_cs_kr1_label', 'Lead and sales volume increase' );

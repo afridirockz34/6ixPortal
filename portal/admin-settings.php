@@ -80,6 +80,7 @@ function six_admin_settings() {
         'six_google_client_id', 'six_google_client_secret',
         'six_gads_developer_token', 'six_gads_manager_id', 'six_gads_kw_planner_account_id',
         'six_ahrefs_token',
+        'six_brightlocal_api_key',
         'six_dataforseo_login', 'six_dataforseo_password',
         'six_gads_client_id', 'six_gads_client_secret', 'six_gads_refresh_token',
         'six_anthropic_api_key', 'six_google_analytics_property_id', 'six_google_analytics_key',
@@ -167,6 +168,7 @@ function six_admin_settings() {
     $has_gads   = get_option('six_gads_developer_token') && get_option('six_gads_manager_id') && get_option('six_gads_refresh_token');
     $has_dfs    = get_option('six_dataforseo_login') && get_option('six_dataforseo_password');
     $has_ahrefs = (bool) get_option('six_ahrefs_token');
+    $has_bl     = class_exists('Six_BrightLocal') ? Six_BrightLocal::configured() : (bool) get_option('six_brightlocal_api_key');
     $has_gcal   = get_option('six_google_client_id') && get_option('six_google_client_secret');
     $has_ai     = (bool) get_option('six_anthropic_api_key');
     $has_ga4    = get_option('six_ga4_property_id') && get_option('six_ga4_service_account_json');
@@ -336,6 +338,40 @@ function six_admin_settings() {
                                     out.textContent=((res&&res.data&&res.data.message)||'Cache cleared.');
                                 })
                                 .catch(function(){ flush.disabled=false; out.style.color='#a00'; out.textContent='Request failed.'; });
+                        });
+                    })();
+                    </script>
+                </div>
+            </div>
+
+            <!-- ═══ BRIGHTLOCAL ════════════════════════════════════════ -->
+            <div class="six-int-card">
+                <div class="six-int-head"><span class="dot" style="background:#2aa8a8"></span> BrightLocal — Local Pack &amp; Google Business Data <?php echo $badge($has_bl); ?></div>
+                <div class="six-int-body">
+                    <div class="hint">Where local visibility is measured from: rank grids around a pin, local pack positions, citations and review counts — the Google Business side that Ahrefs does not cover. Create a key in BrightLocal under <a href="https://developer.brightlocal.com/" target="_blank">the developer portal</a>, then paste it here.</div>
+                    <div class="six-fld"><label>API Key</label><input type="password" name="six_brightlocal_api_key" value="<?php echo $s('six_brightlocal_api_key', true); ?>" placeholder="••••••••"><div class="desc">One key, sent as an <code>x-api-key</code> header. BrightLocal's current API takes no separate secret — if you are looking at an older key/secret pair, that is the retired legacy API.</div></div>
+                    <div class="six-int-test">
+                        <button type="button" class="button" id="six-bl-test">Test connection</button>
+                        <span id="six-bl-test-result" style="font-weight:600"></span>
+                    </div>
+                    <div class="desc">Save the key first. The test lists one client from your account, so a key that passes can actually read data rather than merely existing.</div>
+                    <script>
+                    (function(){
+                        var btn=document.getElementById('six-bl-test'), out=document.getElementById('six-bl-test-result');
+                        if(!btn) return;
+                        var nonce='<?php echo esc_js( wp_create_nonce('six_bl_test') ); ?>';
+                        btn.addEventListener('click',function(){
+                            btn.disabled=true; out.style.color='#666'; out.textContent='Testing…';
+                            var fd=new FormData(); fd.append('action','six_test_brightlocal'); fd.append('nonce',nonce);
+                            fetch(ajaxurl,{method:'POST',body:fd,credentials:'same-origin'})
+                                .then(function(r){return r.json();})
+                                .then(function(res){
+                                    btn.disabled=false;
+                                    var d=(res&&res.data)||{};
+                                    out.style.color=d.ok?'#155724':'#a00';
+                                    out.textContent=d.message||'Test failed.';
+                                })
+                                .catch(function(){ btn.disabled=false; out.style.color='#a00'; out.textContent='Request failed.'; });
                         });
                     })();
                     </script>
@@ -1243,6 +1279,20 @@ function six_admin_api_tokens() {
 // typo would otherwise surface weeks later as a quietly empty result rather
 // than an error.
 // ─────────────────────────────────────────────────────────────────────────────
+add_action( 'wp_ajax_six_test_brightlocal', 'six_ajax_test_brightlocal' );
+function six_ajax_test_brightlocal() {
+    if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( array( 'ok' => false, 'message' => 'Not allowed.' ) );
+    check_ajax_referer( 'six_bl_test', 'nonce' );
+    if ( ! class_exists( 'Six_BrightLocal' ) ) {
+        wp_send_json_error( array( 'ok' => false, 'message' => 'The BrightLocal client is not loaded.' ) );
+    }
+    $r = Six_BrightLocal::test();
+    // Always a 200 with the verdict in the body: the button reads `ok`, and a
+    // failure that arrives as an HTTP error is one the user sees as "Request
+    // failed" with no idea whether it was the key or the network.
+    wp_send_json_success( $r );
+}
+
 add_action( 'wp_ajax_six_test_ahrefs', 'six_ajax_test_ahrefs' );
 function six_ajax_test_ahrefs() {
     if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( array( 'message' => 'Not permitted.' ) );

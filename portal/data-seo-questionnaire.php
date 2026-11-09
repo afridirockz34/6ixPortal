@@ -175,7 +175,7 @@ function six_seo_questionnaire_schema() {
 				array( 'key' => 'seo_engagement',  'label' => 'How well does the site engage visitors today?', 'type' => 'textarea' ),
 				array( 'key' => 'seo_conversion_type', 'label' => 'How do people usually get in touch?', 'type' => 'select',
 				       'options' => array( 'Mostly form submissions', 'Mostly phone calls', 'Both about equally', 'Online purchases' ) ),
-				array( 'key' => 'seo_crm_tools',   'label' => 'How do you track those enquiries today?', 'type' => 'text', 'maps_to' => 'seo_crm_tools',
+				array( 'key' => 'seo_crm_tools',   'label' => 'How do you track those inquiries today?', 'type' => 'text', 'maps_to' => 'seo_crm_tools',
 				       'help' => 'CRM, spreadsheet, call tracking — whatever you actually use.' ),
 				array( 'key' => 'seo_self_check_terms', 'label' => 'Search terms you type in yourself to check your rankings', 'type' => 'textarea', 'optional' => true ),
 				array( 'key' => 'seo_profitable_services', 'label' => 'Your most profitable services', 'type' => 'textarea',

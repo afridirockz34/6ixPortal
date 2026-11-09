@@ -126,7 +126,7 @@ _Not a judgement — it changes how we audit your link profile._
 - [ ] Both about equally
 - [ ] Online purchases
 
-**How do you track those enquiries today?**
+**How do you track those inquiries today?**
 
 _CRM, spreadsheet, call tracking — whatever you actually use._
 
