@@ -42,6 +42,14 @@ outstanding; if large parts are blank, say so in the deliverable's framing and
 tell whoever is running this which sections to chase. The profile's `stage`
 is the quick version of the same thing.
 
+`questionnaire.strategy` also carries `issued`/`issued_at` and
+`submitted`/`submitted_at`. Those are three separate facts and they move
+independently: issued is us asking, `progress.percent` is how much is filled
+in, and submitted is the client saying they are finished. A questionnaire can
+read 100% without ever having been submitted — they are most likely still
+working through it, so treat the last answers as drafts and re-read the
+profile before anything is finalised.
+
 **If the connector isn't in this session, or the client isn't in the portal
 yet:** that's normal — a cold prospect won't be in there, and not every session
 has the connector loaded. Move to option 2.
