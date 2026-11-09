@@ -613,7 +613,7 @@ add_action( 'wp_ajax_six_get_service_setup', function() {
         if ( $v !== '' && $v !== false ) $config += array( $m['meta'] => $v );
     }
     $metrics = $wpdb->get_results( $wpdb->prepare(
-        "SELECT id,label,previous_value AS previous,current_value AS current,target_value AS target
+        "SELECT id,label,unit,previous_value AS previous,current_value AS current,target_value AS target
          FROM {$wpdb->prefix}six_metrics WHERE client_id=%d AND service_slug=%s ORDER BY id", $client_id, $slug ), ARRAY_A );
 
     // Everything the client already told us at onboarding, so the wizard can
@@ -646,9 +646,37 @@ add_action( 'wp_ajax_six_get_service_setup', function() {
         if ( ! isset( $config[ $k ] ) || $config[ $k ] === '' ) $config[ $k ] = $v;
     }
 
+    // The metrics this service's customer cards are actually built from, with
+    // the figure the advisor has already confirmed for each. Without this the
+    // wizard asked for free-text metric rows that landed in six_metrics and
+    // were never read by the dashboard, so an advisor could fill the step in
+    // completely and the customer would still see industry benchmarks.
+    $catalog = array(); $kpis = array();
+    if ( class_exists( 'Six_Dash_Metrics' ) ) {
+        foreach ( Six_Dash_Metrics::editable_metrics( array( $slug ), false ) as $key => $m ) {
+            $catalog[] = $m;
+        }
+        $ktbl = $wpdb->prefix . 'six_client_kpis';
+        if ( ! function_exists( 'six_table_exists' ) || six_table_exists( $ktbl ) ) {
+            foreach ( (array) $wpdb->get_results( $wpdb->prepare(
+                "SELECT kpi_key, kpi_value, kpi_prev FROM {$ktbl} WHERE client_id=%d", $client_id ) ) as $r ) {
+                $kpis[ $r->kpi_key ] = array( 'current' => $r->kpi_value, 'previous' => $r->kpi_prev );
+            }
+        }
+    }
+
+    // The service's monthly budget, so the advisor can correct what the client
+    // guessed at signup at the moment they activate it.
+    $svc_row = $wpdb->get_row( $wpdb->prepare(
+        "SELECT id, budget, status FROM {$wpdb->prefix}six_client_services WHERE client_id=%d AND service_slug=%s",
+        $client_id, $slug ) );
+
     wp_send_json_success( array(
         'config'   => (object) $config,
         'metrics'  => $metrics ?: array(),
+        'catalog'  => $catalog,
+        'kpis'     => (object) $kpis,
+        'budget'   => $svc_row ? (float) $svc_row->budget : 0,
         // Which keys came from the client's own answers, so the UI can label
         // them as already known rather than presenting them as fresh questions.
         'answered' => array_keys( $answered ),
@@ -684,6 +712,42 @@ add_action( 'wp_ajax_six_save_service_setup', function() {
         }
     }
 
+    // The figures the customer's stat cards are built from. These go to
+    // six_client_kpis, which is what Six_Dash_Metrics::cards() actually reads
+    // — six_metrics below feeds the service's detail table and nothing else.
+    // Filling in the wizard used to write only the latter, so every number an
+    // advisor entered stopped at the advisor's own screen.
+    $kpi_failed = array();
+    $kpi_saved  = 0;
+    $kpis = json_decode( wp_unslash( $_POST['kpis'] ?? '{}' ), true );
+    if ( is_array( $kpis ) && $kpis ) {
+        $ktbl = $wpdb->prefix . 'six_client_kpis';
+        if ( function_exists( 'six_table_exists' ) && ! six_table_exists( $ktbl ) ) {
+            $kpi_failed['_table'] = 'The KPI table is missing — open any WordPress admin page once to build it.';
+        } else {
+            foreach ( $kpis as $key => $vals ) {
+                $key = sanitize_key( $key );
+                if ( ! six_kpi_key_allowed( $key ) ) continue;
+                $value = sanitize_text_field( $vals['current'] ?? '' );
+                $prev  = sanitize_text_field( $vals['previous'] ?? '' );
+                if ( $value === '' && $prev === '' ) continue;
+                $written = $wpdb->replace( $ktbl, array(
+                    'client_id'  => $client_id,
+                    'kpi_key'    => $key,
+                    'kpi_value'  => $value,
+                    'kpi_prev'   => $prev,
+                    'updated_at' => current_time( 'mysql' ),
+                ) );
+                if ( $written === false ) {
+                    $kpi_failed[ $key ] = $wpdb->last_error ?: 'the database refused the write';
+                    error_log( '6ix KPI: wizard could not save ' . $key . ' for client ' . $client_id . ' — ' . $wpdb->last_error );
+                } else {
+                    $kpi_saved++;
+                }
+            }
+        }
+    }
+
     // Metrics (upsert by label within this service).
     $metrics = json_decode( wp_unslash( $_POST['metrics'] ?? '[]' ), true );
     if ( ! is_array( $metrics ) ) $metrics = array();
@@ -695,6 +759,7 @@ add_action( 'wp_ajax_six_save_service_setup', function() {
             'previous_value' => sanitize_text_field( $mm['previous'] ?? '' ),
             'current_value'  => sanitize_text_field( $mm['current']  ?? '' ),
             'target_value'   => sanitize_text_field( $mm['target']   ?? '' ),
+            'unit'           => sanitize_text_field( $mm['unit']     ?? '' ),
             'updated_at'     => current_time( 'mysql' ),
         );
         $ex = $wpdb->get_var( $wpdb->prepare(
@@ -711,16 +776,60 @@ add_action( 'wp_ajax_six_save_service_setup', function() {
 
     // Activate the service if requested.
     $activated = false;
+    $budget_changed = null;
     if ( $activate && $svc_id ) {
         $cols = $wpdb->get_col( "SHOW COLUMNS FROM {$wpdb->prefix}six_client_services", 0 );
         $d = array( 'status' => 'active' );
         if ( in_array( 'advisor_id', $cols, true ) ) $d['advisor_id'] = get_current_user_id();
         if ( in_array( 'updated_at', $cols, true ) ) $d['updated_at'] = current_time( 'mysql' );
+        // The budget the ADVISOR sets, which is the one that counts. What the
+        // client picked at signup was a guess made before anyone had looked at
+        // their site; the advisor quotes the real figure when they activate.
+        if ( isset( $_POST['budget'] ) && $_POST['budget'] !== '' ) {
+            $new_budget = round( max( 0, floatval( $_POST['budget'] ) ), 2 );
+            $before = $wpdb->get_row( $wpdb->prepare(
+                "SELECT budget, service_name FROM {$wpdb->prefix}six_client_services WHERE id=%d", $svc_id ) );
+            $old_budget = $before ? (float) $before->budget : 0.0;
+            if ( abs( $new_budget - $old_budget ) > 0.004 ) {
+                $d['budget'] = $new_budget;
+                $budget_changed = array(
+                    'from' => $old_budget,
+                    'to'   => $new_budget,
+                    'name' => $before->service_name ?? $slug,
+                );
+            }
+        }
         if ( $wpdb->update( "{$wpdb->prefix}six_client_services", $d, array( 'id' => $svc_id ) ) !== false ) {
             $activated = true;
             if ( class_exists( 'Six_Odoo' ) ) {
                 $lead = intval( get_user_meta( $client_id, 'six_odoo_lead_id', true ) );
-                if ( $lead ) Six_Odoo::update_lead_stage( $lead, 'Customer' );
+                if ( $lead ) {
+                    Six_Odoo::update_lead_stage( $lead, 'Customer' );
+                    if ( $budget_changed ) {
+                        Six_Odoo::post_note( $lead, sprintf(
+                            'Advisor set the %s budget to $%s/mo on activation (the client had selected $%s/mo).',
+                            $budget_changed['name'], number_format( $budget_changed['to'], 2 ), number_format( $budget_changed['from'], 2 ) ) );
+                    }
+                }
+            }
+            // A price change the client did not make is one they have to be
+            // told about — in writing, not only on a dashboard they may not
+            // open.
+            if ( $budget_changed && function_exists( 'six_send_system_email' ) ) {
+                $cu = get_userdata( $client_id );
+                if ( $cu ) {
+                    six_send_system_email( 'budget_change', array(
+                        'client_name'  => trim( $cu->first_name . ' ' . $cu->last_name ) ?: $cu->display_name,
+                        'service_name' => $budget_changed['name'],
+                        'old_budget'   => number_format( $budget_changed['from'], 0 ),
+                        'new_budget'   => number_format( $budget_changed['to'], 0 ),
+                        'changed_by'   => wp_get_current_user()->display_name ?: 'your advisor',
+                    ), array(
+                        'customer_email' => $cu->user_email,
+                        'dashboard_url'  => home_url( '/advisor-portal/?tab=clients&client=' . $client_id ),
+                        'odoo_lead_id'   => intval( get_user_meta( $client_id, 'six_odoo_lead_id', true ) ),
+                    ) );
+                }
             }
         }
     }
@@ -759,7 +868,12 @@ add_action( 'wp_ajax_six_save_service_setup', function() {
 
     wp_send_json_success( array(
         'metrics_saved'     => $saved,
+        'kpis_saved'        => $kpi_saved,
+        // Named rather than swallowed: a figure that did not reach the table
+        // the customer's cards read must not be reported as saved.
+        'kpis_failed'       => $kpi_failed,
         'activated'         => $activated,
+        'budget_changed'    => $budget_changed,
         'baseline'          => $baseline,
         'questionnaire_url' => $questionnaire_url,
     ) );
@@ -796,11 +910,11 @@ add_action( 'wp_ajax_six_suggest_metrics', function() {
             $m = $seo::site_metrics( $domain, $loc );
             if ( empty( $m['error'] ) ) {
                 $sources[] = ( $seo === 'Six_Ahrefs' ? 'Ahrefs' : 'DataForSEO' ) . ' (' . $domain . ')';
-                $rows[] = array( 'label' => 'Organic Visitors', 'previous' => '', 'current' => (string) $m['organic_traffic'],
+                $rows[] = array( 'key' => 'organic_visitors', 'label' => 'Organic Visitors', 'previous' => '', 'current' => (string) $m['organic_traffic'],
                                  'target' => '', 'source' => 'Ahrefs estimate' );
-                $rows[] = array( 'label' => 'Keywords on Page 1', 'previous' => '', 'current' => (string) $m['keywords_top3'],
+                $rows[] = array( 'key' => 'keywords_page1', 'label' => 'Keywords on Page 1', 'previous' => '', 'current' => (string) $m['keywords_top3'],
                                  'target' => '', 'source' => 'Ahrefs — top 3' );
-                $rows[] = array( 'label' => 'Keywords Tracked', 'previous' => '', 'current' => (string) $m['organic_keywords'],
+                $rows[] = array( 'key' => 'keywords_tracked', 'label' => 'Keywords Tracked', 'previous' => '', 'current' => (string) $m['organic_keywords'],
                                  'target' => '', 'source' => 'Ahrefs — total ranked' );
             } else {
                 $sources[] = 'Ahrefs unavailable: ' . $m['error'];
@@ -817,10 +931,10 @@ add_action( 'wp_ajax_six_suggest_metrics', function() {
         $m = Six_Google_Ads::get_campaign_metrics_for_client( $client_id, 'LAST_30_DAYS' );
         if ( is_array( $m ) && $m ) {
             $sources[] = 'Google Ads (last 30 days)';
-            if ( isset( $m['clicks'] ) )      $rows[] = array( 'label' => 'Ad Clicks',      'previous' => '', 'current' => (string) intval( $m['clicks'] ),      'target' => '', 'source' => 'Google Ads' );
-            if ( isset( $m['impressions'] ) ) $rows[] = array( 'label' => 'Impressions',    'previous' => '', 'current' => (string) intval( $m['impressions'] ), 'target' => '', 'source' => 'Google Ads' );
-            if ( isset( $m['conversions'] ) ) $rows[] = array( 'label' => 'Leads from Ads', 'previous' => '', 'current' => (string) intval( $m['conversions'] ), 'target' => '', 'source' => 'Google Ads' );
-            if ( isset( $m['cpc'] ) )         $rows[] = array( 'label' => 'Avg Cost / Click','previous' => '', 'current' => (string) round( (float) $m['cpc'], 2 ), 'target' => '', 'source' => 'Google Ads' );
+            if ( isset( $m['clicks'] ) )      $rows[] = array( 'key' => 'paid_clicks', 'label' => 'Ad Clicks',      'previous' => '', 'current' => (string) intval( $m['clicks'] ),      'target' => '', 'source' => 'Google Ads' );
+            if ( isset( $m['impressions'] ) ) $rows[] = array( 'key' => 'ads_impressions', 'label' => 'Impressions',    'previous' => '', 'current' => (string) intval( $m['impressions'] ), 'target' => '', 'source' => 'Google Ads' );
+            if ( isset( $m['conversions'] ) ) $rows[] = array( 'key' => 'ads_leads', 'label' => 'Leads from Ads', 'previous' => '', 'current' => (string) intval( $m['conversions'] ), 'target' => '', 'source' => 'Google Ads' );
+            if ( isset( $m['cpc'] ) )         $rows[] = array( 'key' => 'ads_cpc', 'label' => 'Avg Cost / Click','previous' => '', 'current' => (string) round( (float) $m['cpc'], 2 ), 'target' => '', 'source' => 'Google Ads' );
         } else {
             $sources[] = 'Google Ads is not returning data for this client yet.';
         }
@@ -838,8 +952,8 @@ add_action( 'wp_ajax_six_suggest_metrics', function() {
             $p = Six_Ahrefs::onpage( $url );
             if ( empty( $p['error'] ) ) {
                 $sources[] = 'Live page check of ' . $p['url'];
-                $rows[] = array( 'label' => 'Page Load (ms)', 'previous' => '', 'current' => (string) $p['load_time_ms'], 'target' => '', 'source' => 'Measured now' );
-                $rows[] = array( 'label' => 'On-page Issues', 'previous' => '', 'current' => (string) count( $p['issues'] ), 'target' => '', 'source' => 'Measured now' );
+                $rows[] = array( 'label' => 'Page Load (ms)', 'unit' => 'milliseconds to first render', 'previous' => '', 'current' => (string) $p['load_time_ms'], 'target' => '', 'source' => 'Measured now' );
+                $rows[] = array( 'label' => 'On-page Issues', 'unit' => 'issues outstanding', 'previous' => '', 'current' => (string) count( $p['issues'] ), 'target' => '', 'source' => 'Measured now' );
             }
         }
     }
@@ -2298,40 +2412,47 @@ add_action('wp_ajax_six_save_client_kpi', function() {
     $kpi_key   = sanitize_key($_POST['kpi_key'] ?? '');
     $kpi_value = sanitize_text_field($_POST['kpi_value'] ?? '');
 
-    $allowed_keys = array('new_customers','sales_revenue','total_visitors','organic_visitors','paid_clicks','keywords_page1','visitors_baseline');
-    if ( ! $client_id || ! in_array($kpi_key, $allowed_keys, true) ) {
+    // The keys are the catalog's, not a list maintained by hand here. The
+    // hand-maintained one had three keys no card reads and was missing every
+    // Google Business and most Google Ads metrics, so a GMB client's advisor
+    // had nothing they could set at all.
+    if ( ! $client_id || ! $kpi_key || ! six_kpi_key_allowed( $kpi_key ) ) {
         wp_send_json_error('Invalid data'); return;
+    }
+
+    $tbl = $wpdb->prefix . 'six_client_kpis';
+    if ( function_exists('six_table_exists') && ! six_table_exists( $tbl ) ) {
+        // Saying "Saved — customer dashboard updated" into a table that isn't
+        // there is how this went unnoticed for months.
+        wp_send_json_error('The KPI table is missing. Open any WordPress admin page once to build it, then try again.');
+        return;
     }
 
     // Fetch current value to store as prev
     $current = $wpdb->get_var($wpdb->prepare(
-        "SELECT kpi_value FROM {$wpdb->prefix}six_client_kpis WHERE client_id=%d AND kpi_key=%s",
+        "SELECT kpi_value FROM {$tbl} WHERE client_id=%d AND kpi_key=%s",
         $client_id, $kpi_key
     ));
 
-    $wpdb->replace("{$wpdb->prefix}six_client_kpis", array(
+    $written = $wpdb->replace( $tbl, array(
         'client_id'  => $client_id,
         'kpi_key'    => $kpi_key,
         'kpi_value'  => $kpi_value,
         'kpi_prev'   => $current ?: '',
         'updated_at' => current_time('mysql'),
     ));
+    if ( $written === false ) {
+        error_log( '6ix KPI: could not save ' . $kpi_key . ' for client ' . $client_id . ' — ' . $wpdb->last_error );
+        wp_send_json_error( 'Could not save: ' . ( $wpdb->last_error ?: 'the database refused the write.' ) );
+        return;
+    }
 
     // Log to Odoo if lead exists
     if ( class_exists('Six_Odoo') ) {
         $lead_id = intval(get_user_meta($client_id,'six_odoo_lead_id',true));
         if ($lead_id) {
-            $labels = array(
-                'new_customers'     => 'New Customers',
-                'sales_revenue'     => 'Sales Revenue',
-                'total_visitors'    => 'Total Visitors',
-                'organic_visitors'  => 'Organic Visitors',
-                'paid_clicks'       => 'Paid Clicks',
-                'keywords_page1'    => 'Keywords on Page 1',
-                'visitors_baseline' => 'Visitors Before Us',
-            );
             Six_Odoo::post_note($lead_id,
-                "Advisor updated KPI: " . ($labels[$kpi_key] ?? $kpi_key) . "\n" .
+                "Advisor updated KPI: " . six_kpi_label( $kpi_key ) . "\n" .
                 "Previous: " . ($current ?: 'none') . "\n" .
                 "New value: {$kpi_value}\n" .
                 "Updated at: " . current_time('mysql')
@@ -2341,6 +2462,28 @@ add_action('wp_ajax_six_save_client_kpi', function() {
 
     wp_send_json_success(array('saved' => true, 'prev' => $current ?: ''));
 });
+
+/**
+ * Is this a metric an advisor is allowed to set?
+ *
+ * Every catalog metric for every service, plus the client-level ones — not
+ * narrowed to the client's active services, because an advisor setting a
+ * figure for a service that is about to be activated is normal.
+ */
+function six_kpi_key_allowed( $key ) {
+    if ( ! class_exists( 'Six_Dash_Metrics' ) ) return false;
+    $all = Six_Dash_Metrics::editable_metrics(
+        array_keys( Six_Dash_Metrics::catalog() ), true
+    );
+    return isset( $all[ $key ] );
+}
+
+/** A metric's human label, for notes and messages. */
+function six_kpi_label( $key ) {
+    if ( ! class_exists( 'Six_Dash_Metrics' ) ) return $key;
+    $all = Six_Dash_Metrics::editable_metrics( array_keys( Six_Dash_Metrics::catalog() ), true );
+    return $all[ $key ]['label'] ?? $key;
+}
 
 // ── Get all KPIs for a client (advisor dashboard) ─────────────────────────
 add_action('wp_ajax_six_get_client_kpis', function() {
@@ -2668,17 +2811,48 @@ add_action( 'wp_ajax_six_save_questionnaire', function () {
     if ( ! is_array( $answers ) ) { wp_send_json_error( 'Nothing to save' ); }
 
     $result = six_seo_questionnaire_save( $client_id, $answers );
-
-    $slugs = (array) $GLOBALS['wpdb']->get_col( $GLOBALS['wpdb']->prepare(
-        "SELECT service_slug FROM {$GLOBALS['wpdb']->prefix}six_client_services WHERE client_id=%d AND status='active'",
-        $client_id
-    ) );
+    $slugs  = six_questionnaire_client_slugs( $client_id );
 
     wp_send_json_success( array(
         'saved'    => $result['saved'],
         'rejected' => $result['rejected'],
+        // Answers the database would not take. Reported rather than swallowed,
+        // so the form can say which one instead of "all answers saved".
+        'failed'   => $result['failed'],
         'progress' => six_seo_questionnaire_progress( $client_id, $slugs, 'strategy' ),
     ) );
+} );
+
+/**
+ * Hand the questionnaire in. Validates every question the client is being
+ * asked, and only then marks it submitted and tells the advisor.
+ */
+add_action( 'wp_ajax_six_submit_questionnaire', function () {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! function_exists( 'six_submit_strategy_questionnaire' ) ) { wp_send_json_error( 'Questionnaire unavailable' ); }
+
+    $client_id = get_current_user_id();
+    $for = intval( $_POST['client_id'] ?? 0 );
+    if ( $for && $for !== $client_id ) {
+        $staff = ( class_exists( 'Six_Roles' ) && Six_Roles::is_advisor() ) || current_user_can( 'manage_options' );
+        if ( ! $staff ) { wp_send_json_error( 'Permission denied' ); }
+        $client_id = $for;
+    }
+    if ( ! $client_id ) { wp_send_json_error( 'Not signed in' ); }
+
+    // Save whatever came with the submission first, so a client who fills the
+    // last box and goes straight for Submit isn't told it's still blank.
+    $answers = $_POST['answers'] ?? array();
+    if ( is_string( $answers ) ) $answers = json_decode( wp_unslash( $answers ), true );
+    $failed = array();
+    if ( is_array( $answers ) && $answers ) {
+        $failed = six_seo_questionnaire_save( $client_id, $answers )['failed'];
+    }
+
+    $out = six_submit_strategy_questionnaire( $client_id );
+    $out['failed'] = $failed;
+    if ( ! $out['ok'] ) { wp_send_json_error( $out ); }
+    wp_send_json_success( $out );
 } );
 
 /**
@@ -2717,17 +2891,51 @@ function six_save_questionnaire_public() {
     if ( ! is_array( $answers ) ) { wp_send_json_error( 'Nothing to save' ); }
 
     $result = six_seo_questionnaire_save( $client_id, $answers );
-
-    global $wpdb;
-    $slugs = (array) $wpdb->get_col( $wpdb->prepare(
-        "SELECT service_slug FROM {$wpdb->prefix}six_client_services WHERE client_id=%d AND status='active'",
-        $client_id
-    ) );
+    $slugs  = six_questionnaire_client_slugs( $client_id );
 
     wp_send_json_success( array(
         'saved'    => $result['saved'],
+        'failed'   => $result['failed'],
         'progress' => six_seo_questionnaire_progress( $client_id, $slugs, 'strategy' ),
     ) );
+}
+
+/**
+ * Hand in from the public link — same token-and-nonce check as the save above,
+ * because submitting is a write too.
+ */
+add_action( 'wp_ajax_nopriv_six_submit_questionnaire_public', 'six_submit_questionnaire_public' );
+add_action( 'wp_ajax_six_submit_questionnaire_public',        'six_submit_questionnaire_public' );
+function six_submit_questionnaire_public() {
+    if ( ! function_exists( 'six_submit_strategy_questionnaire' ) ) { wp_send_json_error( 'Questionnaire unavailable' ); }
+
+    $claimed = intval( $_POST['client_id'] ?? 0 );
+    $token   = sanitize_text_field( wp_unslash( $_POST['token'] ?? '' ) );
+    $nonce   = sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) );
+
+    if ( ! $claimed || ! wp_verify_nonce( $nonce, 'six_questionnaire_public_' . $claimed ) ) {
+        wp_send_json_error( array( 'error' => 'This page has expired — please reload it.' ) );
+    }
+
+    $client_id = $token ? six_questionnaire_token_client( $token ) : 0;
+    if ( ! $client_id && is_user_logged_in() && get_current_user_id() === $claimed ) {
+        $client_id = $claimed;
+    }
+    if ( ! $client_id || $client_id !== $claimed ) {
+        wp_send_json_error( array( 'error' => 'This questionnaire link is no longer valid.' ) );
+    }
+
+    $answers = $_POST['answers'] ?? array();
+    if ( is_string( $answers ) ) $answers = json_decode( wp_unslash( $answers ), true );
+    $failed = array();
+    if ( is_array( $answers ) && $answers ) {
+        $failed = six_seo_questionnaire_save( $client_id, $answers )['failed'];
+    }
+
+    $out = six_submit_strategy_questionnaire( $client_id );
+    $out['failed'] = $failed;
+    if ( ! $out['ok'] ) { wp_send_json_error( $out ); }
+    wp_send_json_success( $out );
 }
 
 /** Advisor mints (or rotates) a client's shareable questionnaire link. */

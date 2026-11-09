@@ -382,12 +382,23 @@ class Six_Profile_API {
 			$sets['strategy']['issued']    = $issued;
 			$sets['strategy']['issued_at'] = $issued && function_exists( 'six_strategy_questionnaire_issued_at' )
 				? six_strategy_questionnaire_issued_at( $id ) : '';
+			// Answered and handed in are different facts. 100% can mean the
+			// client is still editing; submitted is them saying they are done,
+			// which is when the strategy should actually be built.
+			$submitted_at = function_exists( 'six_strategy_questionnaire_submitted_at' )
+				? six_strategy_questionnaire_submitted_at( $id ) : '';
+			$sets['strategy']['submitted']    = (bool) $submitted_at;
+			$sets['strategy']['submitted_at'] = $submitted_at;
 
 			$profile['questionnaire'] = $sets;
 
 			// Where this client is in the engagement, so a skill doesn't have to
 			// infer it: ready to audit, awaiting the strategy questionnaire, or
 			// ready to build the strategy.
+			// Deliberately keyed on the answers, not on submission: a client who
+			// answered everything before there was a Submit button is still
+			// ready, and `questionnaire.strategy.submitted` is there for a
+			// consumer that wants to wait for the client to say they're done.
 			$profile['stage'] = ! $issued
 				? ( $sets['audit']['progress']['percent'] >= 100 ? 'ready_for_audit' : 'audit_intake_incomplete' )
 				: ( $sets['strategy']['progress']['percent'] >= 100 ? 'ready_for_strategy' : 'awaiting_strategy_answers' );
@@ -506,14 +517,42 @@ class Six_Profile_API {
 		$type = sanitize_key( $body['type'] ?? '' );
 		if ( $type === '' ) return new WP_Error( 'six_bad_request', 'An artifact "type" is required.', array( 'status' => 400 ) );
 
+		$table = self::artifacts_table();
+
+		// Fail loudly when the table is not there.
+		//
+		// This used to insert and return insert_id without checking, so a
+		// missing table produced {"id":0} with a 200 — a success shape for a
+		// write that did not happen. A caller then has no way to tell storage
+		// from silence, and the obvious wrong conclusion ("my token must be
+		// read-only") is exactly the one that got drawn.
+		if ( ! function_exists( 'six_table_exists' ) || ! six_table_exists( $table ) ) {
+			if ( function_exists( 'six_create_tables' ) ) six_create_tables();   // self-heal, then re-check
+		}
+		if ( function_exists( 'six_table_exists' ) && ! six_table_exists( $table ) ) {
+			return new WP_Error(
+				'six_storage_missing',
+				'The artifact store does not exist on this site, so nothing was saved. An administrator can create it from WP Admin → 6ix Portal → Integrations, or by loading any admin page once after the latest deploy.',
+				array( 'status' => 500 )
+			);
+		}
+
 		$token = self::resolve_token( $request );
-		$wpdb->insert( self::artifacts_table(), array(
+		$ok = $wpdb->insert( $table, array(
 			'client_id'  => $id,
 			'type'       => $type,
 			'source'     => sanitize_text_field( $body['source'] ?? ( $token['label'] ?? 'api' ) ),
 			'payload'    => wp_json_encode( $body['payload'] ?? array() ),
 			'created_at' => current_time( 'mysql' ),
 		) );
+
+		if ( $ok === false || ! $wpdb->insert_id ) {
+			return new WP_Error(
+				'six_storage_failed',
+				'The database rejected the write, so nothing was saved' . ( $wpdb->last_error ? ': ' . $wpdb->last_error : '.' ),
+				array( 'status' => 500 )
+			);
+		}
 
 		return rest_ensure_response( array( 'id' => (int) $wpdb->insert_id, 'type' => $type ) );
 	}

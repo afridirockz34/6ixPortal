@@ -137,9 +137,19 @@ class Six_EstimateEngine {
      * a figure we could not read is simply missing, and the page omits that
      * row rather than showing an invented one.
      */
+    /**
+     * Below this many estimated monthly visits, Ahrefs' figure for a domain is
+     * too close to its own noise floor to carry an argument. Chosen because a
+     * real client's named competitor came back at 0 while the client's own
+     * analytics showed steady traffic — at that scale the data is absence of
+     * coverage, not absence of visitors.
+     */
+    const MIN_COMPARABLE_TRAFFIC = 50;
+
     private static function snapshot( $co, array $svcs, string $location ): array {
         $out = array( 'has' => false, 'domain' => '', 'visitors' => null, 'competitors' => array(),
-                      'ranking' => null, 'gap' => null, 'quick_wins' => null );
+                      'ranking' => null, 'gap' => null, 'quick_wins' => null,
+                      'confidence' => 'no_data', 'ranks_without_demand' => false );
 
         $seo = function_exists( 'six_seo_provider' ) ? six_seo_provider() : '';
         if ( ! $seo ) return $out;
@@ -193,6 +203,39 @@ class Six_EstimateEngine {
                 );
             }
             $out['has'] = true;
+        }
+
+        // Is there enough here to say anything at all?
+        //
+        // Ahrefs only sees traffic from keywords in its index, so for a small
+        // or niche site it reports a fraction of reality — a client whose own
+        // analytics shows thirty visits a month can appear here as three.
+        // Printing that as their traffic is how a sales page gets contradicted
+        // by the person reading it.
+        //
+        // So the page never states the client's own traffic. It compares, and
+        // only when the comparison itself is worth making: a market where the
+        // strongest comparable site is also near zero means Ahrefs has no real
+        // coverage of this niche, and the honest move is to say so and ask for
+        // Search Console rather than print two zeroes side by side.
+        $leader = $out['gap']['leader'] ?? 0;
+        if ( $leader >= self::MIN_COMPARABLE_TRAFFIC ) {
+            $out['confidence'] = 'comparable';
+        } elseif ( $out['ranking'] && $out['ranking']['total'] > 0 ) {
+            // We can see them ranking, but nobody in this niche registers
+            // enough traffic for a comparison to mean anything.
+            $out['confidence'] = 'thin_market';
+        } else {
+            $out['confidence'] = 'no_data';
+        }
+
+        // Ranking well for terms that are barely searched is a real and
+        // specific finding, and for a niche site it is usually THE finding —
+        // far more useful than a traffic number nobody trusts.
+        if ( $out['ranking'] && $out['ranking']['total'] > 0
+             && $out['ranking']['top3'] > 0
+             && (int) $out['visitors'] < self::MIN_COMPARABLE_TRAFFIC ) {
+            $out['ranks_without_demand'] = true;
         }
 
         // Terms already on page two: the traffic currently going to whoever
@@ -857,6 +900,10 @@ class Six_EstimateEngine {
         if ( $has_gbp )  $L[] = 'Google Business Profile focus: local map-pack ranking, review velocity/rating, calls and direction requests, photos and posts.';
         if ( $has_web )  $L[] = 'Website focus: conversion rate, page speed, mobile UX, and the highest-impact pages/CTAs to build first.';
         $L[] = 'Choose KPI labels that match their services — e.g. for SEO use "Est. Organic Leads / Mo", "Keywords on Page 1", "Traffic Growth"; for Google Ads use lead, CPC and click labels. NEVER use a revenue or ROI label — we do not guarantee returns.';
+        $L[] = 'PLAIN LANGUAGE RULE: write for the business owner, not for an SEO. No jargon they would have to look up. Never write "page-2 opportunities" \u2014 say "search terms where you already appear just below the first page". Always say what a number counts: "200 searches a month", never a bare "200/mo". Spell out any term you cannot avoid.';
+        if ( ! $has_ads ) {
+            $L[] = 'NO PAID-SEARCH ECONOMICS: this client is not buying ads, so never mention CPC, cost per click, ad spend or bid in the plan. A dollar figure beside a keyword in an SEO plan reads as a bill. Describe a keyword by how many people search it and how hard it is to rank for, nothing else.';
+        }
         $L[] = 'LENGTH RULE: every roadmap "points" item must be a COMPLETE sentence of 18–25 words. Never output fragments, never truncate, never end with an ellipsis ("…"). Titles stay short (about 5 words).';
         $L[] = 'RESULT RULE: every roadmap point says what the client GETS, not what we do internally. "We audit your site structure" is activity; "Your highest-value service pages start appearing for the terms buyers actually search" is a result. Lead each point with the outcome and mention the work only as the means to it. Each phase\'s "outcome" field is the single measurable change they should expect by the end of it.';
         $L[] = 'KEYWORD RULE: they gave us several target terms and all of them matter. Spread the roadmap across the full set rather than building every phase around the first one, and where you name a term, vary which one you name.';
@@ -910,7 +957,7 @@ class Six_EstimateEngine {
         }
         $L[] = '';
         $L[] = '{';
-        $L[] = '  "headline": "Max 15 words. Include ' . $biz . ', lead range, and ' . $loc . '.",';
+        $L[] = '  "headline": "Max 15 words, ONE complete idea, naming ' . $biz . '. State what is happening in their search market \u2014 e.g. \'Three competitors are taking the searches your best service should win\'. Do NOT promise leads, do NOT give a lead range, and do NOT bolt two unrelated clauses together with \'while\'.",';
         $L[] = '  "sub": "Max 18 words. State avg CPC $' . $avg_cpc . ' or monthly search volume. Be specific.",';
         $L[] = '  "kpis": [';
         $L[] = '    {"label": "Est. Leads / Month 1", "value": "'.$leads_lo.'–'.$leads_hi.'"},';
@@ -1078,7 +1125,11 @@ class Six_EstimateEngine {
             : ( $clicks > 0 ? number_format($clicks) . ' clicks' : 'TBD' );
 
         return array(
-            'headline' => "{$biz} is projected to generate {$lo}–{$hi} qualified leads/month through {$ch}" . ($loc !== 'your area' ? " in {$loc}" : '') . ", based on industry benchmarks for {$ind} at your \${$bud}/month investment.",
+            // No lead promise and no budget arithmetic. SEO now carries no
+            // customer-set budget at all, so the old line rendered as
+            // "1-3 qualified leads/month ... at your $0/month investment",
+            // which is both meaningless and a promise we do not make.
+            'headline' => "Here is what the search demand around {$biz} looks like" . ($loc !== 'your area' && $loc !== 'Canada' ? " in {$loc}" : '') . ", and where it is going instead.",
             'kpis' => array(
                 array('label'=>'Est. Leads / Month 1', 'value'=>"{$lo}–{$hi}"),
                 array('label'=>'Est. Leads / Month 3', 'value'=>"{$month3_lo}–{$month3_hi}"),

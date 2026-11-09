@@ -330,6 +330,129 @@ function six_seo_questionnaire_columns() {
 }
 
 /**
+ * Every column this questionnaire writes into, with the storage its answers
+ * actually need — its own new columns AND the older onboarding columns it maps
+ * onto.
+ *
+ * six_seo_questionnaire_columns() above lists only the new ones, which is what
+ * a migration needs. This lists all of them, which is what the SAVE path needs,
+ * because a mapped column was sized for the onboarding question it was built
+ * for, not for the questionnaire question now pointed at it. seo_blog, for
+ * instance, was a yes/no toggle in VARCHAR(5); the questionnaire asks "How does
+ * blog/content production work today?" and sends it a paragraph. MySQL in
+ * strict mode rejects the whole UPDATE, so that one field silently took every
+ * other answer in the same save down with it; without strict mode it quietly
+ * truncated a paragraph to five characters. Either way the client re-typed the
+ * answer and watched it vanish.
+ */
+function six_seo_questionnaire_storage() {
+	$cols = array();
+	foreach ( six_seo_questionnaire_fields() as $key => $f ) {
+		$col  = $f['maps_to'] ?? $key;
+		$need = in_array( $f['type'] ?? 'text', array( 'textarea' ), true )
+			? 'TEXT'
+			: "VARCHAR(255) DEFAULT ''";
+		// Two questions can share a column; it has to hold the longer answer.
+		if ( ( $cols[ $col ] ?? '' ) === 'TEXT' ) continue;
+		$cols[ $col ] = $need;
+	}
+	return $cols;
+}
+
+/**
+ * Make six_checkout_progress able to hold every answer the questionnaire can
+ * produce: add the columns that are missing, widen the ones too small.
+ *
+ * Gated on a signature of what the schema asks for rather than a run-once
+ * option, so adding a question to the schema is enough — the old
+ * six_onboarding_db_v10 flag meant a question added after that flag was set
+ * had nowhere to be stored, and the save that failed as a result said
+ * "saved" anyway.
+ *
+ * Only ever widens. Nothing here narrows a column, drops one, or touches a
+ * column the questionnaire does not write to.
+ *
+ * @param bool $force Re-check even when the signature says it is already done.
+ * @return array{added:string[],widened:string[],failed:array<string,string>,checked:bool}
+ */
+function six_seo_questionnaire_ensure_columns( $force = false ) {
+	global $wpdb;
+	static $memo = null;
+	if ( $memo !== null && ! $force ) return $memo;
+
+	$out  = array( 'added' => array(), 'widened' => array(), 'failed' => array(), 'checked' => false );
+	$need = six_seo_questionnaire_storage();
+	$sig  = md5( wp_json_encode( $need ) );
+
+	if ( ! $force && get_option( 'six_questionnaire_storage_sig' ) === $sig ) {
+		return $memo = $out;
+	}
+
+	$tbl = $wpdb->prefix . 'six_checkout_progress';
+	if ( function_exists( 'six_table_exists' ) ? ! six_table_exists( $tbl ) : $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $tbl ) ) !== $tbl ) {
+		// Fresh install — six_create_tables() hasn't run yet. Don't record the
+		// signature, so this runs properly once the table is there.
+		return $memo = $out;
+	}
+	$out['checked'] = true;
+
+	$have = array();
+	foreach ( (array) $wpdb->get_results( "SHOW COLUMNS FROM {$tbl}", ARRAY_A ) as $c ) {
+		$have[ strtolower( $c['Field'] ) ] = strtolower( $c['Type'] );
+	}
+
+	$suppress = $wpdb->suppress_errors( true );
+	foreach ( $need as $col => $def ) {
+		$key = strtolower( $col );
+
+		if ( ! isset( $have[ $key ] ) ) {
+			if ( $wpdb->query( "ALTER TABLE {$tbl} ADD COLUMN `{$col}` {$def}" ) === false ) {
+				$out['failed'][ $col ] = $wpdb->last_error ?: 'could not add column';
+			} else {
+				$out['added'][] = $col;
+			}
+			continue;
+		}
+
+		// Already there — is it big enough? A char/varchar column is the only
+		// kind we resize; anything else (TEXT, INT, DATETIME) is left alone.
+		if ( ! preg_match( '/^(?:var)?char\((\d+)\)/', $have[ $key ], $m ) ) continue;
+		$width = (int) $m[1];
+		$wants_text = stripos( $def, 'TEXT' ) === 0;
+		if ( ! $wants_text && $width >= 255 ) continue;
+
+		$to = $wants_text ? 'TEXT' : "VARCHAR(255) DEFAULT ''";
+		if ( $wpdb->query( "ALTER TABLE {$tbl} MODIFY `{$col}` {$to}" ) === false ) {
+			$out['failed'][ $col ] = $wpdb->last_error ?: 'could not widen column';
+		} else {
+			$out['widened'][] = $col;
+		}
+	}
+	$wpdb->suppress_errors( $suppress );
+
+	// Record the signature only on a clean run, so a failure is retried rather
+	// than remembered as done.
+	if ( ! $out['failed'] ) {
+		update_option( 'six_questionnaire_storage_sig', $sig, true );
+	} else {
+		error_log( '6ix questionnaire: storage could not be prepared — ' . wp_json_encode( $out['failed'] ) );
+	}
+	if ( $out['added'] || $out['widened'] ) {
+		error_log( '6ix questionnaire: storage prepared — added ' . implode( ',', $out['added'] ) . '; widened ' . implode( ',', $out['widened'] ) );
+	}
+
+	return $memo = $out;
+}
+// Same two hooks as six_maybe_upgrade_db(): admin_init for an admin opening
+// any page, init for a site whose admin is rarely opened but whose questionnaire
+// endpoints are being written to. Guarded so this file stays readable by the
+// tools that include it outside WordPress (tools/generate-questionnaire-reference.php).
+if ( function_exists( 'add_action' ) ) {
+	add_action( 'admin_init', 'six_seo_questionnaire_ensure_columns' );
+	add_action( 'init', 'six_seo_questionnaire_ensure_columns', 2 );
+}
+
+/**
  * Which column actually stores a given question's answer — the mapped one
  * where the question is a duplicate, otherwise its own.
  */
@@ -417,7 +540,10 @@ function six_seo_questionnaire_progress( $client_id, array $active_slugs = array
 			if ( ! empty( $answers[ $f['key'] ]['answered'] ) ) {
 				$done++;
 			} else {
-				$outstanding[] = array( 'section' => $section['title'], 'label' => $f['label'] );
+				// The key travels with it so the form can take the client
+				// straight to the question rather than leaving them to hunt
+				// for whichever two of sixty are blank.
+				$outstanding[] = array( 'key' => $f['key'], 'section' => $section['title'], 'label' => $f['label'] );
 			}
 		}
 	}
@@ -437,14 +563,20 @@ function six_seo_questionnaire_progress( $client_id, array $active_slugs = array
  * different?" in the questionnaire updates the same seo_usp the onboarding
  * step wrote — one answer, one home, never two copies drifting apart.
  *
- * @return array{saved:string[],rejected:string[]}
+ * Nothing here reports success it did not get. A write that fails comes back
+ * in 'failed' keyed by question, so the form can tell the client which answer
+ * did not stick instead of saying "all answers saved" over a dropped one.
+ *
+ * @return array{saved:string[],rejected:string[],failed:array<string,string>}
  */
 function six_seo_questionnaire_save( $client_id, array $posted ) {
 	global $wpdb;
-	$fields   = six_seo_questionnaire_fields();
-	$updates  = array();
-	$saved    = array();
-	$rejected = array();
+	$client_id = (int) $client_id;
+	$fields    = six_seo_questionnaire_fields();
+	$updates   = array();
+	$owners    = array();   // column => the question keys stored in it
+	$rejected  = array();
+	$failed    = array();
 
 	foreach ( $posted as $key => $value ) {
 		if ( ! isset( $fields[ $key ] ) ) { $rejected[] = $key; continue; }
@@ -453,20 +585,46 @@ function six_seo_questionnaire_save( $client_id, array $posted ) {
 		$updates[ $col ] = $type === 'textarea'
 			? sanitize_textarea_field( (string) $value )
 			: sanitize_text_field( (string) $value );
-		$saved[] = $key;
+		$owners[ $col ][] = $key;
 	}
 
-	if ( $updates ) {
-		$tbl = $wpdb->prefix . 'six_checkout_progress';
-		$exists = $wpdb->get_var( $wpdb->prepare( "SELECT user_id FROM {$tbl} WHERE user_id=%d", $client_id ) );
-		if ( $exists ) {
-			$wpdb->update( $tbl, $updates, array( 'user_id' => $client_id ) );
-		} else {
-			$wpdb->insert( $tbl, array_merge( $updates, array( 'user_id' => $client_id ) ) );
+	if ( ! $updates ) {
+		return array( 'saved' => array(), 'rejected' => $rejected, 'failed' => array() );
+	}
+
+	// Make sure there is somewhere to put them before trying.
+	six_seo_questionnaire_ensure_columns();
+
+	$tbl = $wpdb->prefix . 'six_checkout_progress';
+	if ( ! $wpdb->get_var( $wpdb->prepare( "SELECT user_id FROM {$tbl} WHERE user_id=%d", $client_id ) ) ) {
+		$wpdb->insert( $tbl, array( 'user_id' => $client_id ) );
+	}
+
+	// One statement, because that is one round trip. But an UPDATE is
+	// all-or-nothing: a single unwritable column used to discard every other
+	// answer in the same save, silently. So on failure, retry column by column
+	// — one bad answer then costs only itself, and we can name it.
+	$suppress = $wpdb->suppress_errors( true );
+	$ok = $wpdb->update( $tbl, $updates, array( 'user_id' => $client_id ) );
+
+	$saved = array();
+	if ( $ok === false ) {
+		$batch_error = $wpdb->last_error;
+		foreach ( $updates as $col => $val ) {
+			if ( $wpdb->update( $tbl, array( $col => $val ), array( 'user_id' => $client_id ) ) === false ) {
+				$why = $wpdb->last_error ?: $batch_error ?: 'the database rejected this answer';
+				foreach ( $owners[ $col ] as $key ) $failed[ $key ] = $why;
+				error_log( "6ix questionnaire: client {$client_id} answer to '{$col}' could not be saved — {$why}" );
+			} else {
+				foreach ( $owners[ $col ] as $key ) $saved[] = $key;
+			}
 		}
+	} else {
+		foreach ( $owners as $keys ) foreach ( $keys as $key ) $saved[] = $key;
 	}
+	$wpdb->suppress_errors( $suppress );
 
-	return array( 'saved' => $saved, 'rejected' => $rejected );
+	return array( 'saved' => $saved, 'rejected' => $rejected, 'failed' => $failed );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -528,6 +686,123 @@ function six_issue_strategy_questionnaire( $client_id, $send_email = true ) {
 /** Withdraw it again (e.g. issued to the wrong client). */
 function six_withdraw_strategy_questionnaire( $client_id ) {
 	delete_user_meta( (int) $client_id, SIX_Q_ISSUED_META );
+	delete_user_meta( (int) $client_id, SIX_Q_SUBMITTED_META );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HANDING IT IN
+// Saving as you type is what stops a long questionnaire being lost, but it
+// never tells anyone the client has finished — the advisor had no signal and
+// the client had no moment of being done. Submitting is that moment: it
+// checks every question the client is actually being asked, says plainly
+// which ones are still blank, and tells the advisor once it is clean.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const SIX_Q_SUBMITTED_META = 'six_strategy_questionnaire_submitted';
+
+/** The services this client actually has, which decide what they're asked. */
+function six_questionnaire_client_slugs( $client_id ) {
+	global $wpdb;
+	return (array) $wpdb->get_col( $wpdb->prepare(
+		"SELECT service_slug FROM {$wpdb->prefix}six_client_services WHERE client_id=%d AND status='active'",
+		(int) $client_id
+	) );
+}
+
+/** Has this client handed the strategy questionnaire in? */
+function six_strategy_questionnaire_submitted( $client_id ) {
+	return (bool) get_user_meta( (int) $client_id, SIX_Q_SUBMITTED_META, true );
+}
+
+/** When they handed it in, or '' if they haven't. */
+function six_strategy_questionnaire_submitted_at( $client_id ) {
+	return (string) get_user_meta( (int) $client_id, SIX_Q_SUBMITTED_META, true );
+}
+
+/**
+ * Hand the questionnaire in.
+ *
+ * Refuses while anything required is still blank, and returns the list, so the
+ * client is told which questions rather than just that the total isn't 100%.
+ * Optional questions never block it — chasing someone for a field we marked
+ * optional is how a progress bar stops meaning anything.
+ *
+ * @return array{ok:bool,error:string,progress:array,outstanding:array,resubmitted:bool}
+ */
+function six_submit_strategy_questionnaire( $client_id ) {
+	$client_id = (int) $client_id;
+	if ( ! $client_id || ! get_userdata( $client_id ) ) {
+		return array( 'ok' => false, 'error' => 'Unknown client', 'progress' => array(), 'outstanding' => array(), 'resubmitted' => false );
+	}
+
+	$slugs    = six_questionnaire_client_slugs( $client_id );
+	$progress = six_seo_questionnaire_progress( $client_id, $slugs, 'strategy' );
+
+	if ( ! empty( $progress['outstanding'] ) ) {
+		$n = count( $progress['outstanding'] );
+		return array(
+			'ok'          => false,
+			'error'       => $n === 1
+				? 'One question still needs an answer before you can submit.'
+				: $n . ' questions still need answers before you can submit.',
+			'progress'    => $progress,
+			'outstanding' => $progress['outstanding'],
+			'resubmitted' => false,
+		);
+	}
+
+	$again = six_strategy_questionnaire_submitted( $client_id );
+	update_user_meta( $client_id, SIX_Q_SUBMITTED_META, current_time( 'mysql' ) );
+
+	$u    = get_userdata( $client_id );
+	$name = trim( $u->first_name . ' ' . $u->last_name ) ?: ( $u->display_name ?: $u->user_email );
+	$url  = home_url( '/advisor-portal/?tab=clients&client=' . $client_id );
+
+	// In-app, to whoever owns this client — or to every advisor if nobody does
+	// yet, because an unassigned client's completed questionnaire is exactly
+	// the thing that should not sit unnoticed.
+	if ( class_exists( 'Six_Notifications' ) ) {
+		$advisor_id = function_exists( 'six_get_client_advisor_id' ) ? six_get_client_advisor_id( $client_id ) : 0;
+		$targets    = $advisor_id ? array( $advisor_id ) : array_map(
+			fn( $a ) => (int) $a->ID,
+			(array) get_users( array( 'role' => 'six_advisor', 'fields' => array( 'ID' ) ) )
+		);
+		foreach ( array_filter( $targets ) as $target ) {
+			Six_Notifications::create( array(
+				'user_id'    => $target,
+				'type'       => 'questionnaire_completed',
+				'title'      => $again
+					? $name . ' revised their questionnaire'
+					: $name . ' completed their strategy questionnaire',
+				'message'    => $again
+					? 'They have changed one or more answers since submitting. All ' . (int) $progress['total'] . ' questions are still answered.'
+					: 'All ' . (int) $progress['total'] . ' questions answered. The strategy can be built.',
+				'action_url' => $url,
+			) );
+		}
+	}
+
+	if ( class_exists( 'Six_Odoo' ) ) {
+		$lead = (int) get_user_meta( $client_id, 'six_odoo_lead_id', true );
+		if ( $lead ) {
+			Six_Odoo::post_note( $lead, $again
+				? 'Client revised their strategy questionnaire answers.'
+				: 'Client completed and submitted their strategy questionnaire (' . (int) $progress['total'] . ' questions).' );
+		}
+	}
+
+	// Email the team on the first submission only. A client tidying up an
+	// answer afterwards is worth a notification, not another inbox copy.
+	if ( ! $again && function_exists( 'six_send_system_email' ) ) {
+		six_send_system_email( 'strategy_questionnaire_completed', array(
+			'client_name'     => $name,
+			'client_email'    => $u->user_email,
+			'questions_total' => (int) $progress['total'],
+			'submitted_at'    => current_time( 'F j, Y g:i a' ),
+		), array( 'send_customer' => false, 'dashboard_url' => $url ) );
+	}
+
+	return array( 'ok' => true, 'error' => '', 'progress' => $progress, 'outstanding' => array(), 'resubmitted' => (bool) $again );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

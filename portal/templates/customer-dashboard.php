@@ -421,6 +421,11 @@ foreach ( $dash_cards as $_c ) { if ( $_c['source'] !== 'estimate' ) { $all_esti
             <span style="font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:<?php echo esc_attr($card['accent'][0]); ?>;background:rgba(0,0,0,.04);padding:2.5px 7px;border-radius:5px;white-space:nowrap"><?php echo esc_html($card['svc_label']); ?></span>
         </div>
         <div class="six-kc-val"><?php echo esc_html($card['value']); ?></div>
+        <?php /* What the number is, in words. A figure with no unit is one
+                 nobody can check — a month's visitors or a day's? */ ?>
+        <?php if ( ! empty($card['unit']) ): ?>
+        <div style="font-size:10.5px;color:var(--text3);margin-top:-2px;margin-bottom:4px"><?php echo esc_html($card['unit']); ?></div>
+        <?php endif; ?>
         <?php if ( $c_trend !== null ): ?>
         <div class="six-kc-trend <?php echo $c_trend>=0?'up':'dn'; ?>">
             <?php if($c_trend>=0): ?>
@@ -1320,7 +1325,13 @@ $chart_json = json_encode(array(
     ?>
     <div style="padding:18px 20px;border-right:1px solid rgba(255,255,255,0.05)">
         <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text3);margin-bottom:6px"><?php echo esc_html($met->label); ?></div>
-        <div style="font-size:22px;font-weight:800;font-family:var(--font-head);color:var(--text1);line-height:1;margin-bottom:6px"><?php echo esc_html($met->current_value); ?></div>
+        <div style="font-size:22px;font-weight:800;font-family:var(--font-head);color:var(--text1);line-height:1;margin-bottom:4px"><?php echo esc_html($met->current_value); ?></div>
+        <?php /* The unit, so the figure says what it is a count of and over
+                 what period, rather than leaving the customer to guess. */
+        $met_unit = $met->unit ?: ( class_exists('Six_Dash_Metrics') ? Six_Dash_Metrics::unit_for( $met->label ) : '' );
+        if ( $met_unit ): ?>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:6px"><?php echo esc_html($met_unit); ?></div>
+        <?php else: ?><div style="height:2px"></div><?php endif; ?>
         <?php if($tr!==null): ?>
         <div style="display:flex;align-items:center;gap:4px">
             <span style="font-size:10px;font-weight:700;color:<?php echo $tr>=0?'var(--success)':'var(--danger)'; ?>"><?php echo $tr>=0?'↑':'↓'; ?><?php echo abs($tr); ?>%</span>
@@ -1342,7 +1353,11 @@ $chart_json = json_encode(array(
         $mc  = $pct>=75?'var(--success)':($pct>=40?$sd['color']:'var(--warning)');
     ?>
     <div style="display:flex;align-items:center;gap:16px;padding:12px 20px;border-bottom:1px solid rgba(255,255,255,0.04);<?php echo $i===count($s_mets)-1?'border-bottom:none':''; ?>">
-        <div style="width:140px;flex-shrink:0;font-size:12px;color:var(--text2)"><?php echo esc_html($met->label); ?></div>
+        <div style="width:140px;flex-shrink:0;font-size:12px;color:var(--text2)">
+            <?php echo esc_html($met->label); ?>
+            <?php $row_unit = $met->unit ?: ( class_exists('Six_Dash_Metrics') ? Six_Dash_Metrics::unit_for( $met->label ) : '' );
+            if ( $row_unit ): ?><div style="font-size:10px;color:var(--text3)"><?php echo esc_html($row_unit); ?></div><?php endif; ?>
+        </div>
         <div style="flex:1;height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden">
             <div style="height:100%;width:<?php echo $pct; ?>%;background:<?php echo $mc; ?>;border-radius:3px;transition:width 1s ease"></div>
         </div>
@@ -1635,6 +1650,8 @@ $conv = class_exists('Six_Messaging') ? Six_Messaging::get_conversation($user_id
 $q_schema  = six_seo_questionnaire_for_client( $active_svc_slugs, 'strategy' );
 $q_answers = six_seo_questionnaire_answers( $user_id, $active_svc_slugs, 'strategy' );
 $q_prog    = six_seo_questionnaire_progress( $user_id, $active_svc_slugs, 'strategy' );
+$q_done    = function_exists('six_strategy_questionnaire_submitted') && six_strategy_questionnaire_submitted( $user_id );
+$q_done_at = $q_done ? six_strategy_questionnaire_submitted_at( $user_id ) : '';
 ?>
 <div class="six-greeting-row">
     <div>
@@ -1654,6 +1671,29 @@ $q_prog    = six_seo_questionnaire_progress( $user_id, $active_svc_slugs, 'strat
         <div style="height:8px;border-radius:5px;background:var(--dark3);overflow:hidden">
             <div id="q-bar" style="height:100%;width:<?php echo intval($q_prog['percent']); ?>%;border-radius:5px;background:linear-gradient(90deg,#56D364,#6ACAFD);transition:width .5s cubic-bezier(.4,0,.2,1)"></div>
         </div>
+
+        <?php /* A percentage on its own is a dead end: at 95% there is no way
+                 to tell which two of sixty questions are blank. Name them, and
+                 make each one a link to its own field. */ ?>
+        <div id="q-outstanding" style="margin-top:14px;<?php echo empty($q_prog['outstanding']) ? 'display:none' : ''; ?>">
+            <div style="font-size:12px;font-weight:700;color:var(--text1);margin-bottom:6px" id="q-outstanding-head">
+                Still to answer<?php echo empty($q_prog['outstanding']) ? '' : ' (' . count($q_prog['outstanding']) . ')'; ?>
+            </div>
+            <div id="q-outstanding-list" style="display:flex;flex-direction:column;gap:4px">
+                <?php foreach ( (array) $q_prog['outstanding'] as $o ): ?>
+                <a href="#q_<?php echo esc_attr($o['key']); ?>" data-jump="<?php echo esc_attr($o['key']); ?>"
+                   style="font-size:12px;color:var(--text2);text-decoration:none;display:flex;gap:6px">
+                    <span style="color:var(--text3)"><?php echo esc_html($o['section']); ?> —</span>
+                    <span style="text-decoration:underline;text-underline-offset:2px"><?php echo esc_html($o['label']); ?></span>
+                </a>
+                <?php endforeach; ?>
+            </div>
+        </div>
+
+        <div id="q-submitted-note" style="margin-top:12px;font-size:12px;color:var(--success);<?php echo $q_done ? '' : 'display:none'; ?>">
+            Submitted<?php echo $q_done_at ? ' on ' . esc_html( date_i18n( 'F j, Y', strtotime( $q_done_at ) ) ) : ''; ?> — your advisor has it. You can still change an answer; we'll pick up the latest version.
+        </div>
+
         <div style="font-size:11px;color:var(--text3);margin-top:10px">Questions you already answered during signup are filled in — change them here if anything has moved on.</div>
     </div>
 </div>
@@ -1711,8 +1751,9 @@ $q_prog    = six_seo_questionnaire_progress( $user_id, $active_svc_slugs, 'strat
 <?php endforeach; ?>
 </form>
 
-<div style="position:sticky;bottom:0;background:var(--dark1,var(--dark2));border-top:1px solid var(--border);padding:12px 0;display:flex;align-items:center;gap:12px">
-    <button class="six-btn six-btn-primary" id="q-save">Save answers</button>
+<div style="position:sticky;bottom:0;background:var(--dark1,var(--dark2));border-top:1px solid var(--border);padding:12px 0;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <button class="six-btn six-btn-primary" id="q-submit"><?php echo $q_done ? 'Submit changes' : 'Submit questionnaire'; ?></button>
+    <button class="six-btn six-btn-ghost" id="q-save">Save and finish later</button>
     <span id="q-saved-msg" style="font-size:12px;color:var(--success)"></span>
 </div>
 
@@ -1720,6 +1761,10 @@ $q_prog    = six_seo_questionnaire_progress( $user_id, $active_svc_slugs, 'strat
 (function(){
   var form=document.getElementById('six-questionnaire'); if(!form) return;
   var dirty={}, timer=null;
+  var msg=document.getElementById('q-saved-msg');
+  var outWrap=document.getElementById('q-outstanding');
+  var outHead=document.getElementById('q-outstanding-head');
+  var outList=document.getElementById('q-outstanding-list');
 
   function collect(all){
     var out={};
@@ -1729,24 +1774,68 @@ $q_prog    = six_seo_questionnaire_progress( $user_id, $active_svc_slugs, 'strat
     });
     return out;
   }
+  function say(text,bad){
+    msg.style.color=bad?'var(--danger,#D93B3B)':'var(--success)';
+    msg.textContent=text;
+  }
+  function showProgress(p){
+    if(!p) return;
+    document.getElementById('q-pct').textContent=p.percent+'%';
+    document.getElementById('q-bar').style.width=p.percent+'%';
+    document.getElementById('q-status').textContent=p.done+' of '+p.total+' answered';
+    if(!outWrap) return;
+    var items=p.outstanding||[];
+    outWrap.style.display=items.length?'':'none';
+    outHead.textContent='Still to answer'+(items.length?' ('+items.length+')':'');
+    outList.textContent='';
+    items.forEach(function(o){
+      var a=document.createElement('a');
+      a.href='#q_'+o.key; a.setAttribute('data-jump',o.key);
+      a.style.cssText='font-size:12px;color:var(--text2);text-decoration:none;display:flex;gap:6px';
+      var s=document.createElement('span'); s.style.color='var(--text3)'; s.textContent=o.section+' —';
+      var l=document.createElement('span'); l.style.cssText='text-decoration:underline;text-underline-offset:2px'; l.textContent=o.label;
+      a.appendChild(s); a.appendChild(l); outList.appendChild(a);
+    });
+  }
+  // An answer the database refused is named, not swallowed. "All answers
+  // saved" over a dropped one is how a client retypes it and watches it
+  // vanish again.
+  function reportFailures(failed){
+    var keys=Object.keys(failed||{});
+    if(!keys.length) return false;
+    keys.forEach(function(k){ mark(k,true); });
+    say(keys.length+(keys.length===1?' answer could not be saved — ':' answers could not be saved — ')+'we have been told about it.',true);
+    jumpTo(keys[0]);
+    return true;
+  }
+  function mark(key,bad){
+    var el=document.getElementById('q_'+key);
+    if(el) el.style.borderColor=bad?'var(--danger,#D93B3B)':'';
+  }
+  function clearMarks(){ form.querySelectorAll('.six-q-input').forEach(function(el){ el.style.borderColor=''; }); }
+  function jumpTo(key){
+    var el=document.getElementById('q_'+key);
+    if(!el) return;
+    el.scrollIntoView({behavior:'smooth',block:'center'});
+    if(el.focus) try{ el.focus({preventScroll:true}); }catch(e){ el.focus(); }
+  }
+
   function save(all,quiet){
     var answers=collect(all);
-    if(!Object.keys(answers).length) return;
-    var msg=document.getElementById('q-saved-msg');
-    fetch(sixPortal.ajax_url,{method:'POST',credentials:'same-origin',
+    if(!Object.keys(answers).length) return Promise.resolve(true);
+    return fetch(sixPortal.ajax_url,{method:'POST',credentials:'same-origin',
       headers:{'Content-Type':'application/x-www-form-urlencoded'},
       body:new URLSearchParams({nonce:sixPortal.nonce,action:'six_save_questionnaire',answers:JSON.stringify(answers)})
     }).then(function(r){return r.json();}).then(function(r){
-      if(r&&r.success){
-        dirty={};
-        var p=r.data.progress;
-        document.getElementById('q-pct').textContent=p.percent+'%';
-        document.getElementById('q-bar').style.width=p.percent+'%';
-        document.getElementById('q-status').textContent=p.done+' of '+p.total+' answered';
-        msg.textContent=quiet?'Saved':'All answers saved';
-        setTimeout(function(){msg.textContent='';},2500);
-      } else { msg.style.color='var(--danger,#D93B3B)'; msg.textContent='Could not save — try again'; }
-    }).catch(function(){ msg.style.color='var(--danger,#D93B3B)'; msg.textContent='Could not save — try again'; });
+      if(!(r&&r.success)){ say('Could not save — try again',true); return false; }
+      var d=r.data||{};
+      (d.saved||[]).forEach(function(k){ mark(k,false); delete dirty[k]; });
+      showProgress(d.progress);
+      if(reportFailures(d.failed)) return false;
+      say(quiet?'Saved':'All answers saved',false);
+      setTimeout(function(){ if(msg.textContent==='Saved'||msg.textContent==='All answers saved') msg.textContent=''; },2500);
+      return true;
+    }).catch(function(){ say('Could not save — try again',true); return false; });
   }
 
   // Autosave a field shortly after they stop typing in it, so a long
@@ -1763,6 +1852,45 @@ $q_prog    = six_seo_questionnaire_progress( $user_id, $active_svc_slugs, 'strat
     if(k){ dirty[k]=true; save(false,true); }
   });
   document.getElementById('q-save').addEventListener('click',function(e){ e.preventDefault(); save(true,false); });
+
+  if(outWrap) outWrap.addEventListener('click',function(e){
+    var a=e.target.closest && e.target.closest('[data-jump]');
+    if(!a) return;
+    e.preventDefault(); jumpTo(a.getAttribute('data-jump'));
+  });
+
+  // Submit: send everything, then let the server be the judge of whether it
+  // is complete — the browser's idea of "filled in" is not what the strategy
+  // is built from.
+  var btn=document.getElementById('q-submit');
+  btn.addEventListener('click',function(e){
+    e.preventDefault();
+    btn.disabled=true;
+    var label=btn.textContent;
+    btn.textContent='Submitting…';
+    fetch(sixPortal.ajax_url,{method:'POST',credentials:'same-origin',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:new URLSearchParams({nonce:sixPortal.nonce,action:'six_submit_questionnaire',answers:JSON.stringify(collect(true))})
+    }).then(function(r){return r.json();}).then(function(r){
+      var d=(r&&r.data)||{};
+      showProgress(d.progress);
+      if(r&&r.success){
+        dirty={};
+        if(reportFailures(d.failed)) return;
+        clearMarks();
+        var note=document.getElementById('q-submitted-note');
+        if(note){ note.textContent='Submitted just now — your advisor has it. You can still change an answer; we’ll pick up the latest version.'; note.style.display=''; }
+        btn.textContent='Submit changes';
+        say(d.resubmitted?'Your changes have been sent to your advisor.':'Thank you — your advisor has been notified.',false);
+      } else {
+        btn.textContent=label;
+        if(reportFailures(d.failed)) return;
+        say(d.error||(typeof r.data==='string'?r.data:'Could not submit — try again'),true);
+        if(d.outstanding&&d.outstanding.length) jumpTo(d.outstanding[0].key);
+      }
+    }).catch(function(){ btn.textContent=label; say('Could not submit — try again',true); })
+      .finally(function(){ btn.disabled=false; });
+  });
 })();
 </script>
 

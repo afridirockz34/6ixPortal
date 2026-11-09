@@ -291,6 +291,19 @@ function six_system_email_seed_defaults() {
 			'customer_body'   => "Hi {client_name},\n\nYour audit is done and your services are set up — thank you. There is one more step before we start building.\n\nThe questions below cover the things only you can answer: your story, who your best customers are, what you can and cannot say in your market, and how much content your team can realistically support. They shape the whole strategy, so it is worth doing properly — most people take about fifteen minutes.\n\nOpen the questionnaire here: {questionnaire_url}\n\nYou do not need to log in, and your answers save as you go, so you can stop and come back.\n\nIf anything is unclear, just reply to this email.\n\nThe 6ix Developers team",
 		),
 		array(
+			// The other half of the pair above: the client has handed the
+			// questionnaire back. Team-only — there is nothing to tell the
+			// client that the page they just submitted hasn't already said,
+			// and the advisor is the one who now has work to do.
+			'key'             => 'strategy_questionnaire_completed',
+			'title'           => 'System: Strategy Questionnaire Completed',
+			'owner_subject'   => 'Questionnaire completed — {client_name}',
+			'owner_body'      => "{client_name} has completed and submitted their strategy questionnaire — all {questions_total} questions answered, on {submitted_at}.\n\nTheir answers are on their client profile, and the strategy can now be built.\n\n{all_fields}",
+			'customer_enabled'=> 0,
+			'customer_subject'=> '',
+			'customer_body'   => '',
+		),
+		array(
 			// Was hardcoded PHP inside Six_Odoo::sync_form_submission() — the
 			// instant auto-text every new website-form/Meta lead gets the
 			// moment they land in "New Auto". SMS-only: the email side of a

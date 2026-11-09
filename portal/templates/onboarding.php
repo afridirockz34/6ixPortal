@@ -1426,6 +1426,9 @@ window.OB={
           S.q.gads_notworking=ga.not_working||'';S.q.gads_challenge=ga.challenge||'';
         }catch(e){}
       }
+      // The plan generated on an earlier visit, so step 4 can render rather
+      // than regenerate (or worse, sit on a spinner forever).
+      if(d.ai_plan){ S._aiPlanJson=d.ai_plan; }
       var dbStep=Math.max(1,parseInt(d.step)||1);
       done(Math.max(fallbackStep||1, dbStep));
     } else {
@@ -1888,8 +1891,36 @@ window.OB={
     });
   },
 
+  /**
+   * Make sure step 4 is showing something.
+   *
+   * buildAIPlan() only ever ran from the step-3 button, so arriving at step 4
+   * any other way — a refresh, or logging back in to a saved step of 4 — showed
+   * the loading spinner with nothing driving it. It span forever, and because
+   * the saved step stayed at 4, every subsequent login landed back on it. That
+   * is a locked account, not a cosmetic bug.
+   *
+   * Three outcomes, in order of preference: results already on screen (do
+   * nothing), a plan saved from last time (render it straight away), or no
+   * plan at all (generate one now).
+   */
+  _ensurePlanShown:function(){
+    var res=$i('ob-s4-results'), load=$i('ob-s4-loading');
+    if(res && res.style.display==='block') return;   // already rendered
+
+    if(S._aiPlanJson){
+      try{
+        var cached=JSON.parse(S._aiPlanJson);
+        if(cached && cached.headline){ OB.renderAIPlan(cached); return; }
+      }catch(e){}
+    }
+    if(OB.__planRunning) return;
+    OB.buildAIPlan();
+  },
+
   /* AI-powered growth plan — replaces score ring */
   buildAIPlan: async function(){
+    OB.__planRunning=true;
     var q=S.q, svcs=S.svcs;
     var tot=OB._monthlyTotal();
     S.score=Math.min(97,20+(svcs.length*10)+(tot>=5000?15:tot>=2000?10:tot>0?5:0)+(q.website?8:0)+(q.industry?5:0));
@@ -1971,99 +2002,134 @@ window.OB={
     }
 
     clearInterval(msgTimer);
+    OB.__planRunning=false;
     S._aiPlanJson=JSON.stringify(plan);
-    post({action:'six_save_checkout_step',step:'1b',score:S.score,user_id:S.userId});
+    post({action:'six_save_checkout_step',step:'1b',score:S.score,user_id:S.userId,ai_plan_json:S._aiPlanJson});
+    OB.renderAIPlan(plan);
+  },
+
+  /**
+   * Draw a plan that already exists.
+   *
+   * Split out of buildAIPlan() so that returning to step 4 — on a refresh or a
+   * later login — renders the plan we already generated instead of spinning
+   * forever or paying to generate it again.
+   */
+  renderAIPlan: function(plan){
+    var q=S.q, svcs=S.svcs;
+    var tot=OB._monthlyTotal();
 
     var kpis=plan.kpis||[];
     var roadmap=plan.roadmap||[];
     var phaseColors=['#4285F4','#1B9E52','#FF6699','#9C27B0'];
     var backed=plan.data_backed;
 
-    // ── Hero card: the measured comparison ────────────────────────────────
-    // Everything in here comes from plan.snapshot, which the server measured
-    // directly — it never passes through the language model, so the numbers
-    // a prospect reads cannot come back altered. A figure we could not
-    // measure is omitted rather than estimated.
+    // ── Hero card ─────────────────────────────────────────────────────────
+    //
+    // Everything here is measured server-side and never passes through the
+    // language model. One rule governs the whole block: we never state the
+    // client's own traffic as fact. Ahrefs only counts visits from keywords in
+    // its index, so for a small site it reports a fraction of reality — a
+    // business whose analytics shows thirty visits a month can appear here as
+    // three. Telling them "you get 3 visitors" is how this page gets
+    // contradicted by the person reading it, which is worse than saying less.
+    //
+    // So it compares, and only when the comparison is worth making.
     var snap = plan.snapshot || {};
     var mkt  = plan.market || '';
     var nf   = function(n){ return Number(n).toLocaleString(); };
+    var biz  = q.bizname || 'your site';
+    var topComp = (snap.competitors || [])[0];
 
-    var heroLabel, heroBody = '';
+    // A plan saved before the server started stating its confidence still has
+    // real competitor figures in it, and showing that client "we have very
+    // little on your market" while holding a leader's traffic would be wrong.
+    // Same rule the server applies (Six_Estimate_Engine::MIN_COMPARABLE_TRAFFIC).
+    var conf = snap.confidence;
+    if (!conf) {
+      if (topComp && topComp.visitors >= 50) conf = 'comparable';
+      else if (snap.ranking && snap.ranking.total > 0) conf = 'thin_market';
+      else conf = 'no_data';
+    }
 
-    if (snap.has && snap.visitors !== null && snap.visitors !== undefined) {
-      heroLabel = 'What we found on your site';
+    var heroLabel, heroBody = '', showBadge = false;
 
-      // The headline comparison: their traffic against the best comparable
-      // site in the same market. Both figures are measured.
-      var topComp = (snap.competitors || [])[0];
-      var line;
-      if (topComp) {
-        line = '<strong>' + nf(snap.visitors) + '</strong> people a month find '
-             + (q.bizname || 'your site') + ' through search. '
-             + '<strong>' + topComp.domain + '</strong> gets <strong>' + nf(topComp.visitors) + '</strong>'
-             + ' from the same kind of searches' + (mkt ? ' in ' + mkt : '') + '.';
-      } else {
-        line = '<strong>' + nf(snap.visitors) + '</strong> people a month find '
-             + (q.bizname || 'your site') + ' through search'
-             + (mkt ? ' in ' + mkt : '') + '.';
-      }
-      heroBody += '<div class="ob-plan-hero-sub" style="font-size:14px;opacity:.95;max-width:100%">' + line + '</div>';
+    if (conf === 'comparable' && topComp) {
+      // A real market with a real leader. State both sides as what Ahrefs
+      // sees, never as what the client "gets".
+      heroLabel = 'What we found in your market';
+      showBadge = true;
 
-      // Three figures, all about the same thing the headline is about:
-      // visitors. Deliberately not keyword or location counts — those belong
-      // in the rows underneath, not in the box that carries the comparison.
+      heroBody += '<div class="ob-plan-hero-sub" style="font-size:14px;opacity:.95;max-width:100%">'
+        + 'On the searches we can track in ' + (mkt || 'your market') + ', <strong>' + topComp.domain
+        + '</strong> pulls around <strong>' + nf(topComp.visitors) + ' visits a month</strong>. '
+        + 'That is the demand already in play, and almost none of it is reaching ' + biz + ' today.'
+        + '</div>';
+
       var stats = [];
-      stats.push({ v: nf(snap.visitors), l: 'Visitors you get a month from search' });
-      if (topComp) {
-        stats.push({ v: nf(topComp.visitors), l: 'What ' + topComp.domain + ' gets' });
-      }
-      if (snap.gap) {
-        stats.push({ v: nf(snap.gap.behind_by), l: 'Visitors a month going to them instead of you' });
-      }
-      stats = stats.slice(0, 3);
-      if (stats.length) {
-        heroBody += '<div class="ob-plan-hero-stats">' + stats.map(function(st){
-          return '<div class="ob-kpi-stat"><span class="ob-kpi-val">' + st.v + '</span>'
-               + '<div class="ob-kpi-lbl">' + st.l + '</div></div>';
-        }).join('') + '</div>';
-      }
-
-      // Where you stand, and what is sitting just out of reach. Both rows are
-      // differences between measured numbers, never a promise of a result.
-      var rows = '';
-      if (snap.ranking) {
-        rows += '<div class="ob-hero-row"><span>Where you rank today</span><strong>'
-             +  nf(snap.ranking.top3) + ' in the top 3, of ' + nf(snap.ranking.total) + ' terms you appear for</strong></div>';
+      stats.push({ v: nf(topComp.visitors), l: 'Monthly visits ' + topComp.domain + ' takes from these searches' });
+      if ((snap.competitors || []).length > 1) {
+        var others = 0;
+        snap.competitors.slice(1).forEach(function(c){ others += c.visitors; });
+        if (others > 0) stats.push({ v: nf(others), l: 'And what the next competitors take between them' });
       }
       if (snap.quick_wins && snap.quick_wins.volume) {
-        rows += '<div class="ob-hero-row"><span>Searches you sit one page away from</span><strong>'
-             +  nf(snap.quick_wins.volume) + ' a month'
-             +  (snap.quick_wins.count ? ', across ' + nf(snap.quick_wins.count) + ' terms' : '')
-             +  '</strong></div>';
+        stats.push({ v: nf(snap.quick_wins.volume), l: 'Searches a month you already appear for, just below the fold' });
+      }
+      if (stats.length < 3 && snap.ranking) {
+        stats.push({ v: nf(snap.ranking.total), l: 'Terms you currently show up for at all' });
+      }
+      heroBody += '<div class="ob-plan-hero-stats">' + stats.slice(0,3).map(function(st){
+        return '<div class="ob-kpi-stat"><span class="ob-kpi-val">' + st.v + '</span>'
+             + '<div class="ob-kpi-lbl">' + st.l + '</div></div>';
+      }).join('') + '</div>';
+
+      var rows = '';
+      if (snap.ranking) {
+        rows += '<div class="ob-hero-row"><span>Terms you reach the top three for</span><strong>'
+             +  nf(snap.ranking.top3) + ' of the ' + nf(snap.ranking.total) + ' we can see you ranking for</strong></div>';
+      }
+      if (snap.quick_wins && snap.quick_wins.count) {
+        rows += '<div class="ob-hero-row"><span>Sitting on page two, one step from page one</span><strong>'
+             +  nf(snap.quick_wins.count) + ' search terms</strong></div>';
       }
       if (snap.gap) {
-        // Framed as room to grow, which is what it is: the distance between
-        // two measured figures. Not a forecast, and not a promise.
-        rows += '<div class="ob-hero-row"><span>Room to grow in this market</span><strong>+'
-             +  nf(snap.gap.behind_by) + ' visitors a month</strong></div>';
+        rows += '<div class="ob-hero-row"><span>The monthly visits that gap is worth</span><strong>+'
+             +  nf(snap.gap.behind_by) + '</strong></div>';
       }
       if (rows) heroBody += '<div class="ob-hero-rows">' + rows + '</div>';
 
+    } else if (snap.ranks_without_demand) {
+      // The most useful thing we can tell a niche business: they are winning
+      // the terms they chose, and those terms are not being searched. That is
+      // a specific, checkable finding and a real reason to talk to us.
+      heroLabel = 'What we found on your site';
+      heroBody += '<div class="ob-plan-hero-sub" style="font-size:14px;opacity:.95;max-width:100%">'
+        + 'You already rank in the top three for <strong>' + nf(snap.ranking.top3)
+        + ' of the ' + nf(snap.ranking.total) + ' terms</strong> we can see ' + biz + ' showing up for. '
+        + 'The problem is not your rankings — it is that almost nobody searches those exact phrases. '
+        + 'The work is finding the terms your customers actually type.'
+        + '</div>';
+      heroBody += '<div class="ob-hero-rows">'
+        + '<div class="ob-hero-row"><span>Terms you rank top three for</span><strong>' + nf(snap.ranking.top3) + '</strong></div>'
+        + '<div class="ob-hero-row"><span>Terms you appear for at all</span><strong>' + nf(snap.ranking.total) + '</strong></div>'
+        + '<div class="ob-hero-row"><span>What that is worth in visits today</span><strong>Almost nothing</strong></div>'
+        + '</div>';
+
     } else {
-      // Nothing measurable — usually a brand-new domain with no footprint, or
-      // no website given. Say that plainly; it is a real finding, and far
-      // better than a confident-looking number nobody can stand behind.
+      // Not enough to say anything defensible. Say that, and ask for the data
+      // that would settle it — a far better look than two zeroes side by side.
       heroLabel = 'Your opportunity snapshot';
-      heroBody = '<div class="ob-plan-hero-sub" style="font-size:14px;opacity:.95;max-width:100%">'
+      heroBody += '<div class="ob-plan-hero-sub" style="font-size:14px;opacity:.95;max-width:100%">'
         + (snap.domain
-            ? 'We could not find an established search footprint for <strong>' + snap.domain + '</strong> yet. For a newer site that is normal — and it means almost every search in your market is currently going to someone else.'
-            : 'Add your website and we can show you exactly where you stand against the other businesses competing for your customers.')
+            ? 'Public search data has very little on ' + biz + ' or the sites you compete with yet, which is normal for a newer or specialised business — it means the search demand in your space is still unclaimed. Your advisor will connect your Search Console so we are working from your real numbers rather than an estimate.'
+            : 'Add your website and we can show you exactly which searches your competitors are winning and you are not.')
         + '</div>';
     }
 
     $i('ob-plan-hero').innerHTML =
       '<div class="ob-plan-hero-label">' + heroLabel +
-        (snap.has ? '<span class="ob-data-badge">Measured ✓</span>' : '') +
+        (showBadge ? '<span class="ob-data-badge">Measured ✓</span>' : '') +
       '</div>' +
       '<div class="ob-plan-hero-headline">' + (plan.headline || 'Here is where you stand.') + '</div>' +
       heroBody;
@@ -2117,7 +2183,13 @@ window.OB={
     // ── Disclaimer ────────────────────────────────────────────────────────
     var disc=$i('ob-plan-disclaimer');
     if(disc){
-      var src=backed?' based on real Google Ads keyword data for your market':' based on industry benchmarks for your market';
+      // The data source has to match the service. Crediting "Google Ads
+      // keyword data" on a plan for a client who is not buying ads reads as
+      // us having run the wrong analysis.
+      var isSeoOnly = svcs.indexOf('seo')>-1 && svcs.indexOf('google-ads')===-1;
+      var src = backed
+        ? (isSeoOnly ? ' built on live search data for your market' : ' based on real keyword and cost data for your market')
+        : ' based on industry benchmarks for your market';
       if(isAudit){
         // Existing-GA: clearly frame this as an initial AI assessment, not a
         // replacement for a full human advisor audit.
@@ -2129,8 +2201,8 @@ window.OB={
           'Once you complete onboarding, your 6ix Developers advisor will log into your Google Ads (with your permission), '+
           'review your real campaign, keyword and conversion data, and refine this plan into a hands-on strategy — usually within one business day.';
       } else {
-        disc.innerHTML='These projections are'+src+'.'
-          +' Once you complete onboarding, your advisor will reach out within one business day with a full benchmark report and custom strategy.';
+        disc.innerHTML='This is'+src+', and it is a summary \u2014 not the full picture.'
+          +' Once you complete onboarding, your advisor will send you a complete audit report and the opportunities we found, within one business day.';
       }
       disc.style.display='block';
     }
@@ -2265,6 +2337,7 @@ window.OB={
     if(typeof GE!=='undefined')GE.onStep(n);
     if(n===5)OB._initStep5();   // advisor card + call-time chips (also on resume)
     if(n===1)OB._syncPasswordField();   // never ask for a password we already have
+    if(n===4)OB._ensurePlanShown();     // never leave the spinner with nothing driving it
 
     // ── Restore field values when navigating back ─────────────────────────
     var q=S.q;
