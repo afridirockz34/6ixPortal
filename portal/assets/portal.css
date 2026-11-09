@@ -474,6 +474,27 @@ body.six-nav-collapsed .six-sidebar { transform: translateX(-100%); }
   letter-spacing: 0;
 }
 
+/* A nav item's "something new in here" dot. Deliberately not a count: the
+   client does not need to know there are three unread reports, only that the
+   section is worth opening. Cleared by opening that section. */
+.six-nav-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--pink);
+  flex-shrink: 0;
+  display: inline-block;
+  box-shadow: 0 0 0 3px rgba(255, 102, 153, 0.18);
+}
+
+/* Sits at the trailing edge, where the numeric badges already sit, so every
+   indicator in the sidebar lines up in one column instead of each one landing
+   wherever its label happens to end. */
+.six-nav-item .six-nav-dot,
+.six-nav-item .six-badge { margin-left: auto; }
+
+.six-nav-item.active .six-nav-dot { box-shadow: 0 0 0 3px rgba(255, 102, 153, 0.28); }
+
 /* ── STATUS BADGES ───────────────────────────────────────── */
 .six-status-badge {
   font-size: 10px;

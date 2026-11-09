@@ -11,6 +11,29 @@ honestly-framed deliverable, not a refusal.
 
 ---
 
+## 0. First, what did they actually buy?
+
+Before deciding what to assess, read the client's **active services** — the
+profile returns them, and they are the scope of the work. The three cases are
+different deliverables, not different emphases:
+
+| Active services | What the deliverable covers |
+|---|---|
+| **SEO only** | Organic. Local is worth raising as an opportunity where they are plainly a local business, but flagged as something not currently in scope rather than quietly assessed. |
+| **Google Business Profile only** | Local pack and map visibility, the profile itself, reviews, citations. Their organic rankings are context. Do not hand them a content strategy they are not paying for. |
+| **Both** | Both, and **the local half is not optional.** |
+
+That last row is the one that goes wrong. A client paying for SEO and GMB,
+handed a report about keywords and backlinks, has been assessed on half of
+what they bought — and on the half they can least easily check themselves.
+`references/local-and-gmb.md` covers what a local assessment actually
+consists of and which connector measures it.
+
+A client with no active services at all is a prospect, which is normal: the
+audit runs as an external scan, and `seo-audit-report` says so in its framing.
+
+---
+
 ## 1. The portal profile (best, when it's there)
 
 The 6ix Developers portal is the system of record for everything a client or
@@ -41,6 +64,14 @@ blank. Each set's `progress` tells you how much is filled in and names what's
 outstanding; if large parts are blank, say so in the deliverable's framing and
 tell whoever is running this which sections to chase. The profile's `stage`
 is the quick version of the same thing.
+
+`questionnaire.strategy` also carries `issued`/`issued_at` and
+`submitted`/`submitted_at`. Those are three separate facts and they move
+independently: issued is us asking, `progress.percent` is how much is filled
+in, and submitted is the client saying they are finished. A questionnaire can
+read 100% without ever having been submitted — they are most likely still
+working through it, so treat the last answers as drafts and re-read the
+profile before anything is finalised.
 
 **If the connector isn't in this session, or the client isn't in the portal
 yet:** that's normal — a cold prospect won't be in there, and not every session

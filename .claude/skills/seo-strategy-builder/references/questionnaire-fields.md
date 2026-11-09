@@ -70,7 +70,7 @@ _If you're unsure about a question or want to talk it through first, leave it bl
 | `seo_paid_links` | Any previous paid backlinking? | select | one of: No / Yes / Not sure |
 | `seo_engagement` | How well does the site engage visitors today? | textarea |  |
 | `seo_conversion_type` | How do people usually get in touch? | select | one of: Mostly form submissions / Mostly phone calls / Both about equally / Online purchases |
-| `seo_crm_tools` | How do you track those enquiries today? | text | from signup |
+| `seo_crm_tools` | How do you track those inquiries today? | text | from signup |
 | `seo_self_check_terms` | Search terms you type in yourself to check your rankings | textarea | optional |
 | `seo_profitable_services` | Your most profitable services | textarea |  |
 | `seo_lifetime_value` | Lifetime value of a typical customer | text | optional |
@@ -128,6 +128,23 @@ _Please don't type passwords here — just tell us what exists, and we'll set up
 | `tools_social` | Active social media channels | textarea | optional |
 | `tools_other` | Any other SEO, marketing or CRM tools in use | textarea | optional |
 
+## Your Google Business Profile  
+`local`
+
+_This is what decides whether you show up in the map results when somebody nearby searches for what you do._
+
+| Key | Question | Type | Notes |
+|---|---|---|---|
+| `gbp_status` | Is the profile claimed and verified, and who manages it today? | textarea |  |
+| `gbp_category` | What category is the profile set to? | text | from signup |
+| `gbp_premises` | Do customers come to you, or do you go to them? | select | one of: They come to us at our address / We travel to them / Both |
+| `gbp_service_area` | Which areas do you actually want calls from? | textarea |  |
+| `gbp_reviews_who` | Who replies to reviews, and how quickly? | textarea |  |
+| `gbp_reviews_ask` | How do you ask customers for reviews today? | textarea |  |
+| `gbp_hours` | Are your opening hours on the profile correct, including holidays? | textarea | optional |
+| `gbp_photos` | Who can supply photos, and how often? | textarea | optional |
+| `gbp_history` | Has the listing ever been suspended, duplicated, or had its address changed? | textarea | optional |
+
 ## Content production  
 `content`
 
@@ -149,5 +166,5 @@ _Please don't type passwords here — just tell us what exists, and we'll set up
 
 ---
 
-67 questions in total; 51 have their own storage and the rest reuse a field
+76 questions in total; 59 have their own storage and the rest reuse a field
 onboarding already captured.

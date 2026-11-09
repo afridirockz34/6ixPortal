@@ -35,14 +35,21 @@ The honesty rule above is what decides *which* objectives get saved, and it gets
 
 **What it produces:** a Google Business Profile optimization plan — profile completeness, posting cadence, review-request strategy, Q&A seeding — plus any other local-pack-relevant recommendations.
 
-**Required inputs:** the client's current GBP status (pull it manually — log into the profile or ask the client for access) and the foundation document's service area tiers.
+**Required inputs:** the client's current local visibility and the foundation document's service area tiers.
+
+**Read `references/local-and-gmb.md` first.** With the BrightLocal connector in the session this phase stops being the one phase with no data behind it: a rank grid shows where the business actually appears across the area it sells into, point by point, and the same grid shows a named competitor on top of it. That file covers which tool answers what, the credit discipline (a single grid run costs 200–400 credits and balances are nothing like that), and the two ways a grid gets read wrong — chiefly that `rank: 0` means "did not appear" and averaging it yourself makes a grid look ~20% better than it is.
+
+Without the connector, fall back to the live profile and a manual search from the client's city, and say in the deliverable that is what you did.
 
 **Prompt pattern:**
 ```
 Here is [Client]'s foundation document: [paste].
 Here is the current state of their Google Business Profile: [paste —
 category, completeness, review count/rating, posting history, current
-photos].
+photos — `get_location` returns most of this directly].
+Here is their local visibility: [paste the rank-grid summary and the
+shape of it, the competitor comparison on the same grid, and the real
+review counts from Reputation Manager].
 
 Draft a GMB optimization plan: profile completeness gaps, category
 accuracy, posting cadence recommendation, a review-request process, and

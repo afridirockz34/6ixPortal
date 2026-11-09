@@ -77,6 +77,15 @@ starts. Their answers can arrive three ways, and **all three are workable**:
    been issued but not finished — say what's outstanding rather than building
    on gaps. If it hasn't been issued at all, `issue_strategy_questionnaire`
    returns a link to send them.
+
+   **Answered and handed in are different facts.** `stage` goes to
+   `ready_for_strategy` as soon as every required question has a value, but the
+   client presses Submit separately, and `questionnaire.strategy.submitted`
+   (with `submitted_at`) is the one that says they consider themselves done.
+   Complete but unsubmitted usually means they are still editing — their last
+   few answers may be half-finished thoughts rather than final ones. It is not
+   a reason to refuse to start, but it is a reason to say so before building on
+   those answers, and to re-read the profile before the strategy is finalised.
 2. **A document they filled in.** Plenty of clients would rather complete a Word
    document over email than log into a portal. Read it the same way — `.docx`,
    PDF, a pasted email, a call transcript, or an older brand document covering
@@ -173,6 +182,8 @@ Every reference file here — especially `phase11-12-geo-schema.md` and `fact-ch
 - `references/phase20-results-retrospective.md` — the recurring retrospective that checks actual results against Phase 5's targets and the Keyword Opportunity Scores, and revises priorities going forward
 - `references/client-context.md` — how to get the client's answers from the portal, from a document they filled in, or from neither
 - `references/performance-tracking.md` — snapshots and projections: the tracked metric keys, how to read a `check_performance` result, and the rules for saving a target you can stand behind
+- `references/local-and-gmb.md` — what to assess from the client's active services, and the BrightLocal data behind Phase 6: rank grids, competitors on the same grid, reviews, citations, and the credit discipline a 200–400-credit run demands
+- `references/ai-visibility.md` — Ahrefs Brand Radar and BrightLocal AI Visibility, which answers which question, and the honesty rules for the least settled area in this skill set
 - `references/questionnaire-fields.md` — generated map of every questionnaire question to the key it's stored under, for filing a returned document back to the portal
 - `assets/blank-strategy-questionnaire.md` — the strategy questionnaire as a fillable document, for clients who'd rather answer by email
 - `assets/blank-audit-questionnaire.md` — the short audit intake sheet, for a prospect who isn't in the portal yet

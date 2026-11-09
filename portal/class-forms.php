@@ -269,7 +269,7 @@ function six_forms_render( $key_or_id ) {
 				<?php echo six_forms_captcha(); ?>
 				<div class="mk-form-actions">
 					<button type="submit" class="mk-btn mk-btn-primary mk-btn-lg mk-form-submit"><?php echo esc_html( $form['submit_label'] ); ?></button>
-					<p class="mk-form-note">By submitting, you agree to be contacted by 6ix Developers about your enquiry.</p>
+					<p class="mk-form-note">By submitting, you agree to be contacted by 6ix Developers about your inquiry.</p>
 				</div>
 				<?php endif; ?>
 			</section>

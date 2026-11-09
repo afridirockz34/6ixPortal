@@ -71,7 +71,6 @@ header( 'Content-Type: text/html; charset=utf-8' );
           ?>
           <a class="mk-btn mk-btn-primary mk-btn-lg" href="<?php echo esc_url( $hc1_url ); ?>"><?php echo esc_html( $hc1['label'] ); ?></a>
         </div>
-        <p style="font-size:.92rem;color:var(--mk-t2);margin:12px auto 0;max-width:48ch"><?php echo esc_html( $cta['hero']['sub'] ); ?></p>
       </div>
     </div>
   </section>
@@ -98,7 +97,6 @@ header( 'Content-Type: text/html; charset=utf-8' );
           <a class="mk-btn mk-btn-primary mk-btn-lg" href="<?php echo esc_url( $hc1_url ); ?>"><?php echo esc_html( $hc1['label'] ); ?></a>
           <a class="mk-btn mk-btn-ghost mk-btn-lg" href="<?php echo esc_url( $hc2_url ); ?>"><?php echo esc_html( $hc2['label'] ); ?></a>
         </div>
-        <p style="font-size:.92rem;color:var(--mk-t2);margin:12px 0 0;max-width:48ch"><?php echo esc_html( $cta['hero']['sub'] ); ?></p>
       </div>
     </div>
   </section>

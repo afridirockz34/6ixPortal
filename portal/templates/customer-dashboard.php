@@ -86,6 +86,30 @@ $active_svcs      = array_values( array_filter( (array)$services, fn($s) => $s->
 $pending_svcs     = array_values( array_filter( (array)$services, fn($s) => $s->status === 'pending' ) );
 $active_svc_slugs = array_column( $active_svcs, 'service_slug' );
 $total_budget     = array_sum( array_column( $active_svcs, 'budget' ) );
+
+// ── "Something new in here" dots ─────────────────────────────────────────
+// A notification tells the client once, then it's gone. The dot stays until
+// they open the section, which is the part they actually asked for.
+//
+// Computed BEFORE the active tab is marked seen, so opening Reports still
+// shows that this visit is what cleared it, and the dot is simply gone on the
+// next page load rather than clearing under the cursor.
+$dot = array( 'reports' => '', 'svc' => array() );
+if ( class_exists('Six_Unread') ) {
+    $dot['reports'] = Six_Unread::dot( $user_id, 'reports' );
+    foreach ( $active_svc_slugs as $slug ) {
+        $dot['svc'][ $slug ] = Six_Unread::dot( $user_id, 'metrics', $slug );
+    }
+    if ( $active_tab === 'reports' ) {
+        Six_Unread::mark_seen( $user_id, 'reports' );
+        $dot['reports'] = '';
+    }
+    if ( strpos( (string) $active_tab, 'svc_' ) === 0 ) {
+        $open = substr( $active_tab, 4 );
+        Six_Unread::mark_seen( $user_id, 'metrics', $open );
+        $dot['svc'][ $open ] = '';
+    }
+}
 $ai_business      = $checkout->business_name ?? $user->display_name;
 $ai_industry      = $checkout->industry ?? '';
 $ai_goal          = $checkout->goal ?? '';
@@ -235,6 +259,7 @@ $svc_svg_icons = array(
         <a href="?tab=svc_<?php echo esc_attr($s->service_slug); ?>" class="six-nav-item <?php echo $active_tab==='svc_'.$s->service_slug?'active':''; ?>" style="padding-left:28px">
             <span class="six-nav-icon"><?php echo $svc_icon_svg; ?></span>
             <span style="font-size:12px"><?php echo esc_html($s->service_name); ?></span>
+            <?php echo $dot['svc'][$s->service_slug] ?? ''; ?>
         </a>
         <?php endforeach; ?>
         <?php // Website maintenance is an advisor-enabled add-on, so it has no
@@ -260,7 +285,7 @@ $svc_svg_icons = array(
             <?php if ( $q_prog['percent'] < 100 ): ?><span class="six-badge"><?php echo intval($q_prog['total'] - $q_prog['done']); ?></span><?php endif; ?>
         </a>
         <?php endif; ?>
-        <a href="?tab=reports"  class="six-nav-item <?php echo $active_tab==='reports' ?'active':''; ?>"><span class="six-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span> Reports</a>
+        <a href="?tab=reports"  class="six-nav-item <?php echo $active_tab==='reports' ?'active':''; ?>"><span class="six-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span> Reports<?php echo $dot['reports']; ?></a>
     </div>
     <div class="six-nav-section">
         <div class="six-nav-label">Account</div>

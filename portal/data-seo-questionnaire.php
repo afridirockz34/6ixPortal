@@ -23,6 +23,11 @@
  *   'prefill_from' Not the same question, but a related answer makes a
  *                  sensible starting point the client can edit.
  *
+ *   'only_if_svc'  The inverse of skip_if_svc: this question belongs to a
+ *                  service, and a client who did not buy that service never
+ *                  sees it. With no services known it shows, so the blank
+ *                  sheet and the generated reference carry every question.
+ *
  * Any entry with none of those three is genuinely new and gets its own column
  * (see six_seo_questionnaire_columns()).
  *
@@ -175,7 +180,7 @@ function six_seo_questionnaire_schema() {
 				array( 'key' => 'seo_engagement',  'label' => 'How well does the site engage visitors today?', 'type' => 'textarea' ),
 				array( 'key' => 'seo_conversion_type', 'label' => 'How do people usually get in touch?', 'type' => 'select',
 				       'options' => array( 'Mostly form submissions', 'Mostly phone calls', 'Both about equally', 'Online purchases' ) ),
-				array( 'key' => 'seo_crm_tools',   'label' => 'How do you track those enquiries today?', 'type' => 'text', 'maps_to' => 'seo_crm_tools',
+				array( 'key' => 'seo_crm_tools',   'label' => 'How do you track those inquiries today?', 'type' => 'text', 'maps_to' => 'seo_crm_tools',
 				       'help' => 'CRM, spreadsheet, call tracking — whatever you actually use.' ),
 				array( 'key' => 'seo_self_check_terms', 'label' => 'Search terms you type in yourself to check your rankings', 'type' => 'textarea', 'optional' => true ),
 				array( 'key' => 'seo_profitable_services', 'label' => 'Your most profitable services', 'type' => 'textarea',
@@ -254,7 +259,8 @@ function six_seo_questionnaire_schema() {
 				array( 'key' => 'tools_seo_plugin', 'label' => 'SEO plugin installed, if any', 'type' => 'text', 'optional' => true,
 				       'placeholder' => 'e.g. Rank Math, Yoast' ),
 				array( 'key' => 'seo_gsc',          'label' => 'Google Analytics and Search Console — set up, and can you grant access?', 'type' => 'textarea', 'maps_to' => 'seo_gsc' ),
-				// The Google Business Profile service asks all of this itself.
+				// A Google Business Profile client answers this properly in
+				// the local section below, so they are not asked twice.
 				array( 'key' => 'tools_gbp_status', 'label' => 'Is your Google Business Profile claimed and verified? Who manages it?', 'type' => 'textarea',
 				       'skip_if_svc' => array( 'google-business' ) ),
 				array( 'key' => 'tools_social',     'label' => 'Active social media channels', 'type' => 'textarea', 'optional' => true ),
@@ -263,7 +269,47 @@ function six_seo_questionnaire_schema() {
 			),
 		),
 
-		// ── 8. Content capacity ──────────────────────────────────────────
+		// ── 8. Local / Google Business Profile ───────────────────────────
+		// Only asked of clients who bought the service. Until now a Google
+		// Business Profile client was SKIPPED the one GMB question in the
+		// tools section on the grounds that "the GMB service asks all of this
+		// itself" — and nothing else asked it, so the client paying for local
+		// was the one client we knew least about. These are the answers the
+		// local work actually needs: where to centre a rank grid, how wide to
+		// draw it, and who is allowed to reply to a review.
+		'local' => array(
+			'title'  => 'Your Google Business Profile',
+			'intro'  => 'This is what decides whether you show up in the map results when somebody nearby searches for what you do.',
+			'fields' => array(
+				array( 'key' => 'gbp_status',      'label' => 'Is the profile claimed and verified, and who manages it today?', 'type' => 'textarea',
+				       'only_if_svc' => array( 'google-business' ), 'prefill_from' => array( 'tools_gbp_status' ) ),
+				array( 'key' => 'gbp_category',    'label' => 'What category is the profile set to?', 'type' => 'text',
+				       'maps_to' => 'gbp_category', 'only_if_svc' => array( 'google-business' ),
+				       'help' => 'The main one Google shows under your business name. If you are not sure, we will check.' ),
+				array( 'key' => 'gbp_premises',    'label' => 'Do customers come to you, or do you go to them?', 'type' => 'select',
+				       'options' => array( 'They come to us at our address', 'We travel to them', 'Both' ),
+				       'only_if_svc' => array( 'google-business' ),
+				       'help' => 'This changes how Google shows you, and how far out we measure your visibility.' ),
+				array( 'key' => 'gbp_service_area','label' => 'Which areas do you actually want calls from?', 'type' => 'textarea',
+				       'only_if_svc' => array( 'google-business' ), 'prefill_from' => array( 'seo_locations' ),
+				       'help' => 'Name the suburbs, towns or postal areas. Being specific here is what stops us measuring you in places you do not serve.' ),
+				array( 'key' => 'gbp_reviews_who', 'label' => 'Who replies to reviews, and how quickly?', 'type' => 'textarea',
+				       'only_if_svc' => array( 'google-business' ) ),
+				array( 'key' => 'gbp_reviews_ask', 'label' => 'How do you ask customers for reviews today?', 'type' => 'textarea',
+				       'only_if_svc' => array( 'google-business' ),
+				       'help' => 'Even "we do not" is a useful answer — it is the most common one.' ),
+				array( 'key' => 'gbp_hours',       'label' => 'Are your opening hours on the profile correct, including holidays?', 'type' => 'textarea',
+				       'optional' => true, 'only_if_svc' => array( 'google-business' ) ),
+				array( 'key' => 'gbp_photos',      'label' => 'Who can supply photos, and how often?', 'type' => 'textarea',
+				       'optional' => true, 'only_if_svc' => array( 'google-business' ),
+				       'help' => 'Photos of the real place and real work, not stock.' ),
+				array( 'key' => 'gbp_history',     'label' => 'Has the listing ever been suspended, duplicated, or had its address changed?', 'type' => 'textarea',
+				       'optional' => true, 'only_if_svc' => array( 'google-business' ),
+				       'help' => 'A past suspension changes what we can safely do, so it is worth saying now.' ),
+			),
+		),
+
+		// ── 9. Content capacity ──────────────────────────────────────────
 		'content' => array(
 			'title'  => 'Content production',
 			'fields' => array(
@@ -280,7 +326,7 @@ function six_seo_questionnaire_schema() {
 			),
 		),
 
-		// ── 9. Languages and accessibility ───────────────────────────────
+		// ── 10. Languages and accessibility ──────────────────────────────
 		'access' => array(
 			'title'  => 'Languages and accessibility',
 			'fields' => array(
@@ -474,6 +520,14 @@ function six_seo_questionnaire_for_client( array $active_slugs, $set = null ) {
 		$section['fields'] = array_values( array_filter( $section['fields'], function ( $f ) use ( $active_slugs, $set ) {
 			// Wrong questionnaire for this question.
 			if ( $set !== null && six_seo_questionnaire_phase( $f['key'] ) !== $set ) return false;
+			// Belongs to a service this client did not buy. Asking a
+			// Google Business Profile client about their SEO plugin, or an
+			// SEO-only client about their map pin, reads as a form nobody
+			// tailored. With no services known — a blank sheet for a
+			// prospect, or the generated reference document — everything
+			// shows, which is the same way skip_if_svc already behaves.
+			if ( ! empty( $f['only_if_svc'] ) && $active_slugs
+			     && ! array_intersect( (array) $f['only_if_svc'], $active_slugs ) ) return false;
 			if ( empty( $f['skip_if_svc'] ) ) return true;
 			return ! array_intersect( (array) $f['skip_if_svc'], $active_slugs );
 		} ) );

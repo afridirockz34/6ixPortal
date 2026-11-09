@@ -1925,7 +1925,7 @@ window.OB={
     var tot=OB._monthlyTotal();
     S.score=Math.min(97,20+(svcs.length*10)+(tot>=5000?15:tot>=2000?10:tot>0?5:0)+(q.website?8:0)+(q.industry?5:0));
 
-    var msgs=['Analyzing your market and competition...','Pulling live keyword data from Google Ads...','Projecting your reach and lead volume...','Building your tailored 60-day roadmap...'];
+    var msgs=['Analyzing your market and competition...','Pulling live search data for your keywords...','Measuring where your competitors are ahead...','Building your tailored 60-day roadmap...'];
     var mi=0,msgEl=$i('ob-s4-loading-msg');
     if(msgEl) msgEl.textContent=msgs[0];
     var msgTimer=setInterval(function(){mi=(mi+1)%msgs.length;if(msgEl)msgEl.textContent=msgs[mi];},2500);
@@ -1969,12 +1969,14 @@ window.OB={
       mktLoc=mktLoc||'your market';
       var ind=q.industry||'your industry';
       var isSeo=svcs.indexOf('seo')>-1, isAds=svcs.indexOf('google-ads')>-1;
+      // This runs only when the server call failed, so there is no measured
+      // data behind it at all. It therefore states no numbers: the KPI row
+      // used to be budget÷150 and budget÷80 dressed up as a lead forecast,
+      // which is a made-up figure on the one page where being checkable is
+      // the whole argument. An empty kpis array renders nothing.
       plan={
-        headline:(q.bizname||'Your business')+' is positioned to win new customers through '+ch+' in '+mktLoc+' — here is your tailored 90-day roadmap.',
-        kpis:[
-          {label:isAds?'Est. Leads / Month 1':'Est. Organic Leads / Mo',value:tot>0?Math.round(tot/150)+'-'+Math.round(tot/100):'8–15'},
-          {label:'By Month 3',value:tot>0?Math.round(tot/80)+'-'+Math.round(tot/55):'20–35'}
-        ],
+        headline:'Here is how we would go after the searches '+(q.bizname||'your business')+' should be winning in '+mktLoc+'.',
+        kpis:[],
         roadmap:[
           {week:'Week 1–2',phase:'Foundation',title:'Audit & architecture',
             points:[(isSeo?'We audit your current rankings, site structure and top competitors for '+ind+' searches across '+mktLoc+' to find the fastest wins.':'We audit your current presence, tracking and top competitors for '+ind+' across '+mktLoc+' so every dollar is aimed precisely.'),
@@ -1986,16 +1988,16 @@ window.OB={
                     'We A/B test headlines, offers and landing pages so the highest-converting message wins and your cost per lead starts trending down quickly.',
                     'We monitor performance daily and adjust targeting, bids or on-page signals so momentum builds steadily through the first full month of data.'],
             outcome:'First results within 30 days'},
-          {week:'Month 2',phase:'Optimize',title:'Data-driven refinement',
+          {week:'Day 30–45',phase:'Refine',title:'Follow what the data shows',
             points:['We double down on the keywords, pages and audiences that are producing leads, and cut or rework anything that is underdelivering on budget.',
                     'We expand the winning themes with fresh '+(isSeo?'content and internal links':'ad groups and creative')+' so results compound instead of plateauing in month two.',
-                    'We deliver a clear performance report showing leads, cost per lead and exactly what we are changing next, with no jargon or guesswork.'],
+                    'You get a plain-language report of what moved, what it means for your business, and exactly what we are changing next.'],
             outcome:'Lower cost per lead, higher quality'},
-          {week:'Month 3',phase:'Scale',title:'Full momentum',
+          {week:'Day 46–60',phase:'Extend',title:'Widen what is working',
             points:['We scale the proven winners into new '+(isSeo?'keywords, cities and content clusters':'audiences, keywords and campaign types')+' so your pipeline keeps growing month over month.',
                     (svcs.length>1?'We connect the channels — '+ch+' — so each one amplifies the others and your brand shows up wherever '+mktLoc+' buyers look.':'We layer in advanced targeting and retargeting so no warm prospect in '+mktLoc+' slips through the cracks.'),
-                    'We forecast months 4–6 from your real performance data so you always know the next move and the return you can expect from it.'],
-            outcome:tot>0?'Consistent '+Math.round(tot/80)+'-'+Math.round(tot/55)+' leads/month':'Consistent qualified lead flow'}
+                    'We plan the next quarter from what actually happened in yours, so the next move is based on your own numbers rather than an assumption.'],
+            outcome:'A bigger share of the searches you care about'}
         ],
         disclaimer:true
       };
@@ -2074,7 +2076,10 @@ window.OB={
         if (others > 0) stats.push({ v: nf(others), l: 'And what the next competitors take between them' });
       }
       if (snap.quick_wins && snap.quick_wins.volume) {
-        stats.push({ v: nf(snap.quick_wins.volume), l: 'Searches a month you already appear for, just below the fold' });
+        // "below the fold" is the same jargon problem as "page-2 opportunities":
+        // it means nothing to the person reading, and it is not even what it
+        // describes. Say where the page actually sits.
+        stats.push({ v: nf(snap.quick_wins.volume), l: 'Searches a month where you are already on page two' });
       }
       if (stats.length < 3 && snap.ranking) {
         stats.push({ v: nf(snap.ranking.total), l: 'Terms you currently show up for at all' });
