@@ -757,30 +757,14 @@ class Six_EstimateEngine {
         $has_real    = ! empty($kw) && $kw['avg_cpc'] > 0;
 
         $clicks_mo   = $bud_ads > 0 && $avg_cpc > 0 ? floor($bud_ads / $avg_cpc) : 0;
-        $leads_lo    = $clicks_mo > 0 ? max(1, (int)round($clicks_mo * ($cr - 0.8) / 100)) : 1;
-        $leads_hi    = $clicks_mo > 0 ? max(2, (int)round($clicks_mo * ($cr + 0.8) / 100)) : 3;
-        $leads_m2_lo = (int)round($leads_lo * 1.5);
-        $leads_m2_hi = (int)round($leads_hi * 1.5);
+        // No lead projection is computed here any more, deliberately. The old
+        // one was budget ÷ CPC × an industry conversion rate, and its floor
+        // values (1–3) were what an SEO client with no ads budget actually
+        // saw printed as their forecast.
 
-        // Deal value lookup (comprehensive)
-        $dv_map = array(
-            'dental'=>800,'dentist'=>800,'orthodont'=>2500,
-            'legal'=>3500,'lawyer'=>3500,'attorney'=>3500,
-            'real estate'=>8000,'realtor'=>8000,'mortgage'=>2200,
-            'plumb'=>650,'hvac'=>1200,'roof'=>7500,'electrician'=>800,
-            'contractor'=>4500,'home service'=>900,'landscap'=>1800,
-            'medical'=>400,'health'=>400,'physio'=>350,'chiro'=>300,
-            'fitness'=>180,'gym'=>120,'restaurant'=>85,'food'=>85,'catering'=>600,
-            'retail'=>250,'ecommerce'=>180,
-            'finance'=>2800,'insurance'=>1400,'accounting'=>2200,
-            'marketing'=>3500,'advertising'=>3500,'agency'=>3500,'digital'=>3000,
-            'seo'=>2500,'web design'=>4000,'web develop'=>4000,'software'=>5000,
-            'automotive'=>1100,'mechanic'=>600,'cleaning'=>400,
-            'salon'=>150,'spa'=>200,'beauty'=>180,
-            'consult'=>4000,'coach'=>1200,'recruit'=>3000,
-        );
-        $deal_val = 1200;
-        foreach ($dv_map as $dk => $dv) if (strpos($ind,$dk)!==false){$deal_val=$dv;break;}
+        // The industry deal-value table that used to sit here is gone with the
+        // lead projection it fed. We do not forecast revenue, so a table of
+        // invented average deal sizes has nothing left to be right about.
 
         $kw_detail = '';
         if (!empty($kw['keywords'])) {
@@ -862,11 +846,14 @@ class Six_EstimateEngine {
         $L[] = "Avg CPC for their keywords: \${$avg_cpc}";
         if ($total_vol) $L[] = "Combined monthly search volume: ".number_format($total_vol)." searches/mo";
         if ($kw_detail) $L[] = "Keyword breakdown: {$kw_detail}";
-        $L[] = "Monthly budget: \${$bud_ads} → {$clicks_mo} estimated clicks";
-        $L[] = "Industry conversion rate: {$cr}%";
-        $L[] = "Estimated leads Month 1: {$leads_lo}–{$leads_hi}";
-        $L[] = "Estimated leads Month 2: {$leads_m2_lo}–{$leads_m2_hi}";
-        $L[] = "Avg deal value in {$ind}: \${$deal_val} (context only — NEVER project revenue or ROI from it, we do not guarantee returns)";
+        if ( $bud_ads > 0 ) $L[] = "Monthly ads budget: \${$bud_ads} → {$clicks_mo} estimated clicks";
+        // Lead and deal-value figures are deliberately NOT given to the model.
+        // They were, and it dutifully printed them: budget ÷ CPC × an industry
+        // conversion rate, which for an SEO client with no ads budget bottomed
+        // out at the floor values and rendered as "1–3 leads/mo" — a number
+        // that described nothing about that business and that we cannot stand
+        // behind. A figure the model is handed is a figure it will publish.
+        $L[] = "Industry conversion rate: {$cr}% (context for YOUR judgement only — never print it, and never multiply anything by it)";
         $L[] = '';
         if ( ! empty( $intel['has'] ) ) {
             $L[] = '=== LIVE MARKET INTELLIGENCE (real data pulled for THIS client — your biggest weapon) ===';
@@ -931,19 +918,20 @@ class Six_EstimateEngine {
             $L[] = '  "headline": "Max 15 words. Frame as improving ' . $biz . '\'s existing Google Ads in ' . $loc . '.",';
             $L[] = '  "sub": "Max 18 words. Reference their avg CPC $' . $avg_cpc . ', their stated challenge, or wasted-spend opportunity.",';
             $L[] = '  "kpis": [';
-            $L[] = '    {"label": "Added Leads / Month", "value": "'.$leads_lo.'–'.$leads_hi.'"},';
-            $L[] = '    {"label": "By Month 2",          "value": "'.$leads_m2_lo.'–'.$leads_m2_hi.'"},';
-            $L[] = '    {"label": "Searches / Month",    "value": "'.( $total_vol ? number_format($total_vol) : $clicks_mo.' est. clicks' ).'"}';
+            if ( $total_vol ) {
+                $L[] = '    {"label": "Searches a month for their terms", "value": "'.number_format($total_vol).'"},';
+            }
+            $L[] = '    {"label": "Their average cost per click", "value": "$'.$avg_cpc.'"}';
             $L[] = '  ],';
             $L[] = '  "insight": "Max 20 words. The single biggest lever to improve their current account — cite a number or their own words.",';
             $L[] = '  "insights": [';
             $L[] = '    { "what": "Biggest opportunity: <gap in their current ads, cite a number>", "why": "Why it matters for ' . $biz . '", "action": "One specific fix" }';
             $L[] = '  ],';
             $L[] = '  "roadmap": [';
-            $L[] = '    {"week":"Days 1–15","phase":"Audit & Fix","title":"5-word title","points":["what we audit first in their account","the top leak we fix (cite their stated problem)","expected early win with a number"]},';
-            $L[] = '    {"week":"Days 16–30","phase":"Optimize","title":"5-word title","points":["bidding or targeting change citing their keyword/CPC $' . $avg_cpc . '","what we cut vs double down on","updated cost-per-lead or lead number"]},';
-            $L[] = '    {"week":"Days 31–45","phase":"Expand","title":"5-word title","points":["new campaign type or keyword group to add","competitor gap we exploit (name one)","incremental lead projection"]},';
-            $L[] = '    {"week":"Days 46–60","phase":"Scale","title":"5-word title","points":["scale step tied to their goal","budget reallocation to top performers","Month 2 lead volume projection"]}';
+            $L[] = '    {"week":"Days 1–15","phase":"Audit & Fix","title":"5-word title","points":["what we look at first in their account and what it would show","the leak we close first, citing the problem they told us about","what is different about their account by day fifteen"]},';
+            $L[] = '    {"week":"Days 16–30","phase":"Tighten","title":"5-word title","points":["the targeting or bidding change, citing their own keyword or their $' . $avg_cpc . ' cost per click","what we stop paying for and what we put that money behind","what they would see change in their own reporting"]},';
+            $L[] = '    {"week":"Days 31–45","phase":"Expand","title":"5-word title","points":["the campaign type or keyword group we add, named","the competitor gap we go after, naming the competitor","what that opens up that is closed today"]},';
+            $L[] = '    {"week":"Days 46–60","phase":"Scale","title":"5-word title","points":["the scale step tied to the goal they stated","where the budget ends up and why","what the account looks like at the end of month two"]}';
             $L[] = '  ]';
             $L[] = '}';
         } else {
@@ -960,21 +948,32 @@ class Six_EstimateEngine {
         $L[] = '  "headline": "Max 15 words, ONE complete idea, naming ' . $biz . '. State what is happening in their search market \u2014 e.g. \'Three competitors are taking the searches your best service should win\'. Do NOT promise leads, do NOT give a lead range, and do NOT bolt two unrelated clauses together with \'while\'.",';
         $L[] = '  "sub": "Max 18 words. State avg CPC $' . $avg_cpc . ' or monthly search volume. Be specific.",';
         $L[] = '  "kpis": [';
-        $L[] = '    {"label": "Est. Leads / Month 1", "value": "'.$leads_lo.'–'.$leads_hi.'"},';
-        $L[] = '    {"label": "Est. Leads / Month 2", "value": "'.$leads_m2_lo.'–'.$leads_m2_hi.'"},';
-        $L[] = '    {"label": "Searches / Month",     "value": "'.( $total_vol ? number_format($total_vol) : $clicks_mo.' est. clicks' ).'"}';
+        if ( $total_vol ) {
+            $L[] = '    {"label": "Searches a month for their terms", "value": "'.number_format($total_vol).'"},';
+        }
+        $L[] = '    {"label": "<a measured fact from the live market intelligence above>", "value": "<its number>"}';
         $L[] = '  ],';
         $L[] = '  "insight": "Max 20 words. Single sharpest insight — cite CPC, volume, or rank gap.",';
         $L[] = '  "insights": [';
         $L[] = '    { "what": "What is happening now (cite a number)", "why": "Why it matters for ' . $biz . '", "action": "One specific next step" }';
         $L[] = '  ],';
         $L[] = '  "roadmap": [';
-        $L[] = '    {"week":"Week 1–2","phase":"Foundation","title":"5-word title","points":["specific setup action","configuration or audit step","expected first outcome with a number"]},';
-        $L[] = '    {"week":"Week 3–4","phase":"Launch","title":"5-word title","points":["go-live action","targeting decision citing their keyword or category","first measurable milestone"]},';
-        $L[] = '    {"week":"Day 30–45","phase":"Optimize","title":"5-word title","points":["data-driven cut or scale decision","what underperforms vs what wins in ' . $ind . '","updated lead or ranking number"]},';
-        $L[] = '    {"week":"Day 46–60","phase":"Scale","title":"5-word title","points":["expansion step specific to their goal","new keyword group or content piece to add","Month 2 lead or traffic projection"]}';
+        $L[] = '    {"week":"Week 1–2","phase":"Foundation","title":"5-word title","points":["the specific thing we fix first and what it unblocks","what we set up so results can be measured at all","what is true at the end of week two"]},';
+        $L[] = '    {"week":"Week 3–4","phase":"Build","title":"5-word title","points":["the work that goes live, naming their own keyword or page","the decision we make and why, in their market","the first change they would be able to see"]},';
+        $L[] = '    {"week":"Day 30–45","phase":"Refine","title":"5-word title","points":["what the first month of data tells us to drop or push","what wins and what does not in ' . $ind . '","which of their search terms moves first and why"]},';
+        $L[] = '    {"week":"Day 46–60","phase":"Extend","title":"5-word title","points":["the next thing we take on once the base is holding","the new terms or pages we add, named","what they should expect to be able to check themselves"]}';
         $L[] = '  ]';
         $L[] = '}';
+        $L[] = '';
+        $L[] = 'The "kpis" array carries ONLY facts measured for this business. Drop any you have';
+        $L[] = 'no real number for — two is fine, one is fine, an empty array is fine. Never a lead';
+        $L[] = 'count, never a revenue figure, and never a number got by multiplying their budget';
+        $L[] = 'by a conversion rate. This page is read by someone who can check it.';
+        $L[] = '';
+        $L[] = 'Each roadmap point is ONE complete sentence of 18-25 words describing a RESULT for';
+        $L[] = 'their business, not a task on our list. No lead counts, no revenue figures, and no';
+        $L[] = 'percentage we have not measured. "Your emergency-callout pages start appearing for';
+        $L[] = 'the terms people type at 2am" beats "we optimize your service pages".';
         }
 
         // Tag the plan output so the UI can render the audit framing + disclaimer
@@ -1038,6 +1037,14 @@ class Six_EstimateEngine {
     // NUMERIC FALLBACK (no API — calculated from inputs)
     // ─────────────────────────────────────────────────────────────────────
 
+    /**
+     * The plan we build when the model is unavailable.
+     *
+     * $cr (the industry conversion rate) is accepted and deliberately unused:
+     * multiplying it by a budget is exactly how this function used to produce
+     * the lead forecast that has been removed. It stays in the signature so
+     * that the next person to reach for it finds this note first.
+     */
     private static function numeric_fallback( $co, array $svcs, array $kw, float $cr ): array {
         $svc_labels = array(
             'google-ads'=>'Google Ads','seo'=>'SEO',
@@ -1050,9 +1057,8 @@ class Six_EstimateEngine {
         if ( $loc === 'their area' ) $loc = 'your area';
         $loc_type   = trim($co->ads_loc_type ?? 'Include');
         $ch   = implode(' + ', array_map(fn($s)=>$svc_labels[$s]??$s, $svcs));
-        $bud  = intval($co->ads_budget??0)+intval($co->seo_budget??0)+intval($co->gbp_budget??0);
         // Clean keywords — strip URLs, take first 3, join nicely
-        $raw_kws = $co->ads_keywords ?: $co->seo_keywords ?: '';
+        $raw_kws = ( $co->ads_keywords ?? '' ) ?: ( $co->seo_keywords ?? '' ) ?: '';
         if ( $raw_kws ) {
             $kw_list = array_filter( array_map( 'trim', explode(',', $raw_kws) ) );
             $kw_list = array_filter( $kw_list, fn($k) => ! preg_match('/https?:\/\//', $k) );
@@ -1074,113 +1080,135 @@ class Six_EstimateEngine {
                     return $m[1] ?? $c;
                 }, array_filter( array_map('trim', explode(',', $raw_comp)) ) );
             }
-            $comp = implode(' and ', array_slice( array_values($comp_list), 0, 2 ) );
+            $comp_shown = array_slice( array_values($comp_list), 0, 2 );
+            $comp = implode(' and ', $comp_shown );
+            // "troutroutes.com and fishingbooker.com is winning" — the verb has
+            // to follow how many names ended up in the string.
+            $comp_is = count($comp_shown) > 1 ? 'are' : 'is';
         } else {
             $comp = 'other ' . $ind . ' businesses in ' . ($loc !== 'your area' ? $loc : 'your market');
+            $comp_is = 'are';
         }
 
-        // Deal value estimate by industry — advisor context only. We do NOT
-        // project revenue or ROI from it anywhere customer-facing, because we
-        // can't guarantee returns.
-        $deal_values = array(
-            'dental'=>800,'dentist'=>800,'orthodont'=>2500,
-            'legal'=>3500,'lawyer'=>3500,'attorney'=>3500,
-            'real estate'=>8000,'realtor'=>8000,'mortgage'=>2200,
-            'plumb'=>650,'hvac'=>1200,'roof'=>7500,'electrician'=>800,
-            'contractor'=>4500,'home service'=>900,'landscap'=>1800,
-            'medical'=>400,'health'=>400,'physio'=>350,'chiro'=>300,
-            'fitness'=>180,'gym'=>120,
-            'restaurant'=>85,'food'=>85,'catering'=>600,
-            'retail'=>250,'ecommerce'=>180,
-            'finance'=>2800,'insurance'=>1400,'accounting'=>2200,
-            'marketing'=>3500,'advertising'=>3500,'agency'=>3500,'digital'=>3000,
-            'seo'=>2500,'web design'=>4000,'web develop'=>4000,'software'=>5000,
-            'it service'=>2800,'tech'=>2500,'saas'=>2000,
-            'automotive'=>1100,'auto'=>900,'mechanic'=>600,
-            'cleaning'=>400,'security'=>2500,
-            'salon'=>150,'spa'=>200,'beauty'=>180,
-            'moving'=>900,'storage'=>600,'logistics'=>1200,
-            'tutor'=>800,'education'=>600,'school'=>1500,
-            'photography'=>1500,'event'=>2000,'wedding'=>3500,
-            'consult'=>4000,'coach'=>1200,'recruit'=>3000,
-        );
-        $deal_value = 1200; // default raised — most B2B services worth more than $500
-        foreach ( $deal_values as $kw_d => $val ) {
-            if ( strpos($ind, $kw_d) !== false ) { $deal_value = $val; break; }
+        // Real monthly search demand where the keyword lookup worked. This is
+        // the only number in the fallback that is measured rather than
+        // assumed, so it is the only one that gets printed.
+        $reach = ! empty($kw['total_vol']) ? (int) $kw['total_vol'] : 0;
+
+        // KPIs carry measured facts or nothing. What used to be here was
+        // "Est. Leads / Month 1" and "Est. Leads / Month 3", computed as
+        // budget ÷ CPC × an industry conversion rate. For an SEO client — who
+        // now sets no budget at all — that bottomed out at its floor values
+        // and printed "1–3 leads/mo", a figure that described no part of their
+        // business. An empty row is honest; an invented one is not.
+        $kpis = array();
+        if ( $reach > 0 ) {
+            $kpis[] = array( 'label' => 'Searches a month for your terms', 'value' => number_format($reach) );
         }
 
-        // Calculate leads from real CPC if available, else use industry avg
-        $avg_cpc    = ! empty($kw['avg_cpc']) ? $kw['avg_cpc'] : self::industry_cpc($ind);
-        $clicks     = $bud > 0 && $avg_cpc > 0 ? floor($bud / $avg_cpc) : floor($bud / 3);
-        $lo         = max(3, round($clicks * ($cr - 0.8) / 100));
-        $hi         = max(6, round($clicks * ($cr + 0.8) / 100));
-        $month3_lo  = round($lo * 1.8);
-        $month3_hi  = round($hi * 2.2);
+        $is_seo  = in_array('seo', $svcs, true);
+        $is_ads  = in_array('google-ads', $svcs, true);
+        $seo_only = $is_seo && ! $is_ads;
 
-        // Third KPI: addressable monthly demand (real search volume where we
-        // have it, else estimated clicks their budget buys). Deliberately a
-        // reach metric, not a revenue/ROI projection — we don't guarantee returns.
-        $reach_str = ! empty($kw['total_vol'])
-            ? number_format( (int) $kw['total_vol'] ) . ' searches'
-            : ( $clicks > 0 ? number_format($clicks) . ' clicks' : 'TBD' );
+        // Two roadmaps, because one of them used to be given to everybody:
+        // an SEO client with no ad spend was reading about bidding strategy,
+        // negative keywords and cost per lead, which reads as the plan having
+        // been written for somebody else.
+        if ( $seo_only ) {
+            $roadmap = array(
+                array(
+                    'week' => 'Week 1–2', 'phase' => 'Foundation',
+                    'title' => 'Find what is holding the site back',
+                    'points' => array(
+                        "We go through {$biz}'s site the way Google reads it, and list what is stopping your pages from showing up for the searches you want.",
+                        "We check where you currently appear for \"{$kws}\" against {$comp}, so the first work goes where the gap is widest.",
+                        "We set up tracking so that from this point on, every change can be measured rather than argued about.",
+                    ),
+                    'outcome' => 'You know exactly where you stand, and so do we',
+                ),
+                array(
+                    'week' => 'Week 3–4', 'phase' => 'Build',
+                    'title' => 'The pages that should be winning',
+                    'points' => array(
+                        "Your most valuable service pages get rewritten around the words your customers actually type, not the words the industry uses internally.",
+                        "The search terms where you already sit on page two get worked on first, because those are the ones that move fastest.",
+                        "We fix the technical problems found in week one, in the order that unblocks the most pages.",
+                    ),
+                    'outcome' => 'Your best pages start competing for the right searches',
+                ),
+                array(
+                    'week' => 'Day 30–45', 'phase' => 'Refine',
+                    'title' => 'Follow what the first month shows',
+                    'points' => array(
+                        "A month of real data tells us which terms are moving and which are not worth the effort, and we shift the work accordingly.",
+                        "We go after the specific searches {$comp} {$comp_is} winning in {$loc} that you should be competing for.",
+                        "You get a plain-language report of what changed, what it means, and what we are doing next.",
+                    ),
+                    'outcome' => 'The work follows the evidence rather than the plan',
+                ),
+                array(
+                    'week' => 'Day 46–60', 'phase' => 'Extend',
+                    'title' => 'Widen what is already working',
+                    'points' => array(
+                        "Once your main service pages are holding their ground, we extend the same approach to the other services and areas you serve.",
+                        "We build the pages and content that cover the questions your customers ask before they are ready to call.",
+                        "You can check any of this yourself in Search Console — we will have set it up and shown you where to look.",
+                    ),
+                    'outcome' => 'More of what you sell is findable, in more of where you sell it',
+                ),
+            );
+        } else {
+            $roadmap = array(
+                array(
+                    'week' => 'Week 1–2', 'phase' => 'Foundation',
+                    'title' => 'Setup and account architecture',
+                    'points' => array(
+                        "We audit your current presence against {$comp} in {$loc} and find where the money is currently going to waste.",
+                        "We build the campaign structure around \"{$kws}\" so your budget reaches the people actually looking to buy.",
+                        "We install conversion and call tracking, so every inquiry can be traced back to what produced it.",
+                    ),
+                    'outcome' => 'Everything live, and every result measurable',
+                ),
+                array(
+                    'week' => 'Week 3–4', 'phase' => 'Launch',
+                    'title' => 'Live, with the first real data',
+                    'points' => array(
+                        "Your campaigns go live in front of the people searching for {$ind} in {$loc}, at the moment they are looking for it.",
+                        "We test the messages and landing pages against each other so the one that actually converts is the one that runs.",
+                        "We watch it daily for the first weeks, because the early signals are where the cheap wins are.",
+                    ),
+                    'outcome' => 'Real inquiries, and real data about where they came from',
+                ),
+                array(
+                    'week' => 'Day 30–45', 'phase' => 'Refine',
+                    'title' => 'Put the money where it works',
+                    'points' => array(
+                        "We find which searches are producing inquiries and which are only producing clicks, and move the budget accordingly.",
+                        "What is not working gets switched off rather than left running quietly in the background.",
+                        "You get a plain-language report of what each inquiry cost and what we are changing next.",
+                    ),
+                    'outcome' => 'The same budget, aimed better',
+                ),
+                array(
+                    'week' => 'Day 46–60', 'phase' => 'Extend',
+                    'title' => 'Widen what is already working',
+                    'points' => array(
+                        "We expand into the search terms and audiences next door to the ones already working in {$loc}.",
+                        $is_seo
+                            ? "Your SEO work starts carrying some of the same searches, so you are not renting all of your visibility."
+                            : "We put your ads back in front of the people who visited and did not get in touch the first time.",
+                        "We plan the next quarter from what actually happened here, not from what we assumed at the start.",
+                    ),
+                    'outcome' => 'A bigger share of the searches you care about',
+                ),
+            );
+        }
 
         return array(
-            // No lead promise and no budget arithmetic. SEO now carries no
-            // customer-set budget at all, so the old line rendered as
-            // "1-3 qualified leads/month ... at your $0/month investment",
-            // which is both meaningless and a promise we do not make.
+            // No lead promise and no budget arithmetic anywhere in this plan.
             'headline' => "Here is what the search demand around {$biz} looks like" . ($loc !== 'your area' && $loc !== 'Canada' ? " in {$loc}" : '') . ", and where it is going instead.",
-            'kpis' => array(
-                array('label'=>'Est. Leads / Month 1', 'value'=>"{$lo}–{$hi}"),
-                array('label'=>'Est. Leads / Month 3', 'value'=>"{$month3_lo}–{$month3_hi}"),
-                array('label'=>'Searches / Month',      'value'=> $reach_str),
-            ),
-            'roadmap' => array(
-                array(
-                    'week'   => 'Week 1–2',
-                    'phase'  => 'Foundation',
-                    'title'  => 'Audit, setup, and campaign architecture',
-                    'points' => array(
-                        "Audit your current digital presence against {$comp} in {$loc}",
-                        "Build campaign structure for \"{$kws}\" — ad groups, bidding strategy, negative keywords",
-                        "Install conversion tracking, call tracking, and goal attribution",
-                    ),
-                    'outcome' => 'All accounts live and tracking',
-                ),
-                array(
-                    'week'   => 'Week 3–4',
-                    'phase'  => 'Launch',
-                    'title'  => 'Campaigns go live — first data in',
-                    'points' => array(
-                        "Launch {$ch} targeting {$ind} buyers in {$loc}",
-                        "Run A/B tests on headlines and landing page CTAs to maximize conversion rate",
-                        "Daily monitoring — adjust bids and targeting based on early signals",
-                    ),
-                    'outcome' => "First {$lo}–" . round($hi*0.6) . " leads within 30 days",
-                ),
-                array(
-                    'week'   => 'Month 2',
-                    'phase'  => 'Optimize',
-                    'title'  => 'Data-driven refinement',
-                    'points' => array(
-                        "Identify top-converting keywords and audiences — double down on winners",
-                        "Cut spend on underperformers and reallocate to best-performing placements",
-                        "Deliver performance report with cost per lead and recommendations",
-                    ),
-                    'outcome' => 'Lower cost per lead, higher lead quality',
-                ),
-                array(
-                    'week'   => 'Month 3',
-                    'phase'  => 'Scale',
-                    'title'  => 'Scale winning campaigns',
-                    'points' => array(
-                        "Expand to new keyword clusters and audience segments in {$loc}",
-                        in_array('seo',$svcs) ? "SEO rankings begin improving — organic traffic starts supplementing paid" : "Layer retargeting campaigns to re-engage website visitors",
-                        "Forecast months 4–6 with real performance data as baseline",
-                    ),
-                    'outcome' => "Consistent {$month3_lo}–{$month3_hi} qualified leads/month",
-                ),
-            ),
+            'kpis'    => $kpis,
+            'roadmap' => $roadmap,
         );
     }
 
