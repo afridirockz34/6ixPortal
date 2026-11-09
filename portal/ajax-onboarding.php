@@ -75,6 +75,10 @@ function six_get_onboarding_state() {
     wp_send_json_success( array(
         'step'      => intval( $row->step ?? 1 ),
         'platforms' => $row->platforms ?? '',
+        // The plan generated earlier, so resuming on step 4 can render it
+        // instead of sitting on a spinner. Without this, coming back to that
+        // step had nothing to show and nothing to re-run.
+        'ai_plan'   => (string) ( $row->ai_plan_json ?? '' ),
         'q' => array(
             // Personal
             'first'       => $row->first_name         ?? '',

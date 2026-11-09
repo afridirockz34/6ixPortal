@@ -431,9 +431,18 @@ class Six_MCP_Server {
 				}
 				$snap = Six_Performance::capture( $client_id, 'api' );
 				if ( ! $snap ) {
+					// capture() returns null both when there is nothing to
+					// measure and when the write failed. Distinguish them, so
+					// a storage fault is never reported as "this client has no
+					// services" — a wrong answer that sends the caller to the
+					// wrong place entirely.
+					$ctx   = Six_Performance::context( $client_id );
+					$no_svc = empty( $ctx['slugs'] );
 					return self::result( $id, self::tool_result( array(
-						'error'   => 'nothing_to_capture',
-						'message' => 'This client has no active services, so there is nothing to measure yet.',
+						'error'   => $no_svc ? 'nothing_to_capture' : 'capture_failed',
+						'message' => $no_svc
+							? 'This client has no active services, so there is nothing to measure yet.'
+							: 'The snapshot could not be stored, so nothing was captured. The performance store may not exist on this site yet — an administrator can create it from WP Admin → 6ix Portal → Integrations, or by loading any admin page once after the latest deploy.',
 					), true ) );
 				}
 				return self::result( $id, self::tool_result( array(
@@ -456,6 +465,15 @@ class Six_MCP_Server {
 					), true ) );
 				}
 				$res = Six_Performance::save_projections( $client_id, $rows, (int) ( $args['artifact_id'] ?? 0 ) );
+				// A storage error is reported as its own message rather than
+				// being folded into "0 saved", which reads as "your rows were
+				// all rejected" and sends the caller looking at their data.
+				if ( ! empty( $res['error'] ) ) {
+					return self::result( $id, self::tool_result( array(
+						'error'   => 'storage_unavailable',
+						'message' => $res['error'],
+					), true ) );
+				}
 				return self::result( $id, self::tool_result( array(
 					'saved'    => $res['saved'],
 					'rejected' => $res['rejected'],

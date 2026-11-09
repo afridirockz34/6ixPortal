@@ -1426,6 +1426,9 @@ window.OB={
           S.q.gads_notworking=ga.not_working||'';S.q.gads_challenge=ga.challenge||'';
         }catch(e){}
       }
+      // The plan generated on an earlier visit, so step 4 can render rather
+      // than regenerate (or worse, sit on a spinner forever).
+      if(d.ai_plan){ S._aiPlanJson=d.ai_plan; }
       var dbStep=Math.max(1,parseInt(d.step)||1);
       done(Math.max(fallbackStep||1, dbStep));
     } else {
@@ -1888,8 +1891,36 @@ window.OB={
     });
   },
 
+  /**
+   * Make sure step 4 is showing something.
+   *
+   * buildAIPlan() only ever ran from the step-3 button, so arriving at step 4
+   * any other way — a refresh, or logging back in to a saved step of 4 — showed
+   * the loading spinner with nothing driving it. It span forever, and because
+   * the saved step stayed at 4, every subsequent login landed back on it. That
+   * is a locked account, not a cosmetic bug.
+   *
+   * Three outcomes, in order of preference: results already on screen (do
+   * nothing), a plan saved from last time (render it straight away), or no
+   * plan at all (generate one now).
+   */
+  _ensurePlanShown:function(){
+    var res=$i('ob-s4-results'), load=$i('ob-s4-loading');
+    if(res && res.style.display==='block') return;   // already rendered
+
+    if(S._aiPlanJson){
+      try{
+        var cached=JSON.parse(S._aiPlanJson);
+        if(cached && cached.headline){ OB.renderAIPlan(cached); return; }
+      }catch(e){}
+    }
+    if(OB.__planRunning) return;
+    OB.buildAIPlan();
+  },
+
   /* AI-powered growth plan — replaces score ring */
   buildAIPlan: async function(){
+    OB.__planRunning=true;
     var q=S.q, svcs=S.svcs;
     var tot=OB._monthlyTotal();
     S.score=Math.min(97,20+(svcs.length*10)+(tot>=5000?15:tot>=2000?10:tot>0?5:0)+(q.website?8:0)+(q.industry?5:0));
@@ -1971,8 +2002,22 @@ window.OB={
     }
 
     clearInterval(msgTimer);
+    OB.__planRunning=false;
     S._aiPlanJson=JSON.stringify(plan);
-    post({action:'six_save_checkout_step',step:'1b',score:S.score,user_id:S.userId});
+    post({action:'six_save_checkout_step',step:'1b',score:S.score,user_id:S.userId,ai_plan_json:S._aiPlanJson});
+    OB.renderAIPlan(plan);
+  },
+
+  /**
+   * Draw a plan that already exists.
+   *
+   * Split out of buildAIPlan() so that returning to step 4 — on a refresh or a
+   * later login — renders the plan we already generated instead of spinning
+   * forever or paying to generate it again.
+   */
+  renderAIPlan: function(plan){
+    var q=S.q, svcs=S.svcs;
+    var tot=OB._monthlyTotal();
 
     var kpis=plan.kpis||[];
     var roadmap=plan.roadmap||[];
@@ -2265,6 +2310,7 @@ window.OB={
     if(typeof GE!=='undefined')GE.onStep(n);
     if(n===5)OB._initStep5();   // advisor card + call-time chips (also on resume)
     if(n===1)OB._syncPasswordField();   // never ask for a password we already have
+    if(n===4)OB._ensurePlanShown();     // never leave the spinner with nothing driving it
 
     // ── Restore field values when navigating back ─────────────────────────
     var q=S.q;

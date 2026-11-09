@@ -410,6 +410,53 @@ function six_create_tables() {
 }
 
 /**
+ * The schema version. Bump this whenever a table is added or changed in
+ * six_create_tables(), and the next page load creates it.
+ */
+const SIX_DB_VERSION = '2026.11.09.1';
+
+/**
+ * Run six_create_tables() when the code's schema version moves ahead of what
+ * this site has already built.
+ *
+ * Until now that function was only reachable from two buttons on the admin
+ * Integrations page, so any table added after someone last clicked one simply
+ * did not exist. Three did not: six_client_artifacts, six_performance_snapshots
+ * and six_strategy_projections — meaning every audit report, snapshot and
+ * strategy target written through the API vanished, while the API reported
+ * success. A deploy must not depend on anyone remembering to press a button.
+ *
+ * Cost on a normal request is a single get_option(), and the statements are
+ * all CREATE TABLE IF NOT EXISTS / dbDelta, so running again is harmless.
+ */
+function six_maybe_upgrade_db() {
+    if ( get_option( 'six_db_version' ) === SIX_DB_VERSION ) return;
+    if ( ! function_exists( 'six_create_tables' ) ) return;
+
+    six_create_tables();
+    update_option( 'six_db_version', SIX_DB_VERSION, true );
+    error_log( '6ix: database schema brought up to ' . SIX_DB_VERSION );
+}
+// Both hooks: admin_init covers an admin visiting any page, and init covers a
+// site whose admin is rarely opened but whose REST API is being written to.
+add_action( 'admin_init', 'six_maybe_upgrade_db' );
+add_action( 'init',       'six_maybe_upgrade_db', 1 );
+
+/**
+ * Does a table this code expects actually exist?
+ *
+ * Callers use this to fail loudly rather than write into nothing. Results are
+ * cached per request because SHOW TABLES on every write would be wasteful.
+ */
+function six_table_exists( $table ) {
+    global $wpdb;
+    static $seen = array();
+    if ( isset( $seen[ $table ] ) ) return $seen[ $table ];
+    $seen[ $table ] = ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) === $table );
+    return $seen[ $table ];
+}
+
+/**
  * Upgrade an existing six_assignments table to the multi-advisor schema.
  * dbDelta() can add the new `service_role` column reliably, but it will not
  * reliably swap an existing UNIQUE KEY's column list — the old installs have

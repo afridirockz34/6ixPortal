@@ -103,14 +103,31 @@ class Six_Performance {
 			'metrics'     => wp_json_encode( array( 'values' => $raw['values'], 'sources' => $raw['sources'] ) ),
 		);
 
-		$tbl      = self::snapshots_table();
+		$tbl = self::snapshots_table();
+
+		// Never report a capture that did not happen. This returned $row
+		// regardless of whether the write landed, so a missing table produced
+		// a perfectly convincing snapshot object while check_performance went
+		// on saying "no snapshots" — the two disagreeing with no way to tell
+		// which was lying.
+		if ( ! function_exists( 'six_table_exists' ) || ! six_table_exists( $tbl ) ) {
+			if ( function_exists( 'six_create_tables' ) ) six_create_tables();
+		}
+		if ( function_exists( 'six_table_exists' ) && ! six_table_exists( $tbl ) ) {
+			error_log( '6ix Performance: snapshot table missing, nothing captured for client ' . $client_id );
+			return null;
+		}
+
 		$existing = $wpdb->get_var( $wpdb->prepare(
 			"SELECT id FROM {$tbl} WHERE client_id=%d AND period_key=%s", $client_id, $period
 		) );
-		if ( $existing ) {
-			$wpdb->update( $tbl, $row, array( 'id' => (int) $existing ) );
-		} else {
-			$wpdb->insert( $tbl, $row );
+		$ok = $existing
+			? $wpdb->update( $tbl, $row, array( 'id' => (int) $existing ) )
+			: $wpdb->insert( $tbl, $row );
+
+		if ( $ok === false ) {
+			error_log( '6ix Performance: snapshot write failed for client ' . $client_id . ': ' . $wpdb->last_error );
+			return null;
 		}
 
 		$row['metrics'] = $raw;
@@ -167,6 +184,19 @@ class Six_Performance {
 		$client_id = (int) $client_id;
 		$tbl = self::projections_table();
 		$saved = 0; $rejected = array();
+
+		// Same reasoning as capture(): a missing table must not look like a
+		// successful save of every row.
+		if ( ! function_exists( 'six_table_exists' ) || ! six_table_exists( $tbl ) ) {
+			if ( function_exists( 'six_create_tables' ) ) six_create_tables();
+		}
+		if ( function_exists( 'six_table_exists' ) && ! six_table_exists( $tbl ) ) {
+			return array(
+				'saved'    => 0,
+				'rejected' => $rows,
+				'error'    => 'The projections store does not exist on this site, so no targets were saved. An administrator can create it from WP Admin → 6ix Portal → Integrations, or by loading any admin page once after the latest deploy.',
+			);
+		}
 
 		foreach ( $rows as $r ) {
 			$metric = sanitize_key( $r['metric_key'] ?? '' );

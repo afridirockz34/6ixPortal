@@ -506,14 +506,42 @@ class Six_Profile_API {
 		$type = sanitize_key( $body['type'] ?? '' );
 		if ( $type === '' ) return new WP_Error( 'six_bad_request', 'An artifact "type" is required.', array( 'status' => 400 ) );
 
+		$table = self::artifacts_table();
+
+		// Fail loudly when the table is not there.
+		//
+		// This used to insert and return insert_id without checking, so a
+		// missing table produced {"id":0} with a 200 — a success shape for a
+		// write that did not happen. A caller then has no way to tell storage
+		// from silence, and the obvious wrong conclusion ("my token must be
+		// read-only") is exactly the one that got drawn.
+		if ( ! function_exists( 'six_table_exists' ) || ! six_table_exists( $table ) ) {
+			if ( function_exists( 'six_create_tables' ) ) six_create_tables();   // self-heal, then re-check
+		}
+		if ( function_exists( 'six_table_exists' ) && ! six_table_exists( $table ) ) {
+			return new WP_Error(
+				'six_storage_missing',
+				'The artifact store does not exist on this site, so nothing was saved. An administrator can create it from WP Admin → 6ix Portal → Integrations, or by loading any admin page once after the latest deploy.',
+				array( 'status' => 500 )
+			);
+		}
+
 		$token = self::resolve_token( $request );
-		$wpdb->insert( self::artifacts_table(), array(
+		$ok = $wpdb->insert( $table, array(
 			'client_id'  => $id,
 			'type'       => $type,
 			'source'     => sanitize_text_field( $body['source'] ?? ( $token['label'] ?? 'api' ) ),
 			'payload'    => wp_json_encode( $body['payload'] ?? array() ),
 			'created_at' => current_time( 'mysql' ),
 		) );
+
+		if ( $ok === false || ! $wpdb->insert_id ) {
+			return new WP_Error(
+				'six_storage_failed',
+				'The database rejected the write, so nothing was saved' . ( $wpdb->last_error ? ': ' . $wpdb->last_error : '.' ),
+				array( 'status' => 500 )
+			);
+		}
 
 		return rest_ensure_response( array( 'id' => (int) $wpdb->insert_id, 'type' => $type ) );
 	}
