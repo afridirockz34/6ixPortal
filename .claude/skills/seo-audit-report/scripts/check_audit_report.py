@@ -20,6 +20,7 @@ Exit code 1 only on the hard-fail case (unresolved placeholders). Everything
 else prints as REVIEW — a human reads those, the script doesn't block on them.
 """
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -44,6 +45,11 @@ STRUCTURAL_HEADING_HINTS = (
     "next step",
     "call to action",
     "competitor callout",
+    # Structural sections the rendered report adds. They present measurements
+    # rather than a graded weakness, so a missing severity is correct there.
+    "website speed",
+    "where the traffic is going",
+    "executive summary",
 )
 
 CTA_HEADING_HINTS = (
@@ -64,7 +70,123 @@ FULL_FIX_SIGNALS = [
 ]
 FULL_FIX_TEASER_SENTENCE_LIMIT = 2  # a teaser should be ~1 sentence, allow a little slack
 
-HEALTH_SCORE_PATTERN = re.compile(r"\bseo health score\b[^\d]{0,20}(\d{1,3})\s*/\s*100", re.IGNORECASE)
+# Matches both the written form ("SEO Health Score: 41/100") and the one the
+# rendered report produces, where the number lives in the gauge's accessible
+# name ("SEO Health Score: 41 out of 100").
+HEALTH_SCORE_PATTERN = re.compile(
+    r"\bseo health score\b[^\d]{0,20}(\d{1,3})\s*(?:/|out of)\s*100", re.IGNORECASE)
+
+# ── Canadian English ──────────────────────────────────────────────────────
+# Canadian spelling is its own thing, not a halfway house: -ize and -ization
+# like the US, -our and -re like the UK, and "inquiry" rather than "enquiry".
+# Only unambiguous cases are listed. A word whose -ise spelling is correct in
+# every variety (advertise, exercise, franchise, surprise) is NOT an -ize word
+# and is deliberately absent; flagging those would train the reader to ignore
+# this check.
+_IZE_STEMS = (
+    "optim", "special", "organ", "priorit", "real", "recogn", "maxim", "minim",
+    "util", "summar", "categor", "custom", "monet", "personal", "local",
+    "capital", "emphas", "author", "legitim", "modern", "standard", "visual",
+    "apolog", "critic", "analy", "central", "normal", "social", "formal",
+)
+_IZE_SUFFIXES = ("ise", "ises", "ised", "ising", "isation", "isations")
+
+CANADIAN_FIXES = {}
+for _stem in _IZE_STEMS:
+    for _suf in _IZE_SUFFIXES:
+        CANADIAN_FIXES[_stem + _suf] = _stem + _suf.replace("is", "iz", 1)
+CANADIAN_FIXES.update({
+    # "Enquiry" is the one the client called out by name.
+    "enquiry": "inquiry", "enquiries": "inquiries", "enquire": "inquire",
+    "enquired": "inquired", "enquiring": "inquiring",
+    # American -or where Canadian keeps -our. Only words that are unambiguous;
+    # "doctor", "author", "editor" and the rest of the -or family are correct.
+    "color": "colour", "colors": "colours", "colored": "coloured", "coloring": "colouring",
+    "behavior": "behaviour", "behaviors": "behaviours", "behavioral": "behavioural",
+    "favorite": "favourite", "favorites": "favourites", "favor": "favour", "favors": "favours",
+    "honor": "honour", "labor": "labour", "neighbor": "neighbour", "neighbors": "neighbours",
+    "humor": "humour", "rumor": "rumour", "flavor": "flavour", "endeavor": "endeavour",
+    "harbor": "harbour", "vapor": "vapour", "armor": "armour", "odor": "odour",
+    "savior": "saviour", "splendor": "splendour", "valor": "valour",
+    # American -er where Canadian keeps -re. "meter" is excluded on purpose: a
+    # water meter and a parking meter are both spelled that way here.
+    "center": "centre", "centers": "centres", "centered": "centred", "centering": "centring",
+    "theater": "theatre", "theaters": "theatres",
+    # Miscellaneous
+    "defense": "defence", "offense": "offence", "pretense": "pretence",
+    "catalog": "catalogue", "catalogs": "catalogues",
+    "traveled": "travelled", "traveling": "travelling", "traveler": "traveller",
+    "canceled": "cancelled", "canceling": "cancelling",
+    "fulfill": "fulfil", "enrollment": "enrolment", "installment": "instalment",
+    "judgement": "judgment",
+})
+
+_CANADIAN_PATTERN = re.compile(
+    r"\b(" + "|".join(sorted(CANADIAN_FIXES, key=len, reverse=True)) + r")\b",
+    re.IGNORECASE,
+)
+
+
+def find_spelling_slips(text: str):
+    """Words in the report that are not the Canadian spelling, with the fix."""
+    seen = {}
+    for m in _CANADIAN_PATTERN.finditer(text):
+        found = m.group(1)
+        want = CANADIAN_FIXES[found.lower()]
+        if found[:1].isupper():
+            want = want[:1].upper() + want[1:]
+        seen.setdefault(found, want)
+    return sorted(seen.items())
+
+
+def strip_markup(text: str) -> str:
+    """
+    HTML to the words a reader actually sees.
+
+    Headings become Markdown headings first, so the section checks work on a
+    rendered report exactly as they do on a draft — otherwise stripping the
+    tags takes the structure with it and every section check silently passes.
+    An SVG title/aria-label is kept too: in the rendered report the health
+    score lives in the gauge's accessible name, not in the prose.
+    """
+    text = re.sub(r"(?is)<(script|style)[^>]*>.*?</\1>", " ", text)
+    text = re.sub(r"(?s)<!--.*?-->", " ", text)
+    text = re.sub(r'(?is)<[^>]+aria-label="([^"]+)"[^>]*>', r" \1 ", text)
+    for level in (1, 2, 3):
+        text = re.sub(rf"(?is)<h{level}[^>]*>(.*?)</h{level}>",
+                      lambda m, l=level: "\n" + "#" * l + " " + m.group(1) + "\n", text)
+    text = re.sub(r"(?s)<[^>]+>", " ", text)
+    text = re.sub(r"&amp;", "&", text)
+    text = re.sub(r"&(?:nbsp|#160);", " ", text)
+    text = re.sub(r"&(?:mdash|#8212);", "—", text)
+    # Collapse runs of spaces but keep the newlines the headings just gained.
+    text = re.sub(r"[ \t]+", " ", text)
+    return re.sub(r"\n{2,}", "\n", text)
+
+
+def sections_from_audit(data):
+    """
+    The same (heading, level, body) shape, read out of an audit JSON file.
+
+    Checking the source rather than the rendered page is more precise: a
+    missing severity is a missing field, not a word the regex failed to find.
+    """
+    out = []
+    summary = data.get("summary") or []
+    if isinstance(summary, str):
+        summary = [summary]
+    out.append(("Executive summary", 2, " ".join(str(s) for s in summary)))
+    for row in data.get("scorecard") or []:
+        out.append((f"Scorecard: {row.get('category', '')}", 2,
+                    f"{row.get('status', '')} {row.get('verdict', '')}"))
+    for sec in data.get("sections") or []:
+        body = " ".join(str(sec.get(k, "")) for k in ("severity", "finding", "why", "teaser"))
+        out.append((str(sec.get("title", "")), 2, body))
+    closing = data.get("closing") or {}
+    if closing:
+        out.append((str(closing.get("heading") or "Closing"), 2,
+                    " ".join(str(closing.get(k, "")) for k in ("body", "service", "next_step"))))
+    return out
 
 
 def find_placeholders(text: str):
@@ -160,7 +282,7 @@ def find_full_fix_sections(sections):
 
 def main():
     if len(sys.argv) != 2:
-        print("Usage: python check_audit_report.py <report_file.md>")
+        print("Usage: python check_audit_report.py <report.json | report.html | report.md>")
         sys.exit(1)
 
     path = Path(sys.argv[1])
@@ -168,8 +290,29 @@ def main():
         print(f"File not found: {path}")
         sys.exit(1)
 
-    text = path.read_text(encoding="utf-8", errors="replace")
-    sections = split_sections(text)
+    raw = path.read_text(encoding="utf-8", errors="replace")
+    suffix = path.suffix.lower()
+
+    # The audit JSON is the source the report is rendered from, so checking it
+    # catches a missing severity as a missing field rather than as a word a
+    # regex failed to find. HTML and Markdown are still accepted, because a
+    # report can be reviewed after it has been rendered.
+    if suffix == ".json":
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            print(f"FAIL — {path} is not valid JSON: {exc}")
+            sys.exit(1)
+        sections = sections_from_audit(data)
+        text = "\n".join(f"## {h}\n{body}" for h, _lvl, body in sections)
+        if data.get("health", {}).get("score") is not None:
+            text += f"\nSEO Health Score: {data['health']['score']}/100\n"
+    elif suffix in (".html", ".htm"):
+        text = strip_markup(raw)
+        sections = split_sections(text)
+    else:
+        text = raw
+        sections = split_sections(text)
 
     hard_fail = False
 
@@ -201,6 +344,13 @@ def main():
             print(f"  ## {h}  —  {why}")
         print()
 
+    slips = find_spelling_slips(text)
+    if slips:
+        print("REVIEW — spellings that are not Canadian English:")
+        for found, want in slips:
+            print(f"  {found} → {want}")
+        print()
+
     score_present = has_health_score(text, sections)
     if not score_present:
         print("REVIEW — no 'SEO Health Score: XX/100' found (expected near the top of the")
@@ -211,12 +361,14 @@ def main():
         not placeholders
         and not missing_severity
         and not full_fix
+        and not slips
         and has_cta_section(sections)
         and score_present
     ):
         print("PASS — no unresolved placeholders, every weakness section has a severity")
         print("  rating, a closing/CTA section is present, an SEO Health Score is reported,")
-        print("  and no section reads like a full fix instead of a teaser.")
+        print("  the spelling is Canadian, and no section reads like a full fix instead of")
+        print("  a teaser.")
 
     sys.exit(1 if hard_fail else 0)
 

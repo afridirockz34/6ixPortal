@@ -1,30 +1,195 @@
 # Report Template and the "Show the Wound, Not the Stitches" Pattern
 
+## How the report is produced
+
+The audit is written as a **JSON file of findings**, and `scripts/render_report.py`
+turns it into one self-contained `.html` file:
+
+```bash
+python scripts/render_report.py audit.json -o northside-audit.html
+```
+
+That file opens in any browser, survives being emailed, and prints to PDF with
+Ctrl+P. There is nothing to install and no images to lose.
+
+**Write the JSON, not the HTML.** The numbers are the product, and hand-written
+SVG drifts: an arc 3% short, a y-axis that starts somewhere other than zero, a
+bar encoding the wrong field. Each of those misstates a measurement to a client
+who can check it. In the JSON the facts are stated once and the geometry is
+computed from them.
+
+`assets/example-audit.json` is a complete worked example — read it alongside
+this file.
+
+## The JSON contract
+
+Only `client` is required. **Every other key is optional, and an absent key
+means an absent section.** That is the point: an audit that could not measure
+page speed omits `speed`, and no speed section appears. Never fill a key with a
+plausible figure to make the report look complete.
+
+| Key | What it renders | Notes |
+|---|---|---|
+| `client` | Cover: name, domain, market, date, prepared_by | Required |
+| `health` | The arc gauge and the lead score | `score` 0-100, `note` for which categories fed it |
+| `summary` | Executive summary prose | A list of paragraphs |
+| `headlines` | The stat tiles under the summary | `value`, `label`, `note`, `direction` (`up`/`down`), `good` (bool) |
+| `scorecard` | One meter row per category | `category`, `score` (or `null` if not checked), `weight`, `status`, `verdict` |
+| `competitors` | The client-vs-competitors line chart | See below |
+| `speed` | The website speed section | See below |
+| `sections` | One block per weakness finding | `title`, `severity`, `finding`, `why`, `teaser` |
+| `closing` | The closing block | `heading`, `body`, `service`, `next_step` |
+
+### `competitors`
+
+```json
+{ "metric": "Estimated monthly organic visits",
+  "source": "Ahrefs, Canada — estimated visits from the keywords Ahrefs tracks, not analytics",
+  "lede": "The same twelve months, the same market, the same searches.",
+  "labels": ["Nov","Dec","…"],
+  "series": [ {"name":"theirsite.ca","you":true,"values":[…]},
+              {"name":"competitor.ca","values":[…]} ],
+  "verdict": "One sentence on what the shape of it means." }
+```
+
+- **The client's series carries `"you": true`.** It is drawn heavier and labelled
+  as theirs.
+- **At most four series are plotted** — the client plus the three largest
+  competitors. A fifth cannot be told from a fourth by colour; the renderer drops
+  the tail and says so under the chart. Pick the three that make the point.
+- `values` may contain `null` for a month with no data. A gap stays a gap; it is
+  never interpolated.
+- **`source` is not optional in practice.** The chart's whole value is that the
+  client can check it, and "estimated visits from the keywords Ahrefs tracks" is
+  not the same claim as "visits", which is the distinction the report lives or
+  dies on.
+
+### `speed`
+
+Produced by `scripts/fetch_speed.py`, which measures the page with Google
+PageSpeed Insights and emits this object ready to paste in:
+
+```bash
+python scripts/fetch_speed.py https://theirsite.ca --key $PAGESPEED_API_KEY -o speed.json
+```
+
+PageSpeed on purpose, rather than timing the page ourselves: pagespeed.web.dev
+is where a client will go to check, and a number of ours that disagrees with
+the number they get there is worse than no number, however defensible our own
+measurement was.
+
+An **API key is required in practice** — the anonymous quota is shared across
+the internet and is normally exhausted, so a keyless run returns HTTP 429. Keys
+are free (Google Cloud Console → APIs & Services → Credentials → API key, then
+enable the PageSpeed Insights API). The portal keeps one under
+**6ix Portal → Integrations → Google PageSpeed Insights**.
+
+**Bounce rate is only ever shown when we actually have it.** It lives in the
+client's own Google Analytics, so for a prospect we have no access to it. The
+fetcher fills `bounce_rate_unavailable` with a line saying so and naming it as
+one of the answers that would sharpen the audit — which is a stronger close
+than a fabricated percentage. Where GA4 *is* connected (an existing client), set
+`bounce_rate` to `{"value": "62%", "source": "Google Analytics, last 28 days"}`
+and the tile appears.
+
 ## Structure
 
-1. **Cover / header** — client name, domain, audit date, prepared-by line. This is a sales document representing the agency; it should look like one.
-2. **Executive summary** (3-5 sentences). Open with the line "SEO Health Score: XX/100" (see `audit-methodology.md`'s scoring section) before anything else — it's the single most persuasive, most skimmable number in the whole report. Then lead with the single biggest finding, not a generic opener. State plainly, in business terms, what it's costing them (lost visibility, lost leads, lost ground to a named competitor) — save the detailed numbers for the sections below.
-3. **Scorecard** — one table, one row per category from `audit-methodology.md`: category, status (Critical/High/Medium/Low/Healthy), one-line verdict, and that category's own 0-100 sub-score (the input to the overall Health Score). This is the part a skimming reader actually reads in full; make every verdict line stand on its own. If a category wasn't run (and its weight was redistributed per `audit-methodology.md`), say so in that row rather than leaving it blank.
-4. **One section per category with a real finding** (skip or compress to a single "healthy" line for categories with nothing significant). Each section: the finding (specific, numbers-backed), why it matters in plain business terms, severity, and a one-sentence teaser of what addressing it involves. See the pattern below for exactly how much to say in that last part.
-5. **Competitor callout** — at least one named real competitor, with a specific gap, pulled from the competitor-gap category. This is usually the most persuasive single section; don't bury it.
-6. **Closing / what we'd do about it** — names the service (not a generic "contact us for SEO help") that addresses the findings above, and a clear, specific next step (a call, a proposal, a scoped engagement). This is the only place the report should explicitly pitch.
+1. **Cover** — client name, domain, market, audit date, prepared-by line. This is
+   a sales document representing the agency; it should look like one.
+2. **Executive summary** — the arc gauge carries "SEO Health Score: XX/100" (see
+   `audit-methodology.md`'s scoring section) beside 3-5 sentences. Lead with the
+   single biggest finding, not a generic opener. State plainly, in business
+   terms, what it is costing them; save the detailed numbers for the sections.
+3. **Headline stat tiles** — two to four numbers a skimming reader takes away.
+   One of them should be something they can be pleased about if the data
+   supports it; a wall of red reads as a sales trick.
+4. **Scorecard** — one meter row per category from `audit-methodology.md`, each
+   with its 0-100 sub-score, its weight, and a one-line verdict that stands on
+   its own. A category that was not run has `"score": null` and says so, rather
+   than scoring zero.
+5. **The competitor chart** — usually the most persuasive thing in the report.
+   Do not bury it.
+6. **Website speed** — what the site does when somebody opens it.
+7. **One section per weakness** with a real finding. Finding, why it matters in
+   business terms, severity, and a one-sentence teaser of what addressing it
+   involves.
+8. **Closing** — names the service that addresses the findings (not a generic
+   "contact us for SEO help") and a clear, specific next step. The only place
+   the report explicitly pitches.
+
+## Which visual, and when
+
+The forms below are chosen, not decorative. Swapping one for another usually
+makes the report worse in a specific way.
+
+| The data is | Use | Not |
+|---|---|---|
+| The one score the report leads with | the `health` arc gauge | a bar |
+| A headline number ("down 68%", "4 of 87") | a `headlines` stat tile | a one-bar chart |
+| Several categories, each scored out of 100 | the `scorecard` meter rows | a gauge per category — four dials take four readings where one aligned column takes one |
+| The client against named competitors over time | the `competitors` line chart | a bar chart per month, or a dual axis |
+| Page-speed metrics, each against its own threshold | `speed.metrics` meter rows | a pie, or a dial per metric |
+
+Two rules the renderer enforces and the audit must not fight:
+
+- **The y-axis starts at zero.** The gap between the client and a competitor is
+  the real gap, not a cropped one. A chart that starts at 4,000 to make a
+  difference look bigger is the kind of thing that loses the account when
+  somebody notices.
+- **Every series is direct-labelled and the figures ship as a table under the
+  chart.** Two of the four series colours sit below 3:1 contrast on white; that
+  is permitted only because nothing in the chart is readable by colour alone.
 
 ## The pattern: show the wound, not the stitches
 
-Every weakness-category section follows the same shape. The finding and the "why it matters" half are written with full rigor and specificity — that's what makes the report credible. The "what we'd do" half is one sentence, names the category of fix, and stops. It never becomes a how-to.
+Every weakness section follows the same shape. `finding` and `why` are written
+with full rigour and specificity — that is what makes the report credible.
+`teaser` is one sentence, names the category of fix, and stops. It never becomes
+a how-to.
 
 **Good — specific finding, one-line teaser:**
 
 > **Broken backlinks (High)**
-> 47 referring domains — 12 of them DR 40+ — currently link to pages on this domain that return a 404. That's authority the site has already earned and is actively losing because nothing is catching it. A targeted redirect-mapping pass (part of the technical SEO engagement) recovers this without waiting for new links to replace it.
+> 47 referring domains — 12 of them DR 40+ — currently link to pages on this
+> domain that return a 404. That is authority the site has already earned and is
+> actively losing because nothing is catching it. A targeted redirect-mapping
+> pass (part of the technical SEO engagement) recovers this without waiting for
+> new links to replace it.
 
 **Bad — same finding, written as a free how-to (never do this):**
 
 > **Broken backlinks (High)**
-> 47 referring domains link to 404 pages. To fix this: export the full backlink list from Site Explorer, cross-reference each target URL against current site structure, build a 301 redirect map prioritizing the highest-DR referring domains first, implement via .htaccess or the CMS's redirect manager, then re-crawl in Site Audit to confirm the chain is resolved and monitor Search Console for a pickup in referring-domain-attributed impressions over the following 4-6 weeks.
+> 47 referring domains link to 404 pages. To fix this: export the full backlink
+> list from Site Explorer, cross-reference each target URL against current site
+> structure, build a 301 redirect map prioritizing the highest-DR referring
+> domains first, implement via .htaccess or the CMS's redirect manager, then
+> re-crawl in Site Audit to confirm the chain is resolved and monitor Search
+> Console for a pickup in referring-domain-attributed impressions over the
+> following 4-6 weeks.
 
-The bad version isn't wrong — it's just a free deliverable instead of a reason to hire someone. The line to watch for while writing: if a section is explaining *how* to do something rather than *what's wrong and that it's fixable*, it crossed from the pitch into the service.
+The bad version is not wrong — it is a free deliverable instead of a reason to
+hire someone. The line to watch while writing: if a section is explaining *how*
+to do something rather than *what is wrong and that it is fixable*, it crossed
+from the pitch into the service.
+
+## Canadian English
+
+The report is written in Canadian English, which is its own thing rather than a
+halfway house between the other two:
+
+- **-ize and -ization**, like the US: optimize, specialize, prioritize,
+  organization. Not optimise.
+- **-our and -re**, like the UK: colour, behaviour, favour, centre, theatre.
+- **"inquiry", never "enquiry."**
+- **licence** (the noun), **defence**, **catalogue**, **travelled**, **cancelled**.
+
+`scripts/check_audit_report.py` flags anything that slips. Run it on the audit
+JSON before rendering — that is where the prose actually lives.
 
 ## A note on tone
 
-Specific and evidence-backed does not mean alarmist. A report that oversells every finding as catastrophic reads as a sales trick, not an audit, and undermines the credible findings along with the weak ones. Calibrate severity honestly using the rubric in `audit-methodology.md` — a Medium finding stated plainly is more persuasive than a Medium finding inflated to sound Critical.
+Specific and evidence-backed does not mean alarmist. A report that oversells
+every finding as catastrophic reads as a sales trick, not an audit, and
+undermines the credible findings along with the weak ones. Calibrate severity
+honestly using the rubric in `audit-methodology.md` — a Medium finding stated
+plainly is more persuasive than a Medium finding inflated to sound Critical.

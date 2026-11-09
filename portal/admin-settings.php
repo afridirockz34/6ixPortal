@@ -81,6 +81,7 @@ function six_admin_settings() {
         'six_gads_developer_token', 'six_gads_manager_id', 'six_gads_kw_planner_account_id',
         'six_ahrefs_token',
         'six_brightlocal_api_key',
+        'six_pagespeed_api_key',
         'six_dataforseo_login', 'six_dataforseo_password',
         'six_gads_client_id', 'six_gads_client_secret', 'six_gads_refresh_token',
         'six_anthropic_api_key', 'six_google_analytics_property_id', 'six_google_analytics_key',
@@ -169,6 +170,7 @@ function six_admin_settings() {
     $has_dfs    = get_option('six_dataforseo_login') && get_option('six_dataforseo_password');
     $has_ahrefs = (bool) get_option('six_ahrefs_token');
     $has_bl     = class_exists('Six_BrightLocal') ? Six_BrightLocal::configured() : (bool) get_option('six_brightlocal_api_key');
+    $has_psi    = (bool) get_option('six_pagespeed_api_key');
     $has_gcal   = get_option('six_google_client_id') && get_option('six_google_client_secret');
     $has_ai     = (bool) get_option('six_anthropic_api_key');
     $has_ga4    = get_option('six_ga4_property_id') && get_option('six_ga4_service_account_json');
@@ -375,6 +377,15 @@ function six_admin_settings() {
                         });
                     })();
                     </script>
+                </div>
+            </div>
+
+            <!-- ═══ PAGESPEED INSIGHTS ═════════════════════════════════ -->
+            <div class="six-int-card">
+                <div class="six-int-head"><span class="dot" style="background:#4285f4"></span> Google PageSpeed Insights — Site Speed <?php echo $badge($has_psi); ?></div>
+                <div class="six-int-body">
+                    <div class="hint">Measures first contentful paint, largest contentful paint and the rest of Core Web Vitals for the website-speed section of an audit report. Google's own tool, which is the point: a prospect checks our figure at <a href="https://pagespeed.web.dev/" target="_blank">pagespeed.web.dev</a> and gets the same number.</div>
+                    <div class="six-fld"><label>API Key</label><input type="password" name="six_pagespeed_api_key" value="<?php echo $s('six_pagespeed_api_key', true); ?>" placeholder="••••••••"><div class="desc">Free, from <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console → APIs &amp; Services → Credentials → API key</a>, then enable the PageSpeed Insights API on that project. Without a key the anonymous quota is shared across the whole internet and is normally exhausted, so requests come back refused.</div></div>
                 </div>
             </div>
 

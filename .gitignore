@@ -15,6 +15,11 @@ wp-config.php
 *.log
 debug.log
 
+# Python bytecode — the skills' scripts are run directly, and a committed
+.pyc goes stale against the .py beside it.
+__pycache__/
+*.pyc
+
 # Node / build tools (if ever added)
 node_modules/
 npm-debug.log
