@@ -382,12 +382,23 @@ class Six_Profile_API {
 			$sets['strategy']['issued']    = $issued;
 			$sets['strategy']['issued_at'] = $issued && function_exists( 'six_strategy_questionnaire_issued_at' )
 				? six_strategy_questionnaire_issued_at( $id ) : '';
+			// Answered and handed in are different facts. 100% can mean the
+			// client is still editing; submitted is them saying they are done,
+			// which is when the strategy should actually be built.
+			$submitted_at = function_exists( 'six_strategy_questionnaire_submitted_at' )
+				? six_strategy_questionnaire_submitted_at( $id ) : '';
+			$sets['strategy']['submitted']    = (bool) $submitted_at;
+			$sets['strategy']['submitted_at'] = $submitted_at;
 
 			$profile['questionnaire'] = $sets;
 
 			// Where this client is in the engagement, so a skill doesn't have to
 			// infer it: ready to audit, awaiting the strategy questionnaire, or
 			// ready to build the strategy.
+			// Deliberately keyed on the answers, not on submission: a client who
+			// answered everything before there was a Submit button is still
+			// ready, and `questionnaire.strategy.submitted` is there for a
+			// consumer that wants to wait for the client to say they're done.
 			$profile['stage'] = ! $issued
 				? ( $sets['audit']['progress']['percent'] >= 100 ? 'ready_for_audit' : 'audit_intake_incomplete' )
 				: ( $sets['strategy']['progress']['percent'] >= 100 ? 'ready_for_strategy' : 'awaiting_strategy_answers' );

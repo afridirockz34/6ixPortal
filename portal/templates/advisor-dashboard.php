@@ -1195,6 +1195,10 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         ? six_strategy_questionnaire_issued_at($view_client_id) : '';
     $cq_audit = function_exists('six_seo_questionnaire_progress')
         ? six_seo_questionnaire_progress($view_client_id, $cq_slugs, 'audit') : null;
+    // Answered and handed in are not the same thing. 100% can mean the client
+    // is still editing; submitting is them saying they are done with it.
+    $cq_submitted_at = function_exists('six_strategy_questionnaire_submitted_at')
+        ? six_strategy_questionnaire_submitted_at($view_client_id) : '';
     if ( $cq && $cq['total'] > 0 ):
     ?>
     <div style="background:var(--dark3);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px">
@@ -1204,6 +1208,9 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 <div style="font-size:11px;color:var(--text3);margin-top:2px">
                     <?php if ( $cq_issued ): ?>
                         <?php echo intval($cq['done']); ?> of <?php echo intval($cq['total']); ?> answered — issued <?php echo esc_html( $cq_issued_at ? mysql2date('j M Y', $cq_issued_at) : '' ); ?>.
+                        <?php if ( $cq_submitted_at ): ?>
+                        <span style="color:var(--success)">Submitted <?php echo esc_html( mysql2date('j M Y', $cq_submitted_at) ); ?>.</span>
+                        <?php endif; ?>
                     <?php else: ?>
                         Not issued yet. Send this once the audit has been reviewed and they want to proceed.
                     <?php endif; ?>
@@ -1260,7 +1267,11 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             </div>
         </details>
         <?php elseif ( $cq_issued ): ?>
-        <div style="font-size:12px;color:var(--success)">Complete — everything we need is on file.</div>
+        <div style="font-size:12px;color:var(--success)">
+            <?php echo $cq_submitted_at
+                ? 'Complete and submitted — everything we need is on file.'
+                : 'Every question is answered, but they have not pressed Submit yet, so they may still be editing.'; ?>
+        </div>
         <?php endif; ?>
     </div>
     <?php endif; ?>

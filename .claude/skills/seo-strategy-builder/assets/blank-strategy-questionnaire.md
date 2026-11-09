@@ -95,7 +95,7 @@ _We SEO-optimise it, then it needs a yes from your side before it goes live._
 
 > 
 
-**Prioritise maps or organic?**
+**Prioritize maps or organic?**
 
 _We normally work both in the same month._
 

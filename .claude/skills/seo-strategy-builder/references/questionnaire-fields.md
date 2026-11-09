@@ -65,7 +65,7 @@ _If you're unsure about a question or want to talk it through first, leave it bl
 | `seo_prev_work` | Any previous SEO work on the site? | textarea |  |
 | `seo_content_workflow` | How does blog/content production work today? | textarea | from signup |
 | `seo_approver` | Who approves new content, and what is their email? | text |  |
-| `seo_priority` | Prioritise maps or organic? | select | one of: No preference — do both / Maps (local / Google Business Profile) / Organic (content, meta, performance) |
+| `seo_priority` | Prioritize maps or organic? | select | one of: No preference — do both / Maps (local / Google Business Profile) / Organic (content, meta, performance) |
 | `seo_topics` | Topics to cover — and any to stay away from | textarea |  |
 | `seo_paid_links` | Any previous paid backlinking? | select | one of: No / Yes / Not sure |
 | `seo_engagement` | How well does the site engage visitors today? | textarea |  |

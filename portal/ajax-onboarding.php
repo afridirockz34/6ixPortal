@@ -1522,15 +1522,17 @@ function six_onboarding_db_upgrade() {
     // schema itself (portal/data-seo-questionnaire.php) rather than listed
     // again here, so a question added to the schema can never be missing its
     // storage. Questions that duplicate something onboarding already asks
-    // carry a 'maps_to' and deliberately produce no column.
-    if ( ! get_option('six_onboarding_db_v10') && function_exists('six_seo_questionnaire_columns') ) {
-        $cols10 = $wpdb->get_col( "SHOW COLUMNS FROM {$wpdb->prefix}six_checkout_progress", 0 );
-        foreach ( six_seo_questionnaire_columns() as $col => $def ) {
-            if ( ! in_array( $col, $cols10, true ) ) {
-                $wpdb->query( "ALTER TABLE {$wpdb->prefix}six_checkout_progress ADD COLUMN `{$col}` {$def}" );
-            }
-        }
-        update_option( 'six_onboarding_db_v10', 1 );
+    // carry a 'maps_to' and deliberately produce no column of their own, but
+    // the column they DO write to still has to be wide enough for the answer.
+    //
+    // This used to run behind a six_onboarding_db_v10 option flag, which made
+    // it a one-time event: any question added to the schema afterwards had no
+    // column, and the save that failed as a result reported success anyway.
+    // six_seo_questionnaire_ensure_columns() is gated on a signature of the
+    // schema instead, so it reruns whenever the questions change — and it is
+    // idempotent, so calling it here as well costs one option read.
+    if ( function_exists( 'six_seo_questionnaire_ensure_columns' ) ) {
+        six_seo_questionnaire_ensure_columns();
     }
 }
 

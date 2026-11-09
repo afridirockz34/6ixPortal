@@ -2668,17 +2668,48 @@ add_action( 'wp_ajax_six_save_questionnaire', function () {
     if ( ! is_array( $answers ) ) { wp_send_json_error( 'Nothing to save' ); }
 
     $result = six_seo_questionnaire_save( $client_id, $answers );
-
-    $slugs = (array) $GLOBALS['wpdb']->get_col( $GLOBALS['wpdb']->prepare(
-        "SELECT service_slug FROM {$GLOBALS['wpdb']->prefix}six_client_services WHERE client_id=%d AND status='active'",
-        $client_id
-    ) );
+    $slugs  = six_questionnaire_client_slugs( $client_id );
 
     wp_send_json_success( array(
         'saved'    => $result['saved'],
         'rejected' => $result['rejected'],
+        // Answers the database would not take. Reported rather than swallowed,
+        // so the form can say which one instead of "all answers saved".
+        'failed'   => $result['failed'],
         'progress' => six_seo_questionnaire_progress( $client_id, $slugs, 'strategy' ),
     ) );
+} );
+
+/**
+ * Hand the questionnaire in. Validates every question the client is being
+ * asked, and only then marks it submitted and tells the advisor.
+ */
+add_action( 'wp_ajax_six_submit_questionnaire', function () {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! function_exists( 'six_submit_strategy_questionnaire' ) ) { wp_send_json_error( 'Questionnaire unavailable' ); }
+
+    $client_id = get_current_user_id();
+    $for = intval( $_POST['client_id'] ?? 0 );
+    if ( $for && $for !== $client_id ) {
+        $staff = ( class_exists( 'Six_Roles' ) && Six_Roles::is_advisor() ) || current_user_can( 'manage_options' );
+        if ( ! $staff ) { wp_send_json_error( 'Permission denied' ); }
+        $client_id = $for;
+    }
+    if ( ! $client_id ) { wp_send_json_error( 'Not signed in' ); }
+
+    // Save whatever came with the submission first, so a client who fills the
+    // last box and goes straight for Submit isn't told it's still blank.
+    $answers = $_POST['answers'] ?? array();
+    if ( is_string( $answers ) ) $answers = json_decode( wp_unslash( $answers ), true );
+    $failed = array();
+    if ( is_array( $answers ) && $answers ) {
+        $failed = six_seo_questionnaire_save( $client_id, $answers )['failed'];
+    }
+
+    $out = six_submit_strategy_questionnaire( $client_id );
+    $out['failed'] = $failed;
+    if ( ! $out['ok'] ) { wp_send_json_error( $out ); }
+    wp_send_json_success( $out );
 } );
 
 /**
@@ -2717,17 +2748,51 @@ function six_save_questionnaire_public() {
     if ( ! is_array( $answers ) ) { wp_send_json_error( 'Nothing to save' ); }
 
     $result = six_seo_questionnaire_save( $client_id, $answers );
-
-    global $wpdb;
-    $slugs = (array) $wpdb->get_col( $wpdb->prepare(
-        "SELECT service_slug FROM {$wpdb->prefix}six_client_services WHERE client_id=%d AND status='active'",
-        $client_id
-    ) );
+    $slugs  = six_questionnaire_client_slugs( $client_id );
 
     wp_send_json_success( array(
         'saved'    => $result['saved'],
+        'failed'   => $result['failed'],
         'progress' => six_seo_questionnaire_progress( $client_id, $slugs, 'strategy' ),
     ) );
+}
+
+/**
+ * Hand in from the public link — same token-and-nonce check as the save above,
+ * because submitting is a write too.
+ */
+add_action( 'wp_ajax_nopriv_six_submit_questionnaire_public', 'six_submit_questionnaire_public' );
+add_action( 'wp_ajax_six_submit_questionnaire_public',        'six_submit_questionnaire_public' );
+function six_submit_questionnaire_public() {
+    if ( ! function_exists( 'six_submit_strategy_questionnaire' ) ) { wp_send_json_error( 'Questionnaire unavailable' ); }
+
+    $claimed = intval( $_POST['client_id'] ?? 0 );
+    $token   = sanitize_text_field( wp_unslash( $_POST['token'] ?? '' ) );
+    $nonce   = sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) );
+
+    if ( ! $claimed || ! wp_verify_nonce( $nonce, 'six_questionnaire_public_' . $claimed ) ) {
+        wp_send_json_error( array( 'error' => 'This page has expired — please reload it.' ) );
+    }
+
+    $client_id = $token ? six_questionnaire_token_client( $token ) : 0;
+    if ( ! $client_id && is_user_logged_in() && get_current_user_id() === $claimed ) {
+        $client_id = $claimed;
+    }
+    if ( ! $client_id || $client_id !== $claimed ) {
+        wp_send_json_error( array( 'error' => 'This questionnaire link is no longer valid.' ) );
+    }
+
+    $answers = $_POST['answers'] ?? array();
+    if ( is_string( $answers ) ) $answers = json_decode( wp_unslash( $answers ), true );
+    $failed = array();
+    if ( is_array( $answers ) && $answers ) {
+        $failed = six_seo_questionnaire_save( $client_id, $answers )['failed'];
+    }
+
+    $out = six_submit_strategy_questionnaire( $client_id );
+    $out['failed'] = $failed;
+    if ( ! $out['ok'] ) { wp_send_json_error( $out ); }
+    wp_send_json_success( $out );
 }
 
 /** Advisor mints (or rotates) a client's shareable questionnaire link. */
