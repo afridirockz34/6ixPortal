@@ -2,11 +2,15 @@
 
 Work through every category below for every audit — don't skip one because it looks fine without checking; a checked-and-healthy category is a real (and useful) line in the scorecard. Call `doc` on a tool before its first use in a session; the exact parameters live there, not here. Where the mapping below says "diff yourself," Ahrefs' MCP surface doesn't expose a single call for the classic UI feature (e.g. "Content Gap") — pull both sides and compare, rather than assuming a shortcut tool exists.
 
+**Before using any Ahrefs figure about the client's own domain, check `integrations` on their profile.** Categories 1 and 3 below are about their site, and where GA4 or Search Console is connected those are measured facts rather than estimates — their own data replaces the Ahrefs figure and the report says so. Categories 2, 4, 6 and 7 are about the world outside their domain, where Ahrefs is the only option and remains correct. `references/measured-vs-estimated.md` has the division in full; the short version is **their own domain from their own accounts, everything else from Ahrefs**.
+
 ## 1. Domain authority & visibility baseline
 
 **Checks:** Domain Rating, organic traffic estimate, organic keyword count, keywords in positions 1-3, trend direction over the last 6-12 months (growing/flat/declining).
 
 **Tools:** `site-explorer-domain-rating`, `site-explorer-metrics`, `site-explorer-metrics-history` (for the trend), `site-explorer-organic-keywords` (for the position breakdown).
+
+**Where the client's own accounts are connected, they replace the estimates here.** Domain Rating is Ahrefs' own metric and stays Ahrefs either way, but with GA4 the organic traffic figure is their measured sessions, and with Search Console the position breakdown, impressions and clicks are what Google actually served rather than what a crawler sampled. Say which, in the sentence. "Their analytics show 1,120 organic visits last month" is a different and much stronger claim than "Ahrefs estimates around 430".
 
 **Why it matters to a prospect:** this is the one-paragraph "where you stand" number that frames everything after it. A flat-or-declining trend while competitors grow is one of the strongest motivators in the whole report — lead with it if it's true.
 
@@ -23,6 +27,8 @@ Work through every category below for every audit — don't skip one because it 
 **Checks:** which of the client's actual priority services/areas have no meaningful ranking at all; keywords sitting on page 2 (positions 11-20) that are close to a page-1 breakthrough; keyword cannibalization (multiple client pages competing for the same term).
 
 **Tools:** `site-explorer-organic-keywords` (filter/sort by position to find the page-2 cluster), `keywords-explorer-overview` for volume/difficulty context on anything the questionnaire says matters that doesn't show up in the client's own ranked list at all.
+
+**With Search Console connected, use its query list instead for what they rank for.** Ahrefs reports what it crawled; Search Console reports every query Google actually served them for, which is a larger and more accurate set, and it carries impressions, clicks, CTR and position per query. Three findings come out of it that nothing external can produce: queries they rank well for but nobody clicks (a titles-and-snippets problem, visible as high impressions with near-zero CTR); the real page-2 cluster at positions 11-20; and the gap between what they told us they want to be found for and what they are actually being found for — which is often the single most useful line in the report. Keep `keywords-explorer-overview` for volume and difficulty on terms they are *absent* from, which Search Console cannot show by definition.
 
 **Why it matters:** "you rank for almost nothing in your actual highest-value service" lands harder than a generic "your SEO needs work."
 

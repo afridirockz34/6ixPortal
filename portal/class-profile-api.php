@@ -290,20 +290,32 @@ class Six_Profile_API {
 			return trim( (string) get_user_meta( $id, $key, true ) ) !== '';
 		};
 		$ga4 = $meta( 'six_ga4_property_id' );
+		$gsc = $meta( 'six_gsc_site' );
+
+		// Said in full, because these two sentences decide how the figures in
+		// a client-facing document may be worded. They are separate verdicts:
+		// GA4 answers "how many people came", Search Console answers "what
+		// Google actually showed them for", and a client can have one without
+		// the other.
+		$notes = array();
+		$notes[] = $ga4
+			? 'GA4 is connected: take visitors, sessions and engagement from it and describe them as measured.'
+			: 'No GA4 on this client. Any traffic figure is an Ahrefs estimate of visits from the keywords it tracks — label it an estimate and never state it as their analytics.';
+		$notes[] = $gsc
+			? 'Search Console is connected: take impressions, clicks, CTR, average position and the query list from it. It is what Google recorded, so it outranks any third-party ranking estimate for this domain.'
+			: 'No Search Console on this client. Ranking and keyword figures are Ahrefs estimates of what it has crawled, not what Google showed — label them accordingly.';
+		$notes[] = 'Competitors can only ever be measured from outside, so Ahrefs remains correct for them. Never plot a measured figure for this client against estimated figures for competitors in the same comparison.';
+
 		return array(
 			'ga4'              => $ga4,
-			'search_console'   => $meta( 'six_gsc_site' ),
+			'search_console'   => $gsc,
 			'google_ads'       => $meta( 'six_gads_customer_id' ),
 			'google_business'  => $meta( 'six_gbp_location_id' ),
 			'meta_ads'         => $meta( 'six_meta_ad_account_id' ),
-			// Said in full, because this is the sentence that decides how a
-			// traffic figure may be described in a client-facing document.
-			'traffic_source'   => $ga4
-				? 'ga4_measured'
-				: 'ahrefs_estimate_only',
-			'notes'            => $ga4
-				? 'GA4 is connected: use it for visitor and session figures and describe them as measured.'
-				: 'No GA4 on this client. Any traffic figure is an Ahrefs estimate of visits from the keywords it tracks — label it as an estimate and never state it as their analytics.',
+			'traffic_source'   => $ga4 ? 'ga4_measured' : 'ahrefs_estimate_only',
+			'ranking_source'   => $gsc ? 'gsc_measured' : 'ahrefs_estimate_only',
+			'own_domain_data'  => ( $ga4 && $gsc ) ? 'full' : ( ( $ga4 || $gsc ) ? 'partial' : 'none' ),
+			'notes'            => implode( ' ', $notes ),
 		);
 	}
 
