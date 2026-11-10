@@ -1,26 +1,28 @@
 #!/usr/bin/env python3
 """
-make_pdf.py — the audit report as a PDF, wrapped in the branded covers.
+make_pdf.py — the audit report as a PDF, in 6ix's covers.
 
-The HTML renderer produces the body. This prints it to PDF and puts 6ix's own
-cover and back pages around it, so what the client receives is one file that
+The HTML renderer produces the body. This prints it and wraps it in the
+branded cover and back pages, so what the client receives is one file that
 opens the way a report should rather than a web page somebody printed.
 
     python make_pdf.py report.html -o acme-audit.pdf \\
-        --cover assets/cover.pdf --back assets/back.pdf
+        --client "Acme Plumbing" --date "10 November 2026"
 
-The covers are optional: without them you get the body alone, which is still a
-correctly paginated PDF. That matters because a cover is a brand asset that
-changes on its own schedule, and the report has to keep working in between.
+The covers are drawn here, from the artwork in assets/brand — the polygon
+background, the logo and League Gothic — rather than taken from a PDF with
+the client's name baked in. That is deliberate: the Canva export carries
+[CLIENT COMPANY NAME] and [DATE] as real text in subset fonts, so those
+placeholders cannot be edited to another name (the subset holds only the
+letters already on the page). Rebuilding from the same artwork sets any
+client's name in the right typeface at the right place, and keeps working
+when the next client is called something else.
 
-Cover text — the client's name, their domain, the date — is drawn onto the
-cover page rather than baked into it, so one Canva export serves every client:
+If the design changes, re-export it and pass the new pages with --cover and
+--back to use them as they are, or replace the files in assets/brand.
+--no-covers gives the body alone.
 
-    --cover-text "Acme Plumbing|acmeplumbing.ca|10 November 2026"
-
-Needs a headless Chromium to print, and pypdf to merge. Both are checked for
-before anything runs, with the install line in the error rather than a stack
-trace.
+Needs a headless Chromium to print, pypdf to merge and reportlab to draw.
 """
 
 import argparse
@@ -69,46 +71,174 @@ def html_to_pdf(html_path, out_path, chrome):
                          + (res.stderr or "").strip()[-800:])
 
 
-def stamp_cover(cover_pdf, out_pdf, lines):
+BRAND = Path(__file__).resolve().parent.parent / "assets" / "brand"
+
+# Where each thing sits, as a fraction of the page, measured from 6ix's own
+# Canva cover. Fractions rather than points so the layout survives a different
+# page size.
+LAYOUT = {
+    "kicker_y": 0.082,       # "SEO AUDIT"
+    "brand_y": 0.114,        # "6IX DEVELOPERS"
+    "date_y": 0.192,
+    "right_x": 0.895,        # right edge of that right-aligned stack
+    "title_x": 0.102,
+    "title_size": 0.1422,     # of page height; matched to the Canva cover
+    "title_baseline": 0.4857,  # first line
+    "title_leading": 0.107,
+    "logo_y": 0.828,
+    "logo_w": 0.235,
+    "tagline_y": 0.934,
+}
+TAGLINE = "WE COUNT LEADS, NOT CLICKS"
+BACK_TITLE = "THANK YOU!"
+BACK_ADDRESS = ["6IX DEVELOPERS", "1550 S, GATEWAY RD.",
+                "MISSISSAUGA, ON,L4W 5G6", "WWW.6IXDEVELOPERS.COM"]
+
+
+def _fonts():
+    """League Gothic for the title; Helvetica-Bold for the tracked small caps."""
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    title_font = "Helvetica-Bold"
+    ttf = BRAND / "LeagueGothic.ttf"
+    if ttf.exists():
+        try:
+            pdfmetrics.registerFont(TTFont("LeagueGothic", str(ttf)))
+            title_font = "LeagueGothic"
+        except Exception:
+            pass
+    return title_font, "Helvetica-Bold"
+
+
+def _tracked(c, text, x, y, font, size, tracking, colour, align="left"):
     """
-    Draw the client's details onto the branded cover.
+    Draw letter-spaced small caps.
 
-    Positioned from the bottom-left in points, which is where a Canva cover
-    usually leaves room. Shift it with --cover-xy if the template differs.
+    The brand sets these lines with wide tracking, and reportlab has no
+    letter-spacing, so the string is drawn with spaces between characters and
+    measured that way for right-alignment.
     """
-    try:
-        from pypdf import PdfReader, PdfWriter
-        from reportlab.pdfgen import canvas as rl_canvas
-        from reportlab.lib.colors import HexColor
-    except ImportError:
-        raise SystemExit("Stamping the cover needs reportlab and pypdf: "
-                         "pip install reportlab pypdf")
+    from reportlab.pdfbase import pdfmetrics
+    spaced = (" " * 0).join(text)
+    c.setFont(font, size)
+    c.setFillColor(colour)
+    total = pdfmetrics.stringWidth(spaced, font, size) + tracking * max(0, len(spaced) - 1)
+    if align == "right":
+        x -= total
+    elif align == "center":
+        x -= total / 2
+    for ch in spaced:
+        c.drawString(x, y, ch)
+        x += pdfmetrics.stringWidth(ch, font, size) + tracking
+    return total
 
-    reader = PdfReader(str(cover_pdf))
-    page = reader.pages[0]
-    w = float(page.mediabox.width)
-    h = float(page.mediabox.height)
 
-    x, y = lines["xy"]
-    buf = Path(tempfile.mkstemp(suffix=".pdf")[1])
-    c = rl_canvas.Canvas(str(buf), pagesize=(w, h))
-    c.setFillColor(HexColor(lines["colour"]))
-    size = lines["size"]
-    for i, text in enumerate(lines["lines"]):
-        if not text:
-            continue
-        c.setFont("Helvetica-Bold" if i == 0 else "Helvetica",
-                  size if i == 0 else size * 0.52)
-        c.drawString(x, y - i * size * 0.95, text)
+def _wrap(text, font, size, max_w):
+    from reportlab.pdfbase import pdfmetrics
+    words, lines, cur = text.split(), [], ""
+    for w in words:
+        trial = (cur + " " + w).strip()
+        if pdfmetrics.stringWidth(trial, font, size) <= max_w or not cur:
+            cur = trial
+        else:
+            lines.append(cur)
+            cur = w
+    if cur:
+        lines.append(cur)
+    return lines
+
+
+def build_cover(out_pdf, client, domain, date, size=(612, 792), title_size=None):
+    """6ix's cover, with this client's name and date set into it."""
+    from reportlab.pdfgen import canvas as rl_canvas
+    from reportlab.lib.colors import HexColor, white
+    from reportlab.lib.utils import ImageReader
+
+    w, h = size
+    L = LAYOUT
+    title_f, small_f = _fonts()
+    c = rl_canvas.Canvas(str(out_pdf), pagesize=size)
+
+    bg = BRAND / "cover-background.png"
+    if bg.exists():
+        c.drawImage(ImageReader(str(bg)), 0, 0, width=w, height=h,
+                    preserveAspectRatio=False, mask="auto")
+    else:
+        c.setFillColor(HexColor("#1a1a1a"))
+        c.rect(0, 0, w, h, fill=1, stroke=0)
+
+    rx = w * L["right_x"]
+    _tracked(c, "SEO AUDIT", rx, h * (1 - L["kicker_y"]), small_f, 10.5, 3.4, white, "right")
+    _tracked(c, "6IX DEVELOPERS", rx, h * (1 - L["brand_y"]), small_f, 13.5, 3.2, white, "right")
+    if date:
+        _tracked(c, date.upper(), rx, h * (1 - L["date_y"]), small_f, 10.5, 3.4, white, "right")
+
+    # The client's name, as large as it can be without running off the page.
+    tx = w * L["title_x"]
+    max_w = w - tx * 2
+    sz = title_size or h * L["title_size"]
+    name = (client or "").upper()
+    lines = _wrap(name, title_f, sz, max_w)
+    while len(lines) > 3 and sz > 40:
+        sz *= 0.9
+        lines = _wrap(name, title_f, sz, max_w)
+    c.setFillColor(white)
+    y = h * (1 - L["title_baseline"])
+    for line in lines:
+        c.setFont(title_f, sz)
+        c.drawString(tx, y, line)
+        y -= h * L["title_leading"] * (sz / (h * L["title_size"]))
+
+    logo = BRAND / "logo.png"
+    if logo.exists():
+        lw = w * L["logo_w"]
+        img = ImageReader(str(logo))
+        iw, ih = img.getSize()
+        lh = lw * ih / iw
+        c.drawImage(img, (w - lw) / 2, h * (1 - L["logo_y"]) - lh / 2,
+                    width=lw, height=lh, mask="auto")
+    _tracked(c, TAGLINE, w / 2, h * (1 - L["tagline_y"]), small_f, 11, 3.2, white, "center")
+
+    c.showPage()
     c.save()
 
-    overlay = PdfReader(str(buf)).pages[0]
-    page.merge_page(overlay)
-    writer = PdfWriter()
-    writer.add_page(page)
-    with open(out_pdf, "wb") as fh:
-        writer.write(fh)
-    buf.unlink(missing_ok=True)
+
+def build_back(out_pdf, size=(612, 792), address=None):
+    """The closing page. No client detail on it, so it never goes stale."""
+    from reportlab.pdfgen import canvas as rl_canvas
+    from reportlab.lib.colors import HexColor, white
+    from reportlab.lib.utils import ImageReader
+
+    w, h = size
+    title_f, small_f = _fonts()
+    c = rl_canvas.Canvas(str(out_pdf), pagesize=size)
+    bg = BRAND / "cover-background.png"
+    if bg.exists():
+        c.drawImage(ImageReader(str(bg)), 0, 0, width=w, height=h,
+                    preserveAspectRatio=False, mask="auto")
+    else:
+        c.setFillColor(HexColor("#1a1a1a"))
+        c.rect(0, 0, w, h, fill=1, stroke=0)
+
+    c.setFillColor(white)
+    sz = h * 0.1409
+    c.setFont(title_f, sz)
+    c.drawCentredString(w / 2, h * 0.5382, BACK_TITLE)
+
+    logo = BRAND / "logo.png"
+    if logo.exists():
+        lw = w * 0.235
+        img = ImageReader(str(logo))
+        iw, ih = img.getSize()
+        lh = lw * ih / iw
+        c.drawImage(img, (w - lw) / 2, h * 0.255, width=lw, height=lh, mask="auto")
+
+    y = h * 0.225
+    for line in (address or BACK_ADDRESS):
+        _tracked(c, line, w / 2, y, small_f, 10.5, 2.6, HexColor("#e8734a"), "center")
+        y -= h * 0.0205
+    c.showPage()
+    c.save()
 
 
 def merge(parts, out_path):
@@ -128,16 +258,15 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("html", help="The rendered report from render_report.py.")
     ap.add_argument("-o", "--out", help="Where to write the PDF.")
-    ap.add_argument("--cover", help="A PDF whose first page is the front cover.")
-    ap.add_argument("--back", help="A PDF whose first page is the back page.")
-    ap.add_argument("--cover-text", default="",
-                    help="Pipe-separated lines to draw on the cover, "
-                         "e.g. \"Acme Plumbing|acmeplumbing.ca|10 November 2026\".")
-    ap.add_argument("--cover-xy", default="72,200",
-                    help="Where to start that text, in points from the bottom-left. "
-                         "Default 72,200.")
-    ap.add_argument("--cover-size", type=float, default=28.0)
-    ap.add_argument("--cover-colour", default="#111111")
+    ap.add_argument("--client", default="", help="Client name for the cover.")
+    ap.add_argument("--domain", default="", help="Their domain, if the cover shows one.")
+    ap.add_argument("--date", default="", help="The date on the cover, e.g. '10 November 2026'.")
+    ap.add_argument("--no-covers", action="store_true",
+                    help="Body only, no cover or back page.")
+    ap.add_argument("--cover", help="Use this PDF's first page as the cover, as-is.")
+    ap.add_argument("--back", help="Use this PDF's first page as the back page, as-is.")
+    ap.add_argument("--title-size", type=float,
+                    help="Override the cover title size in points.")
     ap.add_argument("--chrome", help="Path to a Chromium/Chrome binary.")
     args = ap.parse_args()
 
@@ -151,30 +280,40 @@ def main():
     body = tmp / "body.pdf"
     html_to_pdf(html, body, chrome)
 
+    # The body's own page size, so the covers match it rather than assuming
+    # Letter and leaving a visible step in the middle of the document.
+    size = (612, 792)
+    try:
+        from pypdf import PdfReader
+        mb = PdfReader(str(body)).pages[0].mediabox
+        size = (float(mb.width), float(mb.height))
+    except Exception:
+        pass
+
     parts = []
-    if args.cover:
-        cover = Path(args.cover)
-        if not cover.exists():
-            raise SystemExit(f"No cover at {cover}")
-        if args.cover_text:
-            try:
-                x, y = (float(v) for v in args.cover_xy.split(","))
-            except ValueError:
-                raise SystemExit("--cover-xy wants two numbers, e.g. 72,200")
-            stamped = tmp / "cover.pdf"
-            stamp_cover(cover, stamped, {
-                "lines": args.cover_text.split("|"),
-                "xy": (x, y), "size": args.cover_size, "colour": args.cover_colour,
-            })
-            parts.append(stamped)
+    if not args.no_covers:
+        if args.cover:
+            parts.append(Path(args.cover))
         else:
-            parts.append(cover)
+            if not args.client:
+                print("No --client given, so the cover will carry no name.",
+                      file=sys.stderr)
+            cov = tmp / "cover.pdf"
+            build_cover(cov, args.client, args.domain, args.date, size=size,
+                        title_size=args.title_size)
+            parts.append(cov)
     parts.append(body)
-    if args.back:
-        back = Path(args.back)
-        if not back.exists():
-            raise SystemExit(f"No back page at {back}")
-        parts.append(back)
+    if not args.no_covers:
+        if args.back:
+            parts.append(Path(args.back))
+        else:
+            bk = tmp / "back.pdf"
+            build_back(bk, size=size)
+            parts.append(bk)
+
+    for q in parts:
+        if not Path(q).exists():
+            raise SystemExit(f"Missing page: {q}")
 
     if len(parts) == 1:
         shutil.copy(body, out)
@@ -187,8 +326,6 @@ def main():
         print(f"Wrote {out} ({out.stat().st_size:,} bytes, {pages} pages)")
     except Exception:
         print(f"Wrote {out} ({out.stat().st_size:,} bytes)")
-    if not args.cover:
-        print("No --cover given, so this is the body only.")
     shutil.rmtree(tmp, ignore_errors=True)
     return 0
 

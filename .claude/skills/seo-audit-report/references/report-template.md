@@ -358,11 +358,25 @@ back pages:
 
 ```bash
 python scripts/make_pdf.py report.html -o acme-audit.pdf \
-    --cover assets/cover.pdf --back assets/back.pdf \
-    --cover-text "Acme Plumbing|acmeplumbing.ca|10 November 2026"
+    --client "Acme Plumbing" --date "10 November 2026"
 ```
 
-The cover text is drawn onto the branded page rather than baked into it, so
-one export serves every client. Both covers are optional — without them you
-get the body alone, correctly paginated, because a brand asset changes on its
-own schedule and the report has to keep working in between.
+That is the whole command — the covers are drawn from the artwork in
+`assets/brand` (the polygon background, the logo, League Gothic), so any
+client's name is set in the right typeface in the right place, and the title
+shrinks to fit a long one.
+
+**Why they are drawn rather than taken from the Canva export.** That export
+carries `[CLIENT COMPANY NAME]` and `[DATE]` as real text in *subset* fonts —
+the embedded League Gothic holds only the letters already on the page, so
+editing the placeholder to another name would ask for glyphs that are not
+there. The background and logo were lifted from the same file, so the result
+is the same design with text that works for everybody.
+
+If the design changes, replace `assets/brand/cover-background.png` and
+`logo.png`, or pass finished pages with `--cover` and `--back` to use them as
+they are. `--no-covers` gives the body alone. The measurements in `LAYOUT`
+were matched to the supplied cover and verified against it.
+
+League Gothic is bundled under the SIL Open Font License; the licence travels
+with it in `assets/brand/LeagueGothic-OFL.txt`.
