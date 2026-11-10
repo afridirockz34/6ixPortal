@@ -131,5 +131,100 @@ check('a plain number with stray whitespace still works',
       !isset($r['error']) && $GLOBALS['CALLS'] === array('keyEvents'),
       'got: '.json_encode($r['error'] ?? $GLOBALS['CALLS']));
 
+// ── 8. Search Console: the three 403s are three different problems ──────────
+// wp_remote_get is only used by gsc_sites, so stub it separately.
+$GLOBALS['GET_RESPONSES'] = array();
+function wp_remote_get($url, $args = array()) {
+    $GLOBALS['CALLS'][] = 'GET ' . $url;
+    return array_shift($GLOBALS['GET_RESPONSES']);
+}
+
+function sites_resp($entries) {
+    return array('code'=>200,'body'=>json_encode(array('siteEntry'=>$entries)));
+}
+$MUDDY = array(
+    array('siteUrl'=>'https://muddyyorkfishing.ca/','permissionLevel'=>'siteFullUser'),
+    array('siteUrl'=>'sc-domain:example.org','permissionLevel'=>'siteOwner'),
+);
+
+// API not enabled on the Cloud project — the one that looks like a permission
+// problem but can never be fixed in Search Console.
+$GLOBALS['GET_RESPONSES'] = array(array('code'=>403,'body'=>json_encode(array('error'=>array(
+    'status'=>'PERMISSION_DENIED',
+    'message'=>'Google Search Console API has not been used in project 12345 before or it is disabled.',
+    'errors'=>array(array('reason'=>'accessNotConfigured')),
+)))));
+$r = Six_Analytics::gsc_sites(true);
+check('a disabled API is named as a disabled API',
+      isset($r['error']) && stripos($r['error'],'not enabled on the Google Cloud project') !== false, $r['error'] ?? '');
+check('and says it is a different API from GA4',
+      stripos($r['error'],'Analytics Data API is enabled') !== false, $r['error']);
+check('and says adding users will not fix it',
+      stripos($r['error'],'will not fix this') !== false, $r['error']);
+
+// A genuine permission problem keeps the old advice, plus Google's words.
+$GLOBALS['GET_RESPONSES'] = array(array('code'=>403,'body'=>json_encode(array('error'=>array(
+    'status'=>'PERMISSION_DENIED','message'=>'User does not have sufficient permission for site.')))));
+$r = Six_Analytics::gsc_sites(true);
+check('a real permission error still points at Users and permissions',
+      stripos($r['error'],'Users and permissions') !== false, $r['error']);
+check('and quotes what Google actually said',
+      stripos($r['error'],'sufficient permission') !== false, $r['error']);
+
+// ── 9. Identifier resolution against the real list ──────────────────────────
+$GLOBALS['GET_RESPONSES'] = array(sites_resp($MUDDY));
+$r = Six_Analytics::resolve_gsc_site('muddyyorkfishing.ca');
+check('a bare domain resolves to the URL-prefix property Google really has',
+      ($r['site'] ?? '') === 'https://muddyyorkfishing.ca/', json_encode($r));
+check('and says it substituted one for the other', !empty($r['note']), json_encode($r));
+
+$GLOBALS['GET_RESPONSES'] = array(sites_resp($MUDDY));
+$r = Six_Analytics::resolve_gsc_site('http://muddyyorkfishing.ca/fishing');
+check('a URL with a path still resolves to the property that covers it',
+      ($r['site'] ?? '') === 'https://muddyyorkfishing.ca/', json_encode($r));
+
+$GLOBALS['GET_RESPONSES'] = array(sites_resp($MUDDY));
+$r = Six_Analytics::resolve_gsc_site('https://muddyyorkfishing.ca/');
+check('an exact match is used as-is with no note',
+      ($r['site'] ?? '') === 'https://muddyyorkfishing.ca/' && empty($r['note']), json_encode($r));
+
+$GLOBALS['GET_RESPONSES'] = array(sites_resp($MUDDY));
+$r = Six_Analytics::resolve_gsc_site('www.MuddyYorkFishing.CA');
+check('case and www do not defeat the match',
+      ($r['site'] ?? '') === 'https://muddyyorkfishing.ca/', json_encode($r));
+
+// A domain property should win over a URL-prefix one for the same host.
+$GLOBALS['GET_RESPONSES'] = array(sites_resp(array(
+    array('siteUrl'=>'https://shop.example.ca/deep/path/'),
+    array('siteUrl'=>'sc-domain:example.ca'),
+    array('siteUrl'=>'http://example.ca/'),
+)));
+$r = Six_Analytics::resolve_gsc_site('example.ca');
+check('a domain property is preferred over a URL-prefix one',
+      ($r['site'] ?? '') === 'sc-domain:example.ca', json_encode($r));
+
+// Nothing matches: say what IS available rather than just refusing.
+$GLOBALS['GET_RESPONSES'] = array(sites_resp($MUDDY));
+$r = Six_Analytics::resolve_gsc_site('someoneelse.com');
+check('an unmatched domain lists what the account can see',
+      isset($r['error']) && strpos($r['error'],'https://muddyyorkfishing.ca/') !== false, $r['error'] ?? '');
+check('and warns the identifier is literal',
+      stripos($r['error'],'different properties') !== false, $r['error']);
+
+// Account sees nothing at all.
+$GLOBALS['GET_RESPONSES'] = array(sites_resp(array()));
+$r = Six_Analytics::resolve_gsc_site('muddyyorkfishing.ca');
+check('an empty property list is called out as such',
+      isset($r['error']) && stripos($r['error'],'no Search Console properties at all') !== false, $r['error'] ?? '');
+check('and suggests the wrong account or a pending invitation',
+      stripos($r['error'],'pending') !== false, $r['error']);
+
+// If listing fails we still attempt the query rather than giving up.
+$GLOBALS['GET_RESPONSES'] = array(array('code'=>500,'body'=>json_encode(array('error'=>array('message'=>'backend error')))));
+$r = Six_Analytics::resolve_gsc_site('muddyyorkfishing.ca');
+check('an unlistable account still yields something to try',
+      ($r['site'] ?? '') === 'sc-domain:muddyyorkfishing.ca' && ($r['verified'] ?? true) === false,
+      json_encode($r));
+
 echo "\nPassed: $pass  Failed: $fail\n";
 exit($fail ? 1 : 0);
