@@ -695,7 +695,9 @@ class Six_MCP_Server {
 					. 'only come from Ahrefs and must be labelled estimates.',
 			);
 		}
-		$r = Six_Analytics::gsc_summary( $site, $days );
+		// Ask Google for the number actually wanted. Slicing a fixed 15 rows
+		// down to `limit` was the old behaviour and it capped every caller.
+		$r = Six_Analytics::gsc_summary( $site, $days, $limit );
 		if ( isset( $r['error'] ) ) return array( 'error' => 'search_console_error', 'message' => $r['error'] );
 
 		$queries = array_slice( (array) ( $r['top_queries'] ?? array() ), 0, $limit );

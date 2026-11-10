@@ -48,6 +48,11 @@ STRUCTURAL_HEADING_HINTS = (
     # Structural sections the rendered report adds. They present measurements
     # rather than a graded weakness, so a missing severity is correct there.
     "website speed",
+    "competitor analysis",
+    "google business profile",
+    # The titles these two sections used to carry. Kept so a report generated
+    # before the rename still checks out rather than being flagged for a
+    # heading that was correct when it was written.
     "where the traffic is going",
     "where you show up on the map",
     "executive summary",

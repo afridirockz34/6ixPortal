@@ -262,12 +262,26 @@ def grid_matrix(points):
     if None not in lats and None not in lons:
         uniq_lat = sorted(set(lats), reverse=True)   # north first
         uniq_lon = sorted(set(lons))                 # west first
-        if len(uniq_lat) * len(uniq_lon) == len(pts) and len(uniq_lat) > 1:
-            cell = {}
-            for p, la, lo in zip(pts, lats, lons):
-                cell[(la, lo)] = p
-            if len(cell) == len(pts):
-                return [[cell[(la, lo)] for lo in uniq_lon] for la in uniq_lat], True
+        cell = {}
+        for p, la, lo in zip(pts, lats, lons):
+            cell[(la, lo)] = p
+        # Place every point on its own lat/lon row and column and leave the
+        # rest of the rectangle empty.
+        #
+        # This used to require a perfect rectangle — rows times columns equal
+        # to the point count — and fall back to chunking the list in order
+        # when that failed. BrightLocal grids are routinely NOT rectangles:
+        # a report can exclude individual points (`excluded_points`), and a
+        # custom shape drawn around a service area has holes by design. Those
+        # grids were being drawn as a list of squares in arrival order, which
+        # is not a map and cannot show the thing a grid exists to show.
+        if len(cell) == len(pts) and len(uniq_lat) > 1 and len(uniq_lon) > 1:
+            rows = [[cell.get((la, lo)) for lo in uniq_lon] for la in uniq_lat]
+            # A lattice this sparse is not a grid that was drawn on a map; it
+            # is more likely scattered points, where a rectangle would be
+            # mostly holes and imply a shape that is not there.
+            if len(pts) >= 0.25 * len(uniq_lat) * len(uniq_lon):
+                return rows, True
 
     side = max(1, int(round(math.sqrt(len(pts)))))
     return [pts[i:i + side] for i in range(0, len(pts), side)], False
@@ -279,7 +293,10 @@ def keyword_matrix(obj):
         return [], False
     rows = obj.get("rows")
     if rows:
-        return ([[c if isinstance(c, dict) else {"rank": c} for c in r] for r in rows],
+        # null in an explicit row is a hole in a custom-shaped grid — a place
+        # nothing was measured — and stays None so nothing is drawn there.
+        return ([[None if c is None else (c if isinstance(c, dict) else {"rank": c})
+                  for c in r] for r in rows],
                 bool(obj.get("oriented", True)))
     return grid_matrix(obj.get("grid_points") or obj.get("points"))
 
@@ -340,8 +357,15 @@ def grid_caption(oriented):
             "a map, so read the counts rather than the direction.")
 
 
-def rank_grid(rows, oriented, box=250, caption=True):
-    """One keyword's grid of points, as the map lays it out."""
+def rank_grid(rows, oriented, box=250, caption=True, map_image=None):
+    """
+    One keyword's grid of points, as the map lays it out.
+
+    `map_image` is a background the squares sit on — a data URI or URL of the
+    same ground the grid covers. Without it the grid is a coloured abstraction
+    nobody can place; with it, "strong at the shop, gone past Eglinton" is
+    something the reader can see rather than take on trust.
+    """
     if not rows:
         return ""
     cols = max(len(r) for r in rows)
@@ -349,25 +373,50 @@ def rank_grid(rows, oriented, box=250, caption=True):
     gap = 3 if n <= 9 else 2
     cell = max(10, min(36, (box - gap * (n - 1)) // n))
     show_numbers = cell >= 22
-    w = cols * cell + (cols - 1) * gap
-    h = len(rows) * cell + (len(rows) - 1) * gap
+    gw = cols * cell + (cols - 1) * gap
+    gh = len(rows) * cell + (len(rows) - 1) * gap
+    # With a map behind it, the grid is inset so the surrounding streets show
+    # around the measured area. Without that margin the squares cover the map
+    # almost completely and it may as well not be there — the point of the map
+    # is the ground the grid sits on, not a texture under it.
+    pad = int(round(max(gw, gh) * 0.1)) if map_image else 0
+    w, h = gw + pad * 2, gh + pad * 2
+    live = sum(1 for r in rows for c in r if c is not None)
 
     svg = [f'<svg class="rgrid" viewBox="0 0 {w} {h}" width="{w}" height="{h}" '
-           f'role="img" aria-label="Rank at each of {sum(len(r) for r in rows)} '
+           f'role="img" aria-label="Rank at each of {live} '
            f'points across the service area">']
+    if map_image:
+        # Decoration for the squares on top of it, so it is hidden from
+        # assistive tech rather than described twice.
+        svg.append(f'<image href="{esc(map_image)}" x="0" y="0" width="{w}" height="{h}" '
+                   'preserveAspectRatio="xMidYMid slice" aria-hidden="true"/>'
+                   f'<rect x="0" y="0" width="{w}" height="{h}" fill="#ffffff" '
+                   'opacity="0.12" aria-hidden="true"/>')
     for ri, row in enumerate(rows):
         for ci, p in enumerate(row):
+            # A hole in a custom-shaped grid: no point was measured here, so
+            # nothing is drawn. Drawing a square would invent a measurement.
+            if p is None:
+                continue
             rank = p.get("rank") if isinstance(p, dict) else p
             role = rank_role(rank)
-            x, y = ci * (cell + gap), ri * (cell + gap)
-            fill = "var(--gauge-track)" if role == "absent" else STATUS[role]
+            x, y = pad + ci * (cell + gap), pad + ri * (cell + gap)
+            fill = "#e4e2dc" if role == "absent" else STATUS[role]
             r_num = num(rank)
             shown = "—" if role == "absent" else f"{int(r_num)}"
-            title = ("Not in the top 20 here" if role == "absent"
+            # Not "not in the top 20": BrightLocal reports positions well past
+            # 20 — a grid routinely carries ranks in the 90s — so naming a
+            # cutoff the data does not use states something untrue about every
+            # square that has one.
+            title = ("Did not appear here" if role == "absent"
                      else f"Position {int(r_num)} here")
+            # Let the map read through a little where there is one.
+            op = (' opacity="0.88" stroke="#ffffff" stroke-width="0.75"'
+                  if map_image else "")
             svg.append(f'<g><title>{esc(title)}</title>'
                        f'<rect x="{x}" y="{y}" width="{cell}" height="{cell}" rx="4" '
-                       f'fill="{fill}"/>')
+                       f'fill="{fill}"{op}/>')
             if show_numbers:
                 svg.append(f'<text x="{x + cell / 2:.1f}" y="{y + cell / 2 + 4:.1f}" '
                            f'class="rcell {"rcell-absent" if role == "absent" else ""}" '
@@ -401,7 +450,7 @@ def render_local(local):
         return ""
 
     out = ['<section class="block"><h2>'
-           + esc(local.get("heading") or "Where you show up on the map") + "</h2>"]
+           + esc(local.get("heading") or "Google Business Profile") + "</h2>"]
 
     bits = [b for b in (local.get("source") or "BrightLocal Local Search Grid",
                         local.get("area"), local.get("fetched")) if b]
@@ -428,7 +477,15 @@ def render_local(local):
         if not matrix:
             continue
 
-        flat = [c for r in matrix for c in r]
+        # The ground the grid covers. Per keyword if given, else the section's
+        # own, since every keyword in one report shares the same grid. Only
+        # drawn when the layout really is a map — behind a list of squares in
+        # arrival order it would imply a geography that is not there.
+        map_image = kw.get("map_image") or local.get("map_image") or ""
+        if not oriented:
+            map_image = ""
+
+        flat = [c for r in matrix for c in r if c is not None]
         total = len(flat)
         summary = kw.get("summary") or {}
         high = summary.get("num_high_ranking_points")
@@ -462,7 +519,8 @@ def render_local(local):
                 '<figure class="vs-col"><figcaption class="vs-name">'
                 + esc(local.get("business") or "This business")
                 + '<span class="you-tag">you</span></figcaption>'
-                + rank_grid(matrix, oriented, box=box, caption=False) + "</figure>")
+                + rank_grid(matrix, oriented, box=box, caption=False,
+                            map_image=map_image) + "</figure>")
             for rv, rmat in rival_grids:
                 out.append('<figure class="vs-col"><figcaption class="vs-name">'
                            + esc(rv.get("name", "Competitor"))
@@ -473,7 +531,7 @@ def render_local(local):
             out.append(f'<p class="chart-note">{esc(grid_caption(oriented))} '
                        'Every map here is the same points, measured in the same run.</p>')
         else:
-            out.append(rank_grid(matrix, oriented))
+            out.append(rank_grid(matrix, oriented, map_image=map_image))
 
         out.append('<div class="meters grid-meters">')
         for role, label, count in (
@@ -495,10 +553,11 @@ def render_local(local):
         # The comparison, one line per rival, only where the two grids could be
         # matched point for point.
         if rival_grids:
-            client_pts = [c for r in matrix for c in r]
+            client_pts = [c for r in matrix for c in r if c is not None]
             unaligned = []
             for rv, rmat in rival_grids:
-                pairs = align_grids(client_pts, [c for r in rmat for c in r])
+                pairs = align_grids(client_pts,
+                                    [c for r in rmat for c in r if c is not None])
                 name = rv.get("name", "The competitor")
                 if pairs:
                     out.append(versus_line(name, pairs))
@@ -581,6 +640,15 @@ def line_chart(data, width=720, height=300):
                 peak = max(peak, n)
     if peak <= 0:
         return ""
+
+    # A competitor chart with no client line is a chart about other people.
+    # It is the most persuasive section in the report precisely because the
+    # reader can find themselves on it, so refuse to draw it rather than
+    # quietly ship a comparison with one party missing.
+    if not any(s.get("you") for s in series):
+        return ('<p class="gap-note">This chart was not drawn: none of the series is marked '
+                'as the client\'s own, so there would be no line for them to find themselves '
+                'on. Add <code>"you": true</code> to their series.</p>')
 
     # A round ceiling, so the gridline figures are numbers a reader recognises.
     step = 10 ** max(0, len(str(int(peak))) - 2)
@@ -684,21 +752,6 @@ def line_chart(data, width=720, height=300):
         )
     legend.append("</div>")
 
-    # The table is not an extra: it is what makes the chart readable without
-    # colour, and it is where a client checks a figure they want to argue with.
-    table = ['<details class="table-view"><summary>See these figures as a table</summary>',
-             '<table><thead><tr><th scope="col">Site</th>']
-    for lab in labels[:n_points]:
-        table.append(f'<th scope="col">{esc(lab)}</th>')
-    table.append("</tr></thead><tbody>")
-    for s in series:
-        table.append(f'<tr><th scope="row">{esc(s.get("name", ""))}</th>')
-        for i in range(n_points):
-            v = s["values"][i] if i < len(s["values"]) else None
-            table.append(f"<td>{esc(compact(v)) if num(v) is not None else '—'}</td>")
-        table.append("</tr>")
-    table.append("</tbody></table></details>")
-
     note = ""
     if dropped:
         note = (f'<p class="chart-note">Showing the {MAX_SERIES} sites with the most traffic; '
@@ -713,7 +766,6 @@ def line_chart(data, width=720, height=300):
         + "".join(legend)
         + note
         + src
-        + "".join(table)
         + "</figure>"
     )
 
@@ -740,22 +792,41 @@ def render_headlines(items):
 
 
 def render_scorecard(rows):
+    """
+    One table: category, status, verdict, score.
+
+    A table rather than a column of bars because this is the part a skimming
+    reader actually reads in full, and a verdict that has to stand on its own
+    belongs on the same line as the thing it is judging.
+    """
     if not rows:
         return ""
     out = ['<section class="block"><h2>Scorecard</h2>',
-           '<p class="lede">Each category scored out of 100 on how healthy it is, and what it '
-           'contributes to the overall score.</p>', '<div class="meters">']
+           '<table class="scorecard"><thead><tr>'
+           '<th scope="col">Category</th><th scope="col">Status</th>'
+           '<th scope="col">What we found</th><th scope="col" class="num">Score</th>'
+           "</tr></thead><tbody>"]
     for r in rows:
         score = num(r.get("score"))
-        role = status_for(r)
-        figure = f'{score:g}' if score is not None else "not checked"
-        weight = r.get("weight")
-        note = f'{weight}% of the score' if weight is not None else None
-        out.append(meter_row(r.get("category", ""), None if score is None else score / 100,
-                             figure, role, note))
-        if r.get("verdict"):
-            out.append(f'<p class="verdict">{esc(r["verdict"])}</p>')
-    out.append("</div></section>")
+        role  = status_for(r)
+        # The scorecard's vocabulary is the severity rubric — Critical, High,
+        # Medium, Low, Healthy — not the renderer's internal colour roles. An
+        # audit that declares `"status": "warning"` means Medium; printing the
+        # role name leaks an implementation detail into the client's document.
+        role_word = {"good": "Healthy", "warning": "Medium",
+                     "serious": "High", "critical": "Critical"}[role]
+        declared  = str(r.get("status", "")).strip()
+        sev = declared if declared.lower() in SEVERITY_STATUS else role_word
+        figure = f"{score:g}" if score is not None else "—"
+        verdict = r.get("verdict") or ("Not checked in this audit." if score is None else "")
+        out.append(
+            f'<tr><th scope="row">{esc(r.get("category", ""))}</th>'
+            f'<td><span class="sev" style="background:{STATUS[role]};'
+            f'color:{"#0b0b0b" if role in ("warning", "good") else "#fff"}">{esc(sev)}</span></td>'
+            f'<td class="verdict-cell">{esc(verdict)}</td>'
+            f'<td class="num">{esc(figure)}</td></tr>'
+        )
+    out.append("</tbody></table></section>")
     return "".join(out)
 
 
@@ -770,14 +841,6 @@ def render_speed(speed):
     if not speed:
         return ""
     out = ['<section class="block"><h2>Website speed</h2>']
-
-    src = speed.get("source")
-    url = speed.get("url")
-    strat = speed.get("strategy")
-    bits = [b for b in (src, f"{strat} test" if strat else None, speed.get("fetched")) if b]
-    if bits:
-        out.append(f'<p class="lede">Measured on {esc(url or "the site")} — {esc(" · ".join(bits))}. '
-                   'Anyone can reproduce this against the same tool.</p>')
 
     score = num(speed.get("score"))
     body = ['<div class="speed-grid">']
@@ -822,78 +885,111 @@ def render_sections(sections):
         sev = str(s.get("severity", "")).strip()
         role = SEVERITY_STATUS.get(sev.lower(), "warning")
         out.append('<section class="block finding">')
+        # The heading names the area audited — "Organic keyword visibility",
+        # "Backlink profile" — and the finding goes in the first paragraph
+        # where there is room to say it properly. A heading that is itself a
+        # finding ("Only one of your five priority searches makes your top
+        # 15") has to be decoded before it can be read, and a report whose
+        # headings need decoding does not look like one that knows its subject.
+        heading = s.get("category") or s.get("title", "")
         out.append(
-            f'<h2>{esc(s.get("title", ""))}'
+            f'<h2>{esc(heading)}'
             + (f'<span class="sev" style="background:{STATUS[role]};'
                f'color:{"#0b0b0b" if role == "warning" else "#fff"}">{esc(sev)}</span>' if sev else "")
             + "</h2>"
         )
-        for key in ("finding", "why", "teaser"):
+        for key in ("finding", "why"):
             if s.get(key):
-                cls = ' class="teaser"' if key == "teaser" else ""
-                out.append(f"<p{cls}>{esc(s[key])}</p>")
+                out.append(f"<p>{esc(s[key])}</p>")
+        # What we would do about it. This is 6ix speaking rather than
+        # reporting, so it is set as a statement in its own right — not a
+        # quotation hanging off a coloured rule, which reads like a footnote
+        # apologising for itself.
+        if s.get("teaser"):
+            out.append(f'<p class="action"><span class="action-label">Our recommendation</span>'
+                       f'{esc(s["teaser"])}</p>')
         out.append("</section>")
     return "".join(out)
 
 
 STYLE = """
+/* A report, not a web page.
+   White only, on purpose: this is printed, emailed and turned into a PDF, and
+   a dark background is wrong in every one of those. No cards either — boxed
+   sections make a document look like a dashboard, and a dashboard does not
+   read as a considered opinion. Sections are separated by space and a rule,
+   the way a report is. */
 :root{
   color-scheme: light;
-  --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
-  --grid:#e1e0d9; --axis:#c3c2b7; --border:#e8e6e0; --gauge-track:#e8e6e0;
+  --page:#ffffff; --surface:#ffffff; --ink:#111111; --ink-2:#44443f; --muted:#6f6e68;
+  --grid:#e4e2dc; --axis:#b9b7ad; --border:#ddd9cf; --rule:#111111; --gauge-track:#eceae4;
   --series-1:#FF6699; --series-2:#2a78d6; --series-3:#eb6834; --series-4:#1baf7a;
 }
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    color-scheme: dark;
-    --page:#0d0d0d; --surface:#1a1a19; --ink:#f0efec; --ink-2:#c3c2b7; --muted:#898781;
-    --grid:#2c2c2a; --axis:#383835; --border:#2c2c2a; --gauge-track:#2f2f2c;
-    --series-1:#d55181; --series-2:#3987e5; --series-3:#d95926; --series-4:#199e70;
-  }
-}
-:root[data-theme="dark"]{
-  color-scheme: dark;
-  --page:#0d0d0d; --surface:#1a1a19; --ink:#f0efec; --ink-2:#c3c2b7; --muted:#898781;
-  --grid:#2c2c2a; --axis:#383835; --border:#2c2c2a; --gauge-track:#2f2f2c;
-  --series-1:#d55181; --series-2:#3987e5; --series-3:#d95926; --series-4:#199e70;
-}
 *{box-sizing:border-box}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 body{margin:0;background:var(--page);color:var(--ink);
-  font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
   -webkit-font-smoothing:antialiased}
-.sheet{max-width:860px;margin:0 auto;padding:40px 24px 72px}
-header.cover{border-bottom:1px solid var(--border);padding-bottom:22px;margin-bottom:30px}
-.eyebrow{font-size:12px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--muted)}
-h1{font-size:clamp(26px,4vw,36px);line-height:1.2;margin:10px 0 6px;letter-spacing:-.02em}
+.sheet{max-width:780px;margin:0 auto;padding:56px 32px 64px}
+
+/* ── cover ── */
+header.cover{margin-bottom:44px}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--muted)}
+h1{font-size:clamp(30px,5vw,42px);line-height:1.12;margin:14px 0 10px;letter-spacing:-.025em;font-weight:700}
 .sub{color:var(--ink-2);font-size:15px;margin:0}
-h2{font-size:19px;margin:0 0 12px;letter-spacing:-.01em;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.block{background:var(--surface);border:1px solid var(--border);border-radius:14px;
-  padding:22px 24px;margin-bottom:18px}
-.lede{color:var(--ink-2);font-size:14px;margin:0 0 16px}
-p{margin:0 0 12px}
+.cover-rule{height:3px;background:var(--rule);margin:22px 0 0;width:64px}
+
+/* ── sections: rule, heading, prose ── */
+.block{margin:0 0 40px;padding:0;background:none;border:0}
+.block + .block{border-top:1px solid var(--border);padding-top:34px}
+h2{font-size:21px;margin:0 0 16px;letter-spacing:-.015em;font-weight:700;
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;line-height:1.3}
+h3{font-size:15px;margin:0 0 10px;font-weight:700}
+.lede{color:var(--ink-2);font-size:14.5px;margin:0 0 18px}
+p{margin:0 0 14px}
 p:last-child{margin-bottom:0}
-.teaser{color:var(--ink-2);font-size:15px;border-left:3px solid var(--series-1);padding-left:12px}
-.verdict{color:var(--ink-2);font-size:14px;margin:10px 0 18px}
-.sev{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
-  padding:3px 9px;border-radius:20px;white-space:nowrap}
+.verdict{color:var(--ink-2);font-size:14.5px;margin:12px 0 0}
+.sev{font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;
+  padding:3px 9px;border-radius:3px;white-space:nowrap}
+
+/* What we would do: our recommendation, stated plainly. */
+.action{margin:16px 0 0;padding:16px 18px;background:#f7f6f3;border-left:3px solid var(--rule)}
+.action-label{display:block;font-size:10.5px;font-weight:700;letter-spacing:1.2px;
+  text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+
 /* ── score ── */
-.score-row{display:flex;gap:28px;align-items:center;flex-wrap:wrap}
+.score-row{display:flex;gap:32px;align-items:center;flex-wrap:wrap}
 .score-row .prose{flex:1 1 320px;min-width:280px}
 .gauge-wrap{text-align:center;flex:0 0 auto}
 .gauge-value{font-size:40px;font-weight:700;fill:var(--ink)}
 .gauge-of{font-size:11px;fill:var(--muted);letter-spacing:.4px}
 .gauge-label{font-size:13px;font-weight:600;margin-top:2px}
 .gauge-caption{font-size:11.5px;color:var(--muted);max-width:190px;margin:2px auto 0;line-height:1.45}
+
 /* ── tiles ── */
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:18px}
-.tile{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px}
-.tile.wide{margin-top:14px}
-.tile-value{font-size:34px;font-weight:700;line-height:1.05;letter-spacing:-.02em}
-.tile.bad .tile-value{color:#d03b3b}
-.tile.good .tile-value{color:#0ca30c}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0;margin-bottom:34px;
+  border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.tile{padding:18px 20px 18px 0}
+.tile + .tile{padding-left:20px;border-left:1px solid var(--border)}
+.tile.wide{margin-top:14px;border:0;padding-left:0}
+.tile-value{font-size:30px;font-weight:700;line-height:1.05;letter-spacing:-.02em}
+.tile.bad .tile-value{color:#c0392b}
+.tile.good .tile-value{color:#0a8a0a}
 .tile-label{font-size:13px;color:var(--ink-2);margin-top:6px;line-height:1.45}
 .tile-note{font-size:11.5px;color:var(--muted);margin-top:5px}
-/* ── meters ── */
+
+/* ── scorecard table ── */
+table.scorecard{width:100%;border-collapse:collapse;font-size:14px}
+table.scorecard th,table.scorecard td{text-align:left;padding:11px 12px 11px 0;
+  border-bottom:1px solid var(--border);vertical-align:top}
+table.scorecard thead th{font-size:10.5px;letter-spacing:1px;text-transform:uppercase;
+  color:var(--muted);font-weight:700;border-bottom:2px solid var(--rule);padding-bottom:8px}
+table.scorecard th[scope=row]{font-weight:700;width:30%}
+table.scorecard .verdict-cell{color:var(--ink-2);font-size:13.5px;line-height:1.6}
+table.scorecard .num{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;
+  padding-right:0;width:64px}
+
+/* ── meters (speed only) ── */
 .meters{display:flex;flex-direction:column;gap:2px}
 .meter{display:grid;grid-template-columns:1fr 170px 92px;gap:14px;align-items:center;padding:9px 0}
 .meter-name{font-size:14px;font-weight:600}
@@ -901,82 +997,68 @@ p:last-child{margin-bottom:0}
 .meter-track{height:8px;border-radius:5px;background:var(--gauge-track);overflow:hidden}
 .meter-fill{height:100%;border-radius:5px}
 .meter-figure{font-size:14px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
-.speed-grid{display:flex;gap:28px;align-items:center;flex-wrap:wrap}
+.speed-grid{display:flex;gap:32px;align-items:center;flex-wrap:wrap}
 .speed-meters{flex:1 1 360px;min-width:300px}
-.gap-note{font-size:13px;color:var(--ink-2);background:var(--page);border:1px solid var(--border);
-  border-radius:10px;padding:12px 14px;margin-top:14px}
+.gap-note{font-size:13px;color:var(--ink-2);background:#f7f6f3;border-left:3px solid var(--border);
+  padding:12px 14px;margin-top:14px}
+
 /* ── rank grid ── */
-.rgrid-legend{margin:0 0 18px;gap:10px 18px;font-size:12px}
+.rgrid-legend{margin:0 0 20px;gap:10px 18px;font-size:12px}
 .rgrid-legend strong{color:var(--ink);font-variant-numeric:tabular-nums}
-.grids{display:grid;grid-template-columns:repeat(auto-fit,minmax(272px,1fr));gap:22px}
-/* max-width, because the common case is one keyword: without it a single card
-   fills the block and leaves a 250px grid stranded beside 500px of nothing. */
+.grids{display:grid;grid-template-columns:repeat(auto-fit,minmax(272px,1fr));gap:26px}
 .grid-card{min-width:0;max-width:430px}
+.grid-card.compare{max-width:none;grid-column:1/-1}
+.grid-card.compare .grid-meters{max-width:460px}
+.versus{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;margin-bottom:4px}
+.vs-col{margin:0;min-width:0}
+.vs-name{font-size:12.5px;font-weight:700;margin-bottom:7px;display:flex;align-items:center;gap:7px}
+.vs-finding{font-size:13.5px;color:var(--ink-2);margin:12px 0 0}
+.vs-finding strong{color:var(--ink);font-variant-numeric:tabular-nums}
 .grid-kw{font-size:14.5px;margin:0 0 10px;letter-spacing:-.01em}
 .grid-kw::before{content:"“"}
 .grid-kw::after{content:"”"}
 .rgrid-figure{margin:0 0 10px}
-.rgrid{max-width:100%;height:auto;display:block}
+.rgrid{max-width:100%;height:auto;display:block;border:1px solid var(--border);border-radius:6px}
 .rcell{font-size:11px;font-weight:700;fill:#0b0b0b;font-variant-numeric:tabular-nums}
 .rcell-absent{fill:var(--ink-2);font-weight:400}
 .grid-meters .meter{grid-template-columns:1fr 100px 74px;gap:10px;padding:5px 0}
 .grid-meters .meter-name{font-size:12.5px;font-weight:500}
 .grid-meters .meter-figure{font-size:12.5px}
-/* A keyword with rivals is the same map more than once, so it takes the full
-   width of the block rather than sharing a column with another keyword. */
-.grid-card.compare{max-width:none;grid-column:1/-1}
-/* The card is full width here, but a meter row is not prose: stretched to
-   760px the label and its bar end up at opposite ends of the eye's travel. */
-.grid-card.compare .grid-meters{max-width:460px}
-.versus{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start;margin-bottom:4px}
-.vs-col{margin:0;min-width:0}
-.vs-name{font-size:12.5px;font-weight:600;margin-bottom:7px;display:flex;
-  align-items:center;gap:7px}
-.vs-finding{font-size:13px;color:var(--ink-2);margin:10px 0 0}
-.vs-finding strong{color:var(--ink);font-variant-numeric:tabular-nums}
-.grid-avg{font-size:12.5px;color:var(--ink-2);margin:10px 0 0}
+.grid-avg{font-size:12.5px;color:var(--ink-2);margin:12px 0 0}
 .grid-avg strong{font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
 .map-link{font-size:12.5px;margin:8px 0 0}
 .map-link a{color:var(--series-2)}
+
 /* ── chart ── */
 .chart-figure{margin:0}
 .chart{max-width:100%;height:auto;display:block}
 .grid{stroke:var(--grid);stroke-width:1}
 .tick{font-size:11px;fill:var(--muted)}
 .line{stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
-.line.emph{stroke-width:3}
-.dot{stroke:var(--surface);stroke-width:2}
+.line.emph{stroke-width:3.5}
+.dot{stroke:#ffffff;stroke-width:2}
 .endlabel{font-size:12px;fill:var(--ink)}
 .endvalue{font-size:11px;fill:var(--muted);font-variant-numeric:tabular-nums}
 .leader{stroke:var(--axis);stroke-width:1}
-.legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;font-size:12.5px;color:var(--ink-2)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font-size:12.5px;color:var(--ink-2)}
 .legend-item{display:inline-flex;align-items:center;gap:6px}
-.swatch{width:11px;height:11px;border-radius:3px;display:inline-block}
-.you-tag{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)}
+.swatch{width:11px;height:11px;border-radius:2px;display:inline-block}
+.you-tag{font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
 .chart-note{font-size:11.5px;color:var(--muted);margin:8px 0 0}
-.table-view{margin-top:14px;font-size:12.5px}
-.table-view summary{cursor:pointer;color:var(--ink-2)}
-.table-view table{border-collapse:collapse;margin-top:10px;width:100%}
-.table-view th,.table-view td{border-bottom:1px solid var(--border);padding:6px 8px;text-align:right;
-  font-variant-numeric:tabular-nums}
-.table-view th[scope=row]{text-align:left;font-weight:600}
-.table-view thead th{color:var(--muted);font-weight:600}
-footer{margin-top:26px;padding-top:18px;border-top:1px solid var(--border);
-  font-size:12px;color:var(--muted)}
+
 @media print{
-  body{background:#fff}
   .sheet{max-width:none;padding:0}
-  .block,.tile,.grid-card{break-inside:avoid;border-color:#ddd}
-  .table-view[open]{display:block}
-  details{break-inside:avoid}
+  .block,.tile,.grid-card{break-inside:avoid}
+  h2{break-after:avoid}
+  .block{margin-bottom:30px}
 }
 @media (max-width:620px){
+  .sheet{padding:36px 16px 48px}
   .meter{grid-template-columns:1fr 84px;row-gap:6px}
   .meter-track{grid-column:1/-1;order:3}
-  /* The grid-meters rule is more specific than the one above, so it has to be
-     restated here or the three bucket rows keep their desktop columns and run
-     off a phone. */
   .grid-meters .meter{grid-template-columns:1fr 74px;row-gap:6px}
+  .tile + .tile{padding-left:0;border-left:0;border-top:1px solid var(--border)}
+  table.scorecard th[scope=row]{width:auto}
 }
 """
 
@@ -993,11 +1075,13 @@ def build(data):
         f"<style>{STYLE}</style>",
         "</head><body><div class=\"sheet\">",
         '<header class="cover">',
-        f'<div class="eyebrow">{esc(client.get("prepared_by") or "6ix Developers")} · SEO audit</div>',
+        f'<div class="eyebrow">SEO Audit · {esc(client.get("prepared_by") or "6ix Developers")}</div>',
         f"<h1>{esc(name)}</h1>",
         '<p class="sub">'
-        + esc(" · ".join([b for b in (client.get("domain"), client.get("market"), client.get("date")) if b]))
-        + "</p></header>",
+        + esc(" · ".join([b for b in (client.get("domain"), client.get("market")) if b]))
+        + "</p>"
+        + (f'<p class="sub">Prepared {esc(client["date"])}</p>' if client.get("date") else "")
+        + '<div class="cover-rule"></div></header>',
     ]
 
     # Executive summary, led by the score, because it is the one number a
@@ -1021,7 +1105,7 @@ def build(data):
     if comp:
         chart = line_chart(comp)
         if chart:
-            parts.append('<section class="block"><h2>Where the traffic is going instead</h2>')
+            parts.append('<section class="block"><h2>Competitor Analysis</h2>')
             if comp.get("lede"):
                 parts.append(f'<p class="lede">{esc(comp["lede"])}</p>')
             parts.append(chart)
@@ -1044,13 +1128,9 @@ def build(data):
                 parts.append(f"<p{cls}>{esc(closing[key])}</p>")
         parts.append("</section>")
 
-    parts.append(
-        "<footer>"
-        + esc(data.get("footer")
-              or "Figures in this report are measured, not modelled. Each section names the "
-                 "tool it came from so anything here can be checked independently.")
-        + "</footer>"
-    )
+    if data.get("footer"):
+        parts.append("<footer>" + esc(data["footer"]) + "</footer>")
+
     parts.append("</div></body></html>")
     return "".join(p for p in parts if p)
 
