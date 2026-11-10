@@ -1577,10 +1577,13 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             </div>
             <?php endif; ?>
 
-            <!-- Activation helper: AI-suggested metrics from live data / benchmarks -->
+            <!-- Reads the connected accounts. Nothing here is generated or
+                 estimated by a model: every row comes back with the account it
+                 was read from, and if nothing is connected you get told that
+                 rather than a plausible-looking number. -->
             <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px">
-                <div style="font-size:11px;color:var(--text3)">Set up this service: connect the account under <a href="<?php echo $base_url; ?>&ctab=datasources" style="color:var(--cyan)">Data Sources</a>, then add the metrics the customer will see.</div>
-                <button class="six-btn six-btn-ghost six-btn-sm six-suggest-metrics" data-slug="<?php echo esc_attr($slug); ?>" data-client="<?php echo $view_client_id; ?>" style="font-size:11px;color:var(--pink);white-space:nowrap">✨ Suggest metrics with AI</button>
+                <div style="font-size:11px;color:var(--text3)">Set up this service: connect the account under <a href="<?php echo $base_url; ?>&ctab=datasources" style="color:var(--cyan)">Data Sources</a>, then pull the current figures. GA4 is the most accurate source for visitor numbers on every service.</div>
+                <button class="six-btn six-btn-ghost six-btn-sm six-suggest-metrics" data-slug="<?php echo esc_attr($slug); ?>" data-client="<?php echo $view_client_id; ?>" style="font-size:11px;color:var(--cyan);white-space:nowrap">↓ Pull metrics</button>
             </div>
             <div class="metric-suggest-<?php echo esc_attr($slug); ?>" style="margin-bottom:12px"></div>
 
@@ -4792,16 +4795,19 @@ document.querySelectorAll('.six-suggest-metrics').forEach(function(btn){
     btn.addEventListener('click',function(){
         var slug=this.dataset.slug, client=this.dataset.client, self=this;
         var box=document.querySelector('.metric-suggest-'+slug);
-        self.disabled=true; self.textContent='Thinking…';
-        if(box) box.innerHTML='<div style="font-size:12px;color:var(--text3);padding:4px 0">Analysing live data and benchmarks…</div>';
+        self.disabled=true; self.textContent='Pulling…';
+        if(box) box.innerHTML='<div style="font-size:12px;color:var(--text3);padding:4px 0">Reading the connected accounts…</div>';
         post({action:'six_suggest_metrics',client_id:client,service_slug:slug}).then(function(r){
-            self.disabled=false; self.textContent='✨ Suggest metrics with AI';
-            if(!(r&&r.success&&r.data&&r.data.metrics&&r.data.metrics.length)){ if(box) box.innerHTML='<div style="font-size:12px;color:var(--danger)">'+((r&&r.data&&(r.data.message||r.data))||'No suggestions returned.')+'</div>'; return; }
-            var srcBase=r.data.has_live?'Based on this client’s live connected data (Google Ads / GA4 / Search Console / Meta where connected).':'Based on industry benchmarks for this service — no live data connected yet, so these are typical starting figures your advisor should refine.';
+            self.disabled=false; self.textContent='↓ Pull metrics';
+            if(!(r&&r.success&&r.data&&r.data.metrics&&r.data.metrics.length)){ if(box) box.innerHTML='<div style="font-size:12px;color:var(--danger)">'+((r&&r.data&&(r.data.message||r.data))||'Nothing came back from the connected accounts.')+'</div>'; return; }
+            // Every row names the account it was read from. Nothing is filled
+            // in from a typical figure: a number here was measured, or it is
+            // absent and the panel says which account could not be reached.
+            var srcList=(r.data.sources||[]).join(' · ');
             var html='<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">'
-                +'<div style="padding:8px 12px;background:var(--dark3);font-size:11px;color:var(--text3)">'+(r.data.has_live?'Suggested from this client’s live data — edit and add':'Suggested from industry benchmarks — edit and add')+'</div>';
+                +'<div style="padding:8px 12px;background:var(--dark3);font-size:11px;color:var(--text3)">Read just now from '+esc(srcList||'the connected accounts')+' — check and add</div>';
             r.data.metrics.forEach(function(m){
-                var tip=srcBase+(m.note?'\n\nWhy this metric: '+m.note:'');
+                var tip='Source: '+(m.source||'connected account')+'.'+(m.note?'\n\nWhy this metric: '+m.note:'');
                 html+='<div class="sugg-row" style="display:grid;grid-template-columns:auto 2fr 1fr 1fr 1fr auto;gap:6px;align-items:center;padding:8px 12px;border-top:1px solid var(--border)">'
                     +'<span title="'+esc(tip)+'" style="cursor:help;color:var(--cyan);font-size:14px;display:inline-flex;align-items:center" aria-label="Where this number comes from">ⓘ</span>'
                     +'<input class="six-input sm-label" value="'+esc(m.label)+'" title="'+esc(tip)+'" style="font-size:12px;padding:6px 8px">'
@@ -4826,7 +4832,7 @@ document.querySelectorAll('.six-suggest-metrics').forEach(function(btn){
                 var rows=Array.prototype.slice.call(box.querySelectorAll('.sugg-row')), i=0;
                 (function next(){ if(i>=rows.length){ setTimeout(function(){location.reload();},700); return; } addRow(rows[i++], next); })();
             });
-        }).catch(function(){ self.disabled=false; self.textContent='✨ Suggest metrics with AI'; if(box) box.innerHTML='<div style="font-size:12px;color:var(--danger)">Network error.</div>'; });
+        }).catch(function(){ self.disabled=false; self.textContent='↓ Pull metrics'; if(box) box.innerHTML='<div style="font-size:12px;color:var(--danger)">Could not reach the connected accounts. Nothing was changed — try again.</div>'; });
     });
 });
 

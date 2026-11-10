@@ -20,6 +20,7 @@ run "Audit renderer + checker"      python3 tools/tests/test_audit_render.py
 run "Rank grid"                     python3 tools/tests/test_rank_grid.py
 run "Competitors on the grid"       python3 tools/tests/test_rivals.py
 run "GA4 / Search Console"          php     tools/tests/test_ga4.php
+run "Pull metrics precedence"       php     tools/tests/test_pull_metrics.php
 
 if [ "$fail" -ne 0 ]; then
   printf '\n\033[31m%s suite(s) failed.\033[0m\n' "$fail"; exit 1

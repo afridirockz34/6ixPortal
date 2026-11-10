@@ -899,6 +899,96 @@ add_action( 'wp_ajax_six_suggest_metrics', function() {
 
     $rows    = array();
     $sources = array();
+    $live    = false;   // did any connected account actually answer?
+
+    // ── GA4 first, for every service ──────────────────────────────────────
+    // This is the client's own analytics, so it is measurement rather than
+    // estimate, and it is the same truth whatever they are paying us for.
+    // It runs before the SEO block on purpose: where GA4 can report organic
+    // sessions, that figure replaces the Ahrefs estimate below rather than
+    // sitting next to it, because the two are different claims and the client
+    // can check one of them.
+    $ga4_organic = null;
+    if ( class_exists( 'Six_Analytics' ) ) {
+        $prop = get_user_meta( $client_id, 'six_ga4_property_id', true ) ?: get_option( 'six_ga4_property_id', '' );
+        if ( $prop ) {
+            $now  = Six_Analytics::ga4_summary( $prop, 30 );
+            if ( empty( $now['error'] ) ) {
+                $live      = true;
+                $sources[] = 'Google Analytics 4 — last 30 days, property ' . $now['property_id'];
+
+                // The period before this one, so the advisor gets a previous
+                // column that is real rather than a blank to fill in.
+                //
+                // 61, not 60. GA4 reads "30daysAgo..today" as 31 days, so
+                // asking for 60 and subtracting leaves a 30-day prior period
+                // against a 31-day current one — an unequal comparison, and
+                // unequal in the direction that makes every client look like
+                // they grew. 61daysAgo..today is 62 days; minus the same 31
+                // gives 31 days, like for like.
+                $prev   = Six_Analytics::ga4_summary( $prop, 61 );
+                $p_tot  = ( empty( $prev['error'] ) && isset( $prev['totals'] ) ) ? $prev['totals'] : null;
+                $p_sess = $p_tot ? max( 0, intval( $p_tot['sessions'] ) - intval( $now['totals']['sessions'] ) ) : '';
+
+                $rows[] = array(
+                    'key' => 'total_visitors', 'label' => 'Total Visitors',
+                    'unit' => 'sessions per month, all sources',
+                    'previous' => (string) $p_sess,
+                    'current'  => (string) intval( $now['totals']['sessions'] ),
+                    'target' => '', 'source' => 'GA4 — measured',
+                );
+
+                // Organic only, by GA4's own channel grouping.
+                $organic = 0; $has_organic = false;
+                foreach ( (array) ( $now['by_channel'] ?? array() ) as $ch ) {
+                    if ( stripos( (string) $ch['channel'], 'organic search' ) !== false ) {
+                        $organic += intval( $ch['sessions'] ); $has_organic = true;
+                    }
+                }
+                if ( $has_organic ) {
+                    $p_org = '';
+                    if ( ! empty( $prev['by_channel'] ) ) {
+                        $po = 0;
+                        foreach ( $prev['by_channel'] as $ch ) {
+                            if ( stripos( (string) $ch['channel'], 'organic search' ) !== false ) $po += intval( $ch['sessions'] );
+                        }
+                        $p_org = (string) max( 0, $po - $organic );
+                    }
+                    $ga4_organic = $organic;
+                    $rows[] = array(
+                        'key' => 'organic_visitors', 'label' => 'Organic Visitors',
+                        'unit' => 'visitors per month',
+                        'previous' => $p_org, 'current' => (string) $organic,
+                        'target' => '', 'source' => 'GA4 — measured, organic search channel',
+                    );
+                }
+            } else {
+                $sources[] = 'GA4 unavailable: ' . $now['error'];
+            }
+        }
+    }
+
+    // ── Search Console: the client's own ranking, not a third party's ─────
+    if ( class_exists( 'Six_Analytics' ) && in_array( $slug, array( 'seo', 'website' ), true ) ) {
+        $site = get_user_meta( $client_id, 'six_gsc_site', true );
+        if ( $site ) {
+            $g = Six_Analytics::gsc_summary( $site, 28 );
+            if ( empty( $g['error'] ) ) {
+                $live      = true;
+                $sources[] = 'Search Console — ' . $g['period'];
+                if ( ! empty( $g['totals']['avg_position'] ) ) {
+                    $rows[] = array(
+                        'key' => 'seo_avg_position', 'label' => 'Avg Position',
+                        'unit' => 'average rank across tracked keywords',
+                        'previous' => '', 'current' => (string) $g['totals']['avg_position'],
+                        'target' => '', 'source' => 'Search Console — measured',
+                    );
+                }
+            } else {
+                $sources[] = 'Search Console unavailable: ' . $g['error'];
+            }
+        }
+    }
 
     // ── SEO: Ahrefs for organic reality, Search Console where linked ──────
     if ( $slug === 'seo' ) {
@@ -909,9 +999,18 @@ add_action( 'wp_ajax_six_suggest_metrics', function() {
         if ( $seo && $domain && method_exists( $seo, 'site_metrics' ) ) {
             $m = $seo::site_metrics( $domain, $loc );
             if ( empty( $m['error'] ) ) {
+                $live      = true;
                 $sources[] = ( $seo === 'Six_Ahrefs' ? 'Ahrefs' : 'DataForSEO' ) . ' (' . $domain . ')';
-                $rows[] = array( 'key' => 'organic_visitors', 'label' => 'Organic Visitors', 'previous' => '', 'current' => (string) $m['organic_traffic'],
-                                 'target' => '', 'source' => 'Ahrefs estimate' );
+                // Only when GA4 could not say. Ahrefs estimates visits from the
+                // keywords it happens to track, which is a different claim from
+                // the client's own sessions and one they can check against their
+                // analytics — so a measured figure always wins.
+                if ( $ga4_organic === null ) {
+                    $rows[] = array( 'key' => 'organic_visitors', 'label' => 'Organic Visitors',
+                                     'unit' => 'visitors per month', 'previous' => '',
+                                     'current' => (string) $m['organic_traffic'], 'target' => '',
+                                     'source' => 'Ahrefs ESTIMATE — not their analytics. Connect GA4 for the measured figure.' );
+                }
                 $rows[] = array( 'key' => 'keywords_page1', 'label' => 'Keywords on Page 1', 'previous' => '', 'current' => (string) $m['keywords_top3'],
                                  'target' => '', 'source' => 'Ahrefs — top 3' );
                 $rows[] = array( 'key' => 'keywords_tracked', 'label' => 'Keywords Tracked', 'previous' => '', 'current' => (string) $m['organic_keywords'],
@@ -930,6 +1029,7 @@ add_action( 'wp_ajax_six_suggest_metrics', function() {
     if ( $slug === 'google-ads' && class_exists( 'Six_Google_Ads' ) ) {
         $m = Six_Google_Ads::get_campaign_metrics_for_client( $client_id, 'LAST_30_DAYS' );
         if ( is_array( $m ) && $m ) {
+            $live      = true;
             $sources[] = 'Google Ads (last 30 days)';
             if ( isset( $m['clicks'] ) )      $rows[] = array( 'key' => 'paid_clicks', 'label' => 'Ad Clicks',      'previous' => '', 'current' => (string) intval( $m['clicks'] ),      'target' => '', 'source' => 'Google Ads' );
             if ( isset( $m['impressions'] ) ) $rows[] = array( 'key' => 'ads_impressions', 'label' => 'Impressions',    'previous' => '', 'current' => (string) intval( $m['impressions'] ), 'target' => '', 'source' => 'Google Ads' );
@@ -951,6 +1051,7 @@ add_action( 'wp_ajax_six_suggest_metrics', function() {
         if ( $url ) {
             $p = Six_Ahrefs::onpage( $url );
             if ( empty( $p['error'] ) ) {
+                $live      = true;
                 $sources[] = 'Live page check of ' . $p['url'];
                 $rows[] = array( 'label' => 'Page Load (ms)', 'unit' => 'milliseconds to first render', 'previous' => '', 'current' => (string) $p['load_time_ms'], 'target' => '', 'source' => 'Measured now' );
                 $rows[] = array( 'label' => 'On-page Issues', 'unit' => 'issues outstanding', 'previous' => '', 'current' => (string) count( $p['issues'] ), 'target' => '', 'source' => 'Measured now' );
@@ -961,13 +1062,27 @@ add_action( 'wp_ajax_six_suggest_metrics', function() {
     if ( ! $rows ) {
         wp_send_json_error( $sources
             ? implode( ' ', $sources )
-            : 'Nothing is connected yet for this service, so there are no real figures to read. Fill the account IDs in on the previous step, or enter the metrics by hand.' );
+            : 'Nothing is connected yet for this service, so there are no real figures to read. '
+              . 'Connect GA4 or the service account under Data Sources, or enter the metrics by hand.' );
+    }
+
+    // De-duplicate on key, keeping the first — which, because GA4 and Search
+    // Console run first, means a measured figure is never overwritten by an
+    // estimate further down.
+    $seen = array(); $unique = array();
+    foreach ( $rows as $r ) {
+        $k = $r['key'] ?? '';
+        if ( $k && isset( $seen[ $k ] ) ) continue;
+        if ( $k ) $seen[ $k ] = true;
+        $unique[] = $r;
     }
 
     wp_send_json_success( array(
-        'metrics' => $rows,
-        'sources' => $sources,
-        'note'    => 'These are current measured values. Targets are left blank on purpose — set them from the strategy, not from a guess.',
+        'metrics'  => $unique,
+        'sources'  => $sources,
+        'has_live' => $live,
+        'note'     => 'These are current measured values, read from the connected accounts listed above. '
+                    . 'Targets are left blank on purpose — set them from the strategy, not from a guess.',
     ) );
 } );
 
