@@ -51,6 +51,15 @@ they're deferred). If it's there:
 2. **`get_client_profile`** with that id — the whole profile in one call.
 3. **`list_client_artifacts`** — check what's already been produced for them
    (a recent audit, a keyword analysis) before regenerating it.
+3b. **Read `integrations` before writing any traffic number.** The profile
+   carries it, and its `traffic_source` is either `ga4_measured` or
+   `ahrefs_estimate_only`. With GA4 connected the client's own sessions are the
+   figure and may be stated as measured; without it the only number available
+   is Ahrefs' estimate of visits from the keywords it tracks, which is a
+   different claim and has to be labelled as one. The prospect can check this
+   against their own analytics while reading, so it is not a nicety.
+   `seo-audit-report/references/traffic-figures.md` has the wording for each
+   case and what to do when the two disagree.
 4. **`check_performance`** — for an existing client, where they stand against
    where they started and against the targets a previous strategy set. Worth a
    call before any deliverable that will characterise how they're doing.

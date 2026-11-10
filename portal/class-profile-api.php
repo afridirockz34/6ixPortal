@@ -270,6 +270,43 @@ class Six_Profile_API {
 		) );
 	}
 
+	/**
+	 * Which data sources this client is actually connected to.
+	 *
+	 * This exists so a session doing client work can tell measurement from
+	 * estimate before it writes a number down. The difference matters most for
+	 * traffic: with GA4 connected we can state the client's own sessions as
+	 * fact, and without it the only organic figure available is an Ahrefs
+	 * estimate of visits from the keywords Ahrefs happens to track — a
+	 * different claim, and one the client can check against their analytics.
+	 *
+	 * Reports whether an id is on file, not whether Google will honour it;
+	 * granting the service account access happens outside this system, so a
+	 * `true` here means "configured", and the Test connection button in the
+	 * advisor dashboard is what proves it answers.
+	 */
+	protected static function integrations( $id ) {
+		$meta = function ( $key ) use ( $id ) {
+			return trim( (string) get_user_meta( $id, $key, true ) ) !== '';
+		};
+		$ga4 = $meta( 'six_ga4_property_id' );
+		return array(
+			'ga4'              => $ga4,
+			'search_console'   => $meta( 'six_gsc_site' ),
+			'google_ads'       => $meta( 'six_gads_customer_id' ),
+			'google_business'  => $meta( 'six_gbp_location_id' ),
+			'meta_ads'         => $meta( 'six_meta_ad_account_id' ),
+			// Said in full, because this is the sentence that decides how a
+			// traffic figure may be described in a client-facing document.
+			'traffic_source'   => $ga4
+				? 'ga4_measured'
+				: 'ahrefs_estimate_only',
+			'notes'            => $ga4
+				? 'GA4 is connected: use it for visitor and session figures and describe them as measured.'
+				: 'No GA4 on this client. Any traffic figure is an Ahrefs estimate of visits from the keywords it tracks — label it as an estimate and never state it as their analytics.',
+		);
+	}
+
 	/** Split a stored comma-separated answer into a clean list. */
 	protected static function listify( $csv ) {
 		return array_values( array_filter( array_map( 'trim', explode( ',', (string) $csv ) ) ) );
@@ -350,6 +387,7 @@ class Six_Profile_API {
 			'website_project' => class_exists( 'Six_Website_Project' )
 				? Six_Website_Project::progress( $id ) : null,
 			'current_metrics'  => $metrics,
+			'integrations'     => self::integrations( $id ),
 			'field_provenance' => (array) get_user_meta( $id, self::ORIGIN_META, true ),
 		);
 
