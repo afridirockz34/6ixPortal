@@ -35,7 +35,7 @@ Sometimes the job is explicitly to mirror an existing document — reproduce the
 > [what to do instead / the actual risk, in one sentence].
 ```
 
-The note is not optional and never gets cut for length or flow — a document that reproduces a risky or policy-violating recommendation without the attached note is actively worse than one that omits the practice entirely, because it reads as an endorsement. This applies to teardown/comparison/analysis documents. It does not relax the compliance gate elsewhere in this skill or in `seo-content-production`'s `ymyl-legal-pack.md`: actual client-facing marketing copy being drafted for publication should still follow the "what to do instead" column directly, not the flagged practice — the reproduce-with-note pattern is for documenting or analyzing a recommendation, not for writing it into a live page.
+The note is not optional and never gets cut for length or flow — a document that reproduces a risky or policy-violating recommendation without the attached note is actively worse than one that omits the practice entirely, because it reads as an endorsement. This applies to teardown/comparison/analysis documents. It does not relax the compliance gate elsewhere in this skill or in `seo-content-production`'s `seo-content-production/references/ymyl-legal-pack.md`: actual client-facing marketing copy being drafted for publication should still follow the "what to do instead" column directly, not the flagged practice — the reproduce-with-note pattern is for documenting or analyzing a recommendation, not for writing it into a live page.
 
 ## Still real — don't skip these under the assumption they're outdated
 

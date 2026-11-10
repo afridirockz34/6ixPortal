@@ -2,6 +2,8 @@
 
 *Worked example of a Phase 1 output — built from the same questionnaire and baseline data as `seo-content-production`'s client profile. Read this to see the level of specificity a real foundation document needs; don't copy its facts for a different client. Every later phase in a real engagement would open with "here is NR Lawyers' foundation document" and paste this in.*
 
+*It deliberately keeps three `[NEEDS DATA: …]` markers, so `scripts/check_strategy_doc.py` reports this file as failing. That is the example working, not a broken one: a gap we have not measured is marked, never filled with a plausible number, and the checker is what stops a marked gap reaching a client. Run it against this file to see what that looks like before you run it against a real document.*
+
 ## Business Identity
 
 | Field | Detail |

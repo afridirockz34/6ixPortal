@@ -125,10 +125,15 @@ and unranked points are drawn distinctly but counted with 11+.
 
 ## Competitors on the same grid
 
-`get_lsg_competitors(report_id)` lists who else appears; `
-get_lsg_latest_competitor_rankings(report_id, keyword_id, cid)` returns their
-positions across the same points. Pass `cid` as a **string** — Google CIDs are
-unsigned 64-bit and will lose precision as a number.
+`get_lsg_competitors(report_id, run_id, keyword_id)` lists who else appears on
+one keyword's grid, with each one's rank, average rank, reviews and categories.
+It needs all three — `find_lsg_reports` gives the `report_id` and `last_run_id`,
+and the keyword ids come back in the same call.
+
+`get_lsg_latest_competitor_rankings(report_id, keyword_id, cid)` then returns
+one competitor's position at every point, in the same shape as the client's own
+run. Pass `cid` as a **string** — Google CIDs are unsigned 64-bit and will lose
+precision as a number.
 
 This is the most persuasive local finding there is: the same map, the same
 keyword, their pin and the competitor's. Where a competitor is top-3 across an
@@ -155,7 +160,7 @@ What it is worth per month is not, and we do not put a number on it.
 
 ## Writing it up
 
-Everything in `report-template.md`'s honesty rules applies here unchanged, plus
+Everything in `seo-audit-report/references/report-template.md`'s honesty rules applies here unchanged, plus
 one specific to this data:
 
 **A rank grid is a snapshot of one moment.** It says where the business stood

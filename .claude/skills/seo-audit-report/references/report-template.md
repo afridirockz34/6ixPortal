@@ -100,7 +100,7 @@ The renderer:
   not form a clean lattice it chunks them in order and the caption says the
   layout is not a map, so no compass direction is implied that isn't there.
 - **Quotes `summary.avg_rank` and never recomputes it.** This is the trap in
-  `local-and-gmb.md`: `rank: 0` means *did not appear*, and averaging the raw
+  `seo-strategy-builder/references/local-and-gmb.md`: `rank: 0` means *did not appear*, and averaging the raw
   values counts the invisible points as the best ones. On the grid in
   `assets/example-audit.json` that produces **5.8 against a true 26.2** — ten
   invisible points scored as if they were the ten best, in a document whose only

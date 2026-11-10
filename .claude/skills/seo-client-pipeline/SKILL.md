@@ -50,7 +50,7 @@ Route directly to `seo-audit-report` for both — its own SKILL.md already cover
 
 ## Stage 3: Strategy
 
-Once the audit's approved, get the strategy questionnaire to the client. Three ways, all fine: `issue_strategy_questionnaire` returns a link they can open and fill in themselves (the portal keeps their answers, so nothing has to be transcribed afterwards), a blank document to complete by email (`seo-strategy-builder/assets/blank-strategy-questionnaire.md`), or straight through in conversation. Same three-route logic as `seo-strategy-builder`'s side of `client-context.md`; if they send a document back, offer to file the answers with `update_client_profile` so the next stage doesn't start from an inbox.
+Once the audit's approved, get the strategy questionnaire to the client. Three ways, all fine: `issue_strategy_questionnaire` returns a link they can open and fill in themselves (the portal keeps their answers, so nothing has to be transcribed afterwards), a blank document to complete by email (`seo-strategy-builder/assets/blank-strategy-questionnaire.md`), or straight through in conversation. Same three-route logic as `seo-strategy-builder`'s side of `seo-strategy-builder/references/client-context.md`; if they send a document back, offer to file the answers with `update_client_profile` so the next stage doesn't start from an inbox.
 
 Route the actual building to `seo-strategy-builder` for the research/data phases and `seo-content-production` for voice/content drafting, same as those two skills already describe working together. Save the assembled result via `save_client_artifact` (`type: "strategy_document"`).
 
