@@ -21,6 +21,47 @@ class Six_Analytics {
         return (bool) get_option( 'six_ga4_service_account_json', '' );
     }
 
+    /**
+     * The service account's own email address.
+     *
+     * This is the single most useful string in the whole integration and it
+     * used to be buried in a textarea of JSON: granting it Viewer on the GA4
+     * property, and a user on the Search Console property, is the step that
+     * makes everything else work, and it happens in Google rather than here.
+     * Returns '' when nothing is configured.
+     */
+    public static function service_account_email() {
+        $key = json_decode( get_option( 'six_ga4_service_account_json', '' ), true );
+        return is_array( $key ) && ! empty( $key['client_email'] ) ? $key['client_email'] : '';
+    }
+
+    /**
+     * Turn a Google error into something an advisor can act on.
+     *
+     * A raw "PERMISSION_DENIED" tells you nothing about what to do next; the
+     * fix is always the same two steps and this says them.
+     */
+    private static function explain( $message, $property_id = '' ) {
+        $email = self::service_account_email();
+        $m     = (string) $message;
+        if ( stripos( $m, 'permission' ) !== false || stripos( $m, 'denied' ) !== false
+             || stripos( $m, 'caller does not have' ) !== false ) {
+            return 'Google refused access to '
+                . ( $property_id ? "property {$property_id}" : 'this property' ) . '. '
+                . ( $email
+                    ? "Open that property in Google Analytics → Admin → Property access management and add {$email} with the Viewer role."
+                    : 'No service-account JSON is configured yet — add it under Integrations first.' )
+                . ' (' . $m . ')';
+        }
+        if ( stripos( $m, 'not found' ) !== false || stripos( $m, 'invalid' ) !== false ) {
+            return 'Google did not recognise '
+                . ( $property_id ? "property {$property_id}" : 'that property' )
+                . '. It should be the numeric Property ID from Analytics → Admin → Property details, '
+                . 'not the measurement ID that starts with G-. (' . $m . ')';
+        }
+        return $m;
+    }
+
     /** Service-account access token (cached ~50 min). */
     private static function token() {
         $cached = get_transient( 'six_ga_sa_token' );
@@ -61,33 +102,83 @@ class Six_Analytics {
 
     // ── GA4 ────────────────────────────────────────────────────────────────
     public static function ga4_summary( $property_id, $days = 30 ) {
-        $property_id = preg_replace( '/[^0-9]/', '', (string) $property_id );
+        $raw = trim( (string) $property_id );
+
+        // A measurement ID is the thing people have to hand, and it is not a
+        // property ID. Stripping its non-digits turns G-ABCDEF1234 into 1234,
+        // which is a perfectly valid property number belonging to somebody
+        // else — so the report would succeed and describe the wrong business.
+        // Refuse it by name rather than quietly querying a stranger.
+        if ( preg_match( '/^G-/i', $raw ) ) {
+            return array( 'error' => 'That is a measurement ID (' . $raw . '), not a property ID. '
+                . 'The property ID is the plain number under Analytics → Admin → Property details.' );
+        }
+        if ( preg_match( '/^(UA|GTM)-/i', $raw ) ) {
+            return array( 'error' => 'That is a ' . strtoupper( substr( $raw, 0, 2 ) )
+                . ' ID, not a GA4 property ID. Use the plain number under '
+                . 'Analytics → Admin → Property details.' );
+        }
+
+        $property_id = preg_replace( '/[^0-9]/', '', $raw );
         if ( ! $property_id ) return array( 'error' => 'No GA4 property ID for this client.' );
+        // Anything that still carried letters or punctuation was not a bare
+        // property number, and the digits left over are not a safe guess.
+        if ( $property_id !== $raw ) {
+            return array( 'error' => 'GA4 property ID "' . $raw . '" is not a plain number. '
+                . 'Use only the digits shown under Analytics → Admin → Property details.' );
+        }
         $token = self::token();
         if ( is_array( $token ) ) return $token; // error
 
         $days = max( 1, min( 365, intval( $days ) ) );
-        $body = array(
-            'dateRanges' => array( array( 'startDate' => "{$days}daysAgo", 'endDate' => 'today' ) ),
-            'dimensions' => array( array( 'name' => 'sessionDefaultChannelGroup' ) ),
-            'metrics'    => array(
-                array( 'name' => 'sessions' ), array( 'name' => 'totalUsers' ),
-                array( 'name' => 'screenPageViews' ), array( 'name' => 'conversions' ),
-            ),
-            'orderBys'   => array( array( 'metric' => array( 'metricName' => 'sessions' ), 'desc' => true ) ),
-            'limit'      => 12,
-        );
-        $resp = wp_remote_post(
-            "https://analyticsdata.googleapis.com/v1beta/properties/{$property_id}:runReport",
-            array(
-                'timeout' => 30,
-                'headers' => array( 'Authorization' => 'Bearer ' . $token, 'Content-Type' => 'application/json' ),
-                'body'    => wp_json_encode( $body ),
-            )
-        );
-        if ( is_wp_error( $resp ) ) return array( 'error' => 'GA4 network error: ' . $resp->get_error_message() );
+
+        // Google renamed `conversions` to `keyEvents` in May 2024 and marked the
+        // old name deprecated. Both are still accepted today, but one of them
+        // will stop being — and a rejected metric name fails the WHOLE report,
+        // so sessions and users would disappear along with it. Ask for the
+        // current name, and if this property will not serve it, ask again with
+        // the old one. Whichever answers, the shape below is the same.
+        $attempt = function ( $metric ) use ( $property_id, $token, $days ) {
+            $body = array(
+                'dateRanges' => array( array( 'startDate' => "{$days}daysAgo", 'endDate' => 'today' ) ),
+                'dimensions' => array( array( 'name' => 'sessionDefaultChannelGroup' ) ),
+                'metrics'    => array(
+                    array( 'name' => 'sessions' ), array( 'name' => 'totalUsers' ),
+                    array( 'name' => 'screenPageViews' ), array( 'name' => $metric ),
+                ),
+                'orderBys'   => array( array( 'metric' => array( 'metricName' => 'sessions' ), 'desc' => true ) ),
+                'limit'      => 12,
+            );
+            return wp_remote_post(
+                "https://analyticsdata.googleapis.com/v1beta/properties/{$property_id}:runReport",
+                array(
+                    'timeout' => 30,
+                    'headers' => array( 'Authorization' => 'Bearer ' . $token, 'Content-Type' => 'application/json' ),
+                    'body'    => wp_json_encode( $body ),
+                )
+            );
+        };
+
+        $resp = $attempt( 'keyEvents' );
+        if ( is_wp_error( $resp ) ) {
+            return array( 'error' => 'GA4 network error: ' . $resp->get_error_message() );
+        }
         $data = json_decode( wp_remote_retrieve_body( $resp ), true );
-        if ( isset( $data['error'] ) ) return array( 'error' => 'GA4 API: ' . ( $data['error']['message'] ?? 'error' ) );
+
+        // Retry only when the complaint is about the metric itself; a
+        // permission or property error would fail the same way twice.
+        $err = $data['error']['message'] ?? '';
+        if ( $err && stripos( $err, 'keyEvents' ) !== false ) {
+            $resp = $attempt( 'conversions' );
+            if ( is_wp_error( $resp ) ) {
+                return array( 'error' => 'GA4 network error: ' . $resp->get_error_message() );
+            }
+            $data = json_decode( wp_remote_retrieve_body( $resp ), true );
+        }
+
+        if ( isset( $data['error'] ) ) {
+            return array( 'error' => 'GA4: ' . self::explain( $data['error']['message'] ?? 'error', $property_id ) );
+        }
 
         $tot = array( 'sessions' => 0, 'users' => 0, 'pageviews' => 0, 'conversions' => 0.0 );
         $channels = array();
@@ -160,7 +251,13 @@ class Six_Analytics {
         if ( is_wp_error( $resp ) ) return array( 'error' => 'Search Console network error: ' . $resp->get_error_message() );
         $code = wp_remote_retrieve_response_code( $resp );
         $data = json_decode( wp_remote_retrieve_body( $resp ), true );
-        if ( $code === 403 ) return array( 'error' => 'Search Console 403 — grant the service-account email access to this property in Search Console settings.' );
+        if ( $code === 403 ) {
+            $email = self::service_account_email();
+            return array( 'error' => 'Search Console refused access. '
+                . ( $email
+                    ? "Open the property in Search Console → Settings → Users and permissions and add {$email}."
+                    : 'No service-account JSON is configured yet — add it under Integrations first.' ) );
+        }
         if ( isset( $data['error'] ) ) return array( 'error' => 'Search Console: ' . ( $data['error']['message'] ?? 'error' ) );
         return $data ?: array();
     }
