@@ -119,6 +119,45 @@ map and is safe to put in a client-facing document; the renderer links it only
 if it is an `http(s)` URL. At most six keywords are drawn; the rest are named in
 a line underneath.
 
+#### `rivals` — the same map, twice
+
+A keyword may carry up to two `rivals`, each the same shape as the keyword
+itself. `get_lsg_competitors(report_id, run_id, keyword_id)` names who else
+appears on the grid; `get_lsg_latest_competitor_rankings(report_id, keyword_id,
+cid)` returns one of them across the same points. **Pass `cid` as a string** —
+Google CIDs are unsigned 64-bit and lose precision as a number.
+
+```json
+"rivals": [
+  { "name": "First Rank Plumbing",
+    "grid_points": [ … ],
+    "summary": {"avg_rank": 4.6, "num_points": 49} }
+]
+```
+
+The keyword then renders full width: your map, their map, same cell size, same
+scale, under one heading. Beneath it the renderer prints a count, and only a
+count:
+
+> First Rank Plumbing is in the top three at **23** of the 49 points, against
+> your **12**. At 8 of those points you do not come up at all.
+
+- **The two grids are matched by coordinate, not by list order.** A rival
+  measured on a different set of points is still drawn beside yours, but no
+  comparison sentence is printed and the report says the points were not the
+  same — a sentence claiming "they beat you at 23 places" is only true if those
+  are the same places.
+- **Nothing is modelled from the comparison.** Who is in the pack where is a
+  fact the prospect can check; what that is worth to them is not, and a figure
+  for it is the kind of thing that loses the account. No lead counts, no
+  revenue, no "you are missing N calls a month".
+- Two rivals is the cap. A third column shrinks every cell below readable, and
+  the point of this section is that the shape is legible at a glance.
+
+Pick the rival the prospect would name themselves. The persuasive case is a
+mirror image — strongest exactly where they are weakest — not simply a
+competitor who is bigger everywhere.
+
 ### `speed`
 
 Produced by `scripts/fetch_speed.py`, which measures the page with Google

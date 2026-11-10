@@ -273,7 +273,74 @@ def grid_matrix(points):
     return [pts[i:i + side] for i in range(0, len(pts), side)], False
 
 
-def rank_grid(rows, oriented, box=250):
+def keyword_matrix(obj):
+    """A grid holder (a keyword, or one rival) to (matrix, oriented)."""
+    if not isinstance(obj, dict):
+        return [], False
+    rows = obj.get("rows")
+    if rows:
+        return ([[c if isinstance(c, dict) else {"rank": c} for c in r] for r in rows],
+                bool(obj.get("oriented", True)))
+    return grid_matrix(obj.get("grid_points") or obj.get("points"))
+
+
+def point_key(p):
+    """What makes two grid points the same place. Coordinates, not list order."""
+    la, lo = num(p.get("latitude", p.get("lat"))), num(p.get("longitude", p.get("lng")))
+    return None if la is None or lo is None else (round(la, 5), round(lo, 5))
+
+
+def align_grids(client_pts, rival_pts):
+    """
+    Pair the client's points with a rival's, by coordinate.
+
+    Returns None when they cannot be paired — a different grid, a different
+    run, or points with no coordinates. Every comparison below is a claim about
+    *the same place*, so a comparison that could not be aligned is not printed
+    at all rather than printed against whatever happened to be at the same
+    index in both lists.
+    """
+    ckeys = [point_key(p) for p in client_pts]
+    rkeys = [point_key(p) for p in rival_pts]
+    if None in ckeys or None in rkeys:
+        return None
+    rmap = dict(zip(rkeys, rival_pts))
+    if len(rmap) != len(rkeys) or len(set(ckeys)) != len(ckeys):
+        return None
+    if not set(ckeys) <= set(rmap):
+        return None
+    return [(num(c.get("rank")) or 0, num(rmap[k].get("rank")) or 0)
+            for c, k in zip(client_pts, ckeys)]
+
+
+def versus_line(rival_name, pairs):
+    """
+    The comparison, stated as something the prospect can go and check.
+
+    Only counts are reported — no modelled difference, no 'you are losing N
+    customers'. Who is in the pack where, is a fact; what it is worth is not.
+    """
+    n = len(pairs)
+    you_pack = sum(1 for c, _ in pairs if 1 <= c <= 3)
+    they_pack = sum(1 for _, r in pairs if 1 <= r <= 3)
+    they_pack_you_absent = sum(1 for c, r in pairs if 1 <= r <= 3 and c <= 0)
+    out = (f"{esc(rival_name)} is in the top three at <strong>{they_pack}</strong> of "
+           f"the {n} points, against your <strong>{you_pack}</strong>.")
+    if they_pack_you_absent:
+        out += (f" At {they_pack_you_absent} of those points you do not come up "
+                "at all.")
+    return f'<p class="vs-finding">{out}</p>'
+
+
+def grid_caption(oriented):
+    """What the layout is, in the one case and in the other."""
+    return ("North at the top, west on the left — the grid as it sits on the map."
+            if oriented else
+            "Points in the order the rank tracker returned them; this layout is not "
+            "a map, so read the counts rather than the direction.")
+
+
+def rank_grid(rows, oriented, box=250, caption=True):
     """One keyword's grid of points, as the map lays it out."""
     if not rows:
         return ""
@@ -308,12 +375,11 @@ def rank_grid(rows, oriented, box=250):
             svg.append("</g>")
     svg.append("</svg>")
 
-    caption = ("North at the top, west on the left — the grid as it sits on the map."
-               if oriented else
-               "Points in the order the rank tracker returned them; this layout is not "
-               "a map, so read the counts rather than the direction.")
+    if not caption:
+        return "".join(svg)
     return (f'<figure class="rgrid-figure">{"".join(svg)}'
-            f'<figcaption class="chart-note">{esc(caption)}</figcaption></figure>')
+            f'<figcaption class="chart-note">{esc(grid_caption(oriented))}'
+            "</figcaption></figure>")
 
 
 def render_local(local):
@@ -358,12 +424,7 @@ def render_local(local):
     shown, overflow = keywords[:6], keywords[6:]
     out.append('<div class="grids">')
     for kw in shown:
-        rows = kw.get("rows")
-        if rows:
-            matrix = [[c if isinstance(c, dict) else {"rank": c} for c in r] for r in rows]
-            oriented = bool(kw.get("oriented", True))
-        else:
-            matrix, oriented = grid_matrix(kw.get("grid_points") or kw.get("points"))
+        matrix, oriented = keyword_matrix(kw)
         if not matrix:
             continue
 
@@ -382,9 +443,38 @@ def render_local(local):
             med = roles.count("warning")
             low = roles.count("serious") + roles.count("absent")
 
-        out.append('<div class="grid-card">')
+        # At most two rivals: three grids is the most a reader can hold side by
+        # side, and a fourth column shrinks every cell below readable.
+        rivals = [r for r in (kw.get("rivals") or []) if isinstance(r, dict)][:2]
+        rival_grids = []
+        for rv in rivals:
+            rmat, _ = keyword_matrix(rv)
+            if rmat:
+                rival_grids.append((rv, rmat))
+
+        out.append(f'<div class="grid-card{" compare" if rival_grids else ""}">')
         out.append(f'<h3 class="grid-kw">{esc(kw.get("keyword", ""))}</h3>')
-        out.append(rank_grid(matrix, oriented))
+
+        if rival_grids:
+            box = 220 if len(rival_grids) == 1 else 178
+            out.append('<div class="versus">')
+            out.append(
+                '<figure class="vs-col"><figcaption class="vs-name">'
+                + esc(local.get("business") or "This business")
+                + '<span class="you-tag">you</span></figcaption>'
+                + rank_grid(matrix, oriented, box=box, caption=False) + "</figure>")
+            for rv, rmat in rival_grids:
+                out.append('<figure class="vs-col"><figcaption class="vs-name">'
+                           + esc(rv.get("name", "Competitor"))
+                           + "</figcaption>"
+                           + rank_grid(rmat, oriented, box=box, caption=False)
+                           + "</figure>")
+            out.append("</div>")
+            out.append(f'<p class="chart-note">{esc(grid_caption(oriented))} '
+                       'Every map here is the same points, measured in the same run.</p>')
+        else:
+            out.append(rank_grid(matrix, oriented))
+
         out.append('<div class="meters grid-meters">')
         for role, label, count in (
             ("good",    "Positions 1–3", high),
@@ -402,6 +492,26 @@ def render_local(local):
                 f'<p class="grid-avg"><strong>{avg:g}</strong> average position across all '
                 f'{total} points, counting the ones where you don\'t appear at all. '
                 'The shape above matters more than this number.</p>')
+        # The comparison, one line per rival, only where the two grids could be
+        # matched point for point.
+        if rival_grids:
+            client_pts = [c for r in matrix for c in r]
+            unaligned = []
+            for rv, rmat in rival_grids:
+                pairs = align_grids(client_pts, [c for r in rmat for c in r])
+                name = rv.get("name", "The competitor")
+                if pairs:
+                    out.append(versus_line(name, pairs))
+                else:
+                    unaligned.append(str(name))
+            if unaligned:
+                out.append(
+                    '<p class="chart-note">Shown side by side only: '
+                    + esc(", ".join(unaligned))
+                    + (" was" if len(unaligned) == 1 else " were")
+                    + " measured on a different set of points, so a point-by-point "
+                      "comparison would not be comparing the same places.</p>")
+
         if kw.get("shape"):
             out.append(f'<p class="verdict">{esc(kw["shape"])}</p>')
         url = kw.get("grid_url") or kw.get("map_url")
@@ -812,6 +922,18 @@ p:last-child{margin-bottom:0}
 .grid-meters .meter{grid-template-columns:1fr 100px 74px;gap:10px;padding:5px 0}
 .grid-meters .meter-name{font-size:12.5px;font-weight:500}
 .grid-meters .meter-figure{font-size:12.5px}
+/* A keyword with rivals is the same map more than once, so it takes the full
+   width of the block rather than sharing a column with another keyword. */
+.grid-card.compare{max-width:none;grid-column:1/-1}
+/* The card is full width here, but a meter row is not prose: stretched to
+   760px the label and its bar end up at opposite ends of the eye's travel. */
+.grid-card.compare .grid-meters{max-width:460px}
+.versus{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start;margin-bottom:4px}
+.vs-col{margin:0;min-width:0}
+.vs-name{font-size:12.5px;font-weight:600;margin-bottom:7px;display:flex;
+  align-items:center;gap:7px}
+.vs-finding{font-size:13px;color:var(--ink-2);margin:10px 0 0}
+.vs-finding strong{color:var(--ink);font-variant-numeric:tabular-nums}
 .grid-avg{font-size:12.5px;color:var(--ink-2);margin:10px 0 0}
 .grid-avg strong{font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
 .map-link{font-size:12.5px;margin:8px 0 0}

@@ -134,6 +134,14 @@ This is the most persuasive local finding there is: the same map, the same
 keyword, their pin and the competitor's. Where a competitor is top-3 across an
 area the client is invisible in, that is a named, checkable gap.
 
+In an audit report it goes in the keyword's `rivals` and renders as the two
+maps side by side — see `seo-audit-report/references/report-template.md`. Two
+things that reference enforces and are worth holding to anywhere else this data
+is written up: the grids are matched **by coordinate, not by list order**, so a
+competitor measured on a different set of points is never compared point for
+point; and the comparison stays a count. Who is in the pack where is checkable.
+What it is worth per month is not, and we do not put a number on it.
+
 ## The rest of the local picture
 
 | Tool family | What it answers | Notes |

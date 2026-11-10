@@ -451,11 +451,267 @@
           "num_med_ranking_points": 17,
           "num_low_ranking_points": 20
         },
-        "shape": "Top three within about three kilometres of the shop, and gone entirely south of Eglinton — ten of the forty-nine points do not return Northside at all. This is a catchment that stops at Eglinton, not a profile that ranks badly.",
-        "grid_url": "https://www.local-marketing-reports.com/example/map-points"
+        "shape": "Top three within about three kilometres of the shop, and gone entirely south of Eglinton — ten of the forty-nine points do not return Northside at all. First Rank's map is the mirror image: weakest where Northside is strongest, and in the pack across the whole of the downtown core.",
+        "grid_url": "https://www.local-marketing-reports.com/example/map-points",
+        "rivals": [
+          {
+            "name": "First Rank Plumbing",
+            "grid_points": [
+              {
+                "latitude": 43.8,
+                "longitude": -79.47,
+                "rank": 14
+              },
+              {
+                "latitude": 43.8,
+                "longitude": -79.45,
+                "rank": 12
+              },
+              {
+                "latitude": 43.8,
+                "longitude": -79.43,
+                "rank": 11
+              },
+              {
+                "latitude": 43.8,
+                "longitude": -79.41,
+                "rank": 9
+              },
+              {
+                "latitude": 43.8,
+                "longitude": -79.39,
+                "rank": 10
+              },
+              {
+                "latitude": 43.8,
+                "longitude": -79.37,
+                "rank": 13
+              },
+              {
+                "latitude": 43.8,
+                "longitude": -79.35,
+                "rank": 16
+              },
+              {
+                "latitude": 43.785,
+                "longitude": -79.47,
+                "rank": 11
+              },
+              {
+                "latitude": 43.785,
+                "longitude": -79.45,
+                "rank": 9
+              },
+              {
+                "latitude": 43.785,
+                "longitude": -79.43,
+                "rank": 8
+              },
+              {
+                "latitude": 43.785,
+                "longitude": -79.41,
+                "rank": 6
+              },
+              {
+                "latitude": 43.785,
+                "longitude": -79.39,
+                "rank": 7
+              },
+              {
+                "latitude": 43.785,
+                "longitude": -79.37,
+                "rank": 10
+              },
+              {
+                "latitude": 43.785,
+                "longitude": -79.35,
+                "rank": 13
+              },
+              {
+                "latitude": 43.77,
+                "longitude": -79.47,
+                "rank": 8
+              },
+              {
+                "latitude": 43.77,
+                "longitude": -79.45,
+                "rank": 6
+              },
+              {
+                "latitude": 43.77,
+                "longitude": -79.43,
+                "rank": 5
+              },
+              {
+                "latitude": 43.77,
+                "longitude": -79.41,
+                "rank": 4
+              },
+              {
+                "latitude": 43.77,
+                "longitude": -79.39,
+                "rank": 5
+              },
+              {
+                "latitude": 43.77,
+                "longitude": -79.37,
+                "rank": 8
+              },
+              {
+                "latitude": 43.77,
+                "longitude": -79.35,
+                "rank": 11
+              },
+              {
+                "latitude": 43.755,
+                "longitude": -79.47,
+                "rank": 5
+              },
+              {
+                "latitude": 43.755,
+                "longitude": -79.45,
+                "rank": 3
+              },
+              {
+                "latitude": 43.755,
+                "longitude": -79.43,
+                "rank": 2
+              },
+              {
+                "latitude": 43.755,
+                "longitude": -79.41,
+                "rank": 2
+              },
+              {
+                "latitude": 43.755,
+                "longitude": -79.39,
+                "rank": 3
+              },
+              {
+                "latitude": 43.755,
+                "longitude": -79.37,
+                "rank": 5
+              },
+              {
+                "latitude": 43.755,
+                "longitude": -79.35,
+                "rank": 7
+              },
+              {
+                "latitude": 43.74,
+                "longitude": -79.47,
+                "rank": 3
+              },
+              {
+                "latitude": 43.74,
+                "longitude": -79.45,
+                "rank": 2
+              },
+              {
+                "latitude": 43.74,
+                "longitude": -79.43,
+                "rank": 1
+              },
+              {
+                "latitude": 43.74,
+                "longitude": -79.41,
+                "rank": 1
+              },
+              {
+                "latitude": 43.74,
+                "longitude": -79.39,
+                "rank": 2
+              },
+              {
+                "latitude": 43.74,
+                "longitude": -79.37,
+                "rank": 3
+              },
+              {
+                "latitude": 43.74,
+                "longitude": -79.35,
+                "rank": 5
+              },
+              {
+                "latitude": 43.725,
+                "longitude": -79.47,
+                "rank": 2
+              },
+              {
+                "latitude": 43.725,
+                "longitude": -79.45,
+                "rank": 1
+              },
+              {
+                "latitude": 43.725,
+                "longitude": -79.43,
+                "rank": 1
+              },
+              {
+                "latitude": 43.725,
+                "longitude": -79.41,
+                "rank": 1
+              },
+              {
+                "latitude": 43.725,
+                "longitude": -79.39,
+                "rank": 1
+              },
+              {
+                "latitude": 43.725,
+                "longitude": -79.37,
+                "rank": 2
+              },
+              {
+                "latitude": 43.725,
+                "longitude": -79.35,
+                "rank": 4
+              },
+              {
+                "latitude": 43.71,
+                "longitude": -79.47,
+                "rank": 1
+              },
+              {
+                "latitude": 43.71,
+                "longitude": -79.45,
+                "rank": 1
+              },
+              {
+                "latitude": 43.71,
+                "longitude": -79.43,
+                "rank": 1
+              },
+              {
+                "latitude": 43.71,
+                "longitude": -79.41,
+                "rank": 1
+              },
+              {
+                "latitude": 43.71,
+                "longitude": -79.39,
+                "rank": 1
+              },
+              {
+                "latitude": 43.71,
+                "longitude": -79.37,
+                "rank": 1
+              },
+              {
+                "latitude": 43.71,
+                "longitude": -79.35,
+                "rank": 2
+              }
+            ],
+            "summary": {
+              "avg_rank": 5.3,
+              "num_points": 49
+            }
+          }
+        ]
       }
     ],
-    "verdict": "The half of Toronto that bills the most for an emergency call-out is the half where Northside does not appear."
+    "verdict": "The half of Toronto that bills the most for an emergency call-out is the half where Northside does not appear and First Rank is in the top three."
   },
   "speed": {
     "source": "Google PageSpeed Insights",
