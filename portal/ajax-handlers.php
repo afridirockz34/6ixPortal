@@ -2045,6 +2045,26 @@ add_action( 'wp_ajax_six_save_client_datasource', function() {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// LIST SEARCH CONSOLE PROPERTIES THE SERVICE ACCOUNT CAN ACTUALLY READ
+// A Search Console identifier is a literal string, and asking for one you
+// cannot see returns the same 403 as not being invited to one you can. This
+// turns that guess into a lookup.
+// ─────────────────────────────────────────────────────────────────────────────
+add_action( 'wp_ajax_six_gsc_list_sites', function() {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) {
+        wp_send_json_error( 'Permission denied.' );
+    }
+    if ( ! class_exists( 'Six_Analytics' ) ) wp_send_json_error( 'Analytics integration unavailable.' );
+    $r = Six_Analytics::gsc_sites( true );   // force: the advisor is debugging
+    if ( isset( $r['error'] ) ) wp_send_json_error( $r['error'] );
+    wp_send_json_success( array(
+        'sites'       => $r['sites'] ?? array(),
+        'permissions' => $r['permissions'] ?? array(),
+    ) );
+} );
+
+// ─────────────────────────────────────────────────────────────────────────────
 // TEST A CLIENT DATA SOURCE — live fetch so the advisor sees it actually works
 // ─────────────────────────────────────────────────────────────────────────────
 add_action( 'wp_ajax_six_test_client_datasource', function() {

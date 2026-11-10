@@ -2139,6 +2139,11 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 <div style="display:flex;gap:8px;flex-wrap:wrap">
                     <button class="six-btn six-btn-primary six-btn-sm six-ds-adv-save" data-key="six_gsc_site" data-input="gsc-site" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Save</button>
                     <?php if($c_gsc_site): ?><button class="six-btn six-btn-ghost six-btn-sm six-ds-test" data-source="gsc" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Test connection</button><?php endif; ?>
+                    <!-- Asks Google which properties this service account can
+                         actually read. A Search Console identifier is a literal
+                         string, so guessing its shape is how an afternoon gets
+                         lost to a 403 that means "no such property for you". -->
+                    <button class="six-btn six-btn-ghost six-btn-sm" id="gsc-list" style="font-size:11px">Show properties we can read</button>
                 </div>
                 <div class="six-ds-adv-result" style="margin-top:8px;font-size:12px"></div>
             </div>
@@ -2172,6 +2177,36 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                     if(out){ out.style.color=(res&&res.success)?'var(--success)':'var(--danger)'; out.textContent=(res&&((res.data&&res.data.message)||res.data))||'Test failed'; }
                 }).catch(function(){ btn.disabled=false; btn.textContent=label; if(out){out.style.color='var(--danger)';out.textContent='Network error';} });
             });
+        });
+
+        // Lists the Search Console properties the service account can read,
+        // and offers each one as a click so the exact identifier gets saved
+        // rather than retyped. Clicking fills the box; Save still commits.
+        var gscList=document.getElementById('gsc-list');
+        if(gscList) gscList.addEventListener('click',function(){
+            var out=resultEl(gscList); var label=this.textContent; var self=this;
+            self.disabled=true; self.textContent='Asking Google…';
+            if(out){out.style.color='var(--text3)';out.textContent='Listing properties…';}
+            post({action:'six_gsc_list_sites'}).then(function(res){
+                self.disabled=false; self.textContent=label;
+                if(!out) return;
+                if(!(res&&res.success)){ out.style.color='var(--danger)'; out.textContent=(res&&((res.data&&res.data.message)||res.data))||'Could not list properties.'; return; }
+                var sites=(res.data&&res.data.sites)||[];
+                if(!sites.length){ out.style.color='var(--warning)'; out.textContent='The service account can see no Search Console properties at all.'; return; }
+                out.style.color='var(--text2)';
+                out.innerHTML='<div style="margin-bottom:6px">Click one to use it — these identifiers are literal:</div>'
+                    +sites.map(function(s){
+                        var e=String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+                        return '<div><button type="button" class="gsc-pick" data-site="'+e+'" style="background:none;border:none;padding:2px 0;color:var(--cyan);cursor:pointer;font-family:monospace;font-size:11.5px">'+e+'</button></div>';
+                    }).join('');
+                out.querySelectorAll('.gsc-pick').forEach(function(b){
+                    b.addEventListener('click',function(){
+                        var box=document.getElementById('gsc-site');
+                        if(box){ box.value=this.dataset.site; box.focus(); }
+                        out.insertAdjacentHTML('beforeend','<div style="color:var(--warning);margin-top:6px">Filled in — press Save to store it.</div>');
+                    });
+                });
+            }).catch(function(){ self.disabled=false; self.textContent=label; if(out){out.style.color='var(--danger)';out.textContent='Network error';} });
         });
     })();
     </script>

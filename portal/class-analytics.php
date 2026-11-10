@@ -200,13 +200,13 @@ class Six_Analytics {
 
     // ── Search Console ─────────────────────────────────────────────────────
     public static function gsc_summary( $site, $days = 28 ) {
-        $site = trim( (string) $site );
-        if ( ! $site ) return array( 'error' => 'No Search Console site for this client.' );
-        // Normalize to a GSC property identifier.
-        if ( strpos( $site, 'sc-domain:' ) !== 0 && strpos( $site, 'http' ) !== 0 ) {
-            $domain = preg_replace( '#^www\.#', '', preg_replace( '#/.*$#', '', $site ) );
-            $site = 'sc-domain:' . $domain;
-        }
+        // Resolve against the properties Google will actually serve, rather
+        // than guessing an identifier's shape. See resolve_gsc_site().
+        $res = self::resolve_gsc_site( $site );
+        if ( isset( $res['error'] ) ) return $res;
+        $site     = $res['site'];
+        $res_note = $res['note'] ?? '';
+
         $token = self::token();
         if ( is_array( $token ) ) return $token;
 
@@ -239,7 +239,158 @@ class Six_Analytics {
             $tot['avg_ctr']     = round( floatval( $t['rows'][0]['ctr'] ?? 0 ) * 100, 1 );
             $tot['avg_position']= round( floatval( $t['rows'][0]['position'] ?? 0 ), 1 );
         }
-        return array( 'site' => $site, 'period' => "{$start} to {$end}", 'totals' => $tot, 'top_queries' => $queries );
+        $out = array( 'site' => $site, 'period' => "{$start} to {$end}", 'totals' => $tot, 'top_queries' => $queries );
+        if ( $res_note ) $out['note'] = $res_note;
+        return $out;
+    }
+
+    /**
+     * Which Search Console properties can this service account actually see?
+     *
+     * The decisive diagnostic. A 403 from Search Console has three unrelated
+     * causes that all used to print the same sentence: the API is not enabled
+     * on the Cloud project, the property identifier is not the one Google
+     * knows, or the account genuinely has not been added. This call separates
+     * them — if it errors, the problem is the project or the key; if it
+     * returns a list, the problem is which identifier we are asking for, and
+     * the list says what to ask for instead.
+     */
+    public static function gsc_sites( $force = false ) {
+        if ( ! $force ) {
+            $cached = get_transient( 'six_gsc_sites' );
+            if ( is_array( $cached ) ) return $cached;
+        }
+        $token = self::token();
+        if ( is_array( $token ) ) return $token;
+
+        $resp = wp_remote_get( 'https://searchconsole.googleapis.com/webmasters/v3/sites', array(
+            'timeout' => 20,
+            'headers' => array( 'Authorization' => 'Bearer ' . $token ),
+        ) );
+        if ( is_wp_error( $resp ) ) {
+            return array( 'error' => 'Search Console network error: ' . $resp->get_error_message() );
+        }
+        $data = json_decode( wp_remote_retrieve_body( $resp ), true );
+        if ( isset( $data['error'] ) ) {
+            return array( 'error' => self::explain_gsc( $data['error'] ) );
+        }
+        $out = array( 'sites' => array(), 'permissions' => array() );
+        foreach ( (array) ( $data['siteEntry'] ?? array() ) as $e ) {
+            if ( empty( $e['siteUrl'] ) ) continue;
+            $out['sites'][] = $e['siteUrl'];
+            $out['permissions'][ $e['siteUrl'] ] = $e['permissionLevel'] ?? '';
+        }
+        set_transient( 'six_gsc_sites', $out, 300 );
+        return $out;
+    }
+
+    /** The bare host behind any Search Console identifier. */
+    private static function gsc_host( $id ) {
+        $id = trim( (string) $id );
+        $id = preg_replace( '#^sc-domain:#i', '', $id );
+        $id = preg_replace( '#^https?://#i', '', $id );
+        $id = preg_replace( '#/.*$#', '', $id );
+        return strtolower( preg_replace( '#^www\.#i', '', $id ) );
+    }
+
+    /**
+     * Turn what the advisor saved into an identifier Google will accept.
+     *
+     * Search Console identifiers are exact strings, not URLs that get tidied
+     * up: `sc-domain:example.ca`, `https://example.ca/` and
+     * `https://example.ca/shop/` are three different properties, and asking
+     * for one you cannot see returns the same 403 as not being invited to one
+     * you can. So rather than guess the shape, ask Google what exists and
+     * match against that.
+     */
+    public static function resolve_gsc_site( $site ) {
+        $site = trim( (string) $site );
+        if ( ! $site ) return array( 'error' => 'No Search Console site for this client.' );
+
+        $list = self::gsc_sites();
+        if ( isset( $list['error'] ) ) {
+            // Cannot enumerate — fall back to the old normalisation so the
+            // query still runs, and carry the reason for the report.
+            $guess = $site;
+            if ( strpos( $site, 'sc-domain:' ) !== 0 && strpos( $site, 'http' ) !== 0 ) {
+                $guess = 'sc-domain:' . self::gsc_host( $site );
+            }
+            return array( 'site' => $guess, 'verified' => false, 'note' => $list['error'] );
+        }
+
+        $have = $list['sites'];
+        if ( ! $have ) {
+            return array( 'error' => 'The service account ' . ( self::service_account_email() ?: '' )
+                . ' can see no Search Console properties at all. Adding it to a property takes effect '
+                . 'immediately, so this usually means it was added to a different Google account, or '
+                . 'added as a pending invitation that has not been accepted.' );
+        }
+        if ( in_array( $site, $have, true ) ) {
+            return array( 'site' => $site, 'verified' => true );
+        }
+
+        // Same host, whatever shape it was saved in.
+        $host  = self::gsc_host( $site );
+        $cands = array();
+        foreach ( $have as $h ) {
+            if ( self::gsc_host( $h ) === $host ) $cands[] = $h;
+        }
+        if ( $cands ) {
+            // A domain property covers every path, so prefer it; then https
+            // over http; then the shortest path, which is the most inclusive.
+            usort( $cands, function ( $a, $b ) {
+                $sa = ( strpos( $a, 'sc-domain:' ) === 0 ) ? 0 : ( strpos( $a, 'https://' ) === 0 ? 1 : 2 );
+                $sb = ( strpos( $b, 'sc-domain:' ) === 0 ) ? 0 : ( strpos( $b, 'https://' ) === 0 ? 1 : 2 );
+                return $sa === $sb ? strlen( $a ) - strlen( $b ) : $sa - $sb;
+            } );
+            return array(
+                'site' => $cands[0], 'verified' => true,
+                'note' => $site === $cands[0] ? '' : 'Saved as "' . $site . '"; using "' . $cands[0]
+                          . '", which is the property Search Console actually has for that domain.',
+            );
+        }
+
+        return array( 'error' => 'No Search Console property matches "' . $site . '". '
+            . 'The service account ' . ( self::service_account_email() ?: '' ) . ' can currently see: '
+            . implode( ', ', array_slice( $have, 0, 12 ) )
+            . ( count( $have ) > 12 ? ' (and ' . ( count( $have ) - 12 ) . ' more)' : '' )
+            . '. Save one of those exactly as written — the identifier is literal, so '
+            . 'https://site.ca/ and sc-domain:site.ca are different properties.' );
+    }
+
+    /**
+     * A Search Console API error, said in terms of what to do about it.
+     *
+     * The one that matters most: a project with the GA4 Data API enabled but
+     * not the Search Console API returns 403 here while GA4 keeps working, and
+     * no amount of adding users in Search Console will ever fix it.
+     */
+    private static function explain_gsc( $err ) {
+        $msg    = is_array( $err ) ? ( $err['message'] ?? 'error' ) : (string) $err;
+        $status = is_array( $err ) ? ( $err['status'] ?? '' ) : '';
+        $reason = '';
+        if ( is_array( $err ) && ! empty( $err['errors'][0]['reason'] ) ) {
+            $reason = $err['errors'][0]['reason'];
+        }
+        $email = self::service_account_email();
+
+        if ( $status === 'PERMISSION_DENIED' && stripos( $msg, 'has not been used in project' ) !== false
+             || $reason === 'accessNotConfigured' || stripos( $msg, 'is disabled' ) !== false ) {
+            return 'The Search Console API is not enabled on the Google Cloud project this '
+                . 'service account belongs to. GA4 works because the Analytics Data API is enabled '
+                . 'separately — they are two different APIs. Enable "Google Search Console API" in '
+                . 'that project and retry; adding users in Search Console will not fix this. '
+                . 'Google said: ' . $msg;
+        }
+        if ( $status === 'PERMISSION_DENIED' || stripos( $msg, 'permission' ) !== false ) {
+            return 'Search Console refused access. '
+                . ( $email
+                    ? "Check that {$email} is listed under Settings → Users and permissions on the "
+                      . 'exact property being requested, and that the invitation was not left pending. '
+                    : 'No service-account JSON is configured yet — add it under Integrations first. ' )
+                . 'Google said: ' . $msg;
+        }
+        return 'Search Console: ' . $msg;
     }
 
     private static function gsc_query( $url, $token, $body ) {
@@ -249,16 +400,8 @@ class Six_Analytics {
             'body'    => wp_json_encode( $body ),
         ) );
         if ( is_wp_error( $resp ) ) return array( 'error' => 'Search Console network error: ' . $resp->get_error_message() );
-        $code = wp_remote_retrieve_response_code( $resp );
         $data = json_decode( wp_remote_retrieve_body( $resp ), true );
-        if ( $code === 403 ) {
-            $email = self::service_account_email();
-            return array( 'error' => 'Search Console refused access. '
-                . ( $email
-                    ? "Open the property in Search Console → Settings → Users and permissions and add {$email}."
-                    : 'No service-account JSON is configured yet — add it under Integrations first.' ) );
-        }
-        if ( isset( $data['error'] ) ) return array( 'error' => 'Search Console: ' . ( $data['error']['message'] ?? 'error' ) );
+        if ( isset( $data['error'] ) ) return array( 'error' => self::explain_gsc( $data['error'] ) );
         return $data ?: array();
     }
 }
