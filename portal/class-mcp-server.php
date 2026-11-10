@@ -100,7 +100,7 @@ class Six_MCP_Server {
 			array(
 				'name'        => 'get_client_profile',
 				'title'       => 'Get a client profile',
-				'description' => 'The full profile for one client: business identity, services and budgets, positioning and competitors, the SEO / Google Ads / Google Business inputs they gave during onboarding, BOTH questionnaires (`questionnaire.audit` answered at signup, `questionnaire.strategy` answered after the audit wins the work) each with its own completion, website project progress, and their current dashboard metrics. Read `stage` to see where they are: audit_intake_incomplete, ready_for_audit, awaiting_strategy_answers, or ready_for_strategy. Read this before writing any strategy, audit or analysis for a client, so the work reflects what they actually told us. Also returns `integrations`, which says which data sources are connected and — in `traffic_source` — whether a traffic figure for this client may be stated as measured: `ga4_measured` means use GA4 and call it measured, `ahrefs_estimate_only` means the only figure available is an Ahrefs estimate of visits from the keywords it tracks, which must be labelled as an estimate and never presented as their own analytics. Plus `field_provenance`, showing which fields an automation has changed and when.',
+				'description' => 'The full profile for one client: business identity, services and budgets, positioning and competitors, the SEO / Google Ads / Google Business inputs they gave during onboarding, BOTH questionnaires (`questionnaire.audit` answered at signup, `questionnaire.strategy` answered after the audit wins the work) each with its own completion, website project progress, and their current dashboard metrics. Read `stage` to see where they are: audit_intake_incomplete, ready_for_audit, awaiting_strategy_answers, or ready_for_strategy. Read this before writing any strategy, audit or analysis for a client, so the work reflects what they actually told us. Also returns `integrations`, which decides what the work may state as fact about this client\'s own domain. Two separate verdicts: `traffic_source` (`ga4_measured` — use GA4 for visitors, sessions and engagement and call them measured — or `ahrefs_estimate_only`) and `ranking_source` (`gsc_measured` — use Search Console for impressions, clicks, CTR, average position and the real query list, which is what Google served rather than what a crawler sampled — or `ahrefs_estimate_only`), with `own_domain_data` summarising both as full/partial/none. An `ahrefs_estimate_only` figure must be labelled an estimate and never presented as the client\'s own analytics. Ahrefs stays correct for competitors, backlinks and keyword volume, which no client account can see; never plot a measured series against estimated ones in the same comparison. Plus `field_provenance`, showing which fields an automation has changed and when.',
 				'inputSchema' => array(
 					'type'       => 'object',
 					'properties' => array(
@@ -217,6 +217,51 @@ class Six_MCP_Server {
 					'required'   => array( 'client_id', 'type' ),
 				),
 			),
+			array(
+				'name'        => 'get_live_metrics',
+				'title'       => 'Live data from the client\'s connected accounts',
+				'description' => 'Everything the portal can currently read for one client, from the accounts they have actually connected: Google Analytics 4 (sessions, users, pageviews, and the split by channel — the organic figure is the Organic Search channel, not the total), Search Console (clicks, impressions, CTR, average position), Google Ads (clicks, impressions, conversions, cost) and Meta Ads. This is MEASURED data about their own property, which is a different and much stronger claim than any third-party estimate: state it as fact and say the period. Every source reports its own status — ok, not_connected, or error with the reason — so a missing number is never silently filled by a guess. Use this before writing any audit, strategy, report or performance review, and use get_search_console_queries for the query-level detail.',
+				'inputSchema' => array(
+					'type'       => 'object',
+					'properties' => array(
+						'client_id' => array( 'type' => 'integer', 'description' => 'The client id, from list_clients.' ),
+						'days'      => array( 'type' => 'integer', 'description' => 'How many days back, 1-365. Default 30.' ),
+						'sources'   => array(
+							'type'        => 'array',
+							'items'       => array( 'type' => 'string' ),
+							'description' => 'Optional subset: ga4, search_console, google_ads, meta_ads. Default is everything connected.',
+						),
+					),
+					'required'   => array( 'client_id' ),
+				),
+			),
+			array(
+				'name'        => 'get_search_console_queries',
+				'title'       => 'What Google actually shows this client for',
+				'description' => 'The client\'s real search queries from Google Search Console — what Google served them for, with impressions, clicks, CTR and average position for each. This is what happened, not what a crawler sampled, so it outranks any third-party ranking estimate for this domain. Three findings come out of it that nothing external can produce: queries with high impressions and almost no clicks (they rank but the title is not earning the click), queries sitting at positions 11-20 (one page of effort from real traffic), and the gap between what the client said they want to be found for and what they are actually found for — which is often the most useful line in an audit. Needs Search Console connected for this client; returns a clear reason if not.',
+				'inputSchema' => array(
+					'type'       => 'object',
+					'properties' => array(
+						'client_id' => array( 'type' => 'integer', 'description' => 'The client id, from list_clients.' ),
+						'days'      => array( 'type' => 'integer', 'description' => 'How many days back, 1-480. Default 28.' ),
+						'limit'     => array( 'type' => 'integer', 'description' => 'How many queries, 1-100. Default 25.' ),
+					),
+					'required'   => array( 'client_id' ),
+				),
+			),
+			array(
+				'name'        => 'get_pagespeed',
+				'title'       => 'Measure a page with Google PageSpeed Insights',
+				'description' => 'Runs Google\'s own PageSpeed Insights against any URL and returns the performance score plus Core Web Vitals (First Contentful Paint, Largest Contentful Paint, Total Blocking Time, Cumulative Layout Shift, Speed Index). Takes a URL rather than a client, so it works for a prospect we hold no accounts for. Google\'s tool on purpose: the reader can check the figure at pagespeed.web.dev and get the same number, which a timing run of our own could never promise. It is a lab measurement of one load, not an average of real visitors — say so. Returns a clear error rather than a number if the quota is exhausted.',
+				'inputSchema' => array(
+					'type'       => 'object',
+					'properties' => array(
+						'url'      => array( 'type' => 'string', 'description' => 'The page to measure, e.g. https://example.ca/services.' ),
+						'strategy' => array( 'type' => 'string', 'description' => 'mobile (default) or desktop. Mobile is what Google ranks on.' ),
+					),
+					'required'   => array( 'url' ),
+				),
+			),
 		);
 	}
 
@@ -309,6 +354,8 @@ class Six_MCP_Server {
 			'instructions' =>
 				"Client profiles for 6ix Developers. Each client's profile holds what they told us during onboarding — business type, target market, keywords, competitors, services and budgets — plus their current performance numbers.\n\n" .
 				"Start with list_clients to turn a business or person's name into a client_id, then get_client_profile before producing any audit, strategy or analysis, so the work is grounded in that client's real answers rather than assumptions.\n\n" .
+				"The portal is also a live window onto the accounts each client has connected. get_live_metrics returns their Google Analytics 4, Search Console, Google Ads and Meta figures; get_search_console_queries returns what Google actually serves them for; get_pagespeed measures any URL with Google's own tool. Read these before writing numbers into an audit, strategy or report.\n\n" .
+				"The distinction those tools exist to protect: data from a client's own connected account is MEASURED and may be stated as fact with its period named. Anything from a third party — Ahrefs above all — is an ESTIMATE and must say so, because the client can check the first kind against an analytics tab they already have open. Ahrefs stays correct for competitors, backlinks and keyword volume, which no client account can see. Never put a measured series and an estimated series on the same axis. Every source in get_live_metrics reports its own status, so not_connected and error are distinguishable from each other and from zero; none of the three is a reason to invent a figure.\n\n" .
 				"Save what you produce with save_client_artifact so it reaches their dashboard and later sessions can see it. Writing to a profile needs a write-scoped token; the customer's original answers are always preserved.",
 		);
 	}
@@ -497,9 +544,173 @@ class Six_MCP_Server {
 				return self::result( $id, self::unwrap( Six_Profile_API::create_artifact(
 					self::sub_request( $request, 'POST', '/clients/' . $client_id . '/artifacts', array( 'id' => $client_id ), $body )
 				) ) );
+
+			case 'get_live_metrics':
+				return self::result( $id, self::tool_result(
+					self::live_metrics( $client_id, (int) ( $args['days'] ?? 30 ), (array) ( $args['sources'] ?? array() ) )
+				) );
+
+			case 'get_search_console_queries':
+				return self::result( $id, self::tool_result(
+					self::gsc_queries( $client_id, (int) ( $args['days'] ?? 28 ), (int) ( $args['limit'] ?? 25 ) )
+				) );
+
+			case 'get_pagespeed':
+				if ( ! class_exists( 'Six_Analytics' ) ) {
+					return self::result( $id, self::tool_result( array(
+						'error' => 'unavailable', 'message' => 'The analytics integration is not loaded on this site.',
+					), true ) );
+				}
+				$ps = Six_Analytics::pagespeed( (string) ( $args['url'] ?? '' ), (string) ( $args['strategy'] ?? 'mobile' ) );
+				return self::result( $id, self::tool_result( $ps, isset( $ps['error'] ) ) );
 		}
 
 		return self::error( $id, -32602, 'Unknown tool: ' . $name );
+	}
+
+	// ── Live integration reads ────────────────────────────────────────────
+	// The point of connecting accounts in the portal is that a session doing
+	// client work can read them. Every source reports its own status, because
+	// a source that failed and a source that is not connected are different
+	// facts and neither is "zero".
+
+	/**
+	 * A nonsense period falls back to the default rather than clamping to 1.
+	 * Clamping would quietly return a one-day window, and a one-day window of
+	 * a normal site looks exactly like a site with almost no traffic — a
+	 * wrong answer that reads as a finding.
+	 */
+	protected static function period( $days, $default, $max ) {
+		$days = (int) $days;
+		if ( $days < 1 ) $days = $default;
+		return min( $max, $days );
+	}
+
+	protected static function live_metrics( $client_id, $days, $want ) {
+		$days = self::period( $days, 30, 365 );
+		$want = array_filter( array_map( 'sanitize_key', $want ) );
+		$all  = array( 'ga4', 'search_console', 'google_ads', 'meta_ads' );
+		$want = $want ? array_values( array_intersect( $all, $want ) ) : $all;
+
+		$meta = function ( $k ) use ( $client_id ) {
+			return trim( (string) get_user_meta( $client_id, $k, true ) );
+		};
+		$out = array(
+			'client_id'   => $client_id,
+			'period_days' => $days,
+			'sources'     => array(),
+		);
+
+		if ( in_array( 'ga4', $want, true ) ) {
+			$prop = $meta( 'six_ga4_property_id' ) ?: get_option( 'six_ga4_property_id', '' );
+			if ( ! $prop || ! class_exists( 'Six_Analytics' ) ) {
+				$out['sources']['ga4'] = array( 'status' => 'not_connected',
+					'message' => 'No GA4 property for this client. Any traffic figure must be labelled an Ahrefs estimate.' );
+			} else {
+				$r = Six_Analytics::ga4_summary( $prop, $days );
+				if ( isset( $r['error'] ) ) {
+					$out['sources']['ga4'] = array( 'status' => 'error', 'message' => $r['error'] );
+				} else {
+					$organic = null;
+					foreach ( (array) ( $r['by_channel'] ?? array() ) as $ch ) {
+						if ( stripos( (string) $ch['channel'], 'organic search' ) !== false ) {
+							$organic = (int) $organic + (int) $ch['sessions'];
+						}
+					}
+					$r['organic_sessions'] = $organic;
+					$r['status']  = 'ok';
+					$r['measured'] = true;
+					$r['note']    = 'Their own analytics. `organic_sessions` is the Organic Search channel only; '
+						. '`totals.sessions` includes paid, direct and referral.';
+					$out['sources']['ga4'] = $r;
+				}
+			}
+		}
+
+		if ( in_array( 'search_console', $want, true ) ) {
+			$site = $meta( 'six_gsc_site' );
+			if ( ! $site || ! class_exists( 'Six_Analytics' ) ) {
+				$out['sources']['search_console'] = array( 'status' => 'not_connected',
+					'message' => 'No Search Console property for this client. Ranking figures must be labelled Ahrefs estimates.' );
+			} else {
+				$r = Six_Analytics::gsc_summary( $site, min( 480, $days ) );
+				if ( isset( $r['error'] ) ) {
+					$out['sources']['search_console'] = array( 'status' => 'error', 'message' => $r['error'] );
+				} else {
+					unset( $r['top_queries'] );   // get_search_console_queries serves those
+					$r['status']   = 'ok';
+					$r['measured'] = true;
+					$r['note']     = 'What Google actually served. Use get_search_console_queries for the query list.';
+					$out['sources']['search_console'] = $r;
+				}
+			}
+		}
+
+		if ( in_array( 'google_ads', $want, true ) ) {
+			if ( ! $meta( 'six_gads_customer_id' ) || ! class_exists( 'Six_Google_Ads' ) ) {
+				$out['sources']['google_ads'] = array( 'status' => 'not_connected',
+					'message' => 'No Google Ads customer id for this client.' );
+			} else {
+				$r = Six_Google_Ads::get_campaign_metrics_for_client( $client_id, 'LAST_30_DAYS' );
+				$out['sources']['google_ads'] = ( is_array( $r ) && $r )
+					? array_merge( array( 'status' => 'ok', 'measured' => true, 'period' => 'last 30 days' ), $r )
+					: array( 'status' => 'error', 'message' => method_exists( 'Six_Google_Ads', 'get_last_error' )
+						? (string) Six_Google_Ads::get_last_error() : 'Google Ads returned nothing for this client.' );
+			}
+		}
+
+		if ( in_array( 'meta_ads', $want, true ) ) {
+			if ( ! $meta( 'six_meta_ad_account_id' ) || ! class_exists( 'Six_Meta' ) ) {
+				$out['sources']['meta_ads'] = array( 'status' => 'not_connected',
+					'message' => 'No Meta ad account for this client.' );
+			} else {
+				$r = Six_Meta::client_report( $client_id, $days );
+				$out['sources']['meta_ads'] = isset( $r['error'] )
+					? array( 'status' => 'error', 'message' => $r['error'] )
+					: array_merge( array( 'status' => 'ok', 'measured' => true ), $r );
+			}
+		}
+
+		$ok = array();
+		foreach ( $out['sources'] as $k => $v ) if ( ( $v['status'] ?? '' ) === 'ok' ) $ok[] = $k;
+		$out['measured_sources'] = $ok;
+		$out['guidance'] = $ok
+			? 'These are measured figures from the client\'s own accounts — state them as fact and name the period. '
+			  . 'Ahrefs remains correct for competitors, backlinks and keyword volume, which no client account can see. '
+			  . 'Never plot a measured series against estimated ones in the same comparison.'
+			: 'Nothing is connected or answering for this client, so every figure must be labelled an estimate and '
+			  . 'attributed to the tool that produced it. Connecting analytics is itself a finding worth reporting.';
+		return $out;
+	}
+
+	protected static function gsc_queries( $client_id, $days, $limit ) {
+		$days  = self::period( $days, 28, 480 );
+		$limit = self::period( $limit, 25, 100 );
+		$site  = trim( (string) get_user_meta( $client_id, 'six_gsc_site', true ) );
+		if ( ! $site || ! class_exists( 'Six_Analytics' ) ) {
+			return array(
+				'error'   => 'not_connected',
+				'message' => 'No Search Console property is saved for this client, so there is no query data to read. '
+					. 'An advisor connects it under the client\'s Data Sources tab. Until then, ranking figures can '
+					. 'only come from Ahrefs and must be labelled estimates.',
+			);
+		}
+		$r = Six_Analytics::gsc_summary( $site, $days );
+		if ( isset( $r['error'] ) ) return array( 'error' => 'search_console_error', 'message' => $r['error'] );
+
+		$queries = array_slice( (array) ( $r['top_queries'] ?? array() ), 0, $limit );
+		return array(
+			'client_id' => $client_id,
+			'site'      => $r['site'] ?? $site,
+			'period'    => $r['period'] ?? '',
+			'totals'    => $r['totals'] ?? array(),
+			'queries'   => $queries,
+			'measured'  => true,
+			'note'      => 'What Google actually served this site for, with impressions, clicks, CTR and average '
+				. 'position per query. Worth reading for three things nothing external can show: high impressions '
+				. 'with near-zero CTR (ranking but not earning the click), positions 11-20 (one page of effort from '
+				. 'real traffic), and queries that differ from what the client said they want to be found for.',
+		);
 	}
 }
 

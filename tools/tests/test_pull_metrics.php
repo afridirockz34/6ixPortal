@@ -141,6 +141,33 @@ check( 'profile exposes integrations', strpos( $api, "'integrations'     => self
 check( 'and a traffic_source verdict', strpos( $api, "'traffic_source'" ) !== false );
 check( 'ga4_measured is one of the two values', strpos( $api, 'ga4_measured' ) !== false );
 check( 'ahrefs_estimate_only is the other', strpos( $api, 'ahrefs_estimate_only' ) !== false );
+// Rankings are a separate verdict from traffic: a client can have Search
+// Console without GA4 or the reverse, and the two govern different figures.
+check( 'and a separate ranking_source verdict', strpos( $api, "'ranking_source'" ) !== false );
+check( 'gsc_measured is its connected value', strpos( $api, 'gsc_measured' ) !== false );
+check( 'own_domain_data summarises both', strpos( $api, "'own_domain_data'" ) !== false );
+check( 'the notes warn against mixing measured and estimated series',
+	stripos( $api, 'Never plot a measured figure' ) !== false,
+	'a client line from GA4 against competitor lines from Ahrefs is not a comparison' );
+
+// ── And the skills carry the same division ─────────────────────────────────
+$sk = dirname( __DIR__, 2 ) . '/.claude/skills';
+check( 'the audit skill has the measured-vs-estimated reference',
+	file_exists( "$sk/seo-audit-report/references/measured-vs-estimated.md" ) );
+check( 'the old narrower filename is gone',
+	! file_exists( "$sk/seo-audit-report/references/traffic-figures.md" ) );
+$mve = file_get_contents( "$sk/seo-audit-report/references/measured-vs-estimated.md" );
+check( 'it covers ranking_source, not just traffic', strpos( $mve, 'ranking_source' ) !== false );
+check( 'it says what Ahrefs is still the only option for',
+	stripos( $mve, 'never have a competitor' ) !== false );
+check( 'it carries the one-source-per-comparison rule',
+	stripos( $mve, 'One source per comparison' ) !== false );
+$skill = file_get_contents( "$sk/seo-audit-report/SKILL.md" );
+check( 'the skill checks both connections at step 1b',
+	strpos( $skill, 'ranking_source' ) !== false && strpos( $skill, 'traffic_source' ) !== false );
+check( 'and no file still points at the old name',
+	! preg_grep( '/traffic-figures\.md/',
+		array_map( 'file_get_contents', glob( "$sk/seo-*/{SKILL.md,references/*.md}", GLOB_BRACE ) ) ) );
 
 echo "\nPassed: $pass  Failed: $fail\n";
 exit( $fail ? 1 : 0 );

@@ -64,6 +64,16 @@ plausible figure to make the report look complete.
   client can check it, and "estimated visits from the keywords Ahrefs tracks" is
   not the same claim as "visits", which is the distinction the report lives or
   dies on.
+- **Every series comes from the same source, the client's included.** When GA4
+  is connected it is tempting to plot their measured sessions against
+  competitors' Ahrefs estimates. Don't: the client's line would be everyone who
+  arrived and each rival's line a model of visits from tracked keywords, so the
+  chart's shape would be an artifact of the sources rather than the market, and
+  the most accurate series would be the one that looks least like the rest.
+  Use Ahrefs for all of them, labelled as estimates — like for like still makes
+  the point. The measured figures belong in a `headlines` tile or the executive
+  summary, where they stand alone and say where they came from.
+  `references/measured-vs-estimated.md` covers this.
 
 ### `local`
 

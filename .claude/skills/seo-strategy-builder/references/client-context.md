@@ -51,15 +51,30 @@ they're deferred). If it's there:
 2. **`get_client_profile`** with that id — the whole profile in one call.
 3. **`list_client_artifacts`** — check what's already been produced for them
    (a recent audit, a keyword analysis) before regenerating it.
-3b. **Read `integrations` before writing any traffic number.** The profile
-   carries it, and its `traffic_source` is either `ga4_measured` or
-   `ahrefs_estimate_only`. With GA4 connected the client's own sessions are the
-   figure and may be stated as measured; without it the only number available
-   is Ahrefs' estimate of visits from the keywords it tracks, which is a
-   different claim and has to be labelled as one. The prospect can check this
-   against their own analytics while reading, so it is not a nicety.
-   `seo-audit-report/references/traffic-figures.md` has the wording for each
-   case and what to do when the two disagree.
+3a. **`get_live_metrics`** — the client's own connected accounts, read live:
+   GA4 (sessions, and the split by channel), Search Console (clicks,
+   impressions, CTR, average position), Google Ads and Meta. A strategy built
+   on what a business actually gets today is a different document from one
+   built on an estimate of it. `get_search_console_queries` gives the query
+   list, which is the best possible seed for Phase 7/8 clustering because it is
+   what Google already associates them with. Each source carries its own
+   `status`: `ok`, `not_connected` or `error` — the last two are gaps to name,
+   never zeros to report.
+3b. **Read `integrations` before writing any figure about their own domain.**
+   The profile carries two separate verdicts: `traffic_source` (`ga4_measured`
+   or `ahrefs_estimate_only`) and `ranking_source` (`gsc_measured` or
+   `ahrefs_estimate_only`), with `own_domain_data` summarising both as `full`,
+   `partial` or `none`. Where a connection exists, that is the figure and it
+   may be stated as measured — GA4 for visitors and sessions, Search Console
+   for impressions, clicks, CTR, average position and the real query list.
+   Where it doesn't, the only number available is an Ahrefs estimate, which is
+   a different claim and has to be labelled as one. The client can check this
+   against their own accounts while reading, so it is not a nicety. Ahrefs
+   stays right for competitors, backlinks and keyword volume — nothing a
+   client account can see.
+   `seo-audit-report/references/measured-vs-estimated.md` has the division, the
+   wording for each case, and why a measured series must never share an axis
+   with estimated ones.
 4. **`check_performance`** — for an existing client, where they stand against
    where they started and against the targets a previous strategy set. Worth a
    call before any deliverable that will characterise how they're doing.
