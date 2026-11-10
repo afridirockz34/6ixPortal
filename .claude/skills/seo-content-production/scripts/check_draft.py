@@ -119,6 +119,11 @@ def parse_banned_phrases(profile_text: str) -> list:
 
 
 def main():
+    # --help is the first thing anyone tries on an unfamiliar script, and it
+    # should not be reported as a failure.
+    if len(sys.argv) > 1 and sys.argv[1] in ("-h", "--help", "help"):
+        print(__doc__.strip())
+        sys.exit(0)
     if len(sys.argv) != 4:
         print(__doc__)
         sys.exit(2)

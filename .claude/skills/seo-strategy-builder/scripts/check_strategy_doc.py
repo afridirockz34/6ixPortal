@@ -104,6 +104,11 @@ def find_phase_headings(text: str) -> set:
 
 def main():
     raw = sys.argv[1:]
+    # --help is the first thing anyone tries on an unfamiliar script. Without
+    # this it is read as a filename and answered with "file not found".
+    if not raw or raw[0] in ("-h", "--help", "help"):
+        print(__doc__.strip())
+        return 0
     positional = []
     expected_phases = None
     i = 0

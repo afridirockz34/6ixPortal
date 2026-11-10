@@ -115,16 +115,37 @@ describe the shape, and name the direction the visibility falls off in.
 `grid_url` is a shareable white-label map of exactly that. For a client-facing
 document it is worth more than any sentence describing it.
 
+**In an audit report, do not describe the grid in prose — draw it.**
+`seo-audit-report/scripts/render_report.py` takes a `local` block holding the
+run's `grid_points` and `summary` verbatim and renders the grid as a map, north
+up, with the buckets underneath and `grid_url` linked. Both traps above are
+handled there by construction: the average is quoted rather than recomputed,
+and unranked points are drawn distinctly but counted with 11+.
+`seo-audit-report/references/report-template.md` has the contract.
+
 ## Competitors on the same grid
 
-`get_lsg_competitors(report_id)` lists who else appears; `
-get_lsg_latest_competitor_rankings(report_id, keyword_id, cid)` returns their
-positions across the same points. Pass `cid` as a **string** — Google CIDs are
-unsigned 64-bit and will lose precision as a number.
+`get_lsg_competitors(report_id, run_id, keyword_id)` lists who else appears on
+one keyword's grid, with each one's rank, average rank, reviews and categories.
+It needs all three — `find_lsg_reports` gives the `report_id` and `last_run_id`,
+and the keyword ids come back in the same call.
+
+`get_lsg_latest_competitor_rankings(report_id, keyword_id, cid)` then returns
+one competitor's position at every point, in the same shape as the client's own
+run. Pass `cid` as a **string** — Google CIDs are unsigned 64-bit and will lose
+precision as a number.
 
 This is the most persuasive local finding there is: the same map, the same
 keyword, their pin and the competitor's. Where a competitor is top-3 across an
 area the client is invisible in, that is a named, checkable gap.
+
+In an audit report it goes in the keyword's `rivals` and renders as the two
+maps side by side — see `seo-audit-report/references/report-template.md`. Two
+things that reference enforces and are worth holding to anywhere else this data
+is written up: the grids are matched **by coordinate, not by list order**, so a
+competitor measured on a different set of points is never compared point for
+point; and the comparison stays a count. Who is in the pack where is checkable.
+What it is worth per month is not, and we do not put a number on it.
 
 ## The rest of the local picture
 
@@ -139,7 +160,7 @@ area the client is invisible in, that is a named, checkable gap.
 
 ## Writing it up
 
-Everything in `report-template.md`'s honesty rules applies here unchanged, plus
+Everything in `seo-audit-report/references/report-template.md`'s honesty rules applies here unchanged, plus
 one specific to this data:
 
 **A rank grid is a snapshot of one moment.** It says where the business stood

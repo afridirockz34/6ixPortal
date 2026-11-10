@@ -49,6 +49,7 @@ STRUCTURAL_HEADING_HINTS = (
     # rather than a graded weakness, so a missing severity is correct there.
     "website speed",
     "where the traffic is going",
+    "where you show up on the map",
     "executive summary",
 )
 
@@ -281,6 +282,11 @@ def find_full_fix_sections(sections):
 
 
 def main():
+    # --help is the first thing anyone tries on an unfamiliar script. Without
+    # this it is read as a filename and answered with "file not found".
+    if len(sys.argv) > 1 and sys.argv[1] in ("-h", "--help", "help"):
+        print(__doc__.strip())
+        sys.exit(0)
     if len(sys.argv) != 2:
         print("Usage: python check_audit_report.py <report.json | report.html | report.md>")
         sys.exit(1)

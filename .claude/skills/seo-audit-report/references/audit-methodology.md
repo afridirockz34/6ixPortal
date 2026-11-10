@@ -107,4 +107,4 @@ Report the score as "SEO Health Score: XX/100" at the top of the Executive Summa
 
 ## Sources
 
-The technical-checklist expansion and the scoring-weight structure in this file were adapted, with attribution, from the open-source [claude-seo](https://github.com/AgriciDaniel/claude-seo) project by Agrici Daniel (MIT licensed) — specifically its `seo-technical` and `seo-audit` skills. Re-verify anything date-sensitive against current documentation before relying on it; this file inherits the same staleness risk as `fact-check-registry.md`.
+The technical-checklist expansion and the scoring-weight structure in this file were adapted, with attribution, from the open-source [claude-seo](https://github.com/AgriciDaniel/claude-seo) project by Agrici Daniel (MIT licensed) — specifically its `seo-technical` and `seo-audit` skills. Re-verify anything date-sensitive against current documentation before relying on it; this file inherits the same staleness risk as `seo-strategy-builder/references/fact-check-registry.md`.
