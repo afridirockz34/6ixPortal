@@ -11,6 +11,32 @@ they can disprove, every other figure becomes a claim rather than a fact.
 
 ---
 
+## The tools that serve this
+
+The portal connector reads the client's connected accounts directly. These are
+the calls, and they are the reason the distinction below is actionable rather
+than theoretical:
+
+| Tool | Returns | Takes |
+|---|---|---|
+| `get_live_metrics` | GA4 sessions and channel split, Search Console totals, Google Ads, Meta — each with its own `status` | `client_id`, optional `days`, optional `sources` |
+| `get_search_console_queries` | The real query list with impressions, clicks, CTR and position | `client_id`, optional `days`, `limit` |
+| `get_pagespeed` | Google's own performance score and Core Web Vitals | a `url` — no client needed, so it works for a cold prospect |
+
+`get_live_metrics` reports **three different outcomes per source**, and they
+must not be collapsed into each other:
+
+- `ok` — a measured figure. State it as fact and name the period.
+- `not_connected` — the account was never linked. Not a zero. Use an estimate
+  and say so, and note that connecting it is itself worth doing.
+- `error` — connected but Google or Meta refused, with the reason attached.
+  Not a zero either. Say which source failed rather than reporting the gap as
+  a result.
+
+A client with no analytics connected and a client whose analytics broke this
+morning look identical in a report that prints "0" for both. They are not the
+same, and neither of them is zero.
+
 ## Step one, before any data is pulled
 
 `get_client_profile` returns an `integrations` block:

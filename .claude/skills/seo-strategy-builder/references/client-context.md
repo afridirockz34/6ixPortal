@@ -51,6 +51,15 @@ they're deferred). If it's there:
 2. **`get_client_profile`** with that id — the whole profile in one call.
 3. **`list_client_artifacts`** — check what's already been produced for them
    (a recent audit, a keyword analysis) before regenerating it.
+3a. **`get_live_metrics`** — the client's own connected accounts, read live:
+   GA4 (sessions, and the split by channel), Search Console (clicks,
+   impressions, CTR, average position), Google Ads and Meta. A strategy built
+   on what a business actually gets today is a different document from one
+   built on an estimate of it. `get_search_console_queries` gives the query
+   list, which is the best possible seed for Phase 7/8 clustering because it is
+   what Google already associates them with. Each source carries its own
+   `status`: `ok`, `not_connected` or `error` — the last two are gaps to name,
+   never zeros to report.
 3b. **Read `integrations` before writing any figure about their own domain.**
    The profile carries two separate verdicts: `traffic_source` (`ga4_measured`
    or `ahrefs_estimate_only`) and `ranking_source` (`gsc_measured` or

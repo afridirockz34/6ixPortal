@@ -198,6 +198,86 @@ class Six_Analytics {
         );
     }
 
+    // ── PageSpeed Insights ─────────────────────────────────────────────────
+    /**
+     * Google's own measurement of a page, for anybody's URL.
+     *
+     * Takes a URL rather than a client, because the commonest use is a
+     * prospect we have no accounts for at all. Google's tool on purpose: the
+     * reader checks our figure at pagespeed.web.dev and gets the same number,
+     * which a timing run of our own could never promise.
+     */
+    public static function pagespeed( $url, $strategy = 'mobile' ) {
+        $url = trim( (string) $url );
+        if ( ! $url ) return array( 'error' => 'No URL to measure.' );
+        if ( ! preg_match( '#^https?://#i', $url ) ) $url = 'https://' . $url;
+        if ( ! filter_var( $url, FILTER_VALIDATE_URL ) ) {
+            return array( 'error' => 'That is not a URL this can measure: ' . $url );
+        }
+        $strategy = in_array( strtolower( $strategy ), array( 'mobile', 'desktop' ), true )
+            ? strtolower( $strategy ) : 'mobile';
+
+        $args = array(
+            'url'      => $url,
+            'strategy' => $strategy,
+            'category' => 'performance',
+        );
+        $key = get_option( 'six_pagespeed_api_key', '' );
+        if ( $key ) $args['key'] = $key;
+
+        $resp = wp_remote_get(
+            'https://www.googleapis.com/pagespeedonline/v5/runPagespeed?' . http_build_query( $args ),
+            array( 'timeout' => 60 )
+        );
+        if ( is_wp_error( $resp ) ) {
+            return array( 'error' => 'PageSpeed network error: ' . $resp->get_error_message() );
+        }
+        $code = wp_remote_retrieve_response_code( $resp );
+        $data = json_decode( wp_remote_retrieve_body( $resp ), true );
+        if ( $code === 429 || ( isset( $data['error'] ) && (int) ( $data['error']['code'] ?? 0 ) === 429 ) ) {
+            return array( 'error' => $key
+                ? 'PageSpeed refused the request as over quota, even with a key. Wait and retry.'
+                : 'PageSpeed quota exhausted. The anonymous quota is shared across the whole internet '
+                  . 'and is normally spent — add a key under 6ix Portal → Integrations → Google PageSpeed Insights.' );
+        }
+        if ( isset( $data['error'] ) ) {
+            return array( 'error' => 'PageSpeed: ' . ( $data['error']['message'] ?? 'error' ) );
+        }
+
+        $lh      = $data['lighthouseResult'] ?? array();
+        $audits  = $lh['audits'] ?? array();
+        $metrics = array();
+        foreach ( array(
+            'first-contentful-paint' => 'First Contentful Paint',
+            'largest-contentful-paint' => 'Largest Contentful Paint',
+            'total-blocking-time'    => 'Total Blocking Time',
+            'cumulative-layout-shift' => 'Cumulative Layout Shift',
+            'speed-index'            => 'Speed Index',
+        ) as $k => $label ) {
+            if ( ! isset( $audits[ $k ] ) ) continue;
+            $metrics[] = array(
+                'id'      => $k,
+                'label'   => $label,
+                'value'   => $audits[ $k ]['displayValue'] ?? '',
+                'score'   => isset( $audits[ $k ]['score'] ) ? (float) $audits[ $k ]['score'] : null,
+                'numeric' => $audits[ $k ]['numericValue'] ?? null,
+            );
+        }
+        $score = isset( $lh['categories']['performance']['score'] )
+            ? (int) round( 100 * (float) $lh['categories']['performance']['score'] ) : null;
+
+        return array(
+            'url'        => $lh['finalUrl'] ?? $url,
+            'strategy'   => $strategy,
+            'score'      => $score,
+            'metrics'    => $metrics,
+            'fetched'    => $lh['fetchTime'] ?? '',
+            'source'     => 'Google PageSpeed Insights',
+            'note'       => 'A lab measurement of one load, not an average of real visitors. '
+                          . 'Anyone can reproduce it at pagespeed.web.dev with the same URL.',
+        );
+    }
+
     // ── Search Console ─────────────────────────────────────────────────────
     public static function gsc_summary( $site, $days = 28 ) {
         // Resolve against the properties Google will actually serve, rather
