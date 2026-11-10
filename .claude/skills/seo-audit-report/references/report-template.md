@@ -36,6 +36,7 @@ plausible figure to make the report look complete.
 | `headlines` | The stat tiles under the summary | `value`, `label`, `note`, `direction` (`up`/`down`), `good` (bool) |
 | `scorecard` | One meter row per category | `category`, `score` (or `null` if not checked), `weight`, `status`, `verdict` |
 | `competitors` | The client-vs-competitors line chart | See below |
+| `local` | The rank grid — where they show up on the map | Local/GMB clients only. See below |
 | `speed` | The website speed section | See below |
 | `sections` | One block per weakness finding | `title`, `severity`, `finding`, `why`, `teaser` |
 | `closing` | The closing block | `heading`, `body`, `service`, `next_step` |
@@ -63,6 +64,60 @@ plausible figure to make the report look complete.
   client can check it, and "estimated visits from the keywords Ahrefs tracks" is
   not the same claim as "visits", which is the distinction the report lives or
   dies on.
+
+### `local`
+
+Only for a prospect whose visibility is local — a business with a Google
+Business Profile and a service area. Omit it entirely for a national or
+e-commerce client; a rank grid for a business with no catchment says nothing.
+
+Feed it straight from BrightLocal's Local Search Grid.
+`get_lsg_latest_run(report_id, keyword_id)` returns everything this needs,
+and `seo-strategy-builder/references/local-and-gmb.md` covers getting there
+(including the credit discipline — a grid run spends real money).
+
+```json
+{ "business": "Acme Plumbing",
+  "area": "Toronto, 6 km grid",
+  "fetched": "10 November 2026",
+  "keywords": [
+    { "keyword": "emergency plumber toronto",
+      "grid_points": [ {"latitude":43.70,"longitude":-79.50,"rank":2}, … ],
+      "summary": {"avg_rank":15.4,"num_points":49,
+                  "num_high_ranking_points":7,"num_med_ranking_points":22,
+                  "num_low_ranking_points":20},
+      "shape": "Strong at the shop, gone past Victoria Park.",
+      "grid_url": "https://www.local-marketing-reports.com/…/map-points" }
+  ],
+  "verdict": "The pattern is distance decay, not weak ranking." }
+```
+
+Paste `grid_points` and `summary` across unchanged — both come from the run.
+The renderer:
+
+- **Lays the points out as a map**, north at the top and west on the left,
+  derived from the coordinates rather than the order they arrive in. If they do
+  not form a clean lattice it chunks them in order and the caption says the
+  layout is not a map, so no compass direction is implied that isn't there.
+- **Quotes `summary.avg_rank` and never recomputes it.** This is the trap in
+  `local-and-gmb.md`: `rank: 0` means *did not appear*, and averaging the raw
+  values counts the invisible points as the best ones. On the grid in
+  `assets/example-audit.json` that produces **5.8 against a true 26.2** — ten
+  invisible points scored as if they were the ten best, in a document whose only
+  value is being checkable. Omit `summary`
+  and no average is printed at all; none is invented.
+- **Counts the buckets BrightLocal's way**, with `11+` including every unranked
+  point, and labels that row "Position 11+ or not showing" so the client can see
+  why 17 salmon squares and 3 pale ones add up to 20. Omit the counts and the
+  renderer computes them by the same rule.
+- Shows unranked points as a pale square with a dash, so the *shape* stays
+  readable even though the count merges them with 11+.
+
+`shape` is the finding and the reason this section earns its place — name the
+direction the visibility falls off in. `grid_url` is BrightLocal's white-label
+map and is safe to put in a client-facing document; the renderer links it only
+if it is an `http(s)` URL. At most six keywords are drawn; the rest are named in
+a line underneath.
 
 ### `speed`
 
@@ -109,11 +164,14 @@ and the tile appears.
    than scoring zero.
 5. **The competitor chart** — usually the most persuasive thing in the report.
    Do not bury it.
-6. **Website speed** — what the site does when somebody opens it.
-7. **One section per weakness** with a real finding. Finding, why it matters in
+6. **The rank grid**, for a local client — the one finding a prospect can check
+   against their own phone in ten seconds, which is exactly what makes it
+   persuasive. Omit it for anyone whose customers do not come from a catchment.
+7. **Website speed** — what the site does when somebody opens it.
+8. **One section per weakness** with a real finding. Finding, why it matters in
    business terms, severity, and a one-sentence teaser of what addressing it
    involves.
-8. **Closing** — names the service that addresses the findings (not a generic
+9. **Closing** — names the service that addresses the findings (not a generic
    "contact us for SEO help") and a clear, specific next step. The only place
    the report explicitly pitches.
 
@@ -129,6 +187,7 @@ makes the report worse in a specific way.
 | Several categories, each scored out of 100 | the `scorecard` meter rows | a gauge per category — four dials take four readings where one aligned column takes one |
 | The client against named competitors over time | the `competitors` line chart | a bar chart per month, or a dual axis |
 | Page-speed metrics, each against its own threshold | `speed.metrics` meter rows | a pie, or a dial per metric |
+| Rank at each point of a local search grid | the `local` grid of cells, laid out as a map | a single average, which is the least interesting number on a rank grid |
 
 Two rules the renderer enforces and the audit must not fight:
 

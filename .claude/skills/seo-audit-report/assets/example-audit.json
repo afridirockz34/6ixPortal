@@ -9,7 +9,6 @@
     "The numbers below are a fictional worked example for checking the",
     "renderer, not a real audit of a real business."
   ],
-
   "client": {
     "name": "Northside Plumbing",
     "domain": "northsideplumbing.ca",
@@ -17,48 +16,447 @@
     "date": "9 November 2026",
     "prepared_by": "6ix Developers"
   },
-
   "health": {
     "score": 41,
     "note": "Six categories scored; AI-visibility was not run and its weight was redistributed."
   },
-
   "summary": [
     "Northside Plumbing ranks for 87 search terms in Canada, but only four of them sit in the top three results — and none of those four are the emergency-callout terms that bring in the work you told us is most profitable.",
     "The site itself is the bottleneck before anything else: on a mobile connection the first thing a visitor sees takes 3.2 seconds to appear, and Google scores the page 34 out of 100 for speed. Three competitors in the same postcodes are ahead of you on the same searches.",
     "Nothing in this report requires you to take our word for it — every figure names the tool it came from."
   ],
-
   "headlines": [
-    { "value": "4", "label": "Search terms where you reach the top three", "note": "Of 87 you rank for at all · Ahrefs, Canada", "direction": "", "good": false },
-    { "value": "3.2s", "label": "Before a mobile visitor sees anything", "note": "Google PageSpeed Insights, mobile", "direction": "", "good": false },
-    { "value": "12", "label": "Terms sitting on page two, one step from page one", "note": "Ahrefs · 4,120 searches a month between them", "direction": "", "good": true }
+    {
+      "value": "4",
+      "label": "Search terms where you reach the top three",
+      "note": "Of 87 you rank for at all · Ahrefs, Canada",
+      "direction": "",
+      "good": false
+    },
+    {
+      "value": "3.2s",
+      "label": "Before a mobile visitor sees anything",
+      "note": "Google PageSpeed Insights, mobile",
+      "direction": "",
+      "good": false
+    },
+    {
+      "value": "12",
+      "label": "Terms sitting on page two, one step from page one",
+      "note": "Ahrefs · 4,120 searches a month between them",
+      "direction": "",
+      "good": true
+    }
   ],
-
   "scorecard": [
-    { "category": "Organic keyword visibility", "score": 30, "weight": 20, "status": "critical", "verdict": "You rank for the terms that describe what you do, and not for the terms people type when their basement is flooding." },
-    { "category": "Technical / on-page", "score": 35, "weight": 20, "status": "critical", "verdict": "Page speed and missing meta descriptions on 23 of 41 pages." },
-    { "category": "Domain authority", "score": 52, "weight": 15, "status": "warning", "verdict": "DR 14 against a local field averaging 22." },
-    { "category": "Backlink profile", "score": 61, "weight": 15, "status": "warning", "verdict": "Clean, but thin: 38 referring domains, 6 of them directories." },
-    { "category": "Competitor gap", "score": 28, "weight": 15, "status": "critical", "verdict": "Three local firms take an estimated 9,700 visits a month on searches you also appear for." },
-    { "category": "Content gaps", "score": 55, "weight": 10, "status": "warning", "verdict": "No page at all for two of your four stated services." },
-    { "category": "AI-visibility", "score": null, "weight": 5, "status": "healthy", "verdict": "Not checked for this audit; its weight was redistributed across the categories above." }
+    {
+      "category": "Organic keyword visibility",
+      "score": 30,
+      "weight": 20,
+      "status": "critical",
+      "verdict": "You rank for the terms that describe what you do, and not for the terms people type when their basement is flooding."
+    },
+    {
+      "category": "Technical / on-page",
+      "score": 35,
+      "weight": 20,
+      "status": "critical",
+      "verdict": "Page speed and missing meta descriptions on 23 of 41 pages."
+    },
+    {
+      "category": "Domain authority",
+      "score": 52,
+      "weight": 15,
+      "status": "warning",
+      "verdict": "DR 14 against a local field averaging 22."
+    },
+    {
+      "category": "Backlink profile",
+      "score": 61,
+      "weight": 15,
+      "status": "warning",
+      "verdict": "Clean, but thin: 38 referring domains, 6 of them directories."
+    },
+    {
+      "category": "Competitor gap",
+      "score": 28,
+      "weight": 15,
+      "status": "critical",
+      "verdict": "Three local firms take an estimated 9,700 visits a month on searches you also appear for."
+    },
+    {
+      "category": "Content gaps",
+      "score": 55,
+      "weight": 10,
+      "status": "warning",
+      "verdict": "No page at all for two of your four stated services."
+    },
+    {
+      "category": "AI-visibility",
+      "score": null,
+      "weight": 5,
+      "status": "healthy",
+      "verdict": "Not checked for this audit; its weight was redistributed across the categories above."
+    }
   ],
-
   "competitors": {
     "metric": "Estimated monthly organic visits",
     "source": "Ahrefs, Canada — estimated visits from the keywords Ahrefs tracks, not analytics",
     "lede": "The same twelve months, the same market, the same searches.",
-    "labels": ["Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct"],
+    "labels": [
+      "Nov",
+      "Dec",
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct"
+    ],
     "series": [
-      { "name": "northsideplumbing.ca", "you": true, "values": [310, 305, 298, 288, 276, 270, 262, 258, 249, 243, 238, 230] },
-      { "name": "firstrankplumbing.ca", "values": [7100, 7320, 7480, 7760, 8010, 8240, 8390, 8700, 8980, 9210, 9480, 9733] },
-      { "name": "gtadrainworks.com", "values": [5200, 5310, 5280, 5460, 5590, 5720, 5830, 6010, 6180, 6340, 6520, 6710] },
-      { "name": "citywideplumb.ca", "values": [2100, 2160, 2240, 2310, 2380, 2450, 2520, 2610, 2700, 2790, 2880, 2970] }
+      {
+        "name": "northsideplumbing.ca",
+        "you": true,
+        "values": [
+          310,
+          305,
+          298,
+          288,
+          276,
+          270,
+          262,
+          258,
+          249,
+          243,
+          238,
+          230
+        ]
+      },
+      {
+        "name": "firstrankplumbing.ca",
+        "values": [
+          7100,
+          7320,
+          7480,
+          7760,
+          8010,
+          8240,
+          8390,
+          8700,
+          8980,
+          9210,
+          9480,
+          9733
+        ]
+      },
+      {
+        "name": "gtadrainworks.com",
+        "values": [
+          5200,
+          5310,
+          5280,
+          5460,
+          5590,
+          5720,
+          5830,
+          6010,
+          6180,
+          6340,
+          6520,
+          6710
+        ]
+      },
+      {
+        "name": "citywideplumb.ca",
+        "values": [
+          2100,
+          2160,
+          2240,
+          2310,
+          2380,
+          2450,
+          2520,
+          2610,
+          2700,
+          2790,
+          2880,
+          2970
+        ]
+      }
     ],
     "verdict": "Over the year your estimated visits fell by about a quarter while all three of these grew. The searches did not disappear; they went somewhere else."
   },
-
+  "local": {
+    "business": "Northside Plumbing",
+    "area": "North York to downtown, 49-point grid, 10 km across",
+    "fetched": "9 November 2026",
+    "keywords": [
+      {
+        "keyword": "emergency plumber toronto",
+        "grid_points": [
+          {
+            "latitude": 43.8,
+            "longitude": -79.47,
+            "rank": 3
+          },
+          {
+            "latitude": 43.8,
+            "longitude": -79.45,
+            "rank": 2
+          },
+          {
+            "latitude": 43.8,
+            "longitude": -79.43,
+            "rank": 1
+          },
+          {
+            "latitude": 43.8,
+            "longitude": -79.41,
+            "rank": 2
+          },
+          {
+            "latitude": 43.8,
+            "longitude": -79.39,
+            "rank": 4
+          },
+          {
+            "latitude": 43.8,
+            "longitude": -79.37,
+            "rank": 6
+          },
+          {
+            "latitude": 43.8,
+            "longitude": -79.35,
+            "rank": 9
+          },
+          {
+            "latitude": 43.785,
+            "longitude": -79.47,
+            "rank": 4
+          },
+          {
+            "latitude": 43.785,
+            "longitude": -79.45,
+            "rank": 2
+          },
+          {
+            "latitude": 43.785,
+            "longitude": -79.43,
+            "rank": 1
+          },
+          {
+            "latitude": 43.785,
+            "longitude": -79.41,
+            "rank": 1
+          },
+          {
+            "latitude": 43.785,
+            "longitude": -79.39,
+            "rank": 3
+          },
+          {
+            "latitude": 43.785,
+            "longitude": -79.37,
+            "rank": 5
+          },
+          {
+            "latitude": 43.785,
+            "longitude": -79.35,
+            "rank": 8
+          },
+          {
+            "latitude": 43.77,
+            "longitude": -79.47,
+            "rank": 5
+          },
+          {
+            "latitude": 43.77,
+            "longitude": -79.45,
+            "rank": 3
+          },
+          {
+            "latitude": 43.77,
+            "longitude": -79.43,
+            "rank": 2
+          },
+          {
+            "latitude": 43.77,
+            "longitude": -79.41,
+            "rank": 1
+          },
+          {
+            "latitude": 43.77,
+            "longitude": -79.39,
+            "rank": 2
+          },
+          {
+            "latitude": 43.77,
+            "longitude": -79.37,
+            "rank": 4
+          },
+          {
+            "latitude": 43.77,
+            "longitude": -79.35,
+            "rank": 7
+          },
+          {
+            "latitude": 43.755,
+            "longitude": -79.47,
+            "rank": 9
+          },
+          {
+            "latitude": 43.755,
+            "longitude": -79.45,
+            "rank": 7
+          },
+          {
+            "latitude": 43.755,
+            "longitude": -79.43,
+            "rank": 5
+          },
+          {
+            "latitude": 43.755,
+            "longitude": -79.41,
+            "rank": 4
+          },
+          {
+            "latitude": 43.755,
+            "longitude": -79.39,
+            "rank": 6
+          },
+          {
+            "latitude": 43.755,
+            "longitude": -79.37,
+            "rank": 9
+          },
+          {
+            "latitude": 43.755,
+            "longitude": -79.35,
+            "rank": 13
+          },
+          {
+            "latitude": 43.74,
+            "longitude": -79.47,
+            "rank": 15
+          },
+          {
+            "latitude": 43.74,
+            "longitude": -79.45,
+            "rank": 12
+          },
+          {
+            "latitude": 43.74,
+            "longitude": -79.43,
+            "rank": 10
+          },
+          {
+            "latitude": 43.74,
+            "longitude": -79.41,
+            "rank": 9
+          },
+          {
+            "latitude": 43.74,
+            "longitude": -79.39,
+            "rank": 11
+          },
+          {
+            "latitude": 43.74,
+            "longitude": -79.37,
+            "rank": 16
+          },
+          {
+            "latitude": 43.74,
+            "longitude": -79.35,
+            "rank": 0
+          },
+          {
+            "latitude": 43.725,
+            "longitude": -79.47,
+            "rank": 0
+          },
+          {
+            "latitude": 43.725,
+            "longitude": -79.45,
+            "rank": 18
+          },
+          {
+            "latitude": 43.725,
+            "longitude": -79.43,
+            "rank": 16
+          },
+          {
+            "latitude": 43.725,
+            "longitude": -79.41,
+            "rank": 14
+          },
+          {
+            "latitude": 43.725,
+            "longitude": -79.39,
+            "rank": 17
+          },
+          {
+            "latitude": 43.725,
+            "longitude": -79.37,
+            "rank": 0
+          },
+          {
+            "latitude": 43.725,
+            "longitude": -79.35,
+            "rank": 0
+          },
+          {
+            "latitude": 43.71,
+            "longitude": -79.47,
+            "rank": 0
+          },
+          {
+            "latitude": 43.71,
+            "longitude": -79.45,
+            "rank": 0
+          },
+          {
+            "latitude": 43.71,
+            "longitude": -79.43,
+            "rank": 0
+          },
+          {
+            "latitude": 43.71,
+            "longitude": -79.41,
+            "rank": 19
+          },
+          {
+            "latitude": 43.71,
+            "longitude": -79.39,
+            "rank": 0
+          },
+          {
+            "latitude": 43.71,
+            "longitude": -79.37,
+            "rank": 0
+          },
+          {
+            "latitude": 43.71,
+            "longitude": -79.35,
+            "rank": 0
+          }
+        ],
+        "summary": {
+          "avg_rank": 26.2,
+          "num_points": 49,
+          "num_high_ranking_points": 12,
+          "num_med_ranking_points": 17,
+          "num_low_ranking_points": 20
+        },
+        "shape": "Top three within about three kilometres of the shop, and gone entirely south of Eglinton — ten of the forty-nine points do not return Northside at all. This is a catchment that stops at Eglinton, not a profile that ranks badly.",
+        "grid_url": "https://www.local-marketing-reports.com/example/map-points"
+      }
+    ],
+    "verdict": "The half of Toronto that bills the most for an emergency call-out is the half where Northside does not appear."
+  },
   "speed": {
     "source": "Google PageSpeed Insights",
     "url": "https://northsideplumbing.ca/",
@@ -67,15 +465,38 @@
     "score": 34,
     "score_note": "Google's own score for this page on a mobile connection.",
     "metrics": [
-      { "label": "First Contentful Paint", "value": "3.2 s", "ratio": 0.21, "status": "critical", "note": "When the first text or image appears. Good is under 1.8 s." },
-      { "label": "Largest Contentful Paint", "value": "4.8 s", "ratio": 0.18, "status": "critical", "note": "When the main content has loaded. Good is under 2.5 s." },
-      { "label": "Cumulative Layout Shift", "value": "0.04", "ratio": 0.92, "status": "good", "note": "How much the page jumps about while loading. Good is under 0.1." },
-      { "label": "Total Blocking Time", "value": "890 ms", "ratio": 0.27, "status": "serious", "note": "How long the page ignores taps while it finishes loading. Good is under 200 ms." }
+      {
+        "label": "First Contentful Paint",
+        "value": "3.2 s",
+        "ratio": 0.21,
+        "status": "critical",
+        "note": "When the first text or image appears. Good is under 1.8 s."
+      },
+      {
+        "label": "Largest Contentful Paint",
+        "value": "4.8 s",
+        "ratio": 0.18,
+        "status": "critical",
+        "note": "When the main content has loaded. Good is under 2.5 s."
+      },
+      {
+        "label": "Cumulative Layout Shift",
+        "value": "0.04",
+        "ratio": 0.92,
+        "status": "good",
+        "note": "How much the page jumps about while loading. Good is under 0.1."
+      },
+      {
+        "label": "Total Blocking Time",
+        "value": "890 ms",
+        "ratio": 0.27,
+        "status": "serious",
+        "note": "How long the page ignores taps while it finishes loading. Good is under 200 ms."
+      }
     ],
     "bounce_rate_unavailable": "Bounce rate — how many visitors leave without going any further — is measured in your own Google Analytics, which we do not have access to. It is one of the three answers that would most sharpen this audit.",
     "verdict": "A visitor on a phone waits over three seconds before anything appears. The industry pattern is that a large share of them do not wait."
   },
-
   "sections": [
     {
       "title": "The emergency terms go to competitors",
@@ -92,7 +513,6 @@
       "teaser": "A pass over the indexed pages is part of the technical SEO work and does not depend on anything else being fixed first."
     }
   ],
-
   "closing": {
     "heading": "What we would do about it",
     "body": "The findings above fall into three pieces of work: the technical and speed problems holding every page back, the service pages that do not exist for two of your four services, and the local signals that decide who appears for an emergency search in your postcodes.",

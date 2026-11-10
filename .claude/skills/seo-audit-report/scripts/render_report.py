@@ -205,6 +205,225 @@ def meter_row(name, ratio, figure, role, note=None):
     )
 
 
+def rank_role(rank):
+    """
+    A grid point's rank to a status role, using BrightLocal's own bucket
+    boundaries so the cells and the counts beneath them can never disagree.
+
+    `rank` 0 (or None) is not rank zero — it means the business did not appear
+    at that point at all. It gets its own role so the *shape* of the grid stays
+    readable, but it is counted with 11+ below, which is how BrightLocal counts
+    it and so how the client will see it in any report they check this against.
+    """
+    r = num(rank)
+    if r is None or r <= 0:
+        return "absent"
+    if r <= 3:
+        return "good"
+    if r <= 10:
+        return "warning"
+    return "serious"
+
+
+RANK_LEGEND = [
+    ("good",     "1–3",    "in the local pack"),
+    ("warning",  "4–10",   "on page one, below the pack"),
+    ("serious",  "11+",    "found, but nobody scrolls that far"),
+    ("absent",   "—",      "not showing at all"),
+]
+
+
+def grid_matrix(points):
+    """
+    BrightLocal hands back a flat list of points with coordinates, not rows.
+    Lay them out as they sit on the map — north at the top, west on the left —
+    because the finding on a rank grid is which direction the visibility falls
+    off in, and a grid laid out in list order cannot show that.
+
+    Returns (rows, oriented). `oriented` is False when the points do not form a
+    clean lattice, in which case they are chunked in the order supplied and the
+    caption says so rather than implying a compass direction that isn't there.
+    """
+    pts = [p for p in (points or []) if isinstance(p, dict)]
+    if not pts:
+        return [], False
+
+    def coord(p, *keys):
+        for k in keys:
+            if k in p:
+                v = num(p[k])
+                if v is not None:
+                    return round(v, 5)
+        return None
+
+    lats = [coord(p, "latitude", "lat") for p in pts]
+    lons = [coord(p, "longitude", "lng", "lon") for p in pts]
+
+    if None not in lats and None not in lons:
+        uniq_lat = sorted(set(lats), reverse=True)   # north first
+        uniq_lon = sorted(set(lons))                 # west first
+        if len(uniq_lat) * len(uniq_lon) == len(pts) and len(uniq_lat) > 1:
+            cell = {}
+            for p, la, lo in zip(pts, lats, lons):
+                cell[(la, lo)] = p
+            if len(cell) == len(pts):
+                return [[cell[(la, lo)] for lo in uniq_lon] for la in uniq_lat], True
+
+    side = max(1, int(round(math.sqrt(len(pts)))))
+    return [pts[i:i + side] for i in range(0, len(pts), side)], False
+
+
+def rank_grid(rows, oriented, box=250):
+    """One keyword's grid of points, as the map lays it out."""
+    if not rows:
+        return ""
+    cols = max(len(r) for r in rows)
+    n = max(cols, len(rows))
+    gap = 3 if n <= 9 else 2
+    cell = max(10, min(36, (box - gap * (n - 1)) // n))
+    show_numbers = cell >= 22
+    w = cols * cell + (cols - 1) * gap
+    h = len(rows) * cell + (len(rows) - 1) * gap
+
+    svg = [f'<svg class="rgrid" viewBox="0 0 {w} {h}" width="{w}" height="{h}" '
+           f'role="img" aria-label="Rank at each of {sum(len(r) for r in rows)} '
+           f'points across the service area">']
+    for ri, row in enumerate(rows):
+        for ci, p in enumerate(row):
+            rank = p.get("rank") if isinstance(p, dict) else p
+            role = rank_role(rank)
+            x, y = ci * (cell + gap), ri * (cell + gap)
+            fill = "var(--gauge-track)" if role == "absent" else STATUS[role]
+            r_num = num(rank)
+            shown = "—" if role == "absent" else f"{int(r_num)}"
+            title = ("Not in the top 20 here" if role == "absent"
+                     else f"Position {int(r_num)} here")
+            svg.append(f'<g><title>{esc(title)}</title>'
+                       f'<rect x="{x}" y="{y}" width="{cell}" height="{cell}" rx="4" '
+                       f'fill="{fill}"/>')
+            if show_numbers:
+                svg.append(f'<text x="{x + cell / 2:.1f}" y="{y + cell / 2 + 4:.1f}" '
+                           f'class="rcell {"rcell-absent" if role == "absent" else ""}" '
+                           f'text-anchor="middle">{esc(shown)}</text>')
+            svg.append("</g>")
+    svg.append("</svg>")
+
+    caption = ("North at the top, west on the left — the grid as it sits on the map."
+               if oriented else
+               "Points in the order the rank tracker returned them; this layout is not "
+               "a map, so read the counts rather than the direction.")
+    return (f'<figure class="rgrid-figure">{"".join(svg)}'
+            f'<figcaption class="chart-note">{esc(caption)}</figcaption></figure>')
+
+
+def render_local(local):
+    """
+    Where the business actually shows up on the map — the one finding a local
+    client can check against their own phone in ten seconds, which is exactly
+    why nothing here is computed from anything other than the run itself.
+
+    Two rules, both from references/local-and-gmb.md and both verified against
+    a real run: the average is quoted as the tool reported it and never
+    recomputed (recomputing it over raw values counts the invisible points as
+    rank 0 and flatters the grid by about 20%), and the 11+ bucket includes
+    every point where the business did not appear, so it is labelled that way.
+    """
+    if not local:
+        return ""
+    keywords = [k for k in (local.get("keywords") or []) if isinstance(k, dict)]
+    if not keywords:
+        return ""
+
+    out = ['<section class="block"><h2>'
+           + esc(local.get("heading") or "Where you show up on the map") + "</h2>"]
+
+    bits = [b for b in (local.get("source") or "BrightLocal Local Search Grid",
+                        local.get("area"), local.get("fetched")) if b]
+    lede = esc(local["lede"]) if local.get("lede") else (
+        "Every square is one place somebody could be standing when they search. "
+        "The number in it is where " + esc(local.get("business") or "the business")
+        + " came up for them.")
+    out.append(f'<p class="lede">{lede}'
+               + (f' Measured with {esc(" · ".join(bits))}.' if bits else "")
+               + "</p>")
+
+    out.append('<div class="legend rgrid-legend">')
+    for role, label, meaning in RANK_LEGEND:
+        sw = ("background:var(--gauge-track);border:1px solid var(--border)"
+              if role == "absent" else f"background:{STATUS[role]}")
+        out.append(f'<span class="legend-item"><span class="swatch" style="{sw}"></span>'
+                   f'<strong>{esc(label)}</strong>&nbsp;{esc(meaning)}</span>')
+    out.append("</div>")
+
+    shown, overflow = keywords[:6], keywords[6:]
+    out.append('<div class="grids">')
+    for kw in shown:
+        rows = kw.get("rows")
+        if rows:
+            matrix = [[c if isinstance(c, dict) else {"rank": c} for c in r] for r in rows]
+            oriented = bool(kw.get("oriented", True))
+        else:
+            matrix, oriented = grid_matrix(kw.get("grid_points") or kw.get("points"))
+        if not matrix:
+            continue
+
+        flat = [c for r in matrix for c in r]
+        total = len(flat)
+        summary = kw.get("summary") or {}
+        high = summary.get("num_high_ranking_points")
+        med = summary.get("num_med_ranking_points")
+        low = summary.get("num_low_ranking_points")
+        if high is None or med is None or low is None:
+            # Count them ourselves, by BrightLocal's rule: 11+ and unranked
+            # land in the same bucket, so a client comparing this against their
+            # own BrightLocal view sees the same three numbers.
+            roles = [rank_role(c.get("rank")) for c in flat]
+            high = roles.count("good")
+            med = roles.count("warning")
+            low = roles.count("serious") + roles.count("absent")
+
+        out.append('<div class="grid-card">')
+        out.append(f'<h3 class="grid-kw">{esc(kw.get("keyword", ""))}</h3>')
+        out.append(rank_grid(matrix, oriented))
+        out.append('<div class="meters grid-meters">')
+        for role, label, count in (
+            ("good",    "Positions 1–3", high),
+            ("warning", "Positions 4–10", med),
+            ("serious", "Position 11+ or not showing", low),
+        ):
+            c = num(count)
+            out.append(meter_row(label, None if c is None or not total else c / total,
+                                 "—" if c is None else f"{int(c)} of {total}", role))
+        out.append("</div>")
+
+        avg = num(summary.get("avg_rank") if summary else kw.get("avg_rank"))
+        if avg is not None:
+            out.append(
+                f'<p class="grid-avg"><strong>{avg:g}</strong> average position across all '
+                f'{total} points, counting the ones where you don\'t appear at all. '
+                'The shape above matters more than this number.</p>')
+        if kw.get("shape"):
+            out.append(f'<p class="verdict">{esc(kw["shape"])}</p>')
+        url = kw.get("grid_url") or kw.get("map_url")
+        if url and str(url).startswith(("https://", "http://")):
+            out.append(f'<p class="map-link"><a href="{esc(url)}" rel="noopener">'
+                       'Open the live map for this search</a></p>')
+        out.append("</div>")
+    out.append("</div>")
+
+    if overflow:
+        out.append(f'<p class="chart-note">{len(overflow)} further search'
+                   + ("es were" if len(overflow) > 1 else " was")
+                   + " measured on the same grid; "
+                   + esc(", ".join(str(k.get("keyword", "")) for k in overflow if k.get("keyword")))
+                   + ". Full results on request.</p>")
+
+    if local.get("verdict"):
+        out.append(f'<p class="verdict">{esc(local["verdict"])}</p>')
+    out.append("</section>")
+    return "".join(out)
+
+
 def line_chart(data, width=720, height=300):
     """
     The client against the competitors they are actually losing to.
@@ -576,6 +795,27 @@ p:last-child{margin-bottom:0}
 .speed-meters{flex:1 1 360px;min-width:300px}
 .gap-note{font-size:13px;color:var(--ink-2);background:var(--page);border:1px solid var(--border);
   border-radius:10px;padding:12px 14px;margin-top:14px}
+/* ── rank grid ── */
+.rgrid-legend{margin:0 0 18px;gap:10px 18px;font-size:12px}
+.rgrid-legend strong{color:var(--ink);font-variant-numeric:tabular-nums}
+.grids{display:grid;grid-template-columns:repeat(auto-fit,minmax(272px,1fr));gap:22px}
+/* max-width, because the common case is one keyword: without it a single card
+   fills the block and leaves a 250px grid stranded beside 500px of nothing. */
+.grid-card{min-width:0;max-width:430px}
+.grid-kw{font-size:14.5px;margin:0 0 10px;letter-spacing:-.01em}
+.grid-kw::before{content:"“"}
+.grid-kw::after{content:"”"}
+.rgrid-figure{margin:0 0 10px}
+.rgrid{max-width:100%;height:auto;display:block}
+.rcell{font-size:11px;font-weight:700;fill:#0b0b0b;font-variant-numeric:tabular-nums}
+.rcell-absent{fill:var(--ink-2);font-weight:400}
+.grid-meters .meter{grid-template-columns:1fr 100px 74px;gap:10px;padding:5px 0}
+.grid-meters .meter-name{font-size:12.5px;font-weight:500}
+.grid-meters .meter-figure{font-size:12.5px}
+.grid-avg{font-size:12.5px;color:var(--ink-2);margin:10px 0 0}
+.grid-avg strong{font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
+.map-link{font-size:12.5px;margin:8px 0 0}
+.map-link a{color:var(--series-2)}
 /* ── chart ── */
 .chart-figure{margin:0}
 .chart{max-width:100%;height:auto;display:block}
@@ -604,13 +844,17 @@ footer{margin-top:26px;padding-top:18px;border-top:1px solid var(--border);
 @media print{
   body{background:#fff}
   .sheet{max-width:none;padding:0}
-  .block,.tile{break-inside:avoid;border-color:#ddd}
+  .block,.tile,.grid-card{break-inside:avoid;border-color:#ddd}
   .table-view[open]{display:block}
   details{break-inside:avoid}
 }
 @media (max-width:620px){
   .meter{grid-template-columns:1fr 84px;row-gap:6px}
   .meter-track{grid-column:1/-1;order:3}
+  /* The grid-meters rule is more specific than the one above, so it has to be
+     restated here or the three bucket rows keep their desktop columns and run
+     off a phone. */
+  .grid-meters .meter{grid-template-columns:1fr 74px;row-gap:6px}
 }
 """
 
@@ -663,6 +907,7 @@ def build(data):
                 parts.append(f'<p class="verdict">{esc(comp["verdict"])}</p>')
             parts.append("</section>")
 
+    parts.append(render_local(data.get("local")))
     parts.append(render_speed(data.get("speed")))
     parts.append(render_sections(data.get("sections")))
 

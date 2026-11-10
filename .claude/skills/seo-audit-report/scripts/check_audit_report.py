@@ -49,6 +49,7 @@ STRUCTURAL_HEADING_HINTS = (
     # rather than a graded weakness, so a missing severity is correct there.
     "website speed",
     "where the traffic is going",
+    "where you show up on the map",
     "executive summary",
 )
 

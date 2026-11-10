@@ -115,6 +115,14 @@ describe the shape, and name the direction the visibility falls off in.
 `grid_url` is a shareable white-label map of exactly that. For a client-facing
 document it is worth more than any sentence describing it.
 
+**In an audit report, do not describe the grid in prose — draw it.**
+`seo-audit-report/scripts/render_report.py` takes a `local` block holding the
+run's `grid_points` and `summary` verbatim and renders the grid as a map, north
+up, with the buckets underneath and `grid_url` linked. Both traps above are
+handled there by construction: the average is quoted rather than recomputed,
+and unranked points are drawn distinctly but counted with 11+.
+`seo-audit-report/references/report-template.md` has the contract.
+
 ## Competitors on the same grid
 
 `get_lsg_competitors(report_id)` lists who else appears; `
