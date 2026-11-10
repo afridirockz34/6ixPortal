@@ -432,6 +432,21 @@ function six_admin_settings() {
                     <div class="hint">Agency service account. Per-client GA4 property IDs are set on the Data Sources tab.</div>
                     <div class="six-fld"><label>Default GA4 Property ID</label><input type="text" name="six_ga4_property_id" value="<?php echo esc_attr(get_option('six_ga4_property_id','')); ?>" placeholder="123456789"><div class="desc">9-digit number from GA4 Admin → Property Settings (no G- prefix).</div></div>
                     <div class="six-fld"><label>Service Account JSON</label><textarea name="six_ga4_service_account_json" rows="5" class="large-text" placeholder='{"type":"service_account", ...}'><?php echo esc_textarea(get_option('six_ga4_service_account_json','')); ?></textarea><div class="desc">Full JSON of your Google Cloud service-account key. <a href="https://developers.google.com/analytics/devguides/reporting/data/v1/quickstart-client-libraries" target="_blank">Setup guide →</a></div></div>
+                    <?php
+                    // The email to grant access to — the step that actually makes
+                    // this work, done in Google rather than here. It was buried in
+                    // the JSON above, which is why connections "configured" here
+                    // still came back 403.
+                    $six_sa_email = class_exists('Six_Analytics') ? Six_Analytics::service_account_email() : '';
+                    if ( $six_sa_email ) : ?>
+                    <div class="six-fld">
+                        <label>Grant this email access</label>
+                        <input type="text" readonly onclick="this.select()" value="<?php echo esc_attr($six_sa_email); ?>" style="font-family:monospace">
+                        <div class="desc"><strong>Pasting the JSON above is not enough on its own.</strong> For every property you want to read, add this address in Google: Analytics → Admin → Property access management (<em>Viewer</em>), and Search Console → Settings → Users and permissions. Without that step a saved property ID still returns a permission error.</div>
+                    </div>
+                    <?php elseif ( get_option('six_ga4_service_account_json','') ) : ?>
+                    <div class="six-fld"><div class="desc" style="color:#b32d2e">The JSON above could not be parsed, so no service-account email could be read from it. Re-paste the full key file.</div></div>
+                    <?php endif; ?>
                     <div class="six-int-test">
                         <button type="button" class="button" id="six-test-ga4">Test connection</button>
                         <span id="six-ga4-result" style="font-size:13px"></span>
