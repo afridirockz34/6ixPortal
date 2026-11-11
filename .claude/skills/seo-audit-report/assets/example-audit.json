@@ -22,8 +22,7 @@
   },
   "summary": [
     "Northside Plumbing ranks for 87 search terms in Canada, but only four of them sit in the top three results — and none of those four are the emergency-callout terms that bring in the work you told us is most profitable.",
-    "The site itself is the bottleneck before anything else: on a mobile connection the first thing a visitor sees takes 3.2 seconds to appear, and Google scores the page 34 out of 100 for speed. Three competitors in the same postcodes are ahead of you on the same searches.",
-    "Nothing in this report requires you to take our word for it — every figure names the tool it came from."
+    "The site itself is the bottleneck before anything else: on a mobile connection the first thing a visitor sees takes 3.2 seconds to appear, and Google scores the page 34 out of 100 for speed. Three competitors in the same postcodes are ahead of you on the same searches."
   ],
   "headlines": [
     {
@@ -755,6 +754,7 @@
   },
   "sections": [
     {
+      "category": "Organic keyword visibility",
       "title": "The emergency terms go to competitors",
       "severity": "Critical",
       "finding": "You rank 14th for \"emergency plumber toronto\" (1,900 searches a month) and do not appear in the first five pages for \"burst pipe repair toronto\" (590 a month). Both are terms firstrankplumbing.ca holds in the top three.",
@@ -762,6 +762,7 @@
       "teaser": "Closing this is a service-page and local-signal problem rather than a content-volume one — it is the first thing the SEO engagement would address, because it is the shortest path to calls."
     },
     {
+      "category": "Technical and on-page",
       "title": "Twenty-three pages have no meta description",
       "severity": "High",
       "finding": "23 of 41 indexed pages have no meta description, including the service pages for drain cleaning and water-heater installation.",

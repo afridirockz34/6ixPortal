@@ -95,9 +95,12 @@ check("low bucket says it includes the invisible points",
 
 # ── 3. Trap one: rank 0 is never a good cell ─────────────────────────────────
 cells = re.findall(r'<title>([^<]+)</title>', html_ns)
-check(f"{n_absent} cells say 'not in the top 20'",
-      sum(1 for c in cells if "Not in the top 20" in c) == n_absent,
-      f"found {sum(1 for c in cells if 'Not in the top 20' in c)}")
+check(f"{n_absent} cells say they did not appear",
+      sum(1 for c in cells if "Did not appear" in c) == n_absent,
+      f"found {sum(1 for c in cells if 'Did not appear' in c)}")
+check("no cell names a top-20 cutoff the data does not use",
+      "top 20" not in html_ns,
+      "BrightLocal reports ranks well past 20")
 check("no cell claims 'Position 0'", "Position 0 " not in html_ns)
 absent_role = rr.rank_role(0)
 check("rank 0 maps to its own role, not to good", absent_role == "absent",
@@ -109,8 +112,8 @@ check(f"exactly {n_high} cells drawn in the 1-3 colour",
       cell_fills.count(rr.STATUS["good"]) == n_high,
       f"{cell_fills.count(rr.STATUS['good'])} cells, expected {n_high}")
 check(f"exactly {n_absent} cells drawn in the pale 'absent' fill",
-      cell_fills.count("var(--gauge-track)") == n_absent,
-      f"{cell_fills.count('var(--gauge-track)')} cells, expected {n_absent}")
+      cell_fills.count("#e4e2dc") == n_absent,
+      f"{cell_fills.count('#e4e2dc')} cells, expected {n_absent}")
 check("every one of the 49 points got a cell", len(cell_fills) == 49,
       f"{len(cell_fills)} cells")
 
@@ -141,9 +144,12 @@ ragged = rr.render_local({"keywords": [{"keyword": "x", "grid_points": [
     {"latitude": 1.0, "longitude": 2.1, "rank": 0},
     {"latitude": 0.9, "longitude": 2.0, "rank": 3},
 ]}]})
-check("3-point non-lattice renders with the honest caption",
-      "this layout is not" in ragged and "2 of 3" not in ragged.split("Positions 1")[0],
-      "a non-lattice must not claim a compass direction")
+# Three points on two latitudes and two longitudes IS a map with one
+# corner missing — a custom-shaped grid, which BrightLocal produces
+# whenever points are excluded. It is laid out as a map with a hole.
+check("a 3-point custom shape is laid out as a map, not a list",
+      "this layout is not" not in ragged and ragged.count("<rect") == 3,
+      f"{ragged.count(chr(60) + chr(114) + chr(101) + chr(99) + chr(116))} cells drawn")
 check("no keywords -> no section", rr.render_local({"keywords": []}) == "")
 check("no local block -> no section", rr.render_local(None) == "")
 noranks = rr.render_local({"keywords": [{"keyword": "y", "rows": [[0, 0], [0, 0]]}]})
@@ -185,7 +191,7 @@ res = subprocess.run([sys.executable, str(SCRIPT), str(src), "-o", str(out)],
                      capture_output=True, text=True)
 check("CLI exits 0", res.returncode == 0, res.stderr.strip())
 doc = out.read_text(encoding="utf-8") if out.exists() else ""
-check("section lands in the document", "Where you show up on the map" in doc)
+check("section lands in the document", "Google Business Profile" in doc)
 check("both keywords rendered", doc.count('class="grid-card"') == 2)
 check("no external resource", "http://" not in doc.replace("http://www.w3.org", "")
       and doc.count("https://") == doc.count('href="https://'))

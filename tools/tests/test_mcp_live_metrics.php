@@ -38,7 +38,8 @@ function __( $s ) { return $s; }
 class Six_Analytics {
 	public static $ga4, $gsc;
 	public static function ga4_summary( $p, $d = 30 ) { return self::$ga4; }
-	public static function gsc_summary( $s, $d = 28 ) { return self::$gsc; }
+	public static $gsc_rows_asked = null;
+	public static function gsc_summary( $s, $d = 28, $rows = 15 ) { self::$gsc_rows_asked = $rows; return self::$gsc; }
 	public static function pagespeed( $u, $s = 'mobile' ) { return array( 'url' => $u, 'score' => 71 ); }
 }
 class Six_Google_Ads {
@@ -195,6 +196,19 @@ $q = $gq->invoke( null, 195, 28, 1 );
 check( 'limit is honoured', count( $q['queries'] ) === 1 );
 $q = $gq->invoke( null, 195, 28, 9999 );
 check( 'an absurd limit does not error', isset( $q['queries'] ) );
+
+// The cap that made every caller's limit a lie: gsc_summary asked Google for
+// 15 rows no matter what, so a limit of 50 could only ever return 15.
+Six_Analytics::$gsc_rows_asked = null;
+$gq->invoke( null, 195, 28, 50 );
+check( 'the requested limit reaches Google, not a hard-coded 15',
+	Six_Analytics::$gsc_rows_asked === 50,
+	'asked for ' . var_export( Six_Analytics::$gsc_rows_asked, true ) );
+$gq->invoke( null, 195, 28, 100 );
+check( 'and the maximum limit does too', Six_Analytics::$gsc_rows_asked === 100 );
+$gq->invoke( null, 195, 28, 0 );
+check( 'an unset limit asks for the default rather than everything',
+	Six_Analytics::$gsc_rows_asked === 25, var_export( Six_Analytics::$gsc_rows_asked, true ) );
 
 unset( $GLOBALS['META']['six_gsc_site'] );
 $q = $gq->invoke( null, 195, 28, 25 );

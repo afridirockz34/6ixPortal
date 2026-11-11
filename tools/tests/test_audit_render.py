@@ -96,7 +96,9 @@ ok("the y-axis starts at zero, so the gap is the real gap",
 ok("every plotted site is direct-labelled", chart.count('class="endlabel"') == 4)
 ok("  → which is what makes the low-contrast slots legal", chart.count('class="endvalue"') == 4)
 ok("a legend is present for four series", chart.count('class="legend-item"') == 4)
-ok("the figures also ship as a table", "<table>" in chart)
+ok("the figures do not also ship as a collapsible table",
+   "table-view" not in chart and "See these figures as a table" not in chart,
+   "removed: a report is read, not expanded")
 ok("the source is stated, not implied", "Ahrefs" in chart)
 
 many = json.loads(json.dumps(EXAMPLE["competitors"]))
@@ -119,6 +121,11 @@ ok("a month with no data is left out of the line rather than interpolated",
    g.count(",") == 1 or len(re.findall(r"\d+\.\d,\d+\.\d", g)) == 2, g[:200])
 
 ok("a chart with no series renders nothing", render.line_chart({"labels": ["a"], "series": []}) == "")
+_noyou = render.line_chart({"labels": ["a", "b"], "metric": "x",
+                            "series": [{"name": "rival.ca", "values": [10, 20]}]})
+ok("a competitor chart with no client line refuses to draw, and says why",
+   "not drawn" in _noyou and "you" in _noyou,
+   "a comparison the client cannot find themselves on is not the point")
 ok("a chart whose every value is zero renders nothing rather than a flat lie",
    render.line_chart({"labels": ["a", "b"], "series": [{"name": "x", "values": [0, 0]}]}) == "")
 

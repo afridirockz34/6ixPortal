@@ -36,9 +36,9 @@ plausible figure to make the report look complete.
 | `headlines` | The stat tiles under the summary | `value`, `label`, `note`, `direction` (`up`/`down`), `good` (bool) |
 | `scorecard` | One meter row per category | `category`, `score` (or `null` if not checked), `weight`, `status`, `verdict` |
 | `competitors` | The client-vs-competitors line chart | See below |
-| `local` | The rank grid — where they show up on the map | Local/GMB clients only. See below |
+| `local` | The Google Business Profile section — the rank grid | Local/GMB clients only. See below. Give it a `map_image` |
 | `speed` | The website speed section | See below |
-| `sections` | One block per weakness finding | `title`, `severity`, `finding`, `why`, `teaser` |
+| `sections` | One section per weakness finding | `category` (the heading), `severity`, `finding`, `why`, `teaser` |
 | `closing` | The closing block | `heading`, `body`, `service`, `next_step` |
 
 ### `competitors`
@@ -60,6 +60,9 @@ plausible figure to make the report look complete.
   the tail and says so under the chart. Pick the three that make the point.
 - `values` may contain `null` for a month with no data. A gap stays a gap; it is
   never interpolated.
+- **The client's own series must be there**, marked `"you": true`. Without it
+  the renderer refuses to draw the chart and says why, rather than shipping a
+  comparison the reader cannot find themselves on.
 - **`source` is not optional in practice.** The chart's whole value is that the
   client can check it, and "estimated visits from the keywords Ahrefs tracks" is
   not the same claim as "visits", which is the distinction the report lives or
@@ -301,3 +304,79 @@ every finding as catastrophic reads as a sales trick, not an audit, and
 undermines the credible findings along with the weak ones. Calibrate severity
 honestly using the rubric in `audit-methodology.md` — a Medium finding stated
 plainly is more persuasive than a Medium finding inflated to sound Critical.
+
+
+---
+
+## Headings name the area, not the finding
+
+A section's heading is the category audited — "Organic keyword visibility",
+"Backlink profile", "Technical and on-page" — set in `category`. The finding
+goes in `finding`, where there is room to state it properly.
+
+A heading that is itself a finding has to be decoded before it can be read:
+
+> ### Only one of your five priority searches makes your top 15, on page two
+
+That is three facts folded into a line that fits none of them, and a report
+whose headings need decoding does not read like one that knows its subject.
+The same material, said in the right places:
+
+> ### Organic keyword visibility
+>
+> One of your five priority searches appears in your top 15 results, at
+> position 12 — the second page.
+
+`teaser` is rendered under **Our recommendation**: a statement in its own
+right, not a quotation hanging off a coloured rule. One sentence, names the
+category of fix, stops.
+
+## The map behind the grid
+
+`local.map_image` is a data URI or URL of the ground the grid covers, drawn
+behind the squares with the grid inset so the surrounding streets show around
+it. Without it the grid is coloured abstraction — nobody can tell whether
+"strong in the north, gone in the south" means three blocks or thirty
+kilometres, which is the whole finding.
+
+`scripts/fetch_map.py` builds one from the grid's own bounding box:
+
+```bash
+python scripts/fetch_map.py run.json --into audit.json
+```
+
+It needs Pillow, uses OpenStreetMap tiles, and writes straight into the audit
+file's `local.map_image`. Credit OpenStreetMap wherever the map appears.
+
+A rival's grid gets no map: the same ground twice is the same picture twice,
+and the comparison is between the squares.
+
+## Getting a PDF
+
+`scripts/make_pdf.py` prints the rendered HTML and wraps it in 6ix's cover and
+back pages:
+
+```bash
+python scripts/make_pdf.py report.html -o acme-audit.pdf \
+    --client "Acme Plumbing" --date "10 November 2026"
+```
+
+That is the whole command — the covers are drawn from the artwork in
+`assets/brand` (the polygon background, the logo, League Gothic), so any
+client's name is set in the right typeface in the right place, and the title
+shrinks to fit a long one.
+
+**Why they are drawn rather than taken from the Canva export.** That export
+carries `[CLIENT COMPANY NAME]` and `[DATE]` as real text in *subset* fonts —
+the embedded League Gothic holds only the letters already on the page, so
+editing the placeholder to another name would ask for glyphs that are not
+there. The background and logo were lifted from the same file, so the result
+is the same design with text that works for everybody.
+
+If the design changes, replace `assets/brand/cover-background.png` and
+`logo.png`, or pass finished pages with `--cover` and `--back` to use them as
+they are. `--no-covers` gives the body alone. The measurements in `LAYOUT`
+were matched to the supplied cover and verified against it.
+
+League Gothic is bundled under the SIL Open Font License; the licence travels
+with it in `assets/brand/LeagueGothic-OFL.txt`.

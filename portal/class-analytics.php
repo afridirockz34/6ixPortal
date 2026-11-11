@@ -279,7 +279,15 @@ class Six_Analytics {
     }
 
     // ── Search Console ─────────────────────────────────────────────────────
-    public static function gsc_summary( $site, $days = 28 ) {
+    /**
+     * @param int $rows How many query rows to ask Google for. This used to be
+     *                  hard-coded at 15, which silently capped every caller:
+     *                  get_search_console_queries accepts a limit up to 100 and
+     *                  could never return more than 15, so a report's wording
+     *                  stayed within what 15 rows could prove while believing it
+     *                  had seen the whole list.
+     */
+    public static function gsc_summary( $site, $days = 28, $rows = 15 ) {
         // Resolve against the properties Google will actually serve, rather
         // than guessing an identifier's shape. See resolve_gsc_site().
         $res = self::resolve_gsc_site( $site );
@@ -297,7 +305,8 @@ class Six_Analytics {
 
         // Top queries
         $q = self::gsc_query( $url, $token, array(
-            'startDate' => $start, 'endDate' => $end, 'dimensions' => array( 'query' ), 'rowLimit' => 15,
+            'startDate' => $start, 'endDate' => $end, 'dimensions' => array( 'query' ),
+            'rowLimit'  => max( 1, min( 25000, (int) $rows ) ),
         ) );
         if ( isset( $q['error'] ) ) return $q;
 
