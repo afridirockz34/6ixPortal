@@ -138,6 +138,60 @@ only snapshot *is* the current one. That's correct, not missing data.
 
 ---
 
+## The shape of a complete target set
+
+A Phase 5 commitment is not one number. The table below is the shape to fill
+in — a baseline, then four horizons — and it is what `save_strategy_projections`
+should be fed once the strategy is approved.
+
+| Metric | Key | Baseline | 30-day | 90-day | 6-month | 12-month |
+|---|---|---|---|---|---|---|
+| Organic visitors / mo | `organic_visitors` | measured | | | | |
+| Keywords ranking | `keywords_tracked` | measured | | | | |
+| Keywords in the top 3 | `keywords_page1` | measured | | | | |
+| Average position | `seo_avg_position` | measured | | | | |
+| Map views / mo | `gmb_views` | measured | | | | |
+| Calls from maps / mo | `gmb_calls` | measured | | | | |
+| Posts published | *off-portal* | 0 | | | | |
+| Location pages live | *off-portal* | count | | | | |
+| Citation accuracy % | *off-portal* | audit | | | | |
+| Reviews gained | *off-portal* | 0 | | | | |
+| AI platforms citing them | *off-portal* | count | | | | |
+| Organic phone calls | *off-portal* | **set a baseline** | | | | |
+| Organic form submissions | *off-portal* | **set a baseline** | | | | |
+
+### Three rules this table exists to enforce
+
+**Half the rows are work, not weather.** Posts published, location pages live,
+citation accuracy, reviews gained — these are things we control and can be
+counted. Rankings are weather: real, but not ours to command. A target set made
+only of rankings leaves a client with nothing to look at in month three, which
+is the month engagements get cancelled in. A target set that includes output
+says "here is what we said we would do, and here it is done" even when the
+rankings have not moved yet.
+
+**Conversions are a percentage off a measured baseline, never an absolute.**
+"Organic phone calls +20% by day 90" is a commitment we can be held to.
+"47 calls a month" is a number nobody can produce on demand, and
+`performance-tracking.md`'s own rule against invented targets applies hardest
+here. If no baseline exists yet, the 30-day target is *set the baseline* —
+that is a legitimate first milestone, and GTM conversion tracking on `tel:`
+clicks and form submits is usually how it gets set.
+
+**No row is money.** Not revenue, not ROI, not a traffic-value dollar figure
+presented as earnings. Tools report a "traffic value" and it is a modelled
+advertising-equivalent, not income; quoting it as a target turns a measurable
+plan into a promise we cannot keep. 6ix does not forecast returns.
+
+### Filling it in
+
+Only rows the strategy actually argues for get a number. A row the strategy
+has no basis for is left blank rather than interpolated — a blank reads as
+"not committed", an invented figure reads exactly like a real one and quietly
+poisons every later comparison. Metrics marked *off-portal* are tracked in the
+implementation log and the monthly report rather than through
+`save_strategy_projections`, which only accepts the keys above.
+
 ## Setting projections honestly
 
 This is the part that can quietly damage the engagement, so it's worth being
