@@ -1,6 +1,11 @@
 # Monitoring: Biweekly Checks, Monthly Reports, and When to Re-strategize
 
-## Two cadences, one underlying pull
+## The cadences, and one underlying pull
+
+Three things go *out* — a weekly check-in, a monthly report, a quarterly review
+(see "The three reporting tiers" below). Two things get *pulled* — the biweekly
+check and the month's roll-up. The weekly note is written from whatever the last
+check and the implementation log already say; it is not another data pull.
 
 - **Biweekly — "check current performance."** A lightweight pulse check: is anything moving, is anything alarming, has a new opportunity opened up. Not a full client-facing report on its own — an internal check that most of the time produces "on track, nothing to report" and occasionally produces an escalation.
 - **Monthly — the client-facing report.** Rolls up that month's biweekly checks into the reporting format `seo-strategy-builder/references/phase17-18-19-tools-tracking-reporting.md` already defines (impressions, branded search volume, and conversions alongside sessions — never organic-sessions-only, for the reasons that file gives).
@@ -38,6 +43,72 @@ An alarming finding (a real ranking or traffic drop that isn't explained by norm
 
 Once approved, the resulting changes go back through `references/implementation.md`'s change-set → confirm → apply → log discipline, **appending to the same implementation log** rather than starting a new one — this is Stage 6 of the pipeline, not a separate process from Stage 3/4.
 
+## The three reporting tiers
+
+One cadence is not enough. A client who hears from us once a month hears from
+us only when there is a document to send, and a month of silence is where the
+doubt grows that the monthly report then has to argue against.
+
+| Tier | To | When | Form |
+|---|---|---|---|
+| **Weekly check-in** | the advisor, or the client where they want it | weekly | Three bullets in the body of an email. Rankings movement, what went live, anything broken. Five-minute read, no attachment. |
+| **Monthly report** | the client | monthly | Three wins, three focus areas, the numbers, what we did, what is next. |
+| **Quarterly review** | the client, on a call | quarterly | Competitor gap re-run, best and worst performing pages, and whether the targets still hold. |
+
+**The weekly one matters more than its size suggests.** It is three sentences
+and it is the cheapest thing in this whole system, and it is what stops a
+client wondering. Write it even in a week when nothing moved — *"rankings flat,
+two pages published, no issues"* is a perfectly good week and saying so is the
+point. A week with nothing to report is not a week to skip.
+
+**The quarterly one is where targets get revised**, and the only place they
+should be. A target moved quietly in a monthly report is a target nobody is
+held to. If the Phase 5 commitments are wrong — because the market moved, or
+because we set them badly — say so on a call, say why, and agree new ones.
+
 ## Writing the monthly report
 
-Assemble the month's biweekly checks into the Phase 19 reporting format. Call out explicitly: what was actually implemented that month (pulled from the implementation log, not from memory of what was planned), what moved as a result — with the Google Update Correlation caveat applied to any causal claim — and what's being proposed or already approved for next month. Save via `save_client_artifact` (`type: "monthly_report"`) if the portal connector supports writing; say plainly if it doesn't rather than treating the report as filed when it wasn't.
+Assemble the month's biweekly checks into the Phase 19 reporting format. Lead
+with **three wins and three focus areas**, then the numbers, then the work.
+Call out explicitly: what was actually implemented that month (pulled from the
+implementation log, not from memory of what was planned), what moved as a
+result — with the Google Update Correlation caveat applied to any causal claim
+— and what's being proposed or already approved for next month. Save via
+`save_client_artifact` (`type: "monthly_report"`) if the portal connector
+supports writing; say plainly if it doesn't rather than treating the report as
+filed when it wasn't.
+
+Translate every metric into something a business owner recognises. "Average
+position improved 2.2" is our language; "you now show up higher for the
+searches that bring in work, and here is which ones" is theirs.
+
+### What we did this month — with counts
+
+Every monthly report carries a plain list of the work completed, with
+quantities, built from the implementation log:
+
+> - Content optimised and re-indexed — 5 pages
+> - New pages published from the content calendar — 2
+> - Google Business Profile posts — 4
+> - Citations submitted — 5
+> - Backlinks earned — 2
+> - Technical fixes applied — 3
+> - Position tracking and KPI update — done
+
+This answers a different question from the rest of the report. The numbers
+answer *what happened*; this answers *what did I pay for*, and that is the
+question a renewal actually turns on. A month where the rankings did not move
+but eleven things shipped is a defensible month. The same month with no such
+list looks like a month where nothing happened.
+
+Three rules:
+
+- **It comes from the log, never from the plan.** `check_implementation_log.py`
+  exists because an undated or unstatused entry breaks exactly this. If
+  something was planned and not done, it is not on the list.
+- **Counts, not adjectives.** "Five pages optimised" rather than "ongoing
+  content optimisation".
+- **A thin month is reported thin.** Padding the list with "monitoring" and
+  "analysis" to make it look fuller is the same failure as padding an audit
+  with nineteen recommendations: anybody who reads carefully can tell, and
+  then the rest of the document is in question too.

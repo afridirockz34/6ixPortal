@@ -50,6 +50,8 @@ STRUCTURAL_HEADING_HINTS = (
     "website speed",
     "competitor analysis",
     "google business profile",
+    "how you appear in search",
+    "how other sites link to you",
     # The titles these two sections used to carry. Kept so a report generated
     # before the rename still checks out rather than being flagged for a
     # heading that was correct when it was written.

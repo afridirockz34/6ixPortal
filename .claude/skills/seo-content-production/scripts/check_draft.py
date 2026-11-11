@@ -118,30 +118,87 @@ def parse_banned_phrases(profile_text: str) -> list:
     return [p.strip().strip('"').lower() for p in parts if p.strip() and len(p.strip()) > 2]
 
 
+# What each check is worth. The weights say what we actually care about: a
+# draft can be a little short and still be publishable, but one that makes a
+# banned claim or has no meta block is not, whatever else it gets right.
+WEIGHTS = {
+    "meta": 15, "words": 20, "links": 15, "faq": 10,
+    "h1": 10, "headings": 10, "banned": 20,
+}
+PASS_MARK = 70
+
+
+def check_meta_block(text):
+    """
+    Title, description, slug and target keyword, stated at the top.
+
+    Not decoration: a draft handed over without them gets its title written by
+    whoever pastes it into the CMS, which is how a page ends up optimised for
+    nothing. Returns (ok, [problems]).
+    """
+    head = text[:1200].lower()
+    problems = []
+    for label, keys in (("meta title", ("meta title", "title tag")),
+                        ("meta description", ("meta description",)),
+                        ("slug", ("slug", "url")),
+                        ("primary keyword", ("primary keyword", "target keyword"))):
+        if not any(k in head for k in keys):
+            problems.append(label)
+    # Length limits, where the values can be read.
+    m = re.search(r"meta title[^\n:]*:\s*(.+)", text[:1200], re.I)
+    if m and len(m.group(1).strip()) > 60:
+        problems.append(f"meta title is {len(m.group(1).strip())} characters (max 60)")
+    m = re.search(r"meta description[^\n:]*:\s*(.+)", text[:1200], re.I)
+    if m:
+        d = len(m.group(1).strip())
+        if d > 160 or d < 110:
+            problems.append(f"meta description is {d} characters (want 110-160)")
+    return (not problems), problems
+
+
 def main():
     # --help is the first thing anyone tries on an unfamiliar script, and it
     # should not be reported as a failure.
     if len(sys.argv) > 1 and sys.argv[1] in ("-h", "--help", "help"):
         print(__doc__.strip())
         sys.exit(0)
-    if len(sys.argv) != 4:
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    approver = ""
+    for a in sys.argv[1:]:
+        if a.startswith("--approver"):
+            approver = a.partition("=")[2].strip() or ""
+    if len(args) != 3:
         print(__doc__)
         sys.exit(2)
-
-    draft_path, profile_path, content_type = sys.argv[1], sys.argv[2], sys.argv[3]
+    draft_path, profile_path, content_type = args[0], args[1], args[2]
     draft = load_text(draft_path)
     profile = load_text(profile_path)
 
     print(f"Checking {draft_path} as content type '{content_type}' against {profile_path}\n")
 
     failures = 0
+    earned = 0
+    possible = 0
+
+    # Meta block
+    possible += WEIGHTS["meta"]
+    meta_ok, meta_problems = check_meta_block(draft)
+    if meta_ok:
+        print("[OK] Meta block present: title, description, slug and primary keyword")
+        earned += WEIGHTS["meta"]
+    else:
+        print(f"[FAIL] Meta block: {'; '.join(meta_problems)}")
+        failures += 1
 
     # Word count
     standards = parse_content_standards(profile, content_type)
     wc = word_count(draft)
     if standards:
+        possible += WEIGHTS["words"]
         lo, hi = standards["min_words"], standards["max_words"]
         status = "OK" if lo <= wc <= hi else "FAIL"
+        if status == "OK":
+            earned += WEIGHTS["words"]
         if status == "FAIL":
             failures += 1
         print(f"[{status}] Word count: {wc} (target range {lo}-{hi})")
@@ -151,7 +208,10 @@ def main():
     # Internal links
     links = count_internal_links(draft)
     if standards:
+        possible += WEIGHTS["links"]
         status = "OK" if links >= standards["min_links"] else "FAIL"
+        if status == "OK":
+            earned += WEIGHTS["links"]
         if status == "FAIL":
             failures += 1
         print(f"[{status}] Internal links: {links} (minimum {standards['min_links']})")
@@ -161,7 +221,10 @@ def main():
     # FAQ count
     faqs = count_faq_questions(draft)
     if standards:
+        possible += WEIGHTS["faq"]
         status = "OK" if faqs >= standards["min_faq"] else "FAIL"
+        if status == "OK":
+            earned += WEIGHTS["faq"]
         if status == "FAIL" and standards["min_faq"] > 0:
             failures += 1
         print(f"[{status if standards['min_faq'] else 'INFO'}] FAQ questions detected: {faqs} (minimum {standards['min_faq']})")
@@ -169,6 +232,7 @@ def main():
         print(f"[INFO] FAQ questions detected: {faqs}")
 
     # Heading structure
+    possible += WEIGHTS["h1"] + WEIGHTS["headings"]
     h1s = count_headings(draft, "#")
     h2s = count_headings(draft, "##")
     if len(h1s) != 1:
@@ -176,9 +240,17 @@ def main():
         failures += 1
     else:
         print(f"[OK] Exactly 1 H1 heading: \"{h1s[0]}\"")
-    print(f"[INFO] {len(h2s)} H2 heading(s) found")
+        earned += WEIGHTS["h1"]
+    if len(h2s) >= 3:
+        print(f"[OK] {len(h2s)} H2 headings — the page is navigable")
+        earned += WEIGHTS["headings"]
+    else:
+        print(f"[FAIL] Only {len(h2s)} H2 heading(s) — a page this length needs at "
+              "least 3 so a reader can skim it")
+        failures += 1
 
     # Banned phrases
+    possible += WEIGHTS["banned"]
     banned = parse_banned_phrases(profile)
     draft_lower = draft.lower()
     hits = [b for b in banned if b in draft_lower]
@@ -187,18 +259,53 @@ def main():
         failures += 1
     else:
         print(f"[OK] No banned phrases found ({len(banned)} checked)")
+        earned += WEIGHTS["banned"]
+
+    # ── Readiness score and the publish gate ─────────────────────────────
+    score = round(100 * earned / possible) if possible else 0
+    print()
+    print(f"Readiness score: {score}/100  (pass mark {PASS_MARK})")
+    if possible < sum(WEIGHTS.values()):
+        missed = sum(WEIGHTS.values()) - possible
+        print(f"  Scored out of the {possible} points this profile gave something to "
+              f"check against; {missed} points' worth was skipped. A skipped check is "
+              "a gap in the profile, not a fault in the draft — but it also means the "
+              "score is answering a smaller question than usual.")
+
+    # Enough of the draft has to have been checkable for the score to mean
+    # anything. 100/100 out of 55 points is not a pass, it is a profile with
+    # rows missing, and clearing on it would be the same as inventing a figure.
+    MIN_COVERAGE = 70
+    enough = possible >= MIN_COVERAGE
+    cleared = score >= PASS_MARK and failures == 0 and bool(approver) and enough
+    if not enough:
+        print(f"Only {possible} points of checks could run, below the {MIN_COVERAGE} "
+              "needed for the score to mean anything. Add the missing rows to the "
+              "profile's Content Standards table and run it again.")
+    if failures:
+        print(f"{failures} check(s) failed.")
+    if not approver:
+        print("No approver named. Pass --approver=\"Name <email>\" — the person who "
+              "read this draft and is accountable for it going live.")
 
     print()
-    if failures:
-        print(f"{failures} check(s) failed. Fix these before treating the draft as done — "
-              f"then still review it for voice, accuracy, and whether every specific "
-              f"claim is actually grounded in the client profile.")
-        sys.exit(1)
-    else:
-        print("All mechanical checks passed. This does not mean the draft is done — "
-              "still review it for voice, factual accuracy, and whether every claim "
-              "is grounded in the client profile before publishing.")
+    if cleared:
+        print(f"CLEARED TO PUBLISH — {score}/100, approved by {approver}.")
+        print("The score is mechanical: it says this draft is the right shape, not "
+              "that it is true or that it sounds like the client. "
+              f"{approver} is on record as having judged that.")
+        print("Record the approver and the score in the implementation log alongside "
+              "the URL, so the monthly report can show what shipped and who signed it off.")
         sys.exit(0)
+
+    print("NOT CLEARED TO PUBLISH.")
+    print("A draft publishes when three things are true: it scores "
+          f"{PASS_MARK} or better, no check has failed, and a named person has "
+          "approved it. The score is mechanical and cannot read for voice, factual "
+          "accuracy, or whether a claim is grounded in the client profile — that is "
+          "what the named approver is for, and it is why a high score alone does not "
+          "clear anything.")
+    sys.exit(1)
 
 
 if __name__ == "__main__":

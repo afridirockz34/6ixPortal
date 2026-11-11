@@ -16,6 +16,15 @@ Work through every category below for every audit — don't skip one because it 
 
 ## 2. Backlink profile quality
 
+**Read the referring domains before reporting them.** An automated tool sorts by
+domain rating and will happily present a hijacked or spam domain as one of a
+prospect's "highest value" links; putting that in a client document is the kind
+of error their SEO-literate contact spots immediately, and it puts every other
+figure in question. `seo-strategy-builder/references/off-page.md` has what to
+look for and what to do about it. The anchor-text distribution belongs here too
+— it is usually the more useful finding, because almost every site's anchors say
+the bare domain and nothing about the service.
+
 **Checks:** referring domain count and quality (DR distribution of referring domains, not just the count), broken backlinks (links pointing at pages that now 404 or redirect incorrectly — lost authority that's recoverable), anchor text patterns (over-optimized or spammy anchor concentration is a real risk signal, not just a technical curiosity).
 
 **Tools:** `site-explorer-referring-domains`, `site-explorer-backlinks-stats`, `site-explorer-broken-backlinks`, `site-explorer-anchors`.

@@ -158,6 +158,68 @@ What it is worth per month is not, and we do not put a number on it.
 | `get_location` | The full profile record: categories, hours, services, photos, social, Active Sync | The profile-completeness half of a GMB plan |
 | `get_brain_recommendations(location_id)` | BrightLocal's own AI recommendations for that location | Useful as a cross-check on your own findings; it is another model's opinion, not a measurement, so never quote it to a client as data |
 
+## The operational half: NAP, citations, reviews
+
+Measuring local visibility is one job; the work that moves it is another, and
+it is mostly unglamorous admin done in a fixed order.
+
+### One NAP string, used literally everywhere
+
+Write the business's name, address and phone **once**, exactly as it should
+appear, and put that string in the strategy document:
+
+> NR Lawyers — Neuberger & Partners LLP | 1392 Eglinton Ave W | York, ON M6C 2E4 | (416) 364-3111 | nrlawyers.com
+
+Then never retype it. Every citation, every directory, every footer copies
+that line. The reason is dull and real: Google matches listings across the web
+by comparing these strings, and "Ave W" in one place and "Avenue West" in
+another is two businesses as far as the match is concerned. Suite numbers,
+`LLP` versus `llp`, and a phone number written `416-364-3111` in one listing
+and `(416) 364-3111` in the next are the usual culprits.
+
+Agree the string with the client before anything is submitted. Changing it
+afterwards means revisiting every listing by hand.
+
+### Citations, in tiers, with an order
+
+`get_ct_report_results` audits what exists. Fix before you build — a wrong
+listing actively costs you, a missing one merely does nothing.
+
+| Tier | What | When |
+|---|---|---|
+| **1 — critical** | The profession's regulator and associations, the two or three directories that dominate the client's search results, Google Business Profile itself, Apple Maps, Bing Places | Month 1 |
+| **2 — mainstream** | General local directories, chamber of commerce, the large aggregators the client's industry actually uses | Month 2 |
+| **3 — long tail** | Everything else, built steadily | Ongoing, a handful a month |
+
+Two things that matter more than the tiers:
+
+- **Duplicate GBP listings get suppressed immediately.** Two listings for one
+  business split the signals and can each rank badly. This is usually the
+  single highest-value hour in a local engagement.
+- **Accuracy is a number you can report.** "91% of 47 listings carry the exact
+  NAP" is measured, checkable, and improves visibly month on month, which
+  makes it a good KPI row while rankings are still moving.
+
+### Reviews: velocity, not just total
+
+A business with 200 reviews and none this year looks worse than one with 40
+that gets three a month. Set a velocity target — three to five new reviews a
+month is realistic for most service businesses — and track response time
+separately; replying within a day or two is itself a ranking and conversion
+signal.
+
+Where the client's profession is regulated, this is a compliance question
+before it is a tactic. Law, medicine and finance have rules about soliciting
+testimonials that vary by regulator, and `client-context.md` treats the
+regulated-industry answers as a hard constraint. Get the rule in writing
+before designing a review programme, and never write one that assumes the
+generic advice applies.
+
+**What never happens:** incentivised reviews, gated review funnels that send
+happy clients to Google and unhappy ones to a private form, or writing a
+review for a client to post. All three are against Google's policy, all three
+are detectable, and the penalty lands on the client.
+
 ## Writing it up
 
 Everything in `seo-audit-report/references/report-template.md`'s honesty rules applies here unchanged, plus

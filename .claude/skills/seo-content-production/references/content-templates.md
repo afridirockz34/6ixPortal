@@ -79,6 +79,52 @@ Four page types, each with section structure, defaults, and what makes each sect
 
 ---
 
+### How local is "local"? Cities, then neighbourhoods
+
+A location page set usually starts at city level — one page per city the client
+serves. For a business whose customers choose on proximity, there is a second
+tier below that which most competitors never build: **neighbourhoods**.
+
+A criminal firm in Toronto with pages for Humewood, Wychwood, Casa Loma,
+Corso Italia, Forest Hill and Cedarvale is catching searches that "criminal
+lawyer Toronto" does not, from people who search the way they think about
+where they live. The volume per page is small; the competition is often
+nothing at all; and the intent is unusually high, because somebody searching
+their own neighbourhood is looking for someone close enough to see today.
+
+Where it is worth doing:
+
+- Customers pick partly on **how near you are** — trades, clinics, lawyers,
+  veterinary, childcare, repair.
+- The city is big enough that its neighbourhoods have **names people use**.
+  Toronto, yes. A town of 20,000, no.
+- You can say something **true and specific** about serving each one.
+
+**The line this crosses if you get it wrong.** A page that is the city page
+with the neighbourhood's name swapped in is a doorway page. Google's guidance
+names them specifically, they are a manual-action risk, and at scale they are
+the single most common way a location strategy goes wrong. Sixteen pages that
+differ only in a place name is not sixteen pages.
+
+A neighbourhood page earns its place when it carries something that could only
+be written about that neighbourhood:
+
+- The courthouse, hospital, depot or station that actually serves it, by name.
+- Travel and access detail someone there would recognise — which subway stop,
+  which arterial road, parking.
+- Work genuinely done there, where the client can confirm it and confidentiality
+  allows.
+- The local specifics of the problem: what the housing stock means for a
+  plumber, which court division hears those matters, what the catchment is.
+
+If you cannot write three paragraphs that would be *wrong* on the neighbouring
+page, do not build the page. Say so, and build fewer, better ones. The
+profile's own service-area answers are the source for this; where they do not
+go deep enough, ask the client rather than inventing local colour — an invented
+detail about somebody's own neighbourhood is the most obviously wrong thing a
+page can contain.
+
+
 ## Template 3: Service Page
 
 **Defaults:** 1,500-2,500 words (2,000 target). Minimum 4 internal links (related services, relevant location pages, team/about page, a proof/results page).

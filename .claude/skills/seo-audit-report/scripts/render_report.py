@@ -32,6 +32,7 @@ import argparse
 import html
 import json
 import math
+import re
 import sys
 from pathlib import Path
 
@@ -79,6 +80,26 @@ def status_for_score(score):
     if score >= 30:
         return "serious"
     return "critical"
+
+
+def letter_grade(score):
+    """
+    A 0-100 score as a letter.
+
+    Not a replacement for the number — the number is what the scorecard is
+    weighted on and what a later audit is compared against. It sits beside it
+    because a client reads "C" in no time at all and has to stop and think
+    about "52".
+    """
+    s = num(score)
+    if s is None:
+        return ""
+    for floor, letter in ((97, "A+"), (93, "A"), (90, "A-"), (87, "B+"), (83, "B"),
+                          (80, "B-"), (77, "C+"), (73, "C"), (70, "C-"), (67, "D+"),
+                          (63, "D"), (60, "D-"), (0, "F")):
+        if s >= floor:
+            return letter
+    return "F"
 
 
 def status_for(item):
@@ -175,6 +196,12 @@ def gauge(score, size=168, label=None, out_of=100, caption=None):
     parts.append(
         f'<text x="{cx}" y="{cy + 26}" class="gauge-of" text-anchor="middle">out of {esc(out_of)}</text>'
     )
+    grade = letter_grade(value) if out_of == 100 else ""
+    if grade:
+        parts.append(
+            f'<text x="{cx}" y="{cy - 30}" class="gauge-grade" text-anchor="middle" '
+            f'fill="{STATUS[role]}">{esc(grade)}</text>'
+        )
     parts.append("</svg>")
 
     block = ['<div class="gauge-wrap">', "".join(parts)]
@@ -877,6 +904,123 @@ def render_speed(speed):
     return "".join(out)
 
 
+def render_search_presence(data):
+    """
+    How this site actually turns up in a search result — the snippet a person
+    sees, and the spread of positions behind it.
+
+    Both are things the client can check in a browser in thirty seconds, which
+    is exactly why they land: the report is describing something they can go
+    and look at rather than a number only we can see.
+    """
+    serp = data.get("serp") or {}
+    pos  = data.get("positions") or {}
+    rows = pos.get("bands") or []
+    if not serp and not rows:
+        return ""
+
+    out = ['<section class="block"><h2>'
+           + esc(data.get("heading") or "How you appear in search") + "</h2>"]
+    if data.get("lede"):
+        out.append(f'<p class="lede">{esc(data["lede"])}</p>')
+
+    if serp.get("title") or serp.get("description"):
+        out.append('<div class="serp">')
+        if serp.get("site") or serp.get("url"):
+            out.append('<div class="serp-crumb">'
+                       + esc(serp.get("site") or "")
+                       + (f'<span>{esc(serp["url"])}</span>' if serp.get("url") else "")
+                       + "</div>")
+        if serp.get("title"):
+            out.append(f'<div class="serp-title">{esc(serp["title"])}</div>')
+        if serp.get("description"):
+            out.append(f'<div class="serp-desc">{esc(serp["description"])}</div>')
+        out.append("</div>")
+        # The caveat is ours and always shown: it is a fact about what this
+        # preview is, not commentary, and a custom note must not displace it
+        # or the client is looking at a mock-up they think is a screenshot.
+        caveat = ("Built from your own title and meta description. Google rewrites "
+                  "snippets sometimes, so treat this as the starting point.")
+        note = serp.get("note")
+        out.append(f'<p class="chart-note">{esc(caveat)}</p>')
+        if note:
+            out.append(f'<p class="verdict">{esc(note)}</p>')
+
+    if rows:
+        total = sum(int(num(r.get("count")) or 0) for r in rows)
+        peak  = max((int(num(r.get("count")) or 0) for r in rows), default=0)
+        out.append('<h3 class="sub-head">Where those rankings sit</h3>')
+        out.append('<div class="meters posbands">')
+        for r in rows:
+            n = int(num(r.get("count")) or 0)
+            label = str(r.get("band", ""))
+            role = r.get("status") or _band_role(label)
+            share = (n / peak) if peak else 0
+            out.append(meter_row(label, share, f"{n:,}", role,
+                                 r.get("note")))
+        out.append("</div>")
+        if total:
+            out.append(f'<p class="chart-note">{total:,} ranking keywords in total'
+                       + (f' · {esc(pos["source"])}' if pos.get("source") else "")
+                       + ". The bars compare the bands with each other, not with "
+                         "the total.</p>")
+        if pos.get("verdict"):
+            out.append(f'<p class="verdict">{esc(pos["verdict"])}</p>')
+    out.append("</section>")
+    return "".join(out)
+
+
+def _band_role(label):
+    """A position band to a colour, by where the clicks actually go."""
+    digits = [int(d) for d in re.findall(r"\d+", str(label))] or [999]
+    first = digits[0]
+    if first <= 3:
+        return "good"
+    if first <= 10:
+        return "warning"
+    if first <= 20:
+        return "serious"
+    return "critical"
+
+
+def render_anchors(data):
+    """
+    The words other sites use when they link here.
+
+    Worth a section because anchor text is the one off-page signal a client
+    has some influence over, and because the usual finding — almost every link
+    says the bare domain name — is both true and fixable.
+    """
+    rows = [r for r in (data.get("anchors") or []) if isinstance(r, dict)]
+    if not rows:
+        return ""
+    rows = rows[:10]
+    peak = max((int(num(r.get("links")) or 0) for r in rows), default=0)
+    out = ['<section class="block"><h2>How other sites link to you</h2>']
+    if data.get("anchors_lede"):
+        out.append(f'<p class="lede">{esc(data["anchors_lede"])}</p>')
+    out.append('<table class="anchors"><thead><tr><th scope="col">Anchor text</th>'
+               '<th scope="col">Share</th><th scope="col" class="num">Links</th>'
+               "</tr></thead><tbody>")
+    for r in rows:
+        n = int(num(r.get("links")) or 0)
+        pct = (n / peak * 100) if peak else 0
+        kind = str(r.get("kind", "")).strip().lower()
+        role = {"branded": "warning", "bare": "warning", "url": "warning",
+                "keyword": "good", "generic": "serious"}.get(kind, "warning")
+        out.append(
+            f'<tr><th scope="row">{esc(r.get("anchor", ""))}</th>'
+            f'<td class="bar-cell"><span class="bar" style="width:{pct:.0f}%;'
+            f'background:{STATUS[role]}"></span></td>'
+            f'<td class="num">{n:,}</td></tr>'
+        )
+    out.append("</tbody></table>")
+    if data.get("anchors_verdict"):
+        out.append(f'<p class="verdict">{esc(data["anchors_verdict"])}</p>')
+    out.append("</section>")
+    return "".join(out)
+
+
 def render_sections(sections):
     if not sections:
         return ""
@@ -1024,6 +1168,28 @@ table.scorecard .num{text-align:right;font-variant-numeric:tabular-nums;font-wei
 .grid-meters .meter{grid-template-columns:1fr 100px 74px;gap:10px;padding:5px 0}
 .grid-meters .meter-name{font-size:12.5px;font-weight:500}
 .grid-meters .meter-figure{font-size:12.5px}
+/* ── search presence ── */
+.sub-head{font-size:14px;font-weight:700;margin:26px 0 12px}
+.serp{border:1px solid var(--border);border-radius:8px;padding:16px 18px;background:#fbfaf8;
+  max-width:600px}
+.serp-crumb{font-size:12.5px;color:var(--ink-2);margin-bottom:3px}
+.serp-crumb span{display:block;color:var(--muted);font-size:11.5px}
+.serp-title{font-size:19px;color:#1a0dab;line-height:1.3;margin:2px 0 4px}
+.serp-desc{font-size:13px;color:#4d5156;line-height:1.58}
+.posbands .meter{grid-template-columns:118px 1fr 74px;gap:14px}
+.posbands .meter-name{font-variant-numeric:tabular-nums}
+/* ── anchors ── */
+table.anchors{width:100%;border-collapse:collapse;font-size:13.5px}
+table.anchors th,table.anchors td{text-align:left;padding:9px 12px 9px 0;
+  border-bottom:1px solid var(--border);vertical-align:middle}
+table.anchors thead th{font-size:10.5px;letter-spacing:1px;text-transform:uppercase;
+  color:var(--muted);font-weight:700;border-bottom:2px solid var(--rule)}
+table.anchors th[scope=row]{font-weight:600;width:46%;word-break:break-word}
+table.anchors .num{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;
+  width:68px;padding-right:0}
+.bar-cell{width:34%}
+.bar{display:block;height:9px;border-radius:5px;min-width:3px}
+.gauge-grade{font-size:22px;font-weight:700;letter-spacing:.5px}
 .grid-avg{font-size:12.5px;color:var(--ink-2);margin:12px 0 0}
 .grid-avg strong{font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
 .map-link{font-size:12.5px;margin:8px 0 0}
@@ -1057,6 +1223,9 @@ table.scorecard .num{text-align:right;font-variant-numeric:tabular-nums;font-wei
   .meter{grid-template-columns:1fr 84px;row-gap:6px}
   .meter-track{grid-column:1/-1;order:3}
   .grid-meters .meter{grid-template-columns:1fr 74px;row-gap:6px}
+  .posbands .meter{grid-template-columns:1fr 64px;row-gap:4px}
+  table.anchors th[scope=row]{width:auto}
+  .bar-cell{display:none}
   .tile + .tile{padding-left:0;border-left:0;border-top:1px solid var(--border)}
   table.scorecard th[scope=row]{width:auto}
 }
@@ -1101,6 +1270,8 @@ def build(data):
     parts.append(render_headlines(data.get("headlines")))
     parts.append(render_scorecard(data.get("scorecard")))
 
+    parts.append(render_search_presence(data))
+
     comp = data.get("competitors")
     if comp:
         chart = line_chart(comp)
@@ -1115,6 +1286,7 @@ def build(data):
 
     parts.append(render_local(data.get("local")))
     parts.append(render_speed(data.get("speed")))
+    parts.append(render_anchors(data))
     parts.append(render_sections(data.get("sections")))
 
     closing = data.get("closing") or {}

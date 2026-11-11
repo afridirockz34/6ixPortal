@@ -35,6 +35,9 @@ plausible figure to make the report look complete.
 | `summary` | Executive summary prose | A list of paragraphs |
 | `headlines` | The stat tiles under the summary | `value`, `label`, `note`, `direction` (`up`/`down`), `good` (bool) |
 | `scorecard` | One meter row per category | `category`, `score` (or `null` if not checked), `weight`, `status`, `verdict` |
+| `serp` | The Google result preview | `site`, `url`, `title`, `description`, `note` |
+| `positions` | Where their rankings sit, as bands | `source`, `bands[]` of `band`/`count`/`note`, `verdict` |
+| `anchors` | The anchor-text table | A list of `anchor`/`links`/`kind`; plus `anchors_lede`, `anchors_verdict` |
 | `competitors` | The client-vs-competitors line chart | See below |
 | `local` | The Google Business Profile section — the rank grid | Local/GMB clients only. See below. Give it a `map_image` |
 | `speed` | The website speed section | See below |
@@ -380,3 +383,59 @@ were matched to the supplied cover and verified against it.
 
 League Gothic is bundled under the SIL Open Font License; the licence travels
 with it in `assets/brand/LeagueGothic-OFL.txt`.
+
+
+---
+
+## `serp`, `positions`, `anchors`
+
+Three small sections that cost nothing to produce and land hard, because each
+one shows the client something they can go and verify in a browser.
+
+### `serp` — their actual Google result
+
+```json
+"serp": { "site": "Northside Plumbing", "url": "https://northsideplumbing.ca",
+          "title": "Northside Plumbing | Plumber in Toronto",
+          "description": "Northside Plumbing provides plumbing services in Toronto…",
+          "note": "Nothing in that snippet says emergency or 24-hour." }
+```
+
+Built from the page's own title and meta description — not invented, and not a
+screenshot. The `note` is where the finding goes, and the finding is almost
+always the same shape: the words that win the click are missing. Say that
+Google rewrites snippets sometimes; the renderer's default caption does.
+
+### `positions` — where the rankings sit
+
+```json
+"positions": { "source": "Ahrefs, Canada",
+  "bands": [ {"band": "Position 1", "count": 1},
+             {"band": "Positions 11–20", "count": 12,
+              "note": "page two — the nearest real gains"} ],
+  "verdict": "…" }
+```
+
+Bars are scaled against the **largest band**, not the total, so the shape of
+the distribution is readable when one band dwarfs the rest; the caption says
+so. Colour follows the first number in the band label — 1–3 good, 4–10 warning,
+11–20 serious, beyond that critical — so the bands do not need explaining.
+
+The 11–20 band is usually the sellable one: already ranking, one page from
+traffic. Put the verdict there.
+
+### `anchors` — what other sites call them
+
+```json
+"anchors": [ {"anchor": "northsideplumbing.ca", "links": 52, "kind": "url"},
+             {"anchor": "Toronto plumber", "links": 2, "kind": "keyword"} ]
+```
+
+`kind` is one of `url`, `branded`, `keyword` or `generic`, and only colours the
+bar. Ten rows maximum. The finding writes itself on most sites: a handful of
+links describe the service and the rest say the domain name.
+
+**This section is not a backlink list.** Do not put raw referring domains in a
+client document without reading them first —
+`seo-strategy-builder/references/off-page.md` explains why, and it is the
+mistake that is easiest to make and most embarrassing to be caught in.

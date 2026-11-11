@@ -775,5 +775,72 @@
     "body": "The findings above fall into three pieces of work: the technical and speed problems holding every page back, the service pages that do not exist for two of your four services, and the local signals that decide who appears for an emergency search in your postcodes.",
     "service": "This is the scope of our SEO engagement for local service businesses.",
     "next_step": "The next step is a 30-minute call to go through these findings and agree which of the three to start with."
-  }
+  },
+  "serp": {
+    "site": "Northside Plumbing",
+    "url": "https://northsideplumbing.ca",
+    "title": "Northside Plumbing | Plumber in Toronto",
+    "description": "Northside Plumbing provides plumbing services in Toronto and the GTA. Call us today for a quote on your next job.",
+    "note": "Nothing in that snippet says emergency, 24-hour or same-day — the words somebody types when their basement is flooding."
+  },
+  "positions": {
+    "source": "Ahrefs, Canada",
+    "bands": [
+      {
+        "band": "Position 1",
+        "count": 1
+      },
+      {
+        "band": "Positions 2–3",
+        "count": 3
+      },
+      {
+        "band": "Positions 4–10",
+        "count": 12
+      },
+      {
+        "band": "Positions 11–20",
+        "count": 12,
+        "note": "page two — the nearest real gains"
+      },
+      {
+        "band": "Positions 21–50",
+        "count": 31
+      },
+      {
+        "band": "Positions 51–100",
+        "count": 28
+      }
+    ],
+    "verdict": "Four keywords in the top three out of 87. The twelve on page two are the shortest route to traffic, because they already rank."
+  },
+  "anchors_lede": "The words other sites use when they link to you. Google reads these as a description of what you do.",
+  "anchors": [
+    {
+      "anchor": "northsideplumbing.ca",
+      "links": 52,
+      "kind": "url"
+    },
+    {
+      "anchor": "Northside Plumbing",
+      "links": 18,
+      "kind": "branded"
+    },
+    {
+      "anchor": "click here",
+      "links": 9,
+      "kind": "generic"
+    },
+    {
+      "anchor": "website",
+      "links": 6,
+      "kind": "generic"
+    },
+    {
+      "anchor": "Toronto plumber",
+      "links": 2,
+      "kind": "keyword"
+    }
+  ],
+  "anchors_verdict": "Two links in eighty-seven describe the service. The rest say your address or nothing at all, which tells Google nothing about what you do."
 }

@@ -224,6 +224,48 @@ ok("words whose -ise or -or spelling is correct are not flagged", clean == [], s
 cap = dict(check.find_spelling_slips("Enquiries are up. Optimise the page."))
 ok("a capitalised slip keeps its capital in the suggestion", cap.get("Enquiries") == "Inquiries")
 
+print("\n── Search presence, anchors and the letter grade ────────────────────")
+
+sp = render.render_search_presence(EXAMPLE)
+ok("the SERP preview shows the real title", "Plumber in Toronto" in sp)
+ok("and the real meta description", "plumbing services in Toronto" in sp)
+ok("the caveat that Google rewrites snippets is always shown",
+   "rewrites snippets" in sp, "a custom note must not displace it")
+ok("and the audit's own note is shown as well as the caveat",
+   "basement is flooding" in sp)
+ok("the position bands are all drawn", sp.count('class="meter"') == 6)
+ok("the top band is coloured as good", render._band_role("Position 1") == "good")
+ok("4-10 is a warning", render._band_role("Positions 4\u201310") == "warning")
+ok("11-20 is serious", render._band_role("Positions 11\u201320") == "serious")
+ok("beyond that is critical", render._band_role("Positions 51\u2013100") == "critical")
+ok("the total is stated and is the sum of the bands", "87 ranking keywords" in sp,
+   "1+3+12+12+31+28 = 87")
+ok("and the caption says bars compare bands, not the total",
+   "not with the total" in sp)
+ok("no serp and no bands renders nothing", render.render_search_presence({}) == "")
+
+an = render.render_anchors(EXAMPLE)
+ok("the anchor table lists the bare-domain anchor", "northsideplumbing.ca" in an)
+ok("a descriptive anchor is coloured good",
+   render.STATUS["good"] in an, "kind=keyword should read as the good case")
+ok("a generic anchor is coloured as a problem", render.STATUS["serious"] in an)
+ok("at most ten anchors are drawn",
+   render.render_anchors({"anchors": [{"anchor": f"a{i}", "links": i} for i in range(40)]})
+   .count("<tr>") == 11, "ten rows plus the header")
+ok("no anchors renders nothing", render.render_anchors({}) == "")
+
+ok("97 is an A+", render.letter_grade(97) == "A+")
+ok("83 is a B", render.letter_grade(83) == "B")
+ok("41 is an F", render.letter_grade(41) == "F")
+ok("0 is still an F", render.letter_grade(0) == "F")
+ok("a missing score has no grade", render.letter_grade(None) == "")
+g = render.gauge(41, label="SEO Health Score")
+ok("the gauge shows the grade beside the number", ">F<" in g)
+ok("and still shows the number itself", ">41<" in g)
+ok("a gauge out of something other than 100 gets no grade",
+   ">F<" not in render.gauge(2, out_of=5),
+   "a letter grade only means anything on a 0-100 scale")
+
 print("\n── The checker reads the report the client will actually get ────────")
 with tempfile.TemporaryDirectory() as tmp:
     tmp = Path(tmp)
