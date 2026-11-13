@@ -218,6 +218,24 @@ code, out = run(with_steps, approver="J Ireland")
 check("an H3 sub-step is not mistaken for a top-level section",
       "Out of contract order" not in out and code == 0, out[-900:])
 
+# 3. The character-count annotation content-templates.md asks for while a page
+#    is in review must not be measured as part of the value.
+annotated = good.replace(
+    "Meta Title: Bail Hearing Lawyer Toronto | NR Lawyers",
+    "Meta Title: Bail Hearing Lawyer Toronto | NR Lawyers (52 chars)")
+code, out = run(annotated, approver="J Ireland")
+check("a (52 chars) review annotation is not counted into the meta title",
+      code == 0 and "meta title is" not in out, out[:600])
+
+# 4. The H1 is the page title, not a section. "Sex Crimes Lawyers in Toronto
+#    and Across Ontario" otherwise matches the geography section at index 0 and
+#    reports a correctly ordered page as out of order.
+h1_geo = good.replace("# Bail Hearing Lawyer Toronto",
+                      "# Bail Hearing Lawyers Across Toronto and Ontario", 1)
+code, out = run(h1_geo, approver="J Ireland")
+check("the H1 is not matched as a section",
+      "Out of contract order" not in out and code == 0, out[-800:])
+
 # ── The gate never claims to have read the draft ──────────────────────────
 code, out = run(good, approver="J Ireland <j@x.ca>")
 check("clearing still says the score cannot judge truth or voice",

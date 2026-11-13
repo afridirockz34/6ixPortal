@@ -104,6 +104,8 @@ No guarantees or promises of outcome, ever. Coherent, precise language throughou
 | Blog post | 1,500 | 1,200-2,000 | 3 | 5 |
 | Location page | 1,500 | 1,200-1,800 | 3 | 5 |
 | Service page | 2,000 | 1,500-2,500 | 4 | 6 |
+| Service hub page | 2,000 | 1,500-2,500 | 8 | 6 |
+| Resource guide | 2,500 | 2,000-3,000 | 4 | 8 |
 | Audience page | 1,500 | 1,200-1,800 | 4 | 5-6 |
 | Lawyer bio page | 1,000 | 800-1,200 | 4 | — |
 | Recent Successes entry | 500 | 400-600 | — | — |

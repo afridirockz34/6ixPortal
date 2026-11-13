@@ -293,11 +293,14 @@ def check_sections(text: str, contract: list):
     is missing the section that tells the reader the page is for them, which is
     a different kind of problem from having written it in the wrong place.
     """
-    # Only top-level sections. The contract describes the page's H2 sections;
-    # an H3 inside one is not a section. Without this, a "Step 1: Immediate
-    # First Contact" sub-step matches the call-to-action pattern and the page
-    # is reported out of order for a heading that was never a section.
-    found = heading_lines(text, max_level=2)
+    # The contract describes the page's H2 sections. An H3 inside one is not a
+    # section — without this, a "Step 1: Immediate First Contact" sub-step
+    # matches the call-to-action pattern and the page is reported out of order
+    # for a heading that was never a section. Nor is the H1: it is the page's
+    # title, and a title like "Sex Crimes Lawyers in Toronto and Across
+    # Ontario" otherwise matches the geography section at position zero.
+    found = [h[1] for h in (_heading(l) for l in text.splitlines())
+             if h and h[0] == 2]
     missing, positions = [], []
     for pattern, name, required in contract:
         at = None
@@ -331,13 +334,25 @@ def check_meta_block(text):
                         ("primary keyword", ("primary keyword", "target keyword"))):
         if not any(k in head for k in keys):
             problems.append(label)
-    # Length limits, where the values can be read.
-    m = re.search(r"meta title[^\n:]*:\s*(.+)", text[:1200], re.I)
-    if m and len(m.group(1).strip()) > 60:
-        problems.append(f"meta title is {len(m.group(1).strip())} characters (max 60)")
-    m = re.search(r"meta description[^\n:]*:\s*(.+)", text[:1200], re.I)
-    if m:
-        d = len(m.group(1).strip())
+    # Length limits, where the values can be read. content-templates.md asks
+    # for the character count in brackets after the value while the page is in
+    # review, so the approver can see the limit was met without counting — so
+    # that annotation is stripped before measuring, or the checker reports the
+    # length of its own annotation.
+    def value(label):
+        m = re.search(rf"{label}[^\n:]*:\s*(.+)", text[:1500], re.I)
+        if not m:
+            return None
+        v = m.group(1).strip()
+        v = re.sub(r"\s*\((?:\d+\s*(?:chars?|characters)|[\d,]+)\)\s*$", "", v, flags=re.I)
+        return v.strip()
+
+    v = value("meta title")
+    if v and len(v) > 60:
+        problems.append(f"meta title is {len(v)} characters (max 60)")
+    v = value("meta description")
+    if v:
+        d = len(v)
         if d > 160 or d < 110:
             problems.append(f"meta description is {d} characters (want 110-160)")
     return (not problems), problems
