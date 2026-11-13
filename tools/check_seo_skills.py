@@ -51,6 +51,11 @@ ABS_RE = re.compile(r"`(/(?:home|Users|tmp|var|root)/[^`]+)`")
 # path reference and are not one.
 WEB_FILES = {"robots.txt", "llms.txt", "sitemap.xml", "ads.txt", "security.txt",
              ".htaccess", "humans.txt", "llms-full.txt"}
+# Files a skill tells the reader to CREATE in the client's deliverable folder.
+# They look exactly like a reference to a bundled file and are the opposite —
+# naming one is the instruction, so a missing copy here is correct.
+OUTPUT_FILES = {"00-INDEX.md"}
+WEB_FILES |= OUTPUT_FILES
 # Connector tools the skills tell a reader to call.
 TOOL_RE = re.compile(r"`(mcp__[A-Za-z0-9_]+|[a-z][a-z0-9_]{3,})\(")
 

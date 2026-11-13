@@ -38,14 +38,28 @@ Meta Description: Facing a bail hearing in Toronto? NR Lawyers provides immediat
 Slug: /general-criminal-defence/bail/
 Primary Keyword: bail hearing lawyer Toronto
 """
+# The service-page section contract from references/content-templates.md. The
+# headings are the contract; the prose is filler to reach the word count.
+FILL = "Substantive sentence about bail hearings in Ontario. " * 42
+SERVICE_SECTIONS = [
+    "Who Needs a Bail Hearing Lawyer in Toronto",
+    "What NR Lawyers Provides in Bail Hearing Representation",
+    "How the Bail Hearing Process Works in Ontario",
+    "What Experienced Bail Representation Delivers",
+    "Why Individuals Charged in Toronto Choose NR Lawyers",
+    "Related Criminal Defence Services",
+    "Bail Hearing Representation Across Toronto and Ontario",
+]
 BODY = "\n".join(
     ["# Bail Hearing Lawyer Toronto", "",
      "A bail hearing is time-critical. See [defence](/criminal-defence/), "
      "[bail](/bail/), [contact](/contact/) and [team](/team/).", ""]
-    + [f"## Section {i}\n" + ("Substantive sentence about bail in Ontario. " * 60)
-       for i in range(1, 6)]
-    + ["## Frequently asked questions"]
-    + [f"### Question {i}?\nAnswer {i}." for i in range(1, 8)])
+    + [f"## {h}\n{FILL}" for h in SERVICE_SECTIONS]
+    + ["## Frequently Asked Questions"]
+    + [f"### Question {i}?\nAnswer {i}." for i in range(1, 8)]
+    + ["## Request an Immediate Confidential Consultation\nCall us today.",
+       "## Key Takeaways\n- A bail hearing decides release pending trial.",
+       "## Schema Recommendations\n- Service schema: bail hearing representation."])
 
 
 def run(draft, ctype="Service page", approver=None):
@@ -100,6 +114,109 @@ short_desc = good.replace(
 code, out = run(short_desc, approver="J Ireland")
 check("an out-of-range meta description is caught",
       "meta description is" in out and code == 1)
+
+# ── The section contract ──────────────────────────────────────────────────
+# A page set reads as one body of work only if every page of a type answers the
+# same questions in the same order. Absence of a required section is a failure;
+# writing it in the wrong place is a review note.
+no_who = good.replace("## Who Needs a Bail Hearing Lawyer in Toronto", "## Overview")
+code, out = run(no_who, approver="J Ireland")
+check("a service page missing 'who needs this' fails the contract",
+      code == 1 and "Section contract" in out and "Who needs this" in out, out[-700:])
+
+no_provides = good.replace(
+    "## What NR Lawyers Provides in Bail Hearing Representation", "## More Detail")
+code, out = run(no_provides, approver="J Ireland")
+check("and one missing 'what the client provides' fails too",
+      code == 1 and "What the client provides" in out, out[-600:])
+
+code, out = run(good, approver="J Ireland")
+check("the full contract reports as satisfied",
+      "every required section present" in out, out[-900:])
+
+# Reordering is flagged but is not on its own a failure.
+reordered = good.replace(
+    "## Who Needs a Bail Hearing Lawyer in Toronto", "## ZZPLACEHOLDER").replace(
+    "## Why Individuals Charged in Toronto Choose NR Lawyers",
+    "## Who Needs a Bail Hearing Lawyer in Toronto").replace(
+    "## ZZPLACEHOLDER", "## Why Individuals Charged in Toronto Choose NR Lawyers")
+code, out = run(reordered, approver="J Ireland")
+check("sections written out of contract order are flagged, not failed",
+      "Out of contract order" in out and code == 0, out[-700:])
+
+# A blog post has a much looser contract — only the FAQ is required — so the
+# same strictness must not be applied to it.
+blog = (META.replace("Primary Keyword: bail hearing lawyer Toronto",
+                     "Primary Keyword: how does a bail hearing work ontario")
+        + "\n# How does a bail hearing work in Ontario?\n\n"
+        + "See [bail](/bail/), [rights](/rights/), [contact](/contact/).\n\n"
+        + "\n".join(f"## Topical question {i}?\n{FILL}" for i in range(1, 5))
+        + "\n## Frequently Asked Questions\n"
+        + "\n".join(f"### Q{i}?\nA{i}." for i in range(1, 6))
+        + "\n## Key Takeaways\n- A bail hearing happens within 24 hours.\n"
+        + "## Schema Recommendations\n- Article schema with author.\n")
+code, out = run(blog, ctype="Blog post", approver="J Ireland")
+check("a blog post is not held to the service-page contract",
+      code == 0 and "CLEARED" in out, out[-800:])
+
+# ── The universal blocks ──────────────────────────────────────────────────
+no_takeaways = good.replace("## Key Takeaways", "## Summary Notes")
+code, out = run(no_takeaways, approver="J Ireland")
+check("a page with no Key Takeaways fails",
+      code == 1 and "Key Takeaways" in out, out[-600:])
+
+no_schema = good.replace("## Schema Recommendations", "## Notes For The Developer")
+code, out = run(no_schema, approver="J Ireland")
+check("a page with no Schema Recommendations fails",
+      code == 1 and "Schema Recommendations" in out, out[-600:])
+
+# ── [H2] tag style is understood as well as markdown ─────────────────────
+tagged = good.replace("\n## ", "\n[H2] ").replace("\n### ", "\n[H3] ").replace(
+    "\n# Bail Hearing Lawyer Toronto", "\n[H1] Bail Hearing Lawyer Toronto")
+code, out = run(tagged, approver="J Ireland")
+check("headings written as [H2] are read as headings",
+      "every required section present" in out, out[-900:])
+
+# ── Unresolved markers ───────────────────────────────────────────────────
+# These are correct in a draft and a failure in a finished page. The claims
+# policy's standing rule puts unsourced figures here rather than inventing one,
+# so nothing may reach a page by being forgotten.
+for marker, label in (("[VERIFY: volume-of-results claim]", "VERIFY"),
+                      ("[NEEDS CLIENT INPUT: which court serves Weston]", "NEEDS CLIENT INPUT")):
+    code, out = run(good.replace("Call us today.", f"Call us today. {marker}"),
+                    approver="J Ireland")
+    check(f"an unresolved {label} marker blocks publication",
+          code == 1 and "unresolved marker" in out, out[-600:])
+
+code, out = run(good, approver="J Ireland")
+check("and a clean page says so", "No unresolved" in out)
+
+# ── Two bugs that only showed up against real delivered pages ────────────
+# Both were found by running all 72 of the agency's documents through this
+# gate. Each one marked good work down for the checker's convenience.
+
+# 1. FAQ questions written as H2 rather than H3. A page with six questions has
+#    six questions whichever level they were written at.
+faq_as_h2 = good
+for i in range(1, 8):
+    faq_as_h2 = faq_as_h2.replace(f"### Question {i}?", f"## Question {i}?")
+code, out = run(faq_as_h2, approver="J Ireland")
+check("FAQ questions written as H2 are still counted",
+      "FAQ questions detected: 7" in out and code == 0, out[:900])
+
+# 2. An H3 sub-step inside a section is not a section. "Step 1: Immediate
+#    First Contact" must not match the call-to-action pattern and report the
+#    page out of order.
+with_steps = good.replace(
+    "## How the Bail Hearing Process Works in Ontario",
+    "## How the Bail Hearing Process Works in Ontario\n"
+    "### Step 1: Immediate First Contact\nCall the firm.\n"
+    "### Step 2: Disclosure and Bail Plan Preparation\nReview disclosure.\n"
+    "### Step 3: Representation at the Bail Hearing\nAppear in court.\n"
+    "### Step 4: Post-Release Guidance\nAdvise on conditions.")
+code, out = run(with_steps, approver="J Ireland")
+check("an H3 sub-step is not mistaken for a top-level section",
+      "Out of contract order" not in out and code == 0, out[-900:])
 
 # ── The gate never claims to have read the draft ──────────────────────────
 code, out = run(good, approver="J Ireland <j@x.ca>")

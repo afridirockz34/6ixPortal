@@ -55,21 +55,70 @@ def count_internal_links(text: str) -> int:
 
 
 def count_headings(text: str, level_pattern: str) -> list:
-    return re.findall(rf"^{level_pattern}\s+(.+)$", text, flags=re.MULTILINE)
+    want = len(level_pattern)
+    return [h[1] for h in (_heading(l) for l in text.splitlines())
+            if h and h[0] == want]
+
+
+def _heading(line: str):
+    """(level, text) for a heading line, else None.
+
+    Two notations, both real. Markdown "## Heading", and the explicit
+    "[H2] Heading" our page documents use because whoever builds the page is
+    not whoever wrote it, and a markdown "##" does not tell them whether an H2
+    or an H3 inside a collapsed section was meant.
+    """
+    s = line.strip()
+    m = re.match(r"^(#{1,6})\s*(?:\[H([1-6])\]\s*)?(.+)$", s)
+    if m:
+        lvl = int(m.group(2)) if m.group(2) else len(m.group(1))
+        return lvl, m.group(3).strip()
+    m = re.match(r"^\[H([1-6])\]\s*(.+)$", s, re.I)
+    if m:
+        return int(m.group(1)), m.group(2).strip()
+    return None
 
 
 def count_faq_questions(text: str) -> int:
-    # Look inside anything resembling an FAQ section for heading lines
-    # ending in "?", or bold "question" lines ending in "?".
-    faq_section_match = re.search(
-        r"(##+\s*(?:FAQ|Frequently Asked Questions).*?)(?=\n##[^#]|\Z)",
-        text, flags=re.IGNORECASE | re.DOTALL,
-    )
-    scope = faq_section_match.group(1) if faq_section_match else text
-    heading_qs = re.findall(r"^#{2,4}\s+.*\?\s*$", scope, flags=re.MULTILINE)
-    bold_qs = re.findall(r"^\*\*.*\?\*\*\s*$", scope, flags=re.MULTILINE)
-    q_marks_lines = re.findall(r"^(?:Q[:.]|\d+\.)\s*.*\?\s*$", scope, flags=re.MULTILINE)
-    return len(set(heading_qs) | set(bold_qs) | set(q_marks_lines))
+    """Questions inside the FAQ section, at whatever heading level.
+
+    The level is deliberately not fixed. Real documents write FAQ questions as
+    H3 under the FAQ heading, and real documents also write them as H2 — a page
+    with six questions has six questions either way, and failing it for the
+    level would be the checker marking a page down for its own convenience.
+
+    So the FAQ section runs from its heading to the next heading that is NOT
+    itself a question, rather than to the next heading of any kind.
+    """
+    lines = text.splitlines()
+    start = None
+    for i, line in enumerate(lines):
+        h = _heading(line)
+        if h and re.search(r"\bfaqs?\b|frequently asked|common questions", h[1], re.I):
+            start = i
+            break
+    if start is None:
+        scope = lines                      # no FAQ heading: count the whole page
+    else:
+        end = len(lines)
+        for j in range(start + 1, len(lines)):
+            h = _heading(lines[j])
+            if h and h[0] <= 2 and not h[1].rstrip().endswith("?"):
+                end = j
+                break
+        scope = lines[start + 1:end]
+
+    qs = set()
+    for line in scope:
+        s = line.strip()
+        h = _heading(line)
+        if h and h[1].rstrip().endswith("?"):
+            qs.add(h[1].strip())
+        elif re.match(r"^\*\*.*\?\*\*$", s):
+            qs.add(s)
+        elif re.match(r"^(?:Q[:.]|\d+[.)])\s*.*\?$", s):
+            qs.add(s)
+    return len(qs)
 
 
 def parse_content_standards(profile_text: str, content_type: str) -> dict | None:
@@ -122,10 +171,148 @@ def parse_banned_phrases(profile_text: str) -> list:
 # draft can be a little short and still be publishable, but one that makes a
 # banned claim or has no meta block is not, whatever else it gets right.
 WEIGHTS = {
-    "meta": 15, "words": 20, "links": 15, "faq": 10,
-    "h1": 10, "headings": 10, "banned": 20,
+    "meta": 15, "words": 15, "links": 10, "faq": 10,
+    "h1": 5, "headings": 5, "banned": 15,
+    "sections": 15, "blocks": 10,
 }
 PASS_MARK = 70
+
+# ---------------------------------------------------------------------------
+# The section contract, from references/content-templates.md.
+#
+# A set of seventy pages reads as one body of work because every page of a
+# type answers the same questions in the same order. That is also the only way
+# the set stays reviewable at volume: the approver checks each section did its
+# job instead of reverse-engineering what the writer was attempting.
+#
+# Patterns match the section's JOB, not its exact wording, because the heading
+# formulas carry the client's own service and city names. Each entry is
+# (pattern, human name, required).
+SECTION_CONTRACTS = {
+    "service page": [
+        (r"who\s+(needs|should|is this)", "Who needs this service", True),
+        (r"what\s+.{0,40}\bprovide", "What the client provides", True),
+        (r"\bprocess\b|\bhow\s+.{0,30}works\b|\bwhat to expect\b", "How the process works", True),
+        (r"\bdeliver|\bwhat\s+.{0,40}\b(means|changes)\b", "What it delivers", False),
+        (r"\bwhy\b.{0,50}\bchoose\b|\bwhy\b.{0,30}\bus\b", "Why choose the client", True),
+        (r"\brelated\b|\bother\s+services\b|\balso\s+handle\b", "Related services", False),
+        (r"\bacross\b|\bareas?\s+(we\s+)?serve|\bserving\b|\bthroughout\b", "Areas served", False),
+        (r"frequently asked|\bfaqs?\b|common questions", "FAQ", True),
+        (r"\b(contact|request|speak to|schedule|book|call)\b", "Call to action", True),
+    ],
+    "service hub page": [
+        (r"\bwe\s+(handle|defend|cover)\b|\bcharges\b|\bservices\b", "The directory of child pages", True),
+        (r"first\s+\d+|\bfirst\s+(hours|days|steps)\b|\bwhat to do\b", "The urgent reader's steps", False),
+        (r"what happens\b|\bprocess\b", "What happens next", True),
+        (r"how\s+we\s+(build|approach|handle)", "The client's method", False),
+        (r"how to choose", "How to choose a provider", False),
+        (r"who will\b|\bwho handles\b|\byour team\b", "Who is accountable", False),
+        (r"\bacross\b|\bareas?\s+(we\s+)?serve|\bserving\b", "Geography", False),
+        (r"\bresults?\b|\boutcomes\b|\bsuccesses\b", "Proof", False),
+        (r"frequently asked|\bfaqs?\b", "FAQ", True),
+        (r"\b(contact|speak to|request|call)\b", "Call to action", True),
+    ],
+    "location page": [
+        (r"\bservices\b.{0,40}\bin\b|\bwhat we (do|offer)\b", "Services offered here", True),
+        (r"\babout\b", "About this place — the locally specific section", True),
+        (r"who we serve|\bwho\b.{0,30}\bserve\b|\bclients\b", "Who we serve here", False),
+        (r"\bwhy\b.{0,50}\bchoose\b", "Why choose the client here", True),
+        (r"what happens\b|\bprocess\b", "The local process", False),
+        (r"nearby|\bsurrounding\b|\balso serve\b", "Nearby areas", True),
+        (r"frequently asked|\bfaqs?\b", "FAQ", True),
+        (r"\b(contact|request|call|speak)\b", "Call to action", True),
+        (r"entity summary", "Entity summary", False),
+    ],
+    "blog post": [
+        (r"frequently asked|\bfaqs?\b", "FAQ", True),
+    ],
+    "audience page": [
+        (r"\bfacing\b|\bchallenges\b|\bwhat\b.{0,40}\bface\b", "What this audience faces", True),
+        (r"how\s+.{0,40}\bwork(s)?\s+with\b|\bfor\b.{0,30}\bclients\b", "How the client works with them", True),
+        (r"\bwhy\b.{0,50}\bchoose\b", "Why they choose the client", True),
+        (r"\bprocess\b", "The process for this audience", False),
+        (r"frequently asked|\bfaqs?\b", "FAQ", True),
+        (r"\b(first step|contact|request|call)\b", "Call to action", True),
+    ],
+    "resource guide": [
+        (r"\bcontents\b|\bin this guide\b|\bon this page\b", "Table of contents", False),
+        (r"what to do next|\bnext steps\b|\bwhere to start\b", "What to do next", False),
+        (r"frequently asked|\bfaqs?\b", "FAQ", True),
+    ],
+}
+# Aliases, so a profile row reading "Service Pages (core)" or "Blog" still
+# finds its contract rather than silently skipping the check.
+CONTRACT_ALIASES = {
+    "service": "service page", "service pages": "service page",
+    "service pages (core)": "service page", "hub": "service hub page",
+    "hub page": "service hub page", "service hub": "service hub page",
+    "location": "location page", "location pages": "location page",
+    "blog": "blog post", "blog posts": "blog post",
+    "standard blog post": "blog post", "article": "blog post",
+    "audience": "audience page", "audience pages": "audience page",
+    "audience / industry pages": "audience page",
+    "resource": "resource guide", "pillar": "resource guide",
+    "resource / pillar guide": "resource guide",
+    "pillar guide": "resource guide", "resource guides": "resource guide",
+}
+
+# The two blocks every page type ends with, whatever it is.
+UNIVERSAL_BLOCKS = [
+    (r"key takeaways", "Key Takeaways"),
+    (r"schema\s+(recommendations?|plan|markup)", "Schema Recommendations"),
+]
+
+# Markers that are a normal, useful part of a draft and a failure in a
+# finished page. [VERIFY:] comes from the claims policy's standing rule: a
+# specific number or credential with no source is flagged for the approver,
+# never generated. Nothing reaches a page by being forgotten.
+OPEN_MARKER = re.compile(r"\[(?:VERIFY|NEEDS CLIENT INPUT|NEEDS DATA|TODO)\b[^\]]*\]",
+                         re.IGNORECASE)
+
+
+def heading_lines(text: str, max_level: int = 6) -> list:
+    """Heading text, down to max_level."""
+    return [h[1] for h in (_heading(l) for l in text.splitlines())
+            if h and h[0] <= max_level]
+
+
+def resolve_contract(content_type: str):
+    key = re.sub(r"\s+", " ", content_type.strip().lower())
+    if key in SECTION_CONTRACTS:
+        return key, SECTION_CONTRACTS[key]
+    if key in CONTRACT_ALIASES:
+        k = CONTRACT_ALIASES[key]
+        return k, SECTION_CONTRACTS[k]
+    return None, None
+
+
+def check_sections(text: str, contract: list):
+    """Required sections present, and in the contract's order.
+
+    Absence is a failure; order is a warning. A page missing "Who needs this"
+    is missing the section that tells the reader the page is for them, which is
+    a different kind of problem from having written it in the wrong place.
+    """
+    # Only top-level sections. The contract describes the page's H2 sections;
+    # an H3 inside one is not a section. Without this, a "Step 1: Immediate
+    # First Contact" sub-step matches the call-to-action pattern and the page
+    # is reported out of order for a heading that was never a section.
+    found = heading_lines(text, max_level=2)
+    missing, positions = [], []
+    for pattern, name, required in contract:
+        at = None
+        for i, h in enumerate(found):
+            if re.search(pattern, h, re.IGNORECASE):
+                at = i
+                break
+        if at is None:
+            if required:
+                missing.append(name)
+        else:
+            positions.append((name, at))
+    out_of_order = [positions[i][0] for i in range(1, len(positions))
+                    if positions[i][1] < positions[i - 1][1]]
+    return missing, out_of_order, len(positions)
 
 
 def check_meta_block(text):
@@ -248,6 +435,56 @@ def main():
         print(f"[FAIL] Only {len(h2s)} H2 heading(s) — a page this length needs at "
               "least 3 so a reader can skim it")
         failures += 1
+
+    # Section contract for this page type
+    contract_name, contract = resolve_contract(content_type)
+    if contract:
+        possible += WEIGHTS["sections"]
+        missing, disordered, present = check_sections(draft, contract)
+        if missing:
+            print(f"[FAIL] Section contract ({contract_name}): missing "
+                  f"{len(missing)} required section(s) — " + "; ".join(missing))
+            print("       content-templates.md has the heading formula for each. A "
+                  "page missing these is a different page type or an oversight.")
+            failures += 1
+        else:
+            print(f"[OK] Section contract ({contract_name}): every required section "
+                  f"present, {present} of {len(contract)} total")
+            earned += WEIGHTS["sections"]
+        if disordered:
+            print(f"[REVIEW] Out of contract order: {', '.join(disordered)} — the "
+                  "order is what lets a reader who has seen one page navigate the next")
+    else:
+        print(f"[SKIP] Section contract: no contract for content type "
+              f"'{content_type}'. Use one of: "
+              + ", ".join(sorted(SECTION_CONTRACTS)))
+
+    # Key Takeaways and Schema Recommendations
+    possible += WEIGHTS["blocks"]
+    heads = heading_lines(draft)
+    missing_blocks = [name for pattern, name in UNIVERSAL_BLOCKS
+                      if not any(re.search(pattern, h, re.I) for h in heads)]
+    if missing_blocks:
+        print(f"[FAIL] Missing: {', '.join(missing_blocks)}. Every page type ends "
+              "with both — Key Takeaways is what an AI answer quotes and a skimming "
+              "reader reads; Schema Recommendations is what the developer builds from")
+        failures += 1
+    else:
+        print("[OK] Key Takeaways and Schema Recommendations both present")
+        earned += WEIGHTS["blocks"]
+
+    # Unresolved markers. Not scored — a hard gate either way.
+    open_markers = OPEN_MARKER.findall(draft)
+    if open_markers:
+        print(f"[FAIL] {len(open_markers)} unresolved marker(s) — these are correct in "
+              "a draft and a failure in a finished page:")
+        for m in open_markers[:8]:
+            print(f"       {m}")
+        if len(open_markers) > 8:
+            print(f"       ... and {len(open_markers) - 8} more")
+        failures += 1
+    else:
+        print("[OK] No unresolved [VERIFY] / [NEEDS CLIENT INPUT] markers")
 
     # Banned phrases
     possible += WEIGHTS["banned"]

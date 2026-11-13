@@ -1,43 +1,190 @@
-# Assembling the Final Document
+# Assembling the deliverable
 
-Once the requested phases are built, they need to come together as one ordered deliverable — this is what makes the difference between "a folder of separate prompts' outputs" and something that reads like the 101-page agency document this system is modeled on.
+The strategy document is the thing the client actually judges us on. Two
+structural mistakes make an accurate, well-researched document unreadable, and
+both have shipped:
 
-## Full document order (all 19 phases, this skill + seo-content-production combined)
+1. **Indexing it by our phase numbers.** A reader looking for how long a
+   service page should be should find a section called *Content Length
+   Standards*. In a document organised as "Phases 15 & 16 — Writing prompt and
+   content templates", they have to already know our internal build order to
+   find anything. Phase numbers are *our* sequence for producing the work. They
+   are not a table of contents.
+2. **Writing it as a diff against somebody else's document.** A section that
+   reads "Proximity's four templates are kept, with these changes:" followed by
+   a `Change` column is unreadable to anyone without the predecessor's document
+   open beside it. The client has one document — ours — and every sentence has
+   to make sense from inside it.
 
-1. Brand Summary (this skill — `phase1-foundation.md`)
-2. Competitor Analysis (this skill — `phase2-competitors-and-keywords.md`)
-3. Brand Voice (**seo-content-production** — the client profile's voice pillars section)
-4. Style Guide (**seo-content-production** — `seo-content-production/references/content-templates.md`'s shared rules, adapted per client)
-5. SEO Strategy (this skill — `phase5-6-strategy-and-gmb.md`)
-6. GMB Strategy (this skill — `phase5-6-strategy-and-gmb.md`)
-7. Site Keywords (this skill — `phase2-competitors-and-keywords.md`)
-8. Local/GMB Keywords (this skill — `phase2-competitors-and-keywords.md`)
-9. Page Architecture (this skill — `phase9-10-architecture-linking.md`)
-10. Internal Linking (this skill — `phase9-10-architecture-linking.md`)
-11. GEO/AEO Strategy (this skill — `phase11-12-geo-schema.md`)
-12. Schema Plan (this skill — `phase11-12-geo-schema.md`)
-13. Blog Topics (this skill — `phase13-14-content-calendar.md`)
-14. Content Calendar (this skill — `phase13-14-content-calendar.md`)
-15. Custom Prompt / grounding system (**seo-content-production** — this is the client profile itself, functioning as the phase)
-16. Content Templates (**seo-content-production** — `seo-content-production/references/content-templates.md`)
-17. Tech Stack Integration (this skill — `phase17-18-19-tools-tracking-reporting.md`)
-18. Local Tracking Setup (this skill — `phase17-18-19-tools-tracking-reporting.md`)
-19. Reporting + KPIs (this skill — `phase17-18-19-tools-tracking-reporting.md`)
+Both are easy to commit, because both reflect how the work genuinely happened.
+Neither is how it gets read.
 
-If the full 19-phase equivalent is being built for a client, produce phases 3, 4, 15, and 16 using **seo-content-production**'s setup workflow (building the client profile and confirming the content templates) at the same point Phase 1 is built here — Phase 1 and the client profile draw from the same questionnaire and should be built together, not sequentially far apart.
+---
 
-## Phase 20 is not part of the initial document
+## The rule
 
-Phase 20 (`phase20-results-retrospective.md`) doesn't slot into the numbered list above — it doesn't exist yet when the initial strategy document is first assembled, because there's nothing to retrospect on until content from Phases 9-14 has actually been live for a while. Once the engagement is underway and a retrospective cadence starts (quarterly is the default), each retrospective is its own dated, appended section — "Q2 2027 Results Retrospective" — not a rewrite of the original document. Keep retrospectives in sequence as an addendum to the original strategy document (or as their own running file if the original is long enough that re-sending the whole thing each quarter is unwieldy) so the history of what was predicted versus what happened stays visible over time, rather than each retrospective silently overwriting the last.
+**Name every section after the asset it specifies. Write every section as
+though no previous vendor existed.**
 
-## If only some phases are requested
+Where we are replacing a predecessor's plan, all of the comparison goes into
+one appendix, titled for what it is — *Appendix: decisions on the previous
+plan* — and the body of the document simply states what we are doing. The
+appendix is where "we kept this, we changed that, here is why" belongs, and
+where it is genuinely valuable. In the body it is noise the client has to
+decode.
 
-Most requests won't need all 19 — a client might only need a keyword strategy refresh, or a GEO/AEO strategy update, or a new content calendar. Build and check only the phases actually asked for; don't pad a narrow request into a full document. State clearly which phases the delivered document covers and which of the 19 it doesn't, so nobody mistakes a partial deliverable for the complete strategy.
+---
 
-## Assembling into one file
+## The client-facing table of contents
 
-Combine the finished phases in the order above (using only the phases that were actually built) into a single markdown document with a title page (client name, date, prepared by) and a table of contents. Once the content is final, this becomes a normal document-formatting task — build it out as a polished PDF the same way any other client deliverable gets finished, matching the presentation quality of the source NR Lawyers document (clear section breaks, consistent heading hierarchy, tables kept as tables rather than collapsed into prose).
+Every title below is the section name. None of them contains a phase number.
+
+**Front matter**
+
+| Section | What it is |
+|---|---|
+| Summary and decisions needed | One page. What we found, what we are doing, and the three to five decisions we need from the client, each with a recommendation. Written last |
+| How to read the figures | Which numbers are measured (their GA4, Search Console) and which are estimated (Ahrefs), with the period and pull date for each. Two sentences per source |
+
+**Part 1 — Where the business stands**
+
+| Section | Built from |
+|---|---|
+| The business, in its own words | `phase1-foundation.md` |
+| Services, ranked by what the client says is profitable | `phase1-foundation.md` |
+| Who we are writing for | `phase1-foundation.md` |
+| Where the business serves | `phase1-foundation.md` |
+| What the numbers show today | `phase1-foundation.md` baseline + `performance-tracking.md` |
+| Who is ahead, and on what | `phase2-competitors-and-keywords.md` |
+| Where the openings are | `phase2-competitors-and-keywords.md` content opportunity matrix |
+
+**Part 2 — How it will sound**
+
+| Section | Built from |
+|---|---|
+| Brand voice pillars | `seo-content-production/references/house-standards.md` §1 |
+| Core messages | `house-standards.md` §2 |
+| Terminology — say this, not that | `house-standards.md` §3 |
+| Voice examples: one good, one bad | `house-standards.md` §4 |
+| Words and phrases to avoid entirely | `house-standards.md` §5 |
+| Claims policy | `house-standards.md` §12 |
+
+**Part 3 — What gets built**
+
+| Section | Built from |
+|---|---|
+| The 100 website keywords, by cluster | `keyword-strategy.md` §1 |
+| The 40 Google Business Profile keywords, and where each one goes | `keyword-strategy.md` §2, `local-and-gmb.md` |
+| One owner for every search | `keyword-strategy.md` — the keyword map |
+| The page plan | `phase9-10-architecture-linking.md` |
+| Internal linking rules | `house-standards.md` §10 |
+| The 100 blog topics, by cluster | `keyword-strategy.md` §3 |
+| The publishing schedule | `phase13-14-content-calendar.md` |
+
+**Part 4 — How it gets written**
+
+| Section | Built from |
+|---|---|
+| Content length standards | `house-standards.md` §6 |
+| Critical keyword placements | `house-standards.md` §7 |
+| Meta element standards | `house-standards.md` §8 |
+| Grammar and mechanics | `house-standards.md` §9 |
+| Readability standards | `house-standards.md` §11 |
+| The section contract for every page type | `seo-content-production/references/content-templates.md` |
+| The writing brief | the client profile, reproduced in full |
+
+**Part 5 — The technical and local work**
+
+| Section | Built from |
+|---|---|
+| Google Business Profile strategy | `phase5-6-strategy-and-gmb.md`, `local-and-gmb.md` |
+| The one NAP string, used everywhere | `local-and-gmb.md` |
+| Citations, in tiers, with an order | `local-and-gmb.md` |
+| Review strategy | `local-and-gmb.md` |
+| Schema plan, page type by page type | `phase11-12-geo-schema.md` |
+| Appearing in AI answers | `ai-visibility.md`, `phase11-12-geo-schema.md` |
+| Links and off-page work | `off-page.md` |
+
+**Part 6 — How we will know it worked**
+
+| Section | Built from |
+|---|---|
+| Objectives, with baselines and timelines | `phase5-6-strategy-and-gmb.md` |
+| The tools, and what each one is for | `phase17-18-19-tools-tracking-reporting.md` |
+| Rank tracking setup | `phase17-18-19-tools-tracking-reporting.md` |
+| What the monthly report contains | `phase17-18-19-tools-tracking-reporting.md` |
+| The quality gate every page passes | `seo-content-production` — the three conditions |
+| Who approves what | the client profile's approvers |
+
+**Appendices**
+
+| Section | What it is |
+|---|---|
+| A — Full keyword list with scores | The working sheet, including the computed Opportunity Scores behind the Priority bands |
+| B — Decisions on the previous plan | *Only where a predecessor exists.* Every page or recommendation of theirs, and what we are doing with it |
+| C — Open questions for the client | Everything still marked `[NEEDS CLIENT INPUT]`, as a list they can answer in one sitting |
+| D — Sources and pull dates | Every figure's source and the date it was pulled |
+
+### The objectives table
+
+Part 6's first section is a table, not prose, and it is the section the client
+returns to:
+
+| # | Objective | Baseline | Target | By |
+|---|---|---|---|---|
+| 1 | Organic sessions | 2,800/month (GA4, Oct 2026) | 5,000/month | 6 months |
+| 2 | Keywords in positions 1–3 | 107 (Ahrefs, 9 Nov) | 200 | 6 months |
+
+Every row carries its baseline **with the source and date**, because a target
+with no baseline cannot be checked and a baseline with no date cannot be
+reproduced. These are also the rows that go to `save_strategy_projections`, so
+the portal can check them later — a target that lives only in the PDF is a
+target nobody will ever be held to.
+
+---
+
+## What to leave out
+
+- **Phase numbers**, anywhere a client can see them. Keep them in our working
+  notes and in this skill; strip them from the deliverable.
+- **Our process.** How we built it is not a section. The client bought the
+  conclusions.
+- **A `Change` column**, unless the thing being changed is on the client's own
+  site. Changes relative to a predecessor's document live in Appendix B.
+- **A section with no owner and no date.** Every recommendation names who does
+  it and when.
+
+---
+
+## If only part of it is requested
+
+Most requests are not the whole document — a keyword refresh, a new content
+calendar, a schema plan. Build only what was asked for, use the section names
+above for whatever you build, and say plainly at the top which parts of the
+full structure this covers and which it does not. Do not pad a narrow request
+into a full document.
+
+## Retrospectives are appended, never merged
+
+`phase20-results-retrospective.md` does not slot into the structure above — it
+cannot exist until content has been live long enough to have results. Each one
+is its own dated section appended to the document (or its own running file,
+once re-sending the whole document gets unwieldy): *"Q2 2027 results"*. Never
+a rewrite of the original. The value is in being able to see what was predicted
+next to what happened, and a merged revision destroys exactly that.
 
 ## Before calling it done
 
-Run `python scripts/check_strategy_doc.py <assembled_document>` — it checks for unresolved `[NEEDS CLIENT INPUT]` / `[NEEDS DATA]` placeholders and scans for dead-advice language from `fact-check-registry.md` that might have slipped in from an old template or a generic response. Fix everything it flags before treating the document as client-ready. This does not replace an actual human review for voice, accuracy, and — for a regulated client — compliance sign-off; it catches only what's mechanically catchable.
+```bash
+python scripts/check_strategy_doc.py <assembled_document>
+python scripts/check_keyword_set.py <keywords.csv> --kind website
+```
+
+The first checks unresolved placeholders, dead-advice language from
+`fact-check-registry.md`, and the readability failures in `plain-language.md`.
+The second checks the keyword tables' shape. Neither replaces a human read for
+voice, accuracy and — for a regulated client — compliance sign-off.
+
+The last check is not mechanical: **hand the document to somebody who was not
+in the research and ask them what we are going to do.** If they cannot answer,
+the structure is still wrong, however many checks passed.
