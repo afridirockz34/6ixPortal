@@ -23,6 +23,8 @@ run "GA4 / Search Console"          php     tools/tests/test_ga4.php
 run "Pull metrics precedence"       php     tools/tests/test_pull_metrics.php
 run "MCP live integration reads"    php     tools/tests/test_mcp_live_metrics.php
 run "Content publish gate"          python3 tools/tests/test_content_gate.py
+run "Keyword / topic set shape"      python3 tools/tests/test_keyword_set.py
+run "Strategy readability gate"      python3 tools/tests/test_strategy_language.py
 
 if [ "$fail" -ne 0 ]; then
   printf '\n\033[31m%s suite(s) failed.\033[0m\n' "$fail"; exit 1

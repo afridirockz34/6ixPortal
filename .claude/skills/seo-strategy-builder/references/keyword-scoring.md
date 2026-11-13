@@ -55,6 +55,46 @@ Business value carries the largest single weight on purpose. A mid-volume keywor
 
 If this table (or one like it) is used as an illustrative example inside a client deliverable, label it as such — never let a worked example read as if it were that client's real numbers.
 
+## How the score reaches the deliverable
+
+The 0–100 score is how priority is **computed**. It is not how priority is
+**presented**. The client-facing tables in `keyword-strategy.md` carry
+`Difficulty` as High/Med/Low and `Priority` as 1/2/3, and that is deliberate:
+a reader who sees "Opportunity 71, KD 61" has to do the banding in their head
+before they can act, and most readers don't — they skim the column and move on.
+
+So both exist, and the mapping between them is fixed rather than re-decided per
+document:
+
+| Computed | Presented | Threshold |
+|---|---|---|
+| Opportunity Score 65–100 | Priority **1** — build in the first 90 days | — |
+| Opportunity Score 40–64 | Priority **2** — months 4–9 | — |
+| Opportunity Score 0–39 | Priority **3** — opportunistic | — |
+| Platform difficulty 0–20 | Difficulty **Low** | — |
+| Platform difficulty 21–45 | Difficulty **Med** | — |
+| Platform difficulty 46–100 | Difficulty **High** | — |
+
+Keep the computed score in the working sheet. Put the bands in the document.
+If a client or an advisor asks why a keyword is Priority 2, the score and its
+four components are the answer, and they should be retrievable — which is why
+the working sheet is kept rather than thrown away after banding.
+
+**Two overrides may move a keyword's band, and both must be written down.**
+
+1. **Promotion on named business value.** A keyword tied to a service the
+   client themselves named as most profitable may be promoted to Priority 1
+   even at a score in the 40s. Note it in the Target Page cell or a footnote —
+   "promoted: named priority service".
+2. **Demotion on an authority gap.** A High-difficulty keyword where the
+   client's Domain Rating is far below everything on page one may be demoted
+   to Priority 2 regardless of score, because "build it now" would be a page
+   that sits unranked for a year. Say which keywords were demoted and why.
+
+Nothing else moves a band. A band changed to make the first 90 days look
+fuller is the same failure as a guessed volume figure: it renders identically
+to a real decision and nobody downstream can tell them apart.
+
 ## Using the score across phases
 
 - **Phase 7/8 (keyword lists):** sort the clustered list by score, not alphabetically or by raw volume. The score is a column in the deliverable itself, not just an internal sorting aid — a client should be able to see why keyword A was prioritized over keyword B.

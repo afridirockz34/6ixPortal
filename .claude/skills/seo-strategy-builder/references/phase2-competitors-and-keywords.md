@@ -28,7 +28,19 @@ support from the data rather than guessing.
 
 ## Phase 7/8 — Keyword Lists (site keywords + local/GMB keywords)
 
-**What it produces:** a clustered keyword list (roughly 100 site keywords, 40 local/GMB-specific keywords is the source document's scale — adjust to what the client's market actually supports) with volume, difficulty, a classified search intent, a Keyword Opportunity Score, and a target page assigned to each.
+**What it produces:** two deliverables in the exact shape
+`references/keyword-strategy.md` specifies — about 100 website keywords in ten
+**named clusters** of about ten, and about 40 GMB keywords in two tables (one
+mapping profile element to keyword focus, one listing the keywords with their
+placement). **Read `references/keyword-strategy.md` before starting.** It is
+the format contract: the columns, the controlled vocabularies, the cluster
+rule, and what to do when the market does not support 100.
+
+The thing it insists on, because this is where our keyword lists have gone
+wrong: **a hundred rows sorted by score is not a deliverable.** Every keyword
+belongs to a named cluster, and every keyword has a target page. A flat ranked
+dump is readable by the person who built it and by nobody else, and the client
+cannot see their own site in it.
 
 **Required inputs:** a raw keyword export from Ahrefs Keywords Explorer (seeded from terms in the questionnaire, then expanded using the tool's related-terms/questions/also-rank-for features) or the Semrush equivalent, including volume and difficulty columns exactly as exported.
 
@@ -44,17 +56,37 @@ volume, difficulty, and current position: [paste].
 Here is [Client]'s stated most-profitable services and self-named
 keywords from the questionnaire: [paste].
 
-Cluster these into thematic groups relevant to [Client]'s services. For
-each keyword: classify search intent (informational / commercial
-investigation / transactional / local-navigational) per
-keyword-scoring.md's definitions, compute a Keyword Opportunity Score
-(0-100) per keyword-scoring.md's formula, and assign a target page type
-(existing page, new service page, new location page, blog post) that
-matches the classified intent. Do not alter or estimate volume or
-difficulty figures — use exactly what's in the export. If a keyword's
-intent is genuinely ambiguous, say so rather than forcing a category.
-Sort the final list by Keyword Opportunity Score, highest first.
+Produce the website keyword table exactly as keyword-strategy.md
+specifies: ten named clusters of about ten keywords each, columns
+# | Keyword | Intent | Est. MSV | Difficulty | Priority | Target Page.
+
+Name each cluster from [Client]'s own services and market, not from a
+template. Classify search intent per keyword-scoring.md. Compute the
+Keyword Opportunity Score for every keyword, then band it into Priority
+1/2/3 and band difficulty into High/Med/Low per keyword-scoring.md's
+fixed mapping — show the bands in the table and keep the computed
+scores in the working sheet. Assign every keyword a target page that
+agrees with its intent. Put "near me" terms in the GMB list, not this
+one.
+
+Do not alter or estimate volume or difficulty figures — use exactly
+what's in the export; a keyword with no volume data gets an em dash and
+a note. If a keyword's intent is genuinely ambiguous, write Info/Comm
+rather than forcing a category. If the market does not support 100
+keywords worth pursuing, ship fewer and say how many it supported.
 ```
+
+Then check the shape before it goes anywhere:
+
+```bash
+python scripts/check_keyword_set.py keywords.csv --kind website
+python scripts/check_keyword_set.py gmb.csv      --kind gmb
+```
+
+It catches the mechanical failures — a missing cluster or target page, a
+value outside the controlled vocabulary, a duplicate keyword, wildly uneven
+clusters. It cannot tell you these are the right keywords; that is what
+reading them is for.
 
 ## The one step that determines everything downstream
 

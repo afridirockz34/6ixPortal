@@ -158,6 +158,41 @@ What it is worth per month is not, and we do not put a number on it.
 | `get_location` | The full profile record: categories, hours, services, photos, social, Active Sync | The profile-completeness half of a GMB plan |
 | `get_brain_recommendations(location_id)` | BrightLocal's own AI recommendations for that location | Useful as a cross-check on your own findings; it is another model's opinion, not a measurement, so never quote it to a client as data |
 
+## The 40 GMB keywords, and where each one goes
+
+Phase 6 produces about 40 local keywords. A list of 40 local keywords, on its
+own, is useless — there is no page to put them on. A Google Business Profile
+has about six places text can live, and a keyword that isn't assigned to one of
+them is a keyword nobody will ever act on.
+
+So the deliverable is **two tables, not one**, in the shape
+`keyword-strategy.md` specifies. The first is the same every time, because the
+profile has the same elements every time:
+
+| GMB element | What the keyword focus is | How it actually gets done |
+|---|---|---|
+| **Business description** (750 characters) | Primary service + city, the top two secondary services, any specialist credential | Written as prose a human would read, not a keyword list. Refresh every six months — a stale description is the most common dead spot on an otherwise active profile |
+| **Services list** | Every service or practice-area term | One entry per service, so each cluster from the website set has a matching profile entry. This is the most under-used field on almost every profile we audit |
+| **Google Posts** (weekly) | Rotate three themes: recent results, know-your-rights / how-it-works, credentials | Each post carries one service term and the city naturally. Weekly is the floor; posts go stale and stop showing |
+| **Q&A** | "Near me" and urgent queries | Pre-populate and answer as the owner, so the high-intent questions have an answer written by the business rather than by a stranger |
+| **Review responses** | Service type + location | "Thank you for trusting us with your [service] matter in [city]" — the reply is indexable text the business controls, on a page it otherwise doesn't write |
+| **Service area** | Every borough and city served | This is what decides which "near me" searches the profile is eligible for at all. Getting it wrong caps everything else |
+
+The second table is the keywords themselves, each with `Est. MSV`,
+`Local Priority` (Critical / High / Med) and the `GMB Placement` naming one or
+more elements from the table above.
+
+**"Near me" terms belong in this list and not the website keyword list.** They
+are answered by the profile and the service area, not by a page. Putting them
+in the website set produces pages built to rank for something a page cannot
+rank for — which looks like work and achieves nothing.
+
+Check it before it ships:
+
+```bash
+python scripts/check_keyword_set.py gmb.csv --kind gmb
+```
+
 ## The operational half: NAP, citations, reviews
 
 Measuring local visibility is one job; the work that moves it is another, and

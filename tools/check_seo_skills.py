@@ -39,7 +39,13 @@ SEO = ["seo-audit-report", "seo-strategy-builder",
 # known extension, so ordinary words are not mistaken for filenames.
 PATH_RE = re.compile(
     r"`([A-Za-z0-9._][A-Za-z0-9._/-]*\.(?:md|py|json|php|txt|csv|html))`"
-    r"|`([A-Za-z0-9._][A-Za-z0-9._/-]*/[A-Za-z0-9._/-]+)`")
+    # A directory reference with no file extension. Its first segment must be
+    # lowercase, which every directory in this tree is — otherwise a backticked
+    # either/or value like `Info/Comm` or `Critical/High/Med`, which the keyword
+    # tables are full of, reads as a path to a file that was never going to
+    # exist. Anything carrying a real extension is caught by the branch above
+    # whatever its case.
+    r"|`([a-z0-9._][a-z0-9._-]*/[A-Za-z0-9._/-]+)`")
 ABS_RE = re.compile(r"`(/(?:home|Users|tmp|var|root)/[^`]+)`")
 # Files that live on a website, not in this tree. They look exactly like a
 # path reference and are not one.

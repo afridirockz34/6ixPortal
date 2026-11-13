@@ -26,6 +26,8 @@ the repo and a parse error takes the whole deploy down.
 | `bash tools/tests/run_all.sh` | everything below, in one go |
 | `python3 tools/check_seo_skills.py` | the skills still work read cold: frontmatter, every path reference, every bundled script |
 | `php tools/check_skill_drift.php` | metric keys and profile stages the skills quote vs. the code that emits them |
+| `python3 tools/tests/test_keyword_set.py` | the keyword/topic/GMB set shape: named clusters, target pages, controlled vocabularies |
+| `python3 tools/tests/test_strategy_language.py` | the readability gate — good prose passes, a document of hedges fails |
 | `php tools/generate-questionnaire-reference.php` | regenerates the questionnaire docs from the schema — run after any question change, and commit the result |
 
 Pushing to `main` deploys to the live site over SFTP. There is no staging.
@@ -90,6 +92,28 @@ anything local:
 - A BrightLocal rank grid's `rank: 0` means **did not appear**, not rank zero.
   Averaging raw values scores the invisible points as the best ones.
 - `summary.avg_rank` already accounts for that. Quote it; never recompute it.
+
+### The deliverable can be accurate and still be worthless
+
+Two failures here are not about facts, and both have shipped.
+
+- **A keyword list with no clusters and no target pages.** Every number right,
+  a hundred rows sorted by score, and the client cannot see their own site in
+  it or tell what gets built first. The format is the deliverable:
+  `seo-strategy-builder/references/keyword-strategy.md` is the contract, and
+  `check_keyword_set.py` enforces the mechanical half of it.
+- **Prose nobody can follow.** No typos, every sentence defensible, and the
+  client reads it three times without learning what we are going to do —
+  because it is built out of hedges ("consider improving where possible"),
+  actions buried in nouns ("implementation of"), and terms used before they are
+  explained. `seo-strategy-builder/references/plain-language.md` is the house
+  style; `check_strategy_doc.py` counts the patterns and fails a document made
+  of them.
+
+Both checkers were widened after they rejected sets and documents that were
+actually fine — a gate that fails good work gets switched off. Keep that
+direction: when one fires on something correct, fix the checker and add the
+case to its suite.
 
 ---
 
