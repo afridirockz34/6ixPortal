@@ -269,6 +269,38 @@ code, out = run(no_kt_words, approver="J Ireland")
 n = int(re.search(r"Word count: (\d+) page words", out).group(1))
 check("Key Takeaways still counts — a reader reads it", n > base_n, f"{base_n} -> {n}")
 
+# ── Three more false positives, all found producing real pages ───────────
+# Each rejected a correct heading. The rule is that a gate which fails good
+# work gets switched off, so each one is fixed in the pattern and pinned here.
+
+# A heading carrying a long service name: "How a Child Luring or Child
+# Pornography Case Works in Ontario" is 42 characters between "how" and
+# "works", and the gap was capped at 30.
+long_process = good.replace(
+    "## How the Bail Hearing Process Works in Ontario",
+    "## How a Child Luring or Child Pornography Case Works in Ontario")
+code, out = run(long_process, approver="J Ireland")
+check("a long service name between 'how' and 'works' still matches the process section",
+      code == 0 and "every required section present" in out, out[-800:])
+
+# "How the Two Proceedings Work Together in Ontario" — "work", not "works".
+work_together = good.replace(
+    "## How the Bail Hearing Process Works in Ontario",
+    "## How the Two Proceedings Work Together in Ontario")
+code, out = run(work_together, approver="J Ireland")
+check("'Work Together' counts as the process section",
+      code == 0 and "every required section present" in out, out[-800:])
+
+# "What NR Lawyers Provides in Separation-Related Criminal Defence" matched the
+# related-services pattern on the word "Related", so that section was found at
+# position 2 and a correctly ordered page was reported out of order.
+hyphen_related = good.replace(
+    "## What NR Lawyers Provides in Bail Hearing Representation",
+    "## What NR Lawyers Provides in Separation-Related Criminal Defence")
+code, out = run(hyphen_related, approver="J Ireland")
+check("'Separation-Related' is not mistaken for the related-services section",
+      code == 0 and "Out of contract order" not in out, out[-800:])
+
 # ── The gate never claims to have read the draft ──────────────────────────
 code, out = run(good, approver="J Ireland <j@x.ca>")
 check("clearing still says the score cannot judge truth or voice",
