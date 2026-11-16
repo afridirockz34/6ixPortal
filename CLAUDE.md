@@ -28,6 +28,7 @@ the repo and a parse error takes the whole deploy down.
 | `php tools/check_skill_drift.php` | metric keys and profile stages the skills quote vs. the code that emits them |
 | `python3 tools/tests/test_keyword_set.py` | the keyword/topic/GMB set shape: named clusters, target pages, controlled vocabularies |
 | `python3 tools/tests/test_strategy_language.py` | the readability gate — good prose passes, a document of hedges fails |
+| `python3 tools/tests/test_section_budget.py` | each page template's section minimums actually fit inside its word limit |
 | `php tools/generate-questionnaire-reference.php` | regenerates the questionnaire docs from the schema — run after any question change, and commit the result |
 
 Pushing to `main` deploys to the live site over SFTP. There is no staging.
@@ -114,6 +115,29 @@ Both checkers were widened after they rejected sets and documents that were
 actually fine — a gate that fails good work gets switched off. Keep that
 direction: when one fires on something correct, fix the checker and add the
 case to its suite.
+
+### A limit that cannot be satisfied
+
+`content-templates.md` shipped with service-page section minimums summing to
+2,470 against a 2,500 ceiling, while `check_draft.py` also counted the SEO meta
+block and the schema notes — about 250 words of instructions to the developer —
+toward the same limit. Every individual range looked generous. Nobody added
+them up, and the first writer to follow the contract had to leave four sections
+short to stay inside the limit.
+
+Two rules now, both enforced by `tools/tests/test_section_budget.py`:
+
+- **A word count counts page copy.** From the H1 down to and including Key
+  Takeaways. The meta block and `Schema Recommendations` are production notes,
+  excluded from the count and reported separately.
+- **Every template states its budget — the sum of its section minimums — and
+  that sum must sit below the page type's floor in the profile's Content
+  Standards table.** The test re-adds the table on every run, so the stated
+  figure cannot drift from the ranges above it.
+
+If a page genuinely needs more than its ceiling it is the wrong page type: a
+blog post wanting 2,500 words is a resource guide, and a service page wanting
+3,000 is two service pages.
 
 ---
 

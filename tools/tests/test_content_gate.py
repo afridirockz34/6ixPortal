@@ -10,6 +10,7 @@ half the checks.
 
     python tools/tests/test_content_gate.py
 """
+import re
 import subprocess
 import sys
 import tempfile
@@ -235,6 +236,38 @@ h1_geo = good.replace("# Bail Hearing Lawyer Toronto",
 code, out = run(h1_geo, approver="J Ireland")
 check("the H1 is not matched as a section",
       "Out of contract order" not in out and code == 0, out[-800:])
+
+# 5. The meta block and Schema Recommendations are instructions to whoever
+#    builds the page, not page copy, so they are not counted against the word
+#    limit. Counting them spent six per cent of a service page's allowance on
+#    notes to a developer and forced four sections short.
+bulky_schema = good.replace(
+    "## Schema Recommendations\n- Service schema: bail hearing representation.",
+    "## Schema Recommendations\n" + "- Service schema with provider, areaServed and description. " * 40)
+base_code, base_out = run(good, approver="J Ireland")
+code, out = run(bulky_schema, approver="J Ireland")
+base_n = int(re.search(r"Word count: (\d+) page words", base_out).group(1))
+n = int(re.search(r"Word count: (\d+) page words", out).group(1))
+check("300 words of schema notes do not change the page word count",
+      n == base_n and code == 0, f"{base_n} -> {n}")
+check("and the excluded total is reported rather than hidden",
+      "sit in the meta block and schema notes" in out, out[:700])
+
+bulky_meta = good.replace(
+    "Primary Keyword: bail hearing lawyer Toronto\n",
+    "Primary Keyword: bail hearing lawyer Toronto\nNotes For Build: "
+    + "context for the developer " * 40 + "\n")
+code, out = run(bulky_meta, approver="J Ireland")
+n = int(re.search(r"Word count: (\d+) page words", out).group(1))
+check("nor does a long meta block", n == base_n and code == 0, f"{base_n} -> {n}")
+
+# Key Takeaways IS on the page and must still count.
+no_kt_words = good.replace(
+    "## Key Takeaways\n- A bail hearing decides release pending trial.",
+    "## Key Takeaways\n" + "- A bail hearing decides release pending trial. " * 20)
+code, out = run(no_kt_words, approver="J Ireland")
+n = int(re.search(r"Word count: (\d+) page words", out).group(1))
+check("Key Takeaways still counts — a reader reads it", n > base_n, f"{base_n} -> {n}")
 
 # ── The gate never claims to have read the draft ──────────────────────────
 code, out = run(good, approver="J Ireland <j@x.ca>")

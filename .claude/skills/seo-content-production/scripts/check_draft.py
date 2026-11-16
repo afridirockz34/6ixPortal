@@ -32,10 +32,40 @@ def load_text(path: str) -> str:
     return p.read_text(encoding="utf-8")
 
 
-def word_count(text: str) -> int:
+def page_copy(text: str) -> str:
+    """The part of the document that is the page, not instructions about it.
+
+    A page document carries two production blocks a reader never sees: the SEO
+    meta block above the H1, and the Schema Recommendations at the foot.
+    Counting them against a page's word-count target measures the wrong thing
+    and eats real budget — across the agency's 72 documents the two come to a
+    median of 146 words, and on a service page against a 2,500 ceiling that is
+    six per cent of the allowance spent on notes to the developer.
+
+    Key Takeaways is NOT excluded. It is on the page, a reader reads it, and an
+    AI answer quotes it.
+    """
+    lines = text.splitlines()
+    first = 0
+    for i, line in enumerate(lines):
+        h = _heading(line)
+        if h and h[0] == 1:
+            first = i
+            break
+    last = len(lines)
+    for i in range(first, len(lines)):
+        h = _heading(lines[i])
+        if h and re.match(r"schema\s+(recommendations?|plan|markup)", h[1], re.I):
+            last = i
+            break
+    return "\n".join(lines[first:last])
+
+
+def word_count(text: str, whole_file: bool = False) -> int:
     # Strip markdown structural characters before counting so headings,
     # link syntax, and table pipes don't skew the count.
-    stripped = re.sub(r"```.*?```", " ", text, flags=re.DOTALL)  # code blocks
+    stripped = text if whole_file else page_copy(text)
+    stripped = re.sub(r"```.*?```", " ", stripped, flags=re.DOTALL)  # code blocks
     stripped = re.sub(r"!\[.*?\]\(.*?\)", " ", stripped)  # images
     stripped = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", stripped)  # links -> link text
     stripped = re.sub(r"[#*_`|>-]", " ", stripped)
@@ -403,9 +433,14 @@ def main():
             earned += WEIGHTS["words"]
         if status == "FAIL":
             failures += 1
-        print(f"[{status}] Word count: {wc} (target range {lo}-{hi})")
+        print(f"[{status}] Word count: {wc} page words (target range {lo}-{hi})")
+        overhead = word_count(draft, whole_file=True) - wc
+        if overhead > 0:
+            print(f"       {overhead} further words sit in the meta block and schema "
+                  "notes and are not counted — they are instructions to the "
+                  "developer, not page copy")
     else:
-        print(f"[SKIP] Word count: {wc} words — no matching row for '{content_type}' found in profile's Content Standards table; add one or check manually")
+        print(f"[SKIP] Word count: {wc} page words — no matching row for '{content_type}' found in profile's Content Standards table; add one or check manually")
 
     # Internal links
     links = count_internal_links(draft)

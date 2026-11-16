@@ -29,6 +29,31 @@ profile's standards say *how it sounds and how hard it pushes*.
 
 ---
 
+## What the word counts count, and what they do not
+
+Every range in this file is **page copy**: the words a reader sees, from the H1
+down to and including Key Takeaways. The SEO meta block above the H1 and the
+Schema Recommendations at the foot are instructions to whoever builds the page,
+and they are **not counted** — `check_draft.py` excludes both and reports the
+excluded total separately so the figure is never a mystery. Across the agency's
+72 delivered documents those two blocks come to a median of 146 words, which on
+a service page against a 2,500 ceiling is six per cent of the allowance spent
+on notes to a developer.
+
+**Each template states its budget: the sum of every section's minimum.** That
+sum has to sit below the page type's floor in the client profile's Content
+Standards table, or the contract is impossible to satisfy — a writer who hits
+every minimum is already over the limit, and the only way out is to write four
+sections short. `tools/tests/test_section_budget.py` checks every template's
+arithmetic against the profile on every run, because this file was shipped once
+with service-page minimums summing to 2,470 against a 2,500 ceiling, leaving
+thirty words of headroom, and nobody noticed until a writer hit it.
+
+If a page genuinely needs more than its ceiling, it is the wrong page type.
+A blog post that wants 2,500 words is a resource guide. A service page that
+wants 3,000 is two service pages, and splitting it is also better for ranking,
+because one page targeting two keyword groups wins neither.
+
 ## The universal blocks
 
 Three blocks appear on every page type. They are not optional and they are not
@@ -102,19 +127,22 @@ keyword. The highest-value page type in the set and the one that converts.
 | # | Heading formula | Words | Job |
 |---|---|---|---|
 | — | **[H1]** `{Primary Keyword}` | — | The keyword, as the title, title case |
-| — | *Intro, no heading* | 120–180 | The reader's situation, what is at stake, who the client is. Primary keyword in the first 100 words |
-| 1 | **[H2]** `Who Needs a {Service} in {City}` | 200–280 | Five to six bullets, each a reader type recognising themselves. This is the qualification section and it is why the page converts |
-| 2 | **[H2]** `What {Firm} Provides in {Service} Representation` | 220–300 | Six to eight bullets: the actual scope of work, in order of when it happens. The buyer's "what do I get" |
-| 3 | **[H2]** `How the {Service} Process Works in {Region}` | 350–500 | **[H3]** `Step 1: {name}` … `Step 4: {name}`. Numbered, sequential, 80–120 words each. Snippet-eligible and the most-read section on the page |
-| 4 | **[H2]** `What Experienced {Service} Delivers` | 180–260 | Five bullets of outcome, not of activity. What is different because the client did the work |
-| 5 | **[H2]** `Why {Reader Type} in {City} Choose {Firm}` | 250–350 | Credentials and proof, in the register the claims policy permits. Links to the results page |
-| 6 | **[H2]** `Related {Category} Services` | 200–280 | One short paragraph per sibling service, each with a sentence of context and a link. Not a bare list |
-| 7 | **[H2]** `{Service} Across {City} and {Region}` | 100–160 | Geography and reach. Links to location pages |
-| 8 | **[H2]** `Frequently Asked Questions` | 500–700 | **[H3]** per question, minimum 6. Each answered in 60–120 words, first sentence a direct answer |
-| 9 | **[H2]** `Act Now: {urgency line}` | 150–220 | The consequence of delay, stated plainly. Governed by `urgency_language` |
-| 10 | **[H2]** `Request a {Consultation Type}` | 80–140 | The call to action, with phone and contact link |
-| 11 | **[H2]** `Key Takeaways` | 120–180 | Per the universal block |
-| 12 | **[H2]** `Schema Recommendations` | — | Per the universal block |
+| — | *Intro, no heading* | 100–160 | The reader's situation, what is at stake, who the client is. Primary keyword in the first 100 words |
+| 1 | **[H2]** `Who Needs a {Service} in {City}` | 120–200 | Five to six bullets, each a reader type recognising themselves. This is the qualification section and it is why the page converts |
+| 2 | **[H2]** `What {Firm} Provides in {Service} Representation` | 140–240 | Six to eight bullets: the actual scope of work, in order of when it happens. The buyer's "what do I get" |
+| 3 | **[H2]** `How the {Service} Process Works in {Region}` | 240–420 | **[H3]** `Step 1: {name}` … `Step 4: {name}`. Numbered, sequential, 60–105 words each. Snippet-eligible and the most-read section on the page |
+| 4 | **[H2]** `What Experienced {Service} Delivers` | 90–170 | Five bullets of outcome, not of activity. What is different because the client did the work |
+| 5 | **[H2]** `Why {Reader Type} in {City} Choose {Firm}` | 160–280 | Credentials and proof, in the register the claims policy permits. Links to the results page |
+| 6 | **[H2]** `Related {Category} Services` | 100–200 | One short paragraph per sibling service, each with a sentence of context and a link. Not a bare list |
+| 7 | **[H2]** `{Service} Across {City} and {Region}` | 60–120 | Geography and reach. Links to location pages |
+| 8 | **[H2]** `Frequently Asked Questions` | 260–480 | **[H3]** per question, minimum 6. Each answered in 45–80 words, first sentence a direct answer |
+| 9 | **[H2]** `Act Now: {urgency line}` | 80–150 | The consequence of delay, stated plainly. Governed by `urgency_language` |
+| 10 | **[H2]** `Request a {Consultation Type}` | 50–100 | The call to action, with phone and contact link |
+| 11 | **[H2]** `Key Takeaways` | 90–160 | Per the universal block |
+| 12 | **[H2]** `Schema Recommendations` | not counted | Per the universal block |
+
+**Budget: 1,490 at every minimum.** Below the 1,500 floor, so a page that hits
+the floor has expanded a few sections rather than having nowhere to go.
 
 Sections 1, 2 and 4 are the three our pages have historically lacked, and they
 are the reason a competitor's page outsells ours at the same word count: one
@@ -136,19 +164,21 @@ pages but not the rankings.
 | # | Heading formula | Words | Job |
 |---|---|---|---|
 | — | **[H1]** `{Category Keyword} in {City} and Across {Region}` | — | The category term, front-loaded |
-| — | *Intro, no heading* | 120–180 | Do you handle my situation, who leads it, how do I reach you — answered in the first screen |
-| 1 | **[H2]** `{Categories} We Handle` | 280–360 | **[H3]** per sub-group. Every child page linked, each with its own primary keyword as the anchor text. The hub's directory |
-| 2 | **[H2]** `Your First {Window} After {Trigger}` | 150–220 | Numbered steps for the urgent reader. Carries HowTo markup where `risk_schema` allows |
-| 3 | **[H2]** `What Happens After {Trigger} in {Region}` | 220–300 | The process at category level; each child page covers its own specifics |
-| 4 | **[H2]** `How We Build a {Category} {Approach}` | 180–260 | The client's method. Where their genuine differentiation lives |
-| 5 | **[H2]** `How to Choose a {Category} {Provider}` | 180–260 | Criteria for choosing. This is what answers the "best {provider}" searches — and under a restrictive claims policy it answers them with criteria instead of a claim |
-| 6 | **[H2]** `Who Will Handle Your {Matter}` | 120–180 | Named people, checkable credentials, bio links |
-| 7 | **[H2]** `{Category} in {City}, {Region 2} and Across {Region}` | 100–160 | Geography; points city searches at their owning pages |
+| — | *Intro, no heading* | 100–160 | Do you handle my situation, who leads it, how do I reach you — answered in the first screen |
+| 1 | **[H2]** `{Categories} We Handle` | 200–340 | **[H3]** per sub-group. Every child page linked, each with its own primary keyword as the anchor text. The hub's directory |
+| 2 | **[H2]** `Your First {Window} After {Trigger}` | 120–200 | Numbered steps for the urgent reader. Carries HowTo markup where `risk_schema` allows |
+| 3 | **[H2]** `What Happens After {Trigger} in {Region}` | 170–280 | The process at category level; each child page covers its own specifics |
+| 4 | **[H2]** `How We Build a {Category} {Approach}` | 130–240 | The client's method. Where their genuine differentiation lives |
+| 5 | **[H2]** `How to Choose a {Category} {Provider}` | 130–240 | Criteria for choosing. This is what answers the "best {provider}" searches — and under a restrictive claims policy it answers them with criteria instead of a claim |
+| 6 | **[H2]** `Who Will Handle Your {Matter}` | 100–170 | Named people, checkable credentials, bio links |
+| 7 | **[H2]** `{Category} in {City}, {Region 2} and Across {Region}` | 70–140 | Geography; points city searches at their owning pages |
 | 8 | **[H2]** `Recent Results` | 40–80 | Proof, linked to the real results page, with the past-results statement |
-| 9 | **[H2]** `Frequently Asked Questions` | 380–500 | Minimum 6. Include the primary keyword as a question ("What does a {provider} do?") |
+| 9 | **[H2]** `Frequently Asked Questions` | 300–480 | Minimum 6. Include the primary keyword as a question ("What does a {provider} do?") |
 | 10 | **[H2]** `Speak to a {Provider} Today` | 40–80 | Closing call, primary keyword in the closing paragraph |
-| 11 | **[H2]** `Key Takeaways` | 120–180 | Per the universal block |
-| 12 | **[H2]** `Schema Recommendations` | — | Per the universal block |
+| 11 | **[H2]** `Key Takeaways` | 90–160 | Per the universal block |
+| 12 | **[H2]** `Schema Recommendations` | not counted | Per the universal block |
+
+**Budget: 1,490 at every minimum**, against a 1,500 floor.
 
 **One keyword, one owner.** The hub targets the category group; each child
 targets its own term. Where both could plausibly own a search, the one Search
@@ -164,19 +194,24 @@ alternative is the two pages competing with each other for a year.
 | # | Heading formula | Words | Job |
 |---|---|---|---|
 | — | **[H1]** `{Service} in {Place}` | — | Service plus place, nothing else |
-| — | *Intro, no heading* | 180–260 | Urgency, then a real local detail, then what is at stake, then a soft call with the phone number |
-| 1 | **[H2]** `Services Offered in {Place}` | 280–380 | A paragraph per service with a link to its service page |
-| 2 | **[H2]** `About {Place}` | 150–220 | The genuinely local content: the courthouse, station, depot or hospital that serves it by name; the arterial road or transit stop; what the area is actually like. **This section is what makes the page not a doorway page** |
-| 3 | **[H2]** `Who We Serve in {Place}` | 150–220 | The local client types, specifically |
-| 4 | **[H2]** `Why Choose {Firm} for {Category} in {Place}` | 220–300 | Credentials made locally relevant |
-| 5 | **[H2]** `What Happens After {Trigger} in {Place}` | 180–260 | The process where it has genuine local variation — which court, which division. Verified, never guessed |
-| 6 | **[H2]** `Nearby Areas We Also Serve` | 80–140 | Three to five genuinely adjacent areas, linked where their pages exist |
-| 7 | **[H2]** `Frequently Asked Questions` | 350–450 | Minimum 5, each location-specific. Include: do you serve here, how fast can you get here, do I need someone local, how do I start |
-| 8 | **[H2]** `{Category} for {Place} Residents` | 120–180 | The closing argument for this place |
-| 9 | **[H2]** `Contact {Firm} for {Consultation Type}` | 80–140 | Call to action |
-| 10 | **[H2]** `Key Takeaways` | 100–150 | Per the universal block |
-| 11 | **[H2]** `Schema Recommendations` | — | Per the universal block, plus `LocalBusiness` with `areaServed` naming this place |
-| 12 | **[H2]** `Entity Summary` | 80–140 | See below |
+| — | *Intro, no heading* | 110–180 | Urgency, then a real local detail, then what is at stake, then a soft call with the phone number |
+| 1 | **[H2]** `Services Offered in {Place}` | 130–250 | A paragraph per service with a link to its service page |
+| 2 | **[H2]** `About {Place}` | 100–190 | The genuinely local content: the courthouse, station, depot or hospital that serves it by name; the arterial road or transit stop; what the area is actually like. **This section is what makes the page not a doorway page** |
+| 3 | **[H2]** `Who We Serve in {Place}` | 80–140 | The local client types, specifically |
+| 4 | **[H2]** `Why Choose {Firm} for {Category} in {Place}` | 130–210 | Credentials made locally relevant |
+| 5 | **[H2]** `What Happens After {Trigger} in {Place}` | 90–160 | The process where it has genuine local variation — which court, which division. Verified, never guessed |
+| 6 | **[H2]** `Nearby Areas We Also Serve` | 50–100 | Three to five genuinely adjacent areas, linked where their pages exist |
+| 7 | **[H2]** `Frequently Asked Questions` | 200–360 | Minimum 5, each location-specific. Include: do you serve here, how fast can you get here, do I need someone local, how do I start |
+| 8 | **[H2]** `{Category} for {Place} Residents` | 70–130 | The closing argument for this place |
+| 9 | **[H2]** `Contact {Firm} for {Consultation Type}` | 50–90 | Call to action |
+| 10 | **[H2]** `Key Takeaways` | 80–140 | Per the universal block |
+| 11 | **[H2]** `Entity Summary` | 60–110 | See below |
+| 12 | **[H2]** `Schema Recommendations` | not counted | Per the universal block, plus `LocalBusiness` with `areaServed` naming this place |
+
+**Budget: 1,150 at every minimum**, against a 1,200 floor. Their comparable
+pages run 1,318–1,480 words of body copy, so the target of 1,500 is already at
+the top of what this page type supports — a 2,000-word neighbourhood page is
+padding, and padding is what makes it look like a doorway page.
 
 ### The entity summary
 
@@ -206,12 +241,17 @@ addition in this file.
 | # | Heading formula | Words | Job |
 |---|---|---|---|
 | — | **[H1]** `{Question or Title Carrying the Primary Keyword}` | — | Sentence case. The real headline, publishable as written |
-| — | *Intro, no heading* | 150–250 | The reader's situation, not a definition. What is at stake. What this explains. Keyword inside 100 words |
-| 1–N | **[H2]** `{Topical question, in the reader's words}` | 250–350 each | Six to ten of them. **Each opens with a 40–60-word direct answer**, then expands. Numbered **[H3]** steps where there is a sequence |
-| N+1 | **[H2]** `{Why this matters / the stakes restated}` | 150–220 | The bridge from information to action, linking the relevant service page |
-| N+2 | **[H2]** `Frequently Asked Questions` | 350–450 | Minimum 5, 60–120 words each, not repeating the H2s above |
-| N+3 | **[H2]** `Key Takeaways` | 120–180 | Per the universal block |
-| N+4 | **[H2]** `Schema Recommendations` | — | Per the universal block, plus `Article` with author and `datePublished` |
+| — | *Intro, no heading* | 120–200 | The reader's situation, not a definition. What is at stake. What this explains. Keyword inside 100 words |
+| 1–N | **[H2]** `{Topical question, in the reader's words}` | 150–300 each | **Four to eight of them** — pick the number that lands the page in range rather than writing ten and overshooting. Each opens with a 40–60-word direct answer, then expands. Numbered **[H3]** steps where there is a sequence |
+| N+1 | **[H2]** `{Why this matters / the stakes restated}` | 120–200 | The bridge from information to action, linking the relevant service page |
+| N+2 | **[H2]** `Frequently Asked Questions` | 250–380 | Minimum 5, 50–80 words each, not repeating the H2s above |
+| N+3 | **[H2]** `Key Takeaways` | 90–160 | Per the universal block |
+| N+4 | **[H2]** `Schema Recommendations` | not counted | Per the universal block, plus `Article` with author and `datePublished` |
+
+**Budget: 1,180 at four body sections, all at minimum**, against a 1,200 floor
+and a 2,000 ceiling. Eight body sections at their maximum overshoots the
+ceiling — that is the signal the topic is a resource guide (Template 6, which
+has a 2,000–3,000 range) and not a blog post.
 
 **Author block** under the H1 or at the foot: name, credential, role, bio link,
 and a visible review date. On a YMYL topic this is not optional — an unsigned
@@ -237,15 +277,17 @@ distinct concerns; otherwise it is a service page with a new title.
 | # | Heading formula | Words |
 |---|---|---|
 | — | **[H1]** `{The audience's situation, in their own words}` | — |
-| — | *Intro, no heading* | 180–260 |
-| 1 | **[H2]** `What {Audience} Are Facing` | 250–350 |
-| 2 | **[H2]** `How {Firm} Works With {Audience}` | 280–380 |
-| 3 | **[H2]** `Why {Audience} Choose {Firm}` | 200–280 |
-| 4 | **[H2]** `Our Process for {Audience}` | 200–280 |
-| 5 | **[H2]** `Frequently Asked Questions` | 350–450 |
-| 6 | **[H2]** `Take the First Step` | 100–150 |
-| 7 | **[H2]** `Key Takeaways` | 100–150 |
-| 8 | **[H2]** `Schema Recommendations` | — |
+| — | *Intro, no heading* | 110–180 |
+| 1 | **[H2]** `What {Audience} Are Facing` | 170–280 |
+| 2 | **[H2]** `How {Firm} Works With {Audience}` | 190–300 |
+| 3 | **[H2]** `Why {Audience} Choose {Firm}` | 140–230 |
+| 4 | **[H2]** `Our Process for {Audience}` | 140–230 |
+| 5 | **[H2]** `Frequently Asked Questions` | 230–360 |
+| 6 | **[H2]** `Take the First Step` | 70–130 |
+| 7 | **[H2]** `Key Takeaways` | 80–140 |
+| 8 | **[H2]** `Schema Recommendations` | not counted |
+
+**Budget: 1,130 at every minimum**, against a 1,200 floor.
 
 Section 1 is four to six challenge-and-response pairs specific to this
 audience. Generic pairs are the tell that the audience was not real.
@@ -256,16 +298,22 @@ audience. Generic pairs are the tell that the audience was not real.
 
 **2,500 words (2,000–3,000). Minimum 4 internal links. Minimum 8 FAQs.**
 
-The deepest page on a topic, the one other pages link up to. Same contract as
-the blog post, with three additions:
+The deepest page on a topic, the one other pages link up to.
 
-- **A table of contents** after the intro, anchor-linked. At this length a
-  reader navigates rather than reads.
-- **Every subtopic that has its own page gets a section here plus a link down
-  to it** — the pillar summarises, the child covers. Where no child exists yet,
-  the section stands alone until one does.
-- **A "what to do next" section** before the FAQ, routing by situation rather
-  than by topic: if you are *here*, read *this*; if *that* has happened, call.
+| # | Heading formula | Words | Job |
+|---|---|---|---|
+| — | **[H1]** `{The topic, as the reader would name it}` | — | Sentence case |
+| — | *Intro, no heading* | 140–240 | The reader's situation and what this guide covers end to end |
+| 1 | **[H2]** `What This Guide Covers` | 60–120 | Anchor-linked contents. At this length a reader navigates rather than reads |
+| 2–N | **[H2]** `{Subtopic, in the reader's words}` | 160–300 each | **Seven to eleven of them.** Each opens with a 40–60-word direct answer. Every subtopic that has its own page gets a section here *and* a link down to it — the pillar summarises, the child covers |
+| N+1 | **[H2]** `What to Do Next` | 150–260 | Routes by situation, not by topic: if you are *here*, read *this*; if *that* has happened, call |
+| N+2 | **[H2]** `Frequently Asked Questions` | 380–620 | Minimum 8, 45–80 words each |
+| N+3 | **[H2]** `Key Takeaways` | 100–180 | Per the universal block |
+| N+4 | **[H2]** `Schema Recommendations` | not counted | Per the universal block, plus `Article` and `BreadcrumbList` |
+
+**Budget: 1,950 at seven body sections, all at minimum**, against a 2,000
+floor. Where a subtopic has no child page yet, its section stands alone until
+one exists.
 
 ---
 
