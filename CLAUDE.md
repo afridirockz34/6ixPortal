@@ -29,6 +29,7 @@ the repo and a parse error takes the whole deploy down.
 | `python3 tools/tests/test_keyword_set.py` | the keyword/topic/GMB set shape: named clusters, target pages, controlled vocabularies |
 | `python3 tools/tests/test_strategy_language.py` | the readability gate — good prose passes, a document of hedges fails |
 | `python3 tools/tests/test_section_budget.py` | each page template's section minimums actually fit inside its word limit |
+| `php tools/tests/test_tracking.php` | the visitors graph's trend fit, and that no write reports success without a table |
 | `php tools/generate-questionnaire-reference.php` | regenerates the questionnaire docs from the schema — run after any question change, and commit the result |
 
 Pushing to `main` deploys to the live site over SFTP. There is no staging.
