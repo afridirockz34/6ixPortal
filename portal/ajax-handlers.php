@@ -654,13 +654,32 @@ add_action( 'wp_ajax_six_get_service_setup', function() {
     $catalog = array(); $kpis = array();
     if ( class_exists( 'Six_Dash_Metrics' ) ) {
         foreach ( Six_Dash_Metrics::editable_metrics( array( $slug ), false ) as $key => $m ) {
+            // Which way the metric improves, so the wizard can say "lower is
+            // better" beside the ones where a smaller number is the goal.
+            $m['lower_better'] = Six_Dash_Metrics::lower_is_better( $key );
             $catalog[] = $m;
         }
         $ktbl = $wpdb->prefix . 'six_client_kpis';
         if ( ! function_exists( 'six_table_exists' ) || six_table_exists( $ktbl ) ) {
             foreach ( (array) $wpdb->get_results( $wpdb->prepare(
                 "SELECT kpi_key, kpi_value, kpi_prev FROM {$ktbl} WHERE client_id=%d", $client_id ) ) as $r ) {
-                $kpis[ $r->kpi_key ] = array( 'current' => $r->kpi_value, 'previous' => $r->kpi_prev );
+                $kpis[ $r->kpi_key ] = array( 'current' => $r->kpi_value, 'previous' => $r->kpi_prev, 'target' => '' );
+            }
+        }
+        // The target is not in the KPI table; it lives on the service's detail
+        // row. Load it so re-opening the wizard shows the target already set
+        // rather than an empty box that silently wipes it on save.
+        $mtbl_c = $wpdb->prefix . 'six_metrics';
+        if ( ! function_exists( 'six_table_exists' ) || six_table_exists( $mtbl_c ) ) {
+            $by_label = array();
+            foreach ( $catalog as $cm ) $by_label[ strtolower( trim( $cm['label'] ) ) ] = $cm['key'];
+            foreach ( (array) $wpdb->get_results( $wpdb->prepare(
+                "SELECT label, target_value FROM {$mtbl_c} WHERE client_id=%d AND service_slug=%s", $client_id, $slug ) ) as $r ) {
+                $k = $by_label[ strtolower( trim( $r->label ) ) ] ?? '';
+                if ( $k && $r->target_value !== '' ) {
+                    if ( ! isset( $kpis[ $k ] ) ) $kpis[ $k ] = array( 'current' => '', 'previous' => '' );
+                    $kpis[ $k ]['target'] = $r->target_value;
+                }
             }
         }
     }
@@ -725,12 +744,25 @@ add_action( 'wp_ajax_six_save_service_setup', function() {
         if ( function_exists( 'six_table_exists' ) && ! six_table_exists( $ktbl ) ) {
             $kpi_failed['_table'] = 'The KPI table is missing — open any WordPress admin page once to build it.';
         } else {
+            $mtbl_k = $wpdb->prefix . 'six_metrics';
             foreach ( $kpis as $key => $vals ) {
                 $key = sanitize_key( $key );
                 if ( ! six_kpi_key_allowed( $key ) ) continue;
-                $value = sanitize_text_field( $vals['current'] ?? '' );
-                $prev  = sanitize_text_field( $vals['previous'] ?? '' );
-                if ( $value === '' && $prev === '' ) continue;
+                $value  = sanitize_text_field( $vals['current'] ?? '' );
+                $prev   = sanitize_text_field( $vals['previous'] ?? '' );
+                $target = sanitize_text_field( $vals['target'] ?? '' );
+                $label  = function_exists( 'six_kpi_label' ) ? six_kpi_label( $key ) : $key;
+
+                // An advisor clearing every box means "stop showing this",
+                // and it used to mean nothing at all: the loop skipped the row
+                // and the old figure stayed on the customer's dashboard with
+                // no way to remove it.
+                if ( $value === '' && $prev === '' && $target === '' ) {
+                    $wpdb->delete( $ktbl, array( 'client_id' => $client_id, 'kpi_key' => $key ) );
+                    $wpdb->delete( $mtbl_k, array( 'client_id' => $client_id, 'label' => $label ) );
+                    continue;
+                }
+
                 $written = $wpdb->replace( $ktbl, array(
                     'client_id'  => $client_id,
                     'kpi_key'    => $key,
@@ -743,6 +775,29 @@ add_action( 'wp_ajax_six_save_service_setup', function() {
                     error_log( '6ix KPI: wizard could not save ' . $key . ' for client ' . $client_id . ' — ' . $wpdb->last_error );
                 } else {
                     $kpi_saved++;
+                }
+
+                // The KPI table has no target column — the target lives on the
+                // service's detail row. Without this the wizard could collect a
+                // target and silently drop it, which is how a card ends up
+                // reading "No target set" however often somebody set one.
+                if ( ! function_exists( 'six_table_exists' ) || six_table_exists( $mtbl_k ) ) {
+                    $m_row = array(
+                        'client_id'      => $client_id,
+                        'service_slug'   => $slug,
+                        'label'          => $label,
+                        'previous_value' => $prev,
+                        'current_value'  => $value,
+                        'target_value'   => $target,
+                        'unit'           => class_exists( 'Six_Dash_Metrics' ) ? Six_Dash_Metrics::unit_for( $key ) : '',
+                        'updated_at'     => current_time( 'mysql' ),
+                    );
+                    $m_id = $wpdb->get_var( $wpdb->prepare(
+                        "SELECT id FROM {$mtbl_k} WHERE client_id=%d AND service_slug=%s AND label=%s",
+                        $client_id, $slug, $label
+                    ) );
+                    if ( $m_id ) $wpdb->update( $mtbl_k, $m_row, array( 'id' => (int) $m_id ) );
+                    else         $wpdb->insert( $mtbl_k, $m_row );
                 }
             }
         }
@@ -1133,10 +1188,47 @@ add_action( 'wp_ajax_six_suggest_metrics', function() {
 
 add_action( 'wp_ajax_six_delete_metric', function() {
     check_ajax_referer( 'six_nonce', 'nonce' );
-    if ( ! Six_Roles::is_advisor() ) wp_send_json_error( 'Permission denied' );
+    if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied' );
     global $wpdb;
-    $wpdb->delete( $wpdb->prefix . 'six_metrics', array( 'id' => intval( $_POST['metric_id'] ?? 0 ) ) );
-    wp_send_json_success();
+
+    $id = intval( $_POST['metric_id'] ?? 0 );
+    if ( ! $id ) wp_send_json_error( 'Missing metric.' );
+
+    $mtbl = $wpdb->prefix . 'six_metrics';
+    $row  = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$mtbl} WHERE id=%d", $id ) );
+    if ( ! $row ) wp_send_json_error( 'That metric no longer exists.' );
+
+    $wpdb->suppress_errors( true );
+    $gone = $wpdb->delete( $mtbl, array( 'id' => $id ) );
+    $err  = $wpdb->last_error;
+
+    // The detail row and the stat card are two tables. Deleting only the first
+    // leaves the customer's card showing a figure the advisor believes they
+    // just removed — which is the same class of bug as a write that reports
+    // success without landing, in the other direction.
+    $also = 0;
+    if ( $gone !== false && class_exists( 'Six_Dash_Metrics' ) ) {
+        $ktbl = $wpdb->prefix . 'six_client_kpis';
+        if ( ! function_exists( 'six_table_exists' ) || six_table_exists( $ktbl ) ) {
+            foreach ( Six_Dash_Metrics::editable_metrics( array_keys( Six_Dash_Metrics::catalog() ), true ) as $key => $m ) {
+                if ( strcasecmp( trim( $m['label'] ), trim( $row->label ) ) === 0 ) {
+                    $also = (int) $wpdb->delete( $ktbl, array( 'client_id' => (int) $row->client_id, 'kpi_key' => $key ) );
+                    break;
+                }
+            }
+        }
+    }
+    $wpdb->suppress_errors( false );
+
+    if ( $gone === false ) {
+        error_log( '6ix: metric delete failed for ' . $id . ': ' . $err );
+        wp_send_json_error( $err ?: 'The delete failed and nothing was changed.' );
+    }
+    wp_send_json_success( array(
+        'deleted'      => (int) $gone,
+        'card_cleared' => $also,
+        'message'      => $also ? 'Deleted, and cleared from the customer\'s stat cards.' : 'Deleted.',
+    ) );
 } );
 
 // ─────────────────────────────────────────────────────────────────────────────

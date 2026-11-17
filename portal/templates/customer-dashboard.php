@@ -262,15 +262,11 @@ $svc_svg_icons = array(
             <?php echo $dot['svc'][$s->service_slug] ?? ''; ?>
         </a>
         <?php endforeach; ?>
-        <?php // Website maintenance is an advisor-enabled add-on, so it has no
-              // row in six_client_services — it appears here only once the
-              // advisor switches it on from the client's profile.
-        if ( class_exists('Six_Website_Project') && Six_Website_Project::maintenance_on($user_id) ): ?>
-        <a href="?tab=website" class="six-nav-item <?php echo $active_tab==='website'?'active':''; ?>" style="padding-left:28px">
-            <span class="six-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span>
-            <span style="font-size:12px">Website Maintenance</span>
-        </a>
-        <?php endif; ?>
+        <?php /* Website maintenance is a billing line, not a service with a
+                 dashboard of its own. It used to appear here under Services
+                 the moment an advisor switched it on, which put a nav item in
+                 front of the customer that leads to nothing they manage — it
+                 belongs in Billing, where its charge is, and nowhere else. */ ?>
         <a href="?tab=advisor"  class="six-nav-item <?php echo $active_tab==='advisor' ?'active':''; ?>"><span class="six-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span> Advisor<?php if($unread_msgs>0): ?><span class="six-badge"><?php echo $unread_msgs; ?></span><?php endif; ?></a>
         <?php
         // Only once an advisor has issued it — before that the client has no
@@ -2114,6 +2110,14 @@ try {
 } catch (\Throwable $e) { $invoices=array(); }
 $active_svcs_b=array_filter((array)$services,fn($s)=>$s->status==='active'&&floatval($s->budget)>0);
 $billing_total=array_sum(array_map(fn($s)=>floatval($s->budget),(array)$active_svcs_b));
+
+/* Website maintenance is an advisor-enabled add-on with no row in
+   six_client_services, so it was invisible here — it only ever appeared as a
+   nav item under Services, which is the one place it does not belong. It is a
+   recurring charge; this is where a recurring charge is listed. */
+$maint_on  = class_exists('Six_Website_Project') && Six_Website_Project::maintenance_on($user_id);
+$maint_fee = $maint_on ? floatval(Six_Website_Project::maintenance_fee($user_id)) : 0;
+if ($maint_fee > 0) $billing_total += $maint_fee;
 $next_billing=date('M 1, Y',strtotime('first day of next month'));
 ?>
 <div class="six-page-header"><div><h1 class="six-page-title">Billing</h1><p class="six-page-sub">Payment method and billing history</p></div></div>
@@ -2140,7 +2144,7 @@ $next_billing=date('M 1, Y',strtotime('first day of next month'));
     <div class="six-card">
         <div class="six-card-header" style="border-bottom:1px solid var(--border)"><span class="six-card-title">Current Plan</span></div>
         <div class="six-card-body" style="padding:20px">
-            <?php if(empty($active_svcs_b)): ?>
+            <?php if(empty($active_svcs_b) && !$maint_on): ?>
             <div style="text-align:center;padding:20px;color:var(--text3);font-size:13px">No active services with budget set.</div>
             <?php else: ?>
             <table style="width:100%;font-size:12px;border-collapse:collapse;margin-bottom:14px">
@@ -2155,6 +2159,14 @@ $next_billing=date('M 1, Y',strtotime('first day of next month'));
                     <td style="padding:10px 0;text-align:right;font-weight:700">$<?php echo number_format($s->budget,0); ?></td>
                 </tr>
                 <?php endforeach; ?>
+                <?php if($maint_on): ?>
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
+                    <td style="padding:10px 0;color:var(--text2)">Website Maintenance</td>
+                    <td style="padding:10px 0;text-align:right;font-weight:700">
+                        <?php echo $maint_fee > 0 ? '$'.number_format($maint_fee,0) : '<span style="font-weight:400;color:var(--text3);font-size:11px">fee not set</span>'; ?>
+                    </td>
+                </tr>
+                <?php endif; ?>
                 </tbody>
             </table>
             <div style="display:flex;justify-content:space-between;padding:12px 0 0;font-size:15px;font-weight:800;font-family:var(--font-head);border-top:2px solid var(--border)"><span>Total / Month</span><span style="color:var(--pink)">$<?php echo number_format($billing_total,0); ?></span></div>

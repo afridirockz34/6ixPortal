@@ -1535,24 +1535,33 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             <?php if(!empty($svc_metrics)): ?>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:14px">
                 <?php foreach($svc_metrics as $met):
-                    $c_n=floatval(preg_replace('/[^0-9.]/','',$met->current_value));
-                    $t_n=floatval(preg_replace('/[^0-9.]/','',$met->target_value));
-                    $pct=($t_n>0)?min(100,round(($c_n/$t_n)*100)):0;
-                    $mc=$pct>=75?'var(--success)':($pct>=50?$sd_item['color']:'var(--warning)');
+                    /* Same direction-aware arithmetic as the customer's page.
+                       This panel had its own copy of current ÷ target, so an
+                       average position of 11.3 against a target of 6 showed a
+                       full bar here too. */
+                    $lower = class_exists('Six_Dash_Metrics') ? Six_Dash_Metrics::lower_is_better($met->label) : false;
+                    $prog  = class_exists('Six_Dash_Metrics')
+                        ? Six_Dash_Metrics::progress($met->current_value, $met->target_value, $lower, $met->previous_value)
+                        : array('pct'=>null);
+                    $pct = $prog['pct'];
+                    $t_n = class_exists('Six_Dash_Metrics') ? Six_Dash_Metrics::number($met->target_value) : null;
+                    $mc  = $pct===null ? 'var(--text3)' : ($pct>=75?'var(--success)':($pct>=50?$sd_item['color']:'var(--warning)'));
                 ?>
-                <div style="background:var(--dark3);border-radius:10px;padding:12px;position:relative">
+                <div id="mrow-<?php echo (int)$met->id; ?>" style="background:var(--dark3);border-radius:10px;padding:12px;position:relative">
                     <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin-bottom:6px"><?php echo esc_html($met->label); ?></div>
                     <div style="font-size:20px;font-weight:800;font-family:var(--font-head);margin-bottom:6px;line-height:1"><?php echo esc_html($met->current_value); ?></div>
-                    <?php if($t_n>0): ?>
+                    <?php if($t_n!==null): ?>
                     <div style="height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;margin-bottom:4px">
-                        <div style="height:100%;width:<?php echo $pct; ?>%;background:<?php echo $mc; ?>;border-radius:2px"></div>
+                        <div style="height:100%;width:<?php echo (int)($pct??0); ?>%;background:<?php echo $mc; ?>;border-radius:2px"></div>
                     </div>
-                    <div style="font-size:10px;color:var(--text3)">Target: <?php echo esc_html($met->target_value); ?></div>
+                    <div style="font-size:10px;color:var(--text3)">Target: <?php echo esc_html($met->target_value); ?><?php echo $lower?' or lower':''; ?> · <?php echo $pct===null?'—':$pct.'%'; ?></div>
+                    <?php else: ?>
+                    <div style="font-size:10px;color:var(--text3);opacity:.75">No target set</div>
                     <?php endif; ?>
                     <!-- Edit/Delete -->
                     <div style="position:absolute;top:8px;right:8px;display:flex;gap:4px">
                         <button class="six-btn six-btn-ghost" style="padding:2px 6px;font-size:10px;color:var(--cyan)" onclick="populateMetricForm(<?php echo $met->id; ?>,'<?php echo esc_js($met->label); ?>','<?php echo esc_js($met->current_value); ?>','<?php echo esc_js($met->previous_value); ?>','<?php echo esc_js($met->target_value); ?>','<?php echo esc_js($met->service_slug); ?>')">Edit</button>
-                        <button class="six-btn six-btn-ghost six-del-metric" style="padding:2px 6px;font-size:10px;color:var(--danger)" data-metric-id="<?php echo $met->id; ?>">Delete</button>
+                        <button class="six-btn six-btn-ghost six-delete-metric" style="padding:2px 6px;font-size:10px;color:var(--danger)" data-id="<?php echo (int)$met->id; ?>">Delete</button>
                     </div>
                 </div>
                 <?php endforeach; ?>
@@ -4276,7 +4285,11 @@ function sixServiceWizard(serviceId, clientId, slug, name, activateMode){
     // The catalog rows go to the customer's stat cards; the free rows go to
     // the service's detail table. Two different homes, collected separately.
     body.querySelectorAll('.wiz-krow').forEach(function(row){
-      W.kpis[row.dataset.key] = { current: row.querySelector('.k-cur').value, previous: row.querySelector('.k-prev').value };
+      W.kpis[row.dataset.key] = {
+        current:  row.querySelector('.k-cur').value,
+        previous: row.querySelector('.k-prev').value,
+        target:   row.querySelector('.k-tgt').value
+      };
     });
     W.metrics=[];
     body.querySelectorAll('.wiz-mrow').forEach(function(row){
@@ -4355,23 +4368,38 @@ function sixServiceWizard(serviceId, clientId, slug, name, activateMode){
     //    because "1,240" with no unit is a number the customer cannot read and
     //    a number the advisor can enter wrong.
     var klist=body.querySelector('#wiz-kpis');
-    var KGRID='display:grid;grid-template-columns:1fr 110px 110px;gap:8px;align-items:center';
+    // Four columns now. The target used to be missing entirely here, so a
+    // figure read during activation arrived on the customer's dashboard with
+    // nothing to measure it against — which is why a card could sit at 0%
+    // for ever with "Target: –". And every row can be cleared: an advisor
+    // could edit a pulled number but had no way to say "do not show this one".
+    var KGRID='display:grid;grid-template-columns:1fr 104px 104px 104px 26px;gap:8px;align-items:center';
     if((W.catalog||[]).length){
       var head=document.createElement('div');
       head.style.cssText=KGRID+';margin-bottom:6px';
+      var th='font-size:9.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3,#8a8a99)';
       head.innerHTML='<div></div>'
-        +'<div style="font-size:9.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3,#8a8a99)">Last month</div>'
-        +'<div style="font-size:9.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3,#8a8a99)">Now</div>';
+        +'<div style="'+th+'">Before</div>'
+        +'<div style="'+th+'">Now</div>'
+        +'<div style="'+th+'">Target</div><div></div>';
       klist.appendChild(head);
     }
     (W.catalog||[]).forEach(function(c){
       var have=W.kpis[c.key]||{};
       var row=document.createElement('div'); row.className='wiz-krow'; row.dataset.key=c.key;
       row.style.cssText=KGRID+';margin-bottom:8px';
-      row.innerHTML='<div><div style="font-size:12px;font-weight:600;color:var(--text1,#fff)">'+esc(c.label)+'</div>'
+      var cell='width:100%;min-width:0;font-size:12px;padding:6px 8px';
+      row.innerHTML='<div><div style="font-size:12px;font-weight:600;color:var(--text1,#fff)">'+esc(c.label)
+          +(c.lower_better?' <span style="font-size:9.5px;font-weight:600;color:var(--text3,#8a8a99)">· lower is better</span>':'')+'</div>'
           +'<div style="font-size:10.5px;color:var(--text3,#8a8a99);margin-top:2px">'+esc(c.unit||'')+'</div></div>'
-        +'<input class="six-input k-prev" value="'+esc(have.previous||'')+'" placeholder="—" style="width:100%;min-width:0;font-size:12px;padding:6px 8px">'
-        +'<input class="six-input k-cur" value="'+esc(have.current||'')+'" placeholder="—" style="width:100%;min-width:0;font-size:12px;padding:6px 8px">';
+        +'<input class="six-input k-prev" value="'+esc(have.previous||'')+'" placeholder="—" style="'+cell+'">'
+        +'<input class="six-input k-cur" value="'+esc(have.current||'')+'" placeholder="—" style="'+cell+'">'
+        +'<input class="six-input k-tgt" value="'+esc(have.target||'')+'" placeholder="—" style="'+cell+'">'
+        +'<button class="k-clr" title="Clear this row" style="background:none;border:none;color:var(--text3,#8a8a99);cursor:pointer;font-size:16px;line-height:1">&times;</button>';
+      row.querySelector('.k-clr').onclick=function(){
+        row.querySelectorAll('input').forEach(function(i){ i.value=''; });
+        row.style.outline='none';
+      };
       klist.appendChild(row);
     });
     if(!(W.catalog||[]).length) klist.innerHTML='<div style="font-size:12px;color:var(--text3,#8a8a99)">This service has no dashboard cards — it is tracked by delivery milestones instead.</div>';
@@ -4412,6 +4440,14 @@ function sixServiceWizard(serviceId, clientId, slug, name, activateMode){
             var n=keyed[row.dataset.key]; if(!n) return;
             if(n.current!=='' && n.current!=null) row.querySelector('.k-cur').value=n.current;
             if(n.previous) row.querySelector('.k-prev').value=n.previous;
+            if(n.target) row.querySelector('.k-tgt').value=n.target;
+            // The window each figure covers, under the row — Search Console
+            // reports 28 days, GA4 reports 30, a page check is one moment, and
+            // they were all arriving in a column headed "Now".
+            if(n.period){
+              var lbl=row.querySelector('div > div:nth-child(2)');
+              if(lbl) lbl.innerHTML=esc(n.unit||lbl.textContent)+' · <span style="color:var(--text2,#b5b5c5)">'+esc(n.period)+'</span>';
+            }
             row.style.outline='1px solid rgba(86,211,100,.45)';
             row.style.outlineOffset='3px';
           });
@@ -4590,12 +4626,27 @@ if(saveMetric) saveMetric.addEventListener('click',function(){
 });
 
 // ── Metric delete ────────────────────────────────────────────────────────────
+//
+// The button carried class six-del-metric and data-metric-id while this
+// listener looked for .six-delete-metric and dataset.id, so Delete had never
+// worked — and because nothing reported a failure, it looked like a delete
+// that simply had not redrawn.
 document.querySelectorAll('.six-delete-metric').forEach(function(btn){
     btn.addEventListener('click',function(){
-        if(!confirm('Delete this metric?'))return;
-        var id=this.dataset.id;
+        if(!confirm('Delete this metric? The customer stops seeing it immediately.'))return;
+        var id=this.dataset.id, self=this, old=self.textContent;
+        self.disabled=true; self.textContent='…';
         post({action:'six_delete_metric',metric_id:id}).then(function(res){
-            if(res.success){var row=document.getElementById('mrow-'+id);if(row){row.style.opacity='0.3';setTimeout(function(){row.remove();},300);}}
+            if(res&&res.success){
+                var row=document.getElementById('mrow-'+id);
+                if(row){row.style.opacity='0.3';setTimeout(function(){row.remove();},300);}
+            } else {
+                self.disabled=false; self.textContent=old;
+                alert((res&&res.data&&(res.data.message||res.data))||'Could not delete it. Nothing was changed.');
+            }
+        }).catch(function(){
+            self.disabled=false; self.textContent=old;
+            alert('Could not reach the server. Nothing was changed.');
         });
     });
 });
