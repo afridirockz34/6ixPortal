@@ -90,6 +90,13 @@ discovering it at page twelve.
   by inventing a voice.
 - **Save each approved page to the portal** with `save_client_artifact`, so the
   set is recoverable and the client's dashboard reflects what has shipped.
+- **Log each page with `log_work` as it goes live**, one call per page, with
+  the old title and the new one in `before_value` and `after_value` and the
+  approver's name. The customer's optimization-proof section is built from
+  these, so a page that shipped without being logged is invisible to the
+  client however good it is. Use a consistent `category` — `Page Content` for
+  a new or rewritten page, `Title Tags` for a retitle — and call
+  `list_work_log` first to match what is already there.
 
 Where the portal connector is in the session, `list_client_artifacts` is the
 fastest way to find out what a previous session already produced — check it

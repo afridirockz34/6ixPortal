@@ -83,6 +83,36 @@ nothing captures it.
 | `seo_avg_position` | Average ranking position | **lower** |
 | `onpage_issues` | On-page issues outstanding | **lower** |
 | `page_load_ms` | Milliseconds to first render | **lower** |
+
+## Sending figures back: they go to the advisor, not the customer
+
+`propose_metrics` is how a figure you have read reaches the portal. It does
+**not** put a number on the customer's dashboard. It puts it in front of the
+advisor who answers for that client, beside whatever the integrations say, and
+they accept it and set the target. Accepting is what moves it onto the stat
+cards.
+
+That is the design rather than a formality, and it has a practical
+consequence: **propose freely.** You do not need to decide whether a figure is
+dashboard-ready — the review step is where that is decided, and a figure you
+withheld because you were unsure is a figure nobody saw.
+
+Three fields are not optional:
+
+- **`period_start` and `period_end`.** A figure with no period is not
+  checkable, and the advisor is the person who has to understand it before
+  they stand behind it. The advisor panel prints the period under the number.
+- **`source`**, naming what actually produced it — "Search Console, 15 Oct –
+  12 Nov" or "Ahrefs estimate, checked 16 Nov". The measured/estimated
+  distinction has to survive the hand-off; once two figures sit in the same
+  column nothing else distinguishes them.
+- **`metric_key`** where one of the keys above fits, because that is what
+  reaches the customer's four stat cards. A figure with only a label still
+  saves, but only to the service page's detail rows.
+
+`suggested_target` is a suggestion and is labelled as one in the panel. Suggest
+one only where the strategy argues for it; the advisor can always set their own.
+
 | `paid_clicks` | Ad clicks per month | higher |
 | `ads_leads` | Leads from ads per month | higher |
 | `ads_impressions` | Ad impressions per month | higher |

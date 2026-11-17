@@ -30,20 +30,56 @@ A URL-changing edit needs one more check before it's confirmed: does it need a 3
 
 ## 4. Apply, one verifiable step at a time
 
+**Before you change anything, capture where it stood.** The portal syncs
+Search Console pages daily on its own, so a page that has been live for a while
+already has a history. Anything it cannot see — rank-tracker keyword positions,
+a local grid, a competitor's page — goes in through `record_entity_metrics`
+*before* the change ships. This is the one step that cannot be done afterwards:
+without a reading from before, every later before-and-after can only be
+asserted.
+
 Work through the confirmed change-set using whatever access is live — WP-CLI commands, direct file edits via SFTP, or the WordPress REST API if that's what's actually connected instead of raw server access. After each change, or each small batch of closely related ones, **verify it actually took** — read the page or field back and confirm the new value is really there, rather than trusting that a command returning success means the change is live. A WP-CLI command can exit 0 and still not produce the intended result (caching, a conflicting plugin, a permissions issue) — the verification step is what catches that before it's discovered during the next monitoring check instead.
 
 If a change fails or only partially applies, stop and say so immediately rather than continuing through the rest of the batch — a partial implementation pass with an unclear boundary of what's actually live is worse than stopping early with a clear one.
 
 ## 5. Log everything that actually happened
 
-Build (or append to) an implementation log: every row from the change-set, whether it was applied, when, and the confirmed before/after values — what's actually live, not just what was planned. Format:
+**Use `log_work` on the portal connector, one call per change.** This is the
+record, not a document about the record: it writes into the client's work log,
+and the customer's dashboard builds its optimization-proof section directly
+from it. A change that is not logged did not happen as far as the client can
+see, however live it is on the site.
+
+One call per change, with the fields that make it evidence rather than an
+assertion:
+
+| Field | What goes in it |
+|---|---|
+| `service_slug` | `seo`, `google-ads`, `google-business`, `website` — the log is not SEO-only |
+| `category` | The kind of work: `Title Tags`, `Meta Descriptions`, `Schema Markup`, `Page Content`, `Internal Links`, `Image Alt Text`, `Technical Fixes`. **Keep these consistent for a client** — they are what the rollup groups by. Call `list_work_log` first to see what is already there |
+| `action` | `created`, `rewrote`, `retitled`, `deployed`, `fixed`, `removed` |
+| `entity` | The exact URL, campaign or listing changed |
+| `title` | One line a client would understand |
+| `before_value` / `after_value` | **The actual values.** "Title changed" is not evidence; `Lawyers For Sexual Crime Charges` → `Sexual Assault Lawyer Toronto \| Neuberger & Partners` is |
+| `status` | `deployed` once verified live, `pending` if approved but not yet applied, `planned` if neither |
+| `approver` | Who signed it off |
+| `verify_url` / `verify_how` | Where the client can check it and how, in a sentence a non-technical reader can follow |
+| `performed_at` | The real date, not today, when logging a batch after the fact |
+
+A change that failed or partially applied is logged with `status: pending` and
+the failure in `detail` — exactly as it happened, never dropped from the record
+because it did not go as planned.
+
+If the connector is read-only or `log_work` reports an error, say so rather
+than continuing as though it was filed, and keep the same information in a
+document so nothing is lost. The equivalent table, where one is needed:
 
 | # | Page / URL | Field | Before | After | Status (applied / failed / partial) | Date applied | Confirmed by |
 |---|---|---|---|---|---|---|---|
 
 This precise, dated record is what `references/monitoring-and-escalation.md` and `seo-strategy-builder`'s Phase 20 retrospective both depend on to separate "we changed X on this date" from "a Google algorithm update landed the same week" — the Google Update Correlation discipline in `seo-strategy-builder/references/fact-check-registry.md` only works when there's an actual dated record of what was touched, not a recollection of roughly when something happened.
 
-Save it via `save_client_artifact` (`type: "implementation_log"`) if the portal connector supports writing — same write-scoped-token caution as elsewhere: if writing fails or the connector is read-only, say so rather than silently continuing as if it was filed. **Append to the existing log for this client rather than overwriting it** if one already exists — Stage 6 re-implementations extend the same record, they don't start a fresh one.
+Where a document was produced as well, save it via `save_client_artifact` (`type: "implementation_log"`) if the portal connector supports writing — same write-scoped-token caution as elsewhere: if writing fails or the connector is read-only, say so rather than silently continuing as if it was filed. **Append to the existing log for this client rather than overwriting it** if one already exists — Stage 6 re-implementations extend the same record, they don't start a fresh one.
 
 ## What never happens here
 
