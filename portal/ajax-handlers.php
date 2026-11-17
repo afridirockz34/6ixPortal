@@ -2395,7 +2395,61 @@ add_action( 'wp_ajax_six_competitor_analysis', function() {
             : 'No competitor data yet for ' . $domain . '. Add a few competitor URLs or target keywords in the profile, then run again.' );
     }
 
-    $data = array( 'domain' => $domain, 'rows' => $rows, 'ran_at' => time() );
+    /* The client's own line on the same table.
+     *
+     * A list of competitors with the client absent from it answers "who else
+     * is out there" and not the question they actually asked, which is "where
+     * am I". Their own figures come from the SAME provider on the SAME pull,
+     * so the comparison is like with like — their measured analytics belong
+     * on a separate line with its own label, never in this column beside
+     * third-party estimates of everyone else.
+     */
+    $me = null;
+    if ( method_exists( $seo, 'site_metrics' ) ) {
+        $sm = $seo::site_metrics( $domain, $loc );
+        if ( empty( $sm['error'] ) ) {
+            $me = array(
+                'domain'   => $domain,
+                'visits'   => (int) ( $sm['organic_traffic'] ?? 0 ),
+                'keywords' => (int) ( $sm['organic_keywords'] ?? 0 ),
+                'shared'   => 0,
+                'you'      => true,
+                'insight'  => 'Your site, estimated on the same basis as the rows above',
+            );
+        }
+    }
+    if ( $me === null ) {
+        $rk = $seo::ranked_keywords( $domain, $loc, 100 );
+        if ( empty( $rk['error'] ) && ! empty( $rk['ranked_keywords'] ) ) {
+            $v = 0;
+            foreach ( $rk['ranked_keywords'] as $k ) $v += intval( $k['traffic'] ?? 0 );
+            $me = array(
+                'domain'   => $domain,
+                'visits'   => $v,
+                'keywords' => count( $rk['ranked_keywords'] ),
+                'shared'   => 0,
+                'you'      => true,
+                'insight'  => 'Your site, estimated on the same basis as the rows above',
+            );
+        }
+    }
+
+    // Where they sit on that list. Reported as a position out of a named
+    // total, because "3rd" with no denominator is not a fact.
+    $place = null;
+    if ( $me ) {
+        $place = 1;
+        foreach ( $rows as $r ) if ( (int) $r['visits'] > (int) $me['visits'] ) $place++;
+    }
+
+    $data = array(
+        'domain' => $domain,
+        'rows'   => $rows,
+        'you'    => $me,
+        'place'  => $place,
+        'of'     => $me ? count( $rows ) + 1 : count( $rows ),
+        'ran_at' => time(),
+    );
     update_user_meta( $uid, 'six_comp_analysis_data', $data );
     update_user_meta( $uid, 'six_comp_analysis_at', time() );
     wp_send_json_success( array( 'locked' => false, 'ran_at' => time(), 'next_at' => time() + $window, 'data' => $data ) );

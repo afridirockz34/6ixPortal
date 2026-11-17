@@ -144,5 +144,195 @@ check( 'a real zero is zero', Six_Dash_Metrics::number( '0' ) === 0.0 );
 check( 'a formatted figure is read', Six_Dash_Metrics::number( '3,390' ) === 3390.0 );
 check( 'and a currency figure is read', Six_Dash_Metrics::number( '$1,240.50' ) === 1240.50 );
 
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * The target graphs that replaced the progress bars
+ *
+ * A bar could say 62% and nothing else: not whether the number is moving,
+ * not how fast, not whether it has moved at all since the work started. The
+ * graph answers those, which means it can also lie about them in ways a bar
+ * could not — by drawing a smooth line through days nobody measured.
+ * ───────────────────────────────────────────────────────────────────────── */
+
+// Two readings is two readings. It must draw as two dots, flagged sparse,
+// never as a month of daily values interpolated between them.
+$s = Six_Dash_Metrics::target_series( 1, 'Organic Visitors', 420, 1000, 300 );
+check( 'two known figures produce a series', ! empty( $s['has'] ) );
+check( 'and it is marked sparse rather than drawn as a measured line',
+	$s['sparse'] === true && $s['measured'] === false );
+check( 'with exactly the two points we actually have', count( $s['points'] ) === 2,
+	count( $s['points'] ) . ' points' );
+check( 'labelled as what they are',
+	$s['points'][0]['label'] === 'Before' && $s['points'][1]['label'] === 'Now' );
+check( 'and the chart is told to say so', strpos( $s['note'], 'Two readings' ) !== false );
+check( 'with the longer explanation kept for the tooltip, so the footer stays on one line',
+	strpos( $s['note_long'], 'fills in' ) !== false );
+
+// The geometry the brief asked for: the target high on the plot, the line
+// in the middle band.
+check( 'the target sits at 85% of the plot height',
+	abs( $s['target_y'] - 0.85 ) < 0.001, 'target_y = ' . $s['target_y'] );
+$now_y = $s['points'][1]['y'];
+check( 'a metric 42% of the way to its target draws in the 30-50% band',
+	$now_y > 0.30 && $now_y < 0.50, 'y = ' . $now_y );
+check( 'nothing is ever drawn above 95% of the plot',
+	Six_Dash_Metrics::target_series( 1, 'Organic Visitors', 99999, 1000 )['points'][0]['y'] <= 0.95 );
+
+// A metric that improves by falling still has to climb the chart, or the
+// picture says the opposite of the number.
+$s = Six_Dash_Metrics::target_series( 1, 'Average Position', 11.3, 6, 18 );
+check( 'a lower-is-better metric is recognised', $s['lower'] === true );
+check( 'its worst reading sits at the bottom of the plot',
+	$s['points'][0]['y'] < $s['points'][1]['y'],
+	'18 drew at ' . $s['points'][0]['y'] . ', 11.3 at ' . $s['points'][1]['y'] );
+check( 'and its target still sits at 85%', abs( $s['target_y'] - 0.85 ) < 0.001,
+	'target_y = ' . $s['target_y'] );
+
+// Nothing measured is not zero.
+$s = Six_Dash_Metrics::target_series( 1, 'Organic Visitors', '', 1000 );
+check( 'a metric with nothing measured draws no graph', empty( $s['has'] ) );
+check( 'and says why', strpos( $s['reason'], 'nothing measured' ) !== false );
+
+// No target is not a target of zero.
+$s = Six_Dash_Metrics::target_series( 1, 'Organic Visitors', 420, '' );
+check( 'a metric with no target still draws its line', ! empty( $s['has'] ) );
+check( 'but has no target marker to draw', $s['target_y'] === null );
+check( 'and no percentage', $s['pct'] === null );
+
+// Target met: the point sits on the circle, not past the top of the plot.
+$s = Six_Dash_Metrics::target_series( 1, 'Organic Visitors', 1000, 1000, 300 );
+check( 'a metric at its target reads as met', $s['met'] === true && $s['pct'] === 100 );
+check( 'and draws level with the target marker',
+	abs( $s['points'][1]['y'] - $s['target_y'] ) < 0.001 );
+
+// ── The seven-day mean ───────────────────────────────────────────────────
+$flat = Six_Dash_Metrics::weekly_mean( array_fill( 0, 10, 100.0 ) );
+check( 'a flat series stays flat under smoothing',
+	$flat[0] === 100.0 && $flat[9] === 100.0 );
+check( 'the smoothed series is the same length as the input', count( $flat ) === 10 );
+
+$spike = Six_Dash_Metrics::weekly_mean( array( 0, 0, 0, 0, 0, 0, 70.0 ) );
+check( 'a one-day spike is flattened, not carried at full height',
+	abs( $spike[6] - 10.0 ) < 0.001, 'got ' . $spike[6] );
+check( 'and the first point averages only what exists before it',
+	$spike[0] === 0.0 );
+
+$rising = Six_Dash_Metrics::weekly_mean( array( 1, 2, 3, 4, 5, 6, 7, 8 ) );
+check( 'the mean trails rather than leading, so it never uses a future day',
+	$rising[7] < 8.0 && $rising[7] > 4.0, 'got ' . $rising[7] );
+
+// ── Where the line splits ────────────────────────────────────────────────
+$pts = array();
+for ( $i = 0; $i < 30; $i++ ) {
+	$pts[] = array( 'date' => gmdate( 'Y-m-d', strtotime( '2026-10-01 +' . $i . ' days' ) ) );
+}
+check( 'a start date inside the window splits there',
+	Six_Dash_Metrics::split_index( $pts, '2026-10-11' ) === 10,
+	var_export( Six_Dash_Metrics::split_index( $pts, '2026-10-11' ), true ) );
+check( 'a start date before the window splits at the first point, so both lines run the full width',
+	Six_Dash_Metrics::split_index( $pts, '2026-05-01' ) === 0 );
+check( 'a start date after the window produces no split at all',
+	Six_Dash_Metrics::split_index( $pts, '2026-12-01' ) === null );
+check( 'no start date produces no split, rather than splitting at day zero',
+	Six_Dash_Metrics::split_index( $pts, '' ) === null,
+	'a client with no recorded start would get a "without us" line out of nothing' );
+check( 'a start date on the last day still splits',
+	Six_Dash_Metrics::split_index( $pts, '2026-10-30' ) === 29 );
+check( 'a timestamp works as well as a date',
+	Six_Dash_Metrics::split_index( $pts, '2026-10-11 14:32:00' ) === 10 );
+check( 'an empty window splits nowhere', Six_Dash_Metrics::split_index( array(), '2026-10-11' ) === null );
+
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * What the dashboard actually renders
+ *
+ * These read the template. A class rename on either side of a listener, or a
+ * section that quietly stops being emitted, is invisible until somebody opens
+ * the page — which in this codebase has meant a client opening it.
+ * ───────────────────────────────────────────────────────────────────────── */
+$cust = file_get_contents( dirname( __DIR__, 2 ) . '/portal/templates/customer-dashboard.php' );
+
+// ── The progress bars are gone, and graphs replaced them ─────────────────
+check( 'the per-metric progress bars are gone',
+	strpos( $cust, 'transition:width 1s ease' ) === false,
+	'a progress bar is still being rendered' );
+check( 'target graphs replaced them', strpos( $cust, 'six-target-grid' ) !== false );
+check( 'two to a row on a desktop',
+	strpos( $cust, '.six-target-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))' ) !== false );
+check( 'and one on a phone, at a width a phone actually is',
+	strpos( $cust, '@media(max-width:620px){.six-target-grid{grid-template-columns:1fr}}' ) !== false );
+check( 'each plot carries its series as data',
+	strpos( $cust, 'data-graph="<?php echo esc_attr(wp_json_encode($tser))' ) !== false );
+check( 'the target is drawn as a glowing circle',
+	strpos( $cust, "radialGradient" ) !== false && strpos( $cust, "uid + 'g'" ) !== false );
+check( 'the graph is drawn at the box\'s real size, not a stretched viewBox',
+	strpos( $cust, 'box.clientWidth' ) !== false
+	&& strpos( $cust, "preserveAspectRatio: 'none'" ) === false,
+	'a fixed viewBox stretched every axis label sideways' );
+check( 'and it redraws when the theme changes',
+	strpos( $cust, "attributeFilter: ['data-theme']" ) !== false );
+
+// ── Performance / Reporting ──────────────────────────────────────────────
+check( 'the two halves are a full-width 50/50 control',
+	strpos( $cust, '.six-svc-switch{display:grid;grid-template-columns:1fr 1fr' ) !== false );
+check( 'with a Performance half', strpos( $cust, 'data-pane="performance"' ) !== false );
+check( 'and a Reporting half', strpos( $cust, 'data-pane="reporting"' ) !== false );
+check( 'both panes exist in the markup',
+	strpos( $cust, 'id="six-pane-performance"' ) !== false
+	&& strpos( $cust, 'id="six-pane-reporting"' ) !== false );
+check( 'the graphs are under Performance',
+	strpos( $cust, 'id="six-pane-performance"' ) < strpos( $cust, 'six-target-grid">' ) );
+check( 'the optimization proof is under Reporting',
+	strpos( $cust, 'id="six-pane-reporting"' ) < strpos( $cust, '>Optimization proof<' ) );
+check( 'the client\'s task list is under Reporting too',
+	strpos( $cust, '<?php echo $plan_html; $plan_html = \'\'; ?>' ) !== false );
+check( 'and a client with no metrics still sees their plan',
+	strpos( $cust, "if ( ! empty( \$plan_html ) ) { echo \$plan_html;" ) !== false,
+	'no metrics means no Reporting pane to hold it' );
+
+// ── Performance Trend is gone ────────────────────────────────────────────
+check( 'the Performance Trend chart is no longer rendered',
+	strpos( $cust, "id=\"svc-perf-chart\"" ) === false,
+	'the bar chart is still there' );
+
+// ── The overview chart ───────────────────────────────────────────────────
+check( 'the overview splits at the day the service was switched on',
+	strpos( $cust, 'VIS.split_at' ) !== false );
+check( 'and marks that day on the plot', strpos( $cust, "'we started'" ) !== false );
+check( 'the "without us" line starts at the split, not at the left edge',
+	strpos( $cust, 'for (var bi = Math.max(0, split); bi < n; bi++)' ) !== false,
+	'the grey line would describe days before we did anything' );
+check( 'the line tops out at 80% of the plot height',
+	strpos( $cust, 'var maxY = peak / 0.80' ) !== false );
+check( 'and 80% of its width, with the slack on the right',
+	strpos( $cust, 'var spanW = (W - pad.l - pad.r) * 0.80' ) !== false );
+check( 'the caption says how many days are shown',
+	strpos( $cust, 'VIS.window_days' ) !== false );
+check( 'and that the line is smoothed, so a client is not told a weekend was a crash',
+	strpos( $cust, 'smoothed over seven' ) !== false );
+check( 'the overview redraws on a theme change instead of keeping its light greys',
+	strpos( $cust, 'window.sixRedrawVisits = build' ) !== false
+	&& strpos( $cust, 'window.sixRedrawVisits()' ) !== false );
+
+// ── Competitor analysis includes the client ──────────────────────────────
+check( 'the client appears on their own competitor table',
+	strpos( $cust, '>You</span>' ) !== false );
+check( 'with their position out of a named total',
+	strpos( $cust, 'by estimated organic visits' ) !== false,
+	'"3rd" with no denominator is not a fact' );
+check( 'their own row uses the same estimate as every other row',
+	strpos( $cust, 'estimated on the same basis' ) !== false
+	|| strpos( file_get_contents( dirname( __DIR__, 2 ) . '/portal/ajax-handlers.php' ),
+	           'estimated on the same basis' ) !== false );
+check( 'and their measured figure is shown separately, named as measured',
+	strpos( $cust, 'Your own analytics measured' ) !== false,
+	'a measured number in a column of estimates is the comparison a client can catch us making' );
+check( 'the empty-state colspan matches the new column count',
+	strpos( $cust, 'colspan="6"' ) !== false );
+
+// ── Website maintenance stays out of the service nav ─────────────────────
+check( 'maintenance still has no Services nav item',
+	strpos( $cust, '>Website Maintenance</span>' ) === false );
+
 echo "\nPassed: $pass  Failed: $fail\n";
 exit( $fail ? 1 : 0 );
