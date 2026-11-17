@@ -308,6 +308,68 @@ with tempfile.TemporaryDirectory() as tmp:
     code, out = run(hj)
     ok("a teaser that turned into a how-to is flagged", "full fix" in out, out)
 
+print("── The on-page section ──────────────────────────────────────────────")
+
+# This is the section a reader checks against their own page source, so the
+# two failures that matter are a count that is not the count and a section
+# that appears when there is nothing to show.
+ONPAGE = {
+    "pages_read": 184,
+    "links_checked": 412,
+    "crawled_on": "9 November 2026",
+    "findings": {
+        "title_too_long": [{"url": "https://x.test/a/", "title": "A" * 80,
+                            "length": 80, "suggestion": "A" * 55}],
+        "meta_missing": [{"url": "https://x.test/b/"}, {"url": "https://x.test/c/"}],
+        "broken_links": [{"url": "https://x.test/gone/", "status": 404,
+                          "link_count": 3, "linked_from": ["https://x.test/"]}],
+        "images_missing_alt": [{"url": "https://x.test/d/", "count": 4, "images": []}],
+    },
+    "examples": [
+        {"url": "https://x.test/a/", "existing": "A" * 80, "length": 80,
+         "suggestion": "Bail Hearing Lawyer in Toronto | Example Firm"},
+    ],
+    "verdict": "Most of the site has no meta description at all.",
+}
+
+html = render.render_onpage(ONPAGE)
+ok("the section renders when there are findings", "What is on the pages" in html, html[:200])
+ok("each group's count is the number of rows, not the number of groups",
+   ">2<" in html.replace(",", "") and ">3<" not in html.split("Why it matters")[0],
+   html)
+for label in ("Page titles over 60 characters", "Pages with no meta description",
+              "Broken links", "Images with no alt text"):
+    ok(f"group shown: {label}", label in html)
+ok("a group with no findings is not listed",
+   "Duplicate page titles" not in html, "an empty group was printed as a row")
+ok("the scope of the crawl is stated", "184 pages read" in html, html[:400])
+ok("and the date it was read", "9 November 2026" in html)
+ok("the worked examples carry the replacement we would write",
+   "Bail Hearing Lawyer in Toronto" in html)
+
+ok("nothing renders when there is no onpage block", render.render_onpage(None) == "")
+ok("and nothing renders when the crawl found nothing",
+   render.render_onpage({"pages_read": 12, "findings": {}}) == "",
+   "an empty section would imply the checks were not run")
+
+# A truncated crawl describes part of a site. "47 pages have no meta
+# description" and "47 of the first 300 we read" are different claims.
+truncated = render.render_onpage(dict(ONPAGE, crawl_limit_hit=True))
+ok("a truncated crawl says its counts cover only the pages read",
+   "stopped at its page limit" in truncated)
+ok("and a complete crawl does not say that",
+   "stopped at its page limit" not in html)
+
+ok("a URL in a table cell is allowed to wrap",
+   "word-break:break-all" in render.build(EXAMPLE) or
+   ".onpage-url" in render.build(EXAMPLE),
+   "a long address would push the row off the printed page")
+
+full = render.build(dict(EXAMPLE, onpage=ONPAGE))
+ok("the section appears in a rendered report", "What is on the pages" in full)
+ok("an audit with no onpage block still renders",
+   "What is on the pages" not in render.build(EXAMPLE))
+
 print("\n" + "\n".join(LOG))
 print(f"\nPassed: {PASS}  Failed: {FAIL}")
 sys.exit(1 if FAIL else 0)

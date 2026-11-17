@@ -17,6 +17,7 @@ run() {
 run "Skills are usable cold"        python3 tools/check_seo_skills.py
 run "Skills match the portal code"  php     tools/check_skill_drift.php
 run "Audit renderer + checker"      python3 tools/tests/test_audit_render.py
+run "On-page crawler"               python3 tools/tests/test_crawl_onpage.py
 run "Rank grid"                     python3 tools/tests/test_rank_grid.py
 run "Competitors on the grid"       python3 tools/tests/test_rivals.py
 run "GA4 / Search Console"          php     tools/tests/test_ga4.php

@@ -904,6 +904,117 @@ def render_speed(speed):
     return "".join(out)
 
 
+# The on-page issue groups, in the order a reader cares about them, with the
+# one-line reason each matters. Keyed to what crawl_onpage.py emits.
+ONPAGE_GROUPS = [
+    ("broken_links", "Broken links",
+     "Links that go nowhere. An internal one wastes a visitor; an external one dates the page."),
+    ("redirect_chains", "Redirect chains",
+     "A link that goes through two or more hops before it arrives."),
+    ("title_missing", "Pages with no title tag",
+     "The line Google shows in the result. Without one it writes its own."),
+    ("title_duplicate", "Duplicate page titles",
+     "Two pages claiming the same search result."),
+    ("title_too_long", "Page titles over 60 characters",
+     "Cut off in the result, usually mid-phrase."),
+    ("title_same_as_h1", "Page titles identical to the page heading",
+     "The heading speaks to somebody already reading; the title has to win the click."),
+    ("title_too_short", "Page titles under 30 characters",
+     "Room left unused in the one line that wins the click."),
+    ("meta_missing", "Pages with no meta description",
+     "Google writes its own, and rarely picks the sentence that would persuade."),
+    ("meta_duplicate", "Duplicate meta descriptions",
+     "The same sentence under several results."),
+    ("meta_too_long", "Meta descriptions over 155 characters", "Truncated in the result."),
+    ("h1_missing", "Pages with no H1", "No heading saying what the page is."),
+    ("h1_multiple", "Pages with more than one H1",
+     "Two headings each claiming to be the subject."),
+    ("h1_duplicate", "Duplicate H1s", "Several pages with the same heading."),
+    ("canonical_missing", "Pages with no canonical tag",
+     "Nothing saying which address is the real one for this page."),
+    ("canonical_elsewhere", "Canonicals pointing elsewhere",
+     "The page asks Google to index a different address. Sometimes deliberate."),
+    ("noindex", "Pages marked noindex", "Deliberately kept out of Google — worth confirming each."),
+    ("images_missing_alt", "Images with no alt text",
+     "Invisible to a screen reader and to image search."),
+    ("too_deep", "Pages more than three clicks from the homepage",
+     "Harder for Google to reach and for a visitor to find."),
+    ("thin", "Pages under 300 words", "Too little to answer a search with."),
+    ("orphans", "Pages in the sitemap that nothing links to",
+     "The site says these matter and gives no way to reach them."),
+]
+
+
+def render_onpage(onpage):
+    """
+    What is actually on the pages, read from the site itself.
+
+    This is the one section a reader can check in thirty seconds by opening
+    their own page source, which is why it carries counts and real addresses
+    rather than a paragraph about best practice.
+
+    `examples` is a short list of worked rows — the existing title, its
+    length, and the title we would write. Three of those prove the work can
+    be done; the whole sheet is the work, and it is not given away here.
+    """
+    if not onpage:
+        return ""
+    findings = onpage.get("findings") or {}
+    rows = [(label, why, len(findings.get(key) or []))
+            for key, label, why in ONPAGE_GROUPS if findings.get(key)]
+    if not rows and not onpage.get("examples"):
+        return ""
+
+    out = ['<section class="block"><h2>What is on the pages</h2>']
+
+    read = num(onpage.get("pages_read"))
+    if read is not None:
+        scope = f"{int(read):,} pages read"
+        if num(onpage.get("links_checked")) is not None:
+            scope += f", {int(onpage['links_checked']):,} link targets checked"
+        if onpage.get("crawled_on"):
+            scope += f", {onpage['crawled_on']}"
+        out.append(f'<p class="lede">{esc(scope)}.</p>')
+
+    if rows:
+        out.append('<table class="scorecard"><thead><tr>'
+                   '<th scope="col">What we found</th>'
+                   '<th scope="col" class="num">Pages</th>'
+                   '<th scope="col">Why it matters</th></tr></thead><tbody>')
+        for label, why, count in rows:
+            out.append(f"<tr><td>{esc(label)}</td>"
+                       f'<td class="num">{count:,}</td>'
+                       f'<td class="verdict-cell">{esc(why)}</td></tr>')
+        out.append("</tbody></table>")
+
+    examples = onpage.get("examples") or []
+    if examples:
+        out.append("<h3>Three of them, with what we would write instead</h3>")
+        out.append('<table class="scorecard"><thead><tr>'
+                   '<th scope="col">Page</th><th scope="col">What is there now</th>'
+                   '<th scope="col" class="num">Length</th>'
+                   '<th scope="col">What we would write</th></tr></thead><tbody>')
+        for ex in examples[:5]:
+            length = ex.get("length")
+            out.append(
+                f'<tr><td class="onpage-url">{esc(ex.get("url", ""))}</td>'
+                f'<td>{esc(ex.get("existing", ""))}</td>'
+                f'<td class="num">{esc(length) if length else "—"}</td>'
+                f'<td>{esc(ex.get("suggestion", ""))}</td></tr>')
+        out.append("</tbody></table>")
+
+    if onpage.get("verdict"):
+        out.append(f'<p class="verdict">{esc(onpage["verdict"])}</p>')
+    # A crawl that stopped early describes part of a site. Saying so is the
+    # difference between "47 pages have no meta description" and "47 of the
+    # first 300 pages we read have no meta description".
+    if onpage.get("crawl_limit_hit"):
+        out.append('<p class="gap-note">The crawl stopped at its page limit, so these '
+                   "counts cover the pages read, not the whole site.</p>")
+    out.append("</section>")
+    return "".join(out)
+
+
 def render_search_presence(data):
     """
     How this site actually turns up in a search result — the snippet a person
@@ -1132,6 +1243,10 @@ table.scorecard th[scope=row]{font-weight:700;width:30%}
 table.scorecard .verdict-cell{color:var(--ink-2);font-size:13.5px;line-height:1.6}
 table.scorecard .num{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;
   padding-right:0;width:64px}
+/* A URL in a table cell: long, unbreakable, and it will push the row off the
+   page unless it is told it may wrap mid-string. */
+table.scorecard .onpage-url{font-size:12px;color:var(--muted);word-break:break-all;
+  max-width:230px}
 
 /* ── meters (speed only) ── */
 .meters{display:flex;flex-direction:column;gap:2px}
@@ -1286,6 +1401,7 @@ def build(data):
 
     parts.append(render_local(data.get("local")))
     parts.append(render_speed(data.get("speed")))
+    parts.append(render_onpage(data.get("onpage")))
     parts.append(render_anchors(data))
     parts.append(render_sections(data.get("sections")))
 

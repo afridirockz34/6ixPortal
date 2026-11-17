@@ -53,7 +53,32 @@ the bare domain and nothing about the service.
 
 **Checks:** broken internal/external links, redirect chains, missing or duplicate title tags, missing or duplicate meta descriptions, missing or duplicate H1s, missing image alt text, slow pages / Core Web Vitals failures, crawlability/indexation blocks (robots.txt or meta-robots issues, orphaned pages).
 
-**Tools:** `site-audit-projects` (check whether a Site Audit project already exists for this domain; if not, one needs to be created and crawled before this category can be filled — flag the wait rather than guessing), `site-audit-issues` (the actual issue list, by category and severity as Ahrefs itself scores them), `site-audit-page-explorer` and `site-audit-page-content` for digging into specific flagged pages (e.g., which exact pages are missing alt text or a meta description).
+**Tools:** `scripts/crawl_onpage.py` reads the live site directly and returns every check below per URL — use it first, because it needs nothing set up and works on any prospect. Then `site-audit-projects` (check whether a Site Audit project already exists for this domain; if one does, its issue list is worth having alongside), `site-audit-issues` (the issue list by category and severity as Ahrefs itself scores them), `site-audit-page-explorer` and `site-audit-page-content` for digging into specific flagged pages. Where no Site Audit project exists, say the report's on-page section came from our own crawl and give the date — do not flag a wait for a crawl nobody is going to run.
+
+**What the crawler returns, and the shape to report it in.** One table per issue type, one row per URL, with what is there now and its length:
+
+| Issue group | Row carries |
+|---|---|
+| Broken links | the address, its status, how many pages link to it, and which |
+| Redirect chains | the address, the number of hops, where it ends up |
+| Page titles | missing · duplicated across pages · over 60 · under 30 · identical to the page's own H1 |
+| Meta descriptions | missing · duplicated · over 155 · under 70 |
+| H1s | missing · more than one on a page · duplicated across pages · over 70 |
+| Canonicals | missing · pointing somewhere other than the page itself |
+| Indexability | noindex, with the directive, so a deliberate one can be told from an accident |
+| Images | no alt attribute, counted per page. An `alt=""` is correct markup for a decorative image and is not counted |
+| Structure | more than three clicks from the homepage · under 300 words · in the sitemap and linked from nothing |
+
+A title identical to the H1 is worth its own group even though neither is
+wrong on its own: the heading speaks to somebody already reading the page and
+the title has to win the click from a list of ten results, so using one text
+for both leaves the second job undone. It is also the single most common
+finding on a WordPress site, where the theme writes both from the post title.
+
+**Counts in a pre-sales report, the rewrite sheet after signature.** Three
+worked rows — existing title, its length, the title we would write — prove we
+can do the work. Forty rows is the work. The complete sheet is the first
+implementation deliverable.
 
 **Why it matters:** this is the category a prospect can partly verify themselves by looking at their own site, which makes it credible — but the full count ("38 pages missing a meta description, including your 6 highest-traffic pages") is something only a real crawl surfaces, which is the point.
 
