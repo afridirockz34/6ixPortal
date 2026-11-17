@@ -81,6 +81,8 @@ nothing captures it.
 | `keywords_page1` | Keywords ranking on page 1 | higher |
 | `keywords_tracked` | Keywords under tracking | higher |
 | `seo_avg_position` | Average ranking position | **lower** |
+| `onpage_issues` | On-page issues outstanding | **lower** |
+| `page_load_ms` | Milliseconds to first render | **lower** |
 | `paid_clicks` | Ad clicks per month | higher |
 | `ads_leads` | Leads from ads per month | higher |
 | `ads_impressions` | Ad impressions per month | higher |

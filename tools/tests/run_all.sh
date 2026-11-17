@@ -23,6 +23,7 @@ run "GA4 / Search Console"          php     tools/tests/test_ga4.php
 run "Pull metrics precedence"       php     tools/tests/test_pull_metrics.php
 run "MCP live integration reads"    php     tools/tests/test_mcp_live_metrics.php
 run "Tracking: fit, labels, writes" php     tools/tests/test_tracking.php
+run "Progress bars + trend arrows" php     tools/tests/test_metric_math.php
 run "MCP work log + proposals"      php     tools/tests/test_mcp_tracking_tools.php
 run "Content publish gate"          python3 tools/tests/test_content_gate.py
 run "Keyword / topic set shape"      python3 tools/tests/test_keyword_set.py

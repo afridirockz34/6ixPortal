@@ -769,7 +769,14 @@ if ( $web_proj && $web_proj['total'] > 0 ):
 
     var pad = { t:14, b:26, l:46, r:16 };
     var pts = VIS.points, n = pts.length;
-    var maxY = Math.max.apply(null, pts.map(function(p){ return Math.max(p.before,p.after); })) * 1.12 || 1;
+    // A "without us" line only exists when we could fit one on readings from
+    // before the engagement started. Where we could not, nothing is drawn
+    // rather than a flat line asserted at a baseline nobody measured.
+    var hasBefore = VIS.projected_from && VIS.projected_from !== 'none'
+                    && pts.length && pts[0].before !== null && pts[0].before !== undefined;
+    var maxY = Math.max.apply(null, pts.map(function(p){
+      return hasBefore ? Math.max(p.before, p.after) : p.after;
+    })) * 1.12 || 1;
     var X = function(i){ return pad.l + (i/(n-1)) * (W-pad.l-pad.r); };
     var Y = function(v){ return H-pad.b - (v/maxY) * (H-pad.t-pad.b); };
 
@@ -807,15 +814,20 @@ if ( $web_proj && $web_proj['total'] > 0 ):
       xl.appendChild(t);
     });
 
-    var beforePts = pts.map(function(p,i){ return [X(i), Y(p.before)]; });
-    var afterPts  = pts.map(function(p,i){ return [X(i), Y(p.after)];  });
+    var afterPts = pts.map(function(p,i){ return [X(i), Y(p.after)]; });
+    document.getElementById('vis-after').setAttribute('d', smooth(afterPts));
 
-    // Shade the gap between the two lines — that gap is the whole point.
-    var rev = ''; for (var k=beforePts.length-1;k>=0;k--){ rev += 'L '+beforePts[k][0]+','+beforePts[k][1]+' '; }
-    document.getElementById('vis-gap').setAttribute('d',
-      smooth(afterPts) + ' L ' + beforePts[beforePts.length-1][0] + ',' + beforePts[beforePts.length-1][1] + ' ' + rev + ' Z');
-    document.getElementById('vis-before').setAttribute('d', smooth(beforePts));
-    document.getElementById('vis-after').setAttribute('d',  smooth(afterPts));
+    if (hasBefore) {
+      var beforePts = pts.map(function(p,i){ return [X(i), Y(p.before)]; });
+      // Shade the gap between the two lines — that gap is the whole point.
+      var rev = ''; for (var k=beforePts.length-1;k>=0;k--){ rev += 'L '+beforePts[k][0]+','+beforePts[k][1]+' '; }
+      document.getElementById('vis-gap').setAttribute('d',
+        smooth(afterPts) + ' L ' + beforePts[beforePts.length-1][0] + ',' + beforePts[beforePts.length-1][1] + ' ' + rev + ' Z');
+      document.getElementById('vis-before').setAttribute('d', smooth(beforePts));
+    } else {
+      document.getElementById('vis-gap').setAttribute('d','');
+      document.getElementById('vis-before').setAttribute('d','');
+    }
 
     var end = document.getElementById('vis-end');
     end.setAttribute('cx', afterPts[afterPts.length-1][0]);
@@ -831,10 +843,22 @@ if ( $web_proj && $web_proj['total'] > 0 ):
     var muted  = isDark ? 'rgba(255,255,255,.32)' : 'rgba(15,20,40,.4)';
     var measured = VIS.source === 'measured';
     var live     = measured || VIS.source === 'live';
-    var lift     = VIS.current_mo - VIS.baseline_mo;
+    var hasFit   = VIS.projected_from === 'fit';
+    // "+N vs before" is only a real comparison when there is a fitted line to
+    // compare against. Against a flat assumed baseline it was arithmetic on a
+    // number nobody measured.
+    var lift     = hasFit ? (VIS.current_mo - VIS.baseline_mo) : 0;
     var badge    = measured ? 'Measured' : (VIS.source === 'live' ? 'Live' : 'Projected');
     var lastMo   = VIS.last_month || null;
     var target   = VIS.target || null;
+    var unit     = VIS.metric || 'visitors';
+    // Say what the chart is actually showing. The old subtitle promised a
+    // comparison the chart could not always draw.
+    var subtitle = hasFit
+      ? ('Your own trend before we started, carried forward, against what actually happened')
+      : (VIS.daily
+          ? ('Measured ' + unit + ', day by day')
+          : 'Measured across the services you are running with us');
 
     mount.innerHTML = [
     '<div id="analytics-root" style="background:'+bg+';padding:20px 22px 14px;font-family:var(--font-body);transition:background .3s">',
@@ -846,11 +870,11 @@ if ( $web_proj && $web_proj['total'] > 0 ):
          + (live ? 'color:#0b3b1e;background:#56D364' : 'color:#5b4708;background:#E3B341')
          + ';padding:2.5px 7px;border-radius:5px">' + badge + '</span>',
     '      </div>',
-    '      <div style="font-size:11.5px;color:'+muted+';margin-top:4px">Where you were heading without us, versus where you are now</div>',
+    '      <div style="font-size:11.5px;color:'+muted+';margin-top:4px">'+subtitle+'</div>',
     '    </div>',
     '    <div style="text-align:right">',
     '      <div style="font-size:22px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:'+strong+'">'+fmt(VIS.current_mo)+'</div>',
-    '      <div style="font-size:10.5px;color:'+muted+'">visitors / mo'+(lift>0?' · +'+fmt(lift)+' vs before':'')+'</div>',
+    '      <div style="font-size:10.5px;color:'+muted+'">'+(VIS.daily?unit+' · last 30 days':'visitors / mo')+(lift>0?' · +'+fmt(lift)+' vs your own trend':'')+'</div>',
     '    </div>',
     '  </div>',
     // Last month's actual figure and the target the strategy committed to.
@@ -889,13 +913,19 @@ if ( $web_proj && $web_proj['total'] > 0 ):
     '    <div id="vis-tt" style="position:absolute;pointer-events:none;opacity:0;background:'+(isDark?'rgba(11,15,26,.92)':'rgba(255,255,255,.96)')+';border:1px solid '+(isDark?'rgba(255,102,153,.2)':'rgba(15,20,40,.12)')+';border-radius:9px;padding:8px 11px;font-size:11.5px;min-width:150px;box-shadow:0 8px 28px rgba(0,0,0,.32);transition:opacity .12s;z-index:20;color:'+strong+'">',
     '      <div id="vis-tt-w" style="font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;opacity:.5;margin-bottom:5px"></div>',
     '      <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:2px"><span style="color:#FF6699;font-weight:700">With us</span><span id="vis-tt-a" style="font-variant-numeric:tabular-nums"></span></div>',
-    '      <div style="display:flex;justify-content:space-between;gap:12px;font-size:10.5px;opacity:.7"><span>Without us</span><span id="vis-tt-b" style="font-variant-numeric:tabular-nums"></span></div>',
+    (hasFit ? '      <div style="display:flex;justify-content:space-between;gap:12px;font-size:10.5px;opacity:.7"><span>Without us</span><span id="vis-tt-b" style="font-variant-numeric:tabular-nums"></span></div>' : ''),
     '    </div>',
     '  </div>',
     '  <div style="font-size:10.5px;line-height:1.5;color:'+(isDark?'rgba(255,255,255,.34)':'rgba(15,20,40,.45)')+';margin-top:6px">'
-       + (live
-          ? 'Measured across the services you\'re running with us. The dashed line is your pre-6ix baseline.'
-          : 'Projected from your services and budget using industry benchmarks. Switches to measured traffic once your advisor connects your reporting tools.')
+       + (!live
+          ? 'Projected from your services and budget using industry benchmarks. Switches to measured traffic once your advisor connects your reporting tools.'
+          : hasFit
+            ? ('Solid line: your ' + unit + ', measured daily by ' + (VIS.measured_from === 'ga4' ? 'Google Analytics' : 'Google Search Console') + '. '
+               + 'Dashed line: your own trend over the ' + VIS.fitted_on + ' days before we started, carried forward.')
+            : (VIS.daily
+               ? ('Your ' + unit + ', measured daily by ' + (VIS.measured_from === 'ga4' ? 'Google Analytics' : 'Google Search Console') + '. '
+                  + (VIS.note || 'There is not yet enough history from before we started to draw a "without us" comparison.'))
+               : 'Measured across the services you\'re running with us.'))
        + '</div>',
     '</div>'
     ].join('');
@@ -912,7 +942,8 @@ if ( $web_proj && $web_proj['total'] > 0 ):
       hv.setAttribute('opacity','1');
       document.getElementById('vis-tt-w').textContent = 'Week ' + (i+1);
       document.getElementById('vis-tt-a').textContent = fmt(p.after);
-      document.getElementById('vis-tt-b').textContent = fmt(p.before);
+      var ttb = document.getElementById('vis-tt-b');
+      if (ttb) ttb.textContent = fmt(p.before);
       var tt = document.getElementById('vis-tt');
       var left = x + 14; if (left + 165 > GEO.W) left = x - 165;
       tt.style.left = left + 'px'; tt.style.top = '10px'; tt.style.opacity = '1';
@@ -1332,6 +1363,15 @@ $chart_json = json_encode(array(
     </div>
 </div>
 
+<?php
+/* Fetched before the metrics panel so the proof can stand on its own: a
+   client whose advisor has not entered metrics yet still has work logged
+   against them, and that work is the part they asked to see. */
+$proof_rows = class_exists('Six_Tracking') ? Six_Tracking::proof($user_id, $svc_slug) : array();
+$recent_work = ($proof_rows && class_exists('Six_Tracking'))
+    ? Six_Tracking::work_log($user_id, array('service_slug'=>$svc_slug,'status'=>'deployed','limit'=>5))
+    : array();
+?>
 <?php if(!empty($s_mets)): ?>
 
 <!-- Metrics — clean table row layout instead of box-on-box -->
@@ -1344,9 +1384,12 @@ $chart_json = json_encode(array(
     <!-- Summary row — big numbers across top -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));border-bottom:1px solid rgba(255,255,255,0.05)">
     <?php foreach(array_slice($s_mets,0,4) as $met):
-        $c_n = floatval(preg_replace('/[^0-9.]/','',$met->current_value));
-        $p_n = floatval(preg_replace('/[^0-9.]/','',$met->previous_value));
-        $tr  = ($p_n>0)?round((($c_n-$p_n)/$p_n)*100):null;
+        /* Direction matters: an average position falling from 18 to 11 is an
+           improvement, and the old arithmetic painted it red. */
+        $lower = class_exists('Six_Dash_Metrics') ? Six_Dash_Metrics::lower_is_better($met->label) : false;
+        $chg   = class_exists('Six_Dash_Metrics')
+            ? Six_Dash_Metrics::change($met->current_value, $met->previous_value, $lower)
+            : array('pct'=>null,'good'=>null,'arrow'=>'');
     ?>
     <div style="padding:18px 20px;border-right:1px solid rgba(255,255,255,0.05)">
         <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text3);margin-bottom:6px"><?php echo esc_html($met->label); ?></div>
@@ -1357,10 +1400,10 @@ $chart_json = json_encode(array(
         if ( $met_unit ): ?>
         <div style="font-size:10px;color:var(--text3);margin-bottom:6px"><?php echo esc_html($met_unit); ?></div>
         <?php else: ?><div style="height:2px"></div><?php endif; ?>
-        <?php if($tr!==null): ?>
+        <?php if($chg['pct']!==null): ?>
         <div style="display:flex;align-items:center;gap:4px">
-            <span style="font-size:10px;font-weight:700;color:<?php echo $tr>=0?'var(--success)':'var(--danger)'; ?>"><?php echo $tr>=0?'↑':'↓'; ?><?php echo abs($tr); ?>%</span>
-            <span style="font-size:10px;color:var(--text3)">vs last month</span>
+            <span style="font-size:10px;font-weight:700;color:<?php echo $chg['good']===null?'var(--text3)':($chg['good']?'var(--success)':'var(--danger)'); ?>"><?php echo $chg['arrow']; ?><?php echo $chg['pct']; ?>%</span>
+            <span style="font-size:10px;color:var(--text3)">vs previous<?php echo $lower?' · lower is better':''; ?></span>
         </div>
         <?php elseif($met->previous_value): ?>
         <div style="font-size:10px;color:var(--text3)">Was: <?php echo esc_html($met->previous_value); ?></div>
@@ -1370,12 +1413,96 @@ $chart_json = json_encode(array(
     </div>
     <?php endforeach; ?>
     </div>
+    <?php
+    /* ── Optimization proof ───────────────────────────────────────────────
+       What we actually did, rolled up by category. The dashboard could show a
+       number moving and could not show the work behind it, which makes a
+       monthly report a chart and an assertion. These rows come from the work
+       log — written by the Claude sessions that do the work and by advisors
+       adding anything done by hand — so a category only appears here once
+       somebody logged real changes against it. */
+    if ( $proof_rows ):
+        $proof_found = array_sum(array_column($proof_rows,'found'));
+        $proof_done  = array_sum(array_column($proof_rows,'deployed'));
+        $proof_pct   = $proof_found > 0 ? round($proof_done / $proof_found * 100) : 0;
+    ?>
+    <div style="border-bottom:1px solid rgba(255,255,255,0.05)">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:14px 20px 8px;flex-wrap:wrap">
+            <div>
+                <div style="font-size:12px;font-weight:700;color:var(--text1)">Optimization proof</div>
+                <div style="font-size:10.5px;color:var(--text3);margin-top:2px">Every change we have made, by type. Check any of it yourself.</div>
+            </div>
+            <div style="text-align:right">
+                <div style="font-size:16px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--text1)"><?php echo number_format($proof_done); ?> <span style="font-size:11px;font-weight:400;color:var(--text3)">of <?php echo number_format($proof_found); ?> live</span></div>
+                <div style="font-size:10px;color:var(--text3)"><?php echo $proof_pct; ?>% deployed</div>
+            </div>
+        </div>
+        <?php foreach($proof_rows as $pr):
+            $pr_pct = (int) round($pr['completion'] * 100);
+            $pr_col = $pr_pct >= 90 ? 'var(--success)' : ($pr_pct >= 50 ? $sd['color'] : 'var(--warning)');
+        ?>
+        <div style="display:flex;align-items:center;gap:14px;padding:9px 20px;border-top:1px solid rgba(255,255,255,0.03)">
+            <div style="width:170px;flex-shrink:0;font-size:12px;color:var(--text2)"><?php echo esc_html($pr['category']); ?></div>
+            <div style="width:84px;flex-shrink:0;font-size:11px;color:var(--text3);font-variant-numeric:tabular-nums"><?php echo number_format($pr['deployed']); ?> live</div>
+            <div style="width:84px;flex-shrink:0;font-size:11px;color:var(--text3);font-variant-numeric:tabular-nums"><?php echo $pr['pending'] ? number_format($pr['pending']).' pending' : '—'; ?></div>
+            <div style="flex:1;min-width:60px;height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden">
+                <div style="height:100%;width:<?php echo $pr_pct; ?>%;background:<?php echo $pr_col; ?>;border-radius:3px"></div>
+            </div>
+            <div style="width:40px;text-align:right;font-size:11px;font-weight:700;color:<?php echo $pr_col; ?>"><?php echo $pr_pct; ?>%</div>
+            <div style="width:150px;text-align:right;font-size:10.5px;color:var(--text3)">
+                <?php if(!empty($pr['verify_url'])): ?>
+                    <a href="<?php echo esc_url($pr['verify_url']); ?>" target="_blank" rel="noopener" style="color:var(--cyan)">Verify →</a>
+                <?php elseif(!empty($pr['last_at'])): ?>
+                    last <?php echo esc_html(date_i18n('j M', strtotime($pr['last_at']))); ?>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php endforeach; ?>
+        <?php
+        /* The most recent few changes in full, so "Title Tags: 6 live" is
+           backed by the actual before and after rather than only a count. */
+        $recent = $recent_work;
+        if ( $recent ): ?>
+        <details style="padding:10px 20px 14px;border-top:1px solid rgba(255,255,255,0.05)">
+            <summary style="cursor:pointer;font-size:11px;color:var(--text3)">See the last <?php echo count($recent); ?> changes in detail</summary>
+            <?php foreach($recent as $w): ?>
+            <div style="margin-top:10px;padding-left:10px;border-left:2px solid <?php echo $sd['color']; ?>40">
+                <div style="font-size:12px;color:var(--text1)"><?php echo esc_html($w['title']); ?></div>
+                <div style="font-size:10.5px;color:var(--text3);margin-top:1px">
+                    <?php echo esc_html(date_i18n('j M Y', strtotime($w['performed_at']))); ?>
+                    <?php if($w['entity']): ?> · <?php echo esc_html($w['entity']); ?><?php endif; ?>
+                    <?php if($w['approver']): ?> · approved by <?php echo esc_html($w['approver']); ?><?php endif; ?>
+                </div>
+                <?php if($w['before'] !== '' || $w['after'] !== ''): ?>
+                <div style="font-size:11px;margin-top:5px;font-family:monospace;line-height:1.5;word-break:break-word">
+                    <?php if($w['before'] !== ''): ?><div style="color:var(--danger);opacity:.8">− <?php echo esc_html($w['before']); ?></div><?php endif; ?>
+                    <?php if($w['after'] !== ''): ?><div style="color:var(--success)">+ <?php echo esc_html($w['after']); ?></div><?php endif; ?>
+                </div>
+                <?php endif; ?>
+                <?php if($w['verify_how']): ?>
+                <div style="font-size:10.5px;color:var(--text3);margin-top:4px"><?php echo esc_html($w['verify_how']); ?></div>
+                <?php endif; ?>
+            </div>
+            <?php endforeach; ?>
+        </details>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
+
     <!-- Detail rows for each metric with progress vs target -->
     <?php foreach($s_mets as $i=>$met):
-        $c_n = floatval(preg_replace('/[^0-9.]/','',$met->current_value));
-        $t_n = floatval(preg_replace('/[^0-9.]/','',$met->target_value));
-        $pct = ($t_n>0)?min(100,round(($c_n/$t_n)*100)):0;
-        $mc  = $pct>=75?'var(--success)':($pct>=40?$sd['color']:'var(--warning)');
+        /* current ÷ target is backwards for a metric that improves by falling.
+           An average position of 11.3 against a target of 6 used to render as
+           a full green bar. Six_Dash_Metrics::progress() knows the direction,
+           uses the starting figure where there is one, and returns null rather
+           than 0% when nobody has set a target — "no target" and "no progress"
+           are different facts and the bar cannot say both. */
+        $lower = class_exists('Six_Dash_Metrics') ? Six_Dash_Metrics::lower_is_better($met->label) : false;
+        $prog  = class_exists('Six_Dash_Metrics')
+            ? Six_Dash_Metrics::progress($met->current_value, $met->target_value, $lower, $met->previous_value)
+            : array('pct'=>null,'met'=>false,'reason'=>'');
+        $pct   = $prog['pct'];
+        $mc    = $pct===null ? 'var(--text3)' : ($pct>=75?'var(--success)':($pct>=40?$sd['color']:'var(--warning)'));
     ?>
     <div style="display:flex;align-items:center;gap:16px;padding:12px 20px;border-bottom:1px solid rgba(255,255,255,0.04);<?php echo $i===count($s_mets)-1?'border-bottom:none':''; ?>">
         <div style="width:140px;flex-shrink:0;font-size:12px;color:var(--text2)">
@@ -1383,14 +1510,48 @@ $chart_json = json_encode(array(
             <?php $row_unit = $met->unit ?: ( class_exists('Six_Dash_Metrics') ? Six_Dash_Metrics::unit_for( $met->label ) : '' );
             if ( $row_unit ): ?><div style="font-size:10px;color:var(--text3)"><?php echo esc_html($row_unit); ?></div><?php endif; ?>
         </div>
-        <div style="flex:1;height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden">
-            <div style="height:100%;width:<?php echo $pct; ?>%;background:<?php echo $mc; ?>;border-radius:3px;transition:width 1s ease"></div>
+        <div style="flex:1;height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden" title="<?php echo esc_attr($prog['reason']); ?>">
+            <div style="height:100%;width:<?php echo (int)($pct??0); ?>%;background:<?php echo $mc; ?>;border-radius:3px;transition:width 1s ease"></div>
         </div>
-        <div style="width:80px;text-align:right;font-size:11px;color:var(--text3)">Target: <?php echo esc_html($met->target_value?:'–'); ?></div>
-        <div style="width:40px;text-align:right;font-size:11px;font-weight:700;color:<?php echo $mc; ?>"><?php echo $pct; ?>%</div>
+        <div style="width:110px;text-align:right;font-size:11px;color:var(--text3)">
+            <?php if($met->target_value!==''&&$met->target_value!==null): ?>
+                Target: <?php echo esc_html($met->target_value); ?><?php echo $lower?' or lower':''; ?>
+            <?php else: ?>
+                <span style="opacity:.75">No target set</span>
+            <?php endif; ?>
+        </div>
+        <div style="width:46px;text-align:right;font-size:11px;font-weight:700;color:<?php echo $mc; ?>"><?php echo $pct===null?'—':$pct.'%'; ?></div>
     </div>
     <?php endforeach; ?>
 </div>
+
+<?php
+/* Work logged but no metrics entered yet. The proof still belongs on screen:
+   it is the part that does not depend on an advisor having filled a form. */
+if ( empty($s_mets) && $proof_rows ):
+    $proof_found = array_sum(array_column($proof_rows,'found'));
+    $proof_done  = array_sum(array_column($proof_rows,'deployed'));
+?>
+<div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px">
+    <div style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.05)">
+        <div style="font-size:12px;font-weight:700;color:var(--text1)">Optimization proof</div>
+        <div style="font-size:10.5px;color:var(--text3);margin-top:2px"><?php echo number_format($proof_done); ?> of <?php echo number_format($proof_found); ?> changes live. Your advisor has not set performance targets for this service yet.</div>
+    </div>
+    <?php foreach($proof_rows as $pr):
+        $pr_pct = (int) round($pr['completion'] * 100);
+        $pr_col = $pr_pct >= 90 ? 'var(--success)' : ($pr_pct >= 50 ? $sd['color'] : 'var(--warning)');
+    ?>
+    <div style="display:flex;align-items:center;gap:14px;padding:9px 20px;border-top:1px solid rgba(255,255,255,0.03)">
+        <div style="width:170px;flex-shrink:0;font-size:12px;color:var(--text2)"><?php echo esc_html($pr['category']); ?></div>
+        <div style="width:84px;flex-shrink:0;font-size:11px;color:var(--text3)"><?php echo number_format($pr['deployed']); ?> live</div>
+        <div style="flex:1;min-width:60px;height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:<?php echo $pr_pct; ?>%;background:<?php echo $pr_col; ?>;border-radius:3px"></div>
+        </div>
+        <div style="width:40px;text-align:right;font-size:11px;font-weight:700;color:<?php echo $pr_col; ?>"><?php echo $pr_pct; ?>%</div>
+    </div>
+    <?php endforeach; ?>
+</div>
+<?php endif; ?>
 
 <!-- Performance Chart -->
 <?php if(count($s_mets) >= 2 || !empty($trend['has'])): ?>

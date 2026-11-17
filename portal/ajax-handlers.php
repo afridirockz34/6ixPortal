@@ -1053,8 +1053,12 @@ add_action( 'wp_ajax_six_suggest_metrics', function() {
             if ( empty( $p['error'] ) ) {
                 $live      = true;
                 $sources[] = 'Live page check of ' . $p['url'];
-                $rows[] = array( 'label' => 'Page Load (ms)', 'unit' => 'milliseconds to first render', 'previous' => '', 'current' => (string) $p['load_time_ms'], 'target' => '', 'source' => 'Measured now' );
-                $rows[] = array( 'label' => 'On-page Issues', 'unit' => 'issues outstanding', 'previous' => '', 'current' => (string) count( $p['issues'] ), 'target' => '', 'source' => 'Measured now' );
+                // These carry keys so the advisor's saved figure reaches
+                // six_client_kpis and can hold a target. Without a key the
+                // wizard has nothing to write against, which is why On-page
+                // Issues showed "Target: –" however often anybody set one.
+                $rows[] = array( 'key' => 'page_load_ms', 'label' => 'Page Load (ms)', 'unit' => 'milliseconds to first render', 'previous' => '', 'current' => (string) $p['load_time_ms'], 'target' => '', 'source' => 'Measured now', 'lower_better' => true );
+                $rows[] = array( 'key' => 'onpage_issues', 'label' => 'On-page Issues', 'unit' => 'issues outstanding', 'previous' => '', 'current' => (string) count( $p['issues'] ), 'target' => '', 'source' => 'Measured now', 'lower_better' => true );
             }
         }
     }

@@ -77,11 +77,133 @@ class Six_Dash_Metrics {
 	 * as it rises. Anything comparing or trending a metric must ask this —
 	 * a position sliding from 3 to 8 is not a 167% gain.
 	 */
-	public static function lower_is_better( $key ) {
+	/**
+	 * How far along a metric is toward its target.
+	 *
+	 * This exists because the dashboard was computing `current / target` for
+	 * every metric, which is backwards for the ones that improve by falling.
+	 * An average position of 11.3 against a target of 6 was rendering as a
+	 * full green bar at 100%, and so was a page load of 1,200ms against a
+	 * target of 400. Both say "done" about work that has not started.
+	 *
+	 * Two honest readings, in order of preference:
+	 *
+	 *  - With a starting point, progress is the distance travelled from where
+	 *    we began toward where we said we would get: (start − current) ÷
+	 *    (start − target). This is the one a client can argue with.
+	 *  - Without one, the best available is the ratio in whichever direction
+	 *    the metric improves, which at least moves the right way and only
+	 *    reaches 100% when the target is actually met.
+	 *
+	 * A metric with no target returns null rather than 0. "Nobody set a
+	 * target" and "no progress" are different facts, and an empty bar at 0%
+	 * is the dashboard asserting the second when it means the first.
+	 *
+	 * @param mixed $start Where the metric stood when the work began, if known.
+	 * @return array{pct:int|null,met:bool,direction:string,reason:string}
+	 */
+	public static function progress( $current, $target, $lower_better = false, $start = null ) {
+		$c = self::number( $current );
+		$t = self::number( $target );
+		$s = self::number( $start );
+
+		if ( $t === null ) {
+			return array( 'pct' => null, 'met' => false,
+			              'direction' => $lower_better ? 'lower' : 'higher',
+			              'reason' => 'no target set' );
+		}
+		if ( $c === null ) {
+			return array( 'pct' => null, 'met' => false,
+			              'direction' => $lower_better ? 'lower' : 'higher',
+			              'reason' => 'nothing measured yet' );
+		}
+
+		$met = $lower_better ? ( $c <= $t ) : ( $c >= $t );
+		if ( $met ) {
+			return array( 'pct' => 100, 'met' => true,
+			              'direction' => $lower_better ? 'lower' : 'higher',
+			              'reason' => 'target met' );
+		}
+
+		// Travelled from the start, where there is a start to travel from and
+		// it sits on the far side of the target.
+		if ( $s !== null && abs( $s - $t ) > 0.0001
+		     && ( $lower_better ? $s > $t : $s < $t ) ) {
+			$pct = ( $s - $c ) / ( $s - $t ) * 100;
+			return array(
+				'pct'       => (int) max( 0, min( 99, round( $pct ) ) ),
+				'met'       => false,
+				'direction' => $lower_better ? 'lower' : 'higher',
+				'reason'    => 'measured from the starting point',
+			);
+		}
+
+		// No usable start: the ratio, pointed the way the metric improves.
+		$pct = $lower_better
+			? ( $c > 0 ? ( $t / $c ) * 100 : 0 )
+			: ( $t > 0 ? ( $c / $t ) * 100 : 0 );
+
+		return array(
+			'pct'       => (int) max( 0, min( 99, round( $pct ) ) ),
+			'met'       => false,
+			'direction' => $lower_better ? 'lower' : 'higher',
+			'reason'    => 'no starting point recorded, so this is the ratio to target',
+		);
+	}
+
+	/**
+	 * Whether a change is an improvement, and by how much.
+	 *
+	 * The dashboard was drawing every fall in red and every rise in green,
+	 * which paints an average position improving from 18 to 11 as a loss. The
+	 * percentage is the size of the move; `good` is what decides the colour.
+	 *
+	 * @return array{pct:int|null,good:bool|null,arrow:string}
+	 */
+	public static function change( $current, $previous, $lower_better = false ) {
+		$c = self::number( $current );
+		$p = self::number( $previous );
+		if ( $c === null || $p === null || abs( $p ) < 0.0001 ) {
+			return array( 'pct' => null, 'good' => null, 'arrow' => '' );
+		}
+		$delta = ( ( $c - $p ) / abs( $p ) ) * 100;
+		$rose  = $delta > 0;
+		return array(
+			'pct'   => (int) round( abs( $delta ) ),
+			'good'  => abs( $delta ) < 0.5 ? null : ( $lower_better ? ! $rose : $rose ),
+			'arrow' => $rose ? '↑' : '↓',
+		);
+	}
+
+	/** A figure out of whatever the advisor typed, or null. Never 0 by default. */
+	public static function number( $raw ) {
+		if ( $raw === null || $raw === '' ) return null;
+		if ( is_numeric( $raw ) ) return (float) $raw;
+		$clean = preg_replace( '/[^0-9.\-]/', '', (string) $raw );
+		// "–", "n/a" and "" all clean down to nothing, and all of them mean
+		// "no figure" rather than zero.
+		if ( $clean === '' || $clean === '-' || $clean === '.' ) return null;
+		return (float) $clean;
+	}
+
+	public static function lower_is_better( $key_or_label ) {
+		$needle = strtolower( trim( (string) $key_or_label ) );
+		if ( $needle === '' ) return false;
 		foreach ( self::catalog() as $svc ) {
-			if ( isset( $svc['metrics'][ $key ] ) ) {
-				return ! empty( $svc['metrics'][ $key ]['lower_better'] );
+			foreach ( $svc['metrics'] as $key => $m ) {
+				if ( $needle === $key || $needle === strtolower( $m['label'] ) ) {
+					return ! empty( $m['lower_better'] );
+				}
 			}
+		}
+		// The rows the customer's service page renders come from six_metrics,
+		// which stores a label an advisor typed rather than a catalog key. A
+		// label that does not match the catalog exactly still has to be
+		// pointed the right way, or its progress bar fills up as the number
+		// gets worse.
+		foreach ( array( 'position', 'rank', 'issues', 'errors', 'load', 'speed',
+		                 'cost', 'cpc', 'bounce', 'spend', 'time to' ) as $hint ) {
+			if ( strpos( $needle, $hint ) !== false ) return true;
 		}
 		return false;
 	}
@@ -104,6 +226,15 @@ class Six_Dash_Metrics {
 					'keywords_page1'   => array( 'label' => 'Keywords on Page 1', 'unit' => 'keywords, right now' ),
 					'keywords_tracked' => array( 'label' => 'Keywords Tracked',   'unit' => 'keywords, right now' ),
 					'seo_avg_position' => array( 'label' => 'Avg Position', 'lower_better' => true, 'unit' => 'average rank across tracked keywords' ),
+					// Site health. Both improve by FALLING, and both sit at the
+					// end of this list deliberately: cards() fills its stat
+					// slots from the first keys, so these become targetable
+					// without pushing a visitor count off the top row.
+					// Before they were here they had no key at all, which is
+					// why "On-page Issues" could never hold a target — the
+					// metrics wizard writes by key, and there was none to write.
+					'onpage_issues'    => array( 'label' => 'On-page Issues', 'lower_better' => true, 'unit' => 'issues outstanding' ),
+					'page_load_ms'     => array( 'label' => 'Page Load (ms)', 'suffix' => 'ms', 'lower_better' => true, 'unit' => 'milliseconds to first render' ),
 				),
 			),
 			'google-ads' => array(
@@ -462,6 +593,65 @@ class Six_Dash_Metrics {
 		$points = array();
 		$week   = 7 * DAY_IN_SECONDS;
 
+		// ── Day by day, where the daily sync has readings ────────────────
+		//
+		// This is the honest version of the claim the card makes, and the
+		// reason the chart used to show two straight lines: the weekly
+		// snapshot table holds at most one row a week, so a new client had
+		// two points and the "without us" line was a constant drawn at the
+		// baseline. Neither line could move.
+		//
+		// Now the measured line is the actual daily figure from Search
+		// Console or GA4, and the "without us" line is their own pre-
+		// engagement trend fitted and extended — not an assumption that they
+		// would have stayed exactly still.
+		$daily = class_exists( 'Six_Tracking' ) ? Six_Tracking::graph_series( $user_id, '', 180 ) : array( 'has' => false );
+		if ( ! empty( $daily['has'] ) && count( $daily['dates'] ) >= 7 ) {
+			$has_proj = ! empty( $daily['projected'] );
+			foreach ( $daily['dates'] as $i => $d ) {
+				$after  = (float) ( $daily['actual'][ $i ] ?? 0 );
+				$before = $has_proj ? (float) ( $daily['projected'][ $i ] ?? 0 ) : null;
+				$points[] = array(
+					'date'   => $d,
+					'label'  => gmdate( 'j M', strtotime( $d ) ),
+					'before' => $before === null ? null : (int) round( $before ),
+					'after'  => (int) round( $after ),
+				);
+			}
+
+			// The headline stays a monthly figure, because that is what a
+			// client recognises — but it is now the trailing 30 days of real
+			// daily readings rather than a single scraped total, and the
+			// baseline is the same window off the fitted line, so the "+N vs
+			// before" compares like with like.
+			$tail       = array_slice( $points, -30 );
+			$current    = (int) round( array_sum( array_column( $tail, 'after' ) ) );
+			$base_tail  = $has_proj ? array_sum( array_column( $tail, 'before' ) ) : 0;
+			$baseline   = $has_proj ? (int) round( $base_tail ) : 0;
+
+			$metric_label = array(
+				'organic_sessions' => 'organic sessions',
+				'sessions'         => 'sessions',
+				'gsc_clicks'       => 'clicks from Google',
+			);
+
+			return array(
+				'has'            => true,
+				'source'         => 'measured',
+				'daily'          => true,
+				'baseline_mo'    => $baseline,
+				'current_mo'     => $current,
+				'last_month'     => self::last_calendar_month( $points ),
+				'target'         => self::visitor_target( $user_id ),
+				'points'         => $points,
+				'projected_from' => $has_proj ? 'fit' : 'none',
+				'metric'         => $metric_label[ $daily['metric'] ] ?? $daily['metric'],
+				'measured_from'  => $daily['source'] ?? '',
+				'fitted_on'      => (int) ( $daily['fitted_on'] ?? 0 ),
+				'note'           => (string) ( $daily['note'] ?? '' ),
+			);
+		}
+
 		if ( count( $measured ) >= 2 ) {
 			// What actually happened. The "without us" line stays flat at the
 			// baseline, because that is the claim being made: this is where
@@ -506,48 +696,65 @@ class Six_Dash_Metrics {
 			$source = $is_live ? 'live' : 'projected';
 		}
 
-		// Last full calendar month, which is the figure a client actually
-		// recognises — "last month" beats "the trailing 30 days".
-		$last_month = null;
-		if ( $measured ) {
-			$from = gmdate( 'Y-m-01', strtotime( 'first day of last month' ) );
-			$to   = gmdate( 'Y-m-t',  strtotime( 'last day of last month' ) );
-			$vals = array();
-			foreach ( $measured as $m ) {
-				if ( $m['date'] >= $from && $m['date'] <= $to ) $vals[] = $m['value'];
-			}
-			if ( $vals ) {
-				$last_month = array(
-					'value' => (int) round( array_sum( $vals ) / count( $vals ) ),
-					'label' => gmdate( 'F Y', strtotime( $from ) ),
-				);
-			}
-		}
-
-		// Where the strategy says this should get to. Stored by
-		// save_strategy_projections when a strategy is approved, so this is a
-		// target somebody committed to in writing — not a number generated
-		// here. Null until one exists, and the chart simply omits it.
-		$target = null;
-		if ( class_exists( 'Six_Performance' ) ) {
-			$p = Six_Performance::projection_due( $user_id, 'organic_visitors', gmdate( 'Y-m-d', strtotime( '+10 years' ) ) );
-			if ( $p && (float) $p->projected_value > 0 ) {
-				$target = array(
-					'value' => (int) round( (float) $p->projected_value ),
-					'date'  => (string) $p->target_date,
-					'label' => gmdate( 'M Y', strtotime( (string) $p->target_date ) ),
-				);
-			}
-		}
-
 		return array(
-			'has'         => true,
-			'source'      => $source,
-			'baseline_mo' => $baseline,
-			'current_mo'  => $current,
-			'last_month'  => $last_month,
-			'target'      => $target,
-			'points'      => $points,
+			'has'            => true,
+			'source'         => $source,
+			'daily'          => false,
+			'baseline_mo'    => $baseline,
+			'current_mo'     => $current,
+			'last_month'     => self::last_calendar_month( array_map( function ( $m ) {
+				return array( 'date' => $m['date'], 'after' => $m['value'] );
+			}, $measured ) ),
+			'target'         => self::visitor_target( $user_id ),
+			'points'         => $points,
+			// Flat, and labelled as such. The old chart drew this same line
+			// without saying it was an assumption rather than a measurement.
+			'projected_from' => $measured ? 'baseline' : 'model',
+		);
+	}
+
+	/**
+	 * Last full calendar month's figure — what a client recognises.
+	 *
+	 * "Last month" beats "the trailing 30 days" in a conversation, so the card
+	 * shows both. Daily points are summed; weekly snapshots are averaged,
+	 * because each one is already a monthly rate rather than a day's count.
+	 *
+	 * @param array $points Each: date (Y-m-d), after.
+	 */
+	protected static function last_calendar_month( array $points, $daily = true ) {
+		if ( ! $points ) return null;
+		$from = gmdate( 'Y-m-01', strtotime( 'first day of last month' ) );
+		$to   = gmdate( 'Y-m-t',  strtotime( 'last day of last month' ) );
+		$vals = array();
+		foreach ( $points as $p ) {
+			$d = $p['date'] ?? '';
+			if ( $d >= $from && $d <= $to ) $vals[] = (float) ( $p['after'] ?? 0 );
+		}
+		if ( ! $vals ) return null;
+		// A daily series sums to a month; a series of monthly rates averages.
+		$is_daily = count( $vals ) > 6;
+		return array(
+			'value' => (int) round( $is_daily ? array_sum( $vals ) : array_sum( $vals ) / count( $vals ) ),
+			'label' => gmdate( 'F Y', strtotime( $from ) ),
+		);
+	}
+
+	/**
+	 * Where the strategy says visitors should get to.
+	 *
+	 * Written by save_strategy_projections when a strategy is approved, so
+	 * this is a target somebody committed to in writing rather than a number
+	 * generated here. Null until one exists, and the chart omits it.
+	 */
+	protected static function visitor_target( $user_id ) {
+		if ( ! class_exists( 'Six_Performance' ) ) return null;
+		$p = Six_Performance::projection_due( $user_id, 'organic_visitors', gmdate( 'Y-m-d', strtotime( '+10 years' ) ) );
+		if ( ! $p || (float) $p->projected_value <= 0 ) return null;
+		return array(
+			'value' => (int) round( (float) $p->projected_value ),
+			'date'  => (string) $p->target_date,
+			'label' => gmdate( 'M Y', strtotime( (string) $p->target_date ) ),
 		);
 	}
 }
