@@ -56,6 +56,11 @@ WEB_FILES = {"robots.txt", "llms.txt", "sitemap.xml", "ads.txt", "security.txt",
 # naming one is the instruction, so a missing copy here is correct.
 OUTPUT_FILES = {"00-INDEX.md"}
 WEB_FILES |= OUTPUT_FILES
+# Whole folders of the deliverable, for the same reason. A row in a table of
+# what ships names the file by the path it will have in the client's package,
+# and matching it against this repository would report every one as broken.
+OUTPUT_DIRS = ("off-page/", "existing-pages/", "service/", "service-hub/",
+               "location/", "blog/", "content/")
 # Connector tools the skills tell a reader to call.
 TOOL_RE = re.compile(r"`(mcp__[A-Za-z0-9_]+|[a-z][a-z0-9_]{3,})\(")
 
@@ -116,6 +121,8 @@ def check_links():
             if target.startswith(("http", "mcp__")) or " " in target:
                 continue
             if Path(target).name in WEB_FILES:
+                continue
+            if target.startswith(OUTPUT_DIRS):
                 continue
             # Resolve against the file's own directory, its skill and the
             # skill's three subdirectories, then the skills root — every way

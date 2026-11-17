@@ -4,7 +4,7 @@ Mechanical completeness, fact-check and readability scan for an assembled SEO
 strategy document (Phase 1, 2, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 17, 18, 19,
 or 20 content, or any combination).
 
-Three kinds of thing get checked:
+Six kinds of thing get checked:
 
 1. Unresolved placeholders — "[NEEDS CLIENT INPUT: ...]" or
    "[NEEDS DATA: ...]" left in the text. These are a normal, honest part of
@@ -27,7 +27,21 @@ Three kinds of thing get checked:
 
    One hedge is fine; a document built out of them is the thing that fails.
    So these are counted and compared against a threshold rather than failing
-   on first sight — see LANGUAGE_LIMITS. Below the threshold they are
+   on first sight — see LANGUAGE_LIMITS.
+
+4. Audit content in a strategy document — crawl-error counts, severity
+   scores, health scores, a findings table. The audit says what is wrong and
+   the strategy says what we are going to do about it; a client can forward
+   the second one and cannot forward the first. Reported for review, because
+   one sentence of finding is often the right way to introduce a plan.
+
+5. Page speed offered as a saving, an upsell or a separate line. Speed
+   optimization is included in the SEO plan. This is a commitment to clients
+   rather than a style preference, so it fails on first sight.
+
+6. With --full, the sections a complete client-facing document has to carry.
+   Off-page/backlinks and changes to pages the client already has are the two
+   that go missing, and they are the two clients ask about. Below the threshold they are
    reported for review.
 
 Usage:
@@ -40,6 +54,11 @@ Usage:
 
     --no-language skips check 3. For an internal working draft, not for
     anything going to a client.
+
+    --full additionally checks that the document carries every section a
+    complete client-facing strategy needs (check 6). Leave it off for a
+    partial build — a keyword refresh is not missing an off-page section,
+    it was never asked for one.
 
 Exits 0 if no unresolved placeholders are found and no language count is over
 its threshold. Dead-advice warnings alone don't fail the run — they're a prompt
@@ -83,6 +102,70 @@ DEAD_ADVICE_PATTERNS = [
     (r"incentiviz\w* review", "incentivized reviews — violates review-platform policy outright"),
     (r"organic sessions? (?:alone|as the (?:sole|only|primary))", "organic-sessions-only reporting — can misread AI-answer-era search performance as failure"),
     (r"faqpage schema", "FAQPage schema — rich result withdrawn from Google Search; keep the FAQ content, drop the rich-result expectation"),
+]
+
+# ---------------------------------------------------------------------------
+# Check 4: audit content leaking into the strategy.
+#
+# The audit says what is wrong; the strategy says what we are going to do
+# about it. A strategy carrying crawl-error counts, severity scores and a
+# findings table is not something the client can forward to their partner or
+# their board — and forwarding it is most of what it is for.
+#
+# These are REVIEW, not FAIL. A single sentence of finding is correct and
+# often necessary ("180 pages have no meta description, so month one is
+# writing them"). A document built out of findings is the failure, so the
+# count is what matters, as with the readability patterns.
+
+AUDIT_LEAK_PATTERNS = [
+    (r"\bcrawl errors?\b", "crawl errors — an audit finding; the strategy says what gets fixed and when"),
+    (r"\bredirect chains?\b", "redirect chains — audit vocabulary; say \"pages that bounce through two addresses before loading\""),
+    (r"\borphan(?:ed)? pages?\b", "orphan pages — audit vocabulary; say \"pages nothing links to\""),
+    (r"\bhealth score\b", "health score — an audit score; a strategy states objectives, not grades"),
+    (r"\bseverity\b", "severity rating — belongs in the audit's findings table"),
+    (r"\b(?:authority|content) score\s*(?:of\s*)?\d{1,3}\s*/\s*100", "a tool's score out of 100 — third-party grade, not a client objective"),
+    (r"\bfindings? table\b", "a findings table — the audit's format"),
+    (r"\bthe (?:previous|former|last) agency\b", "what the previous agency did — Appendix B, if anywhere"),
+    (r"\bduplicate content issues?\b", "duplicate content issues — audit vocabulary; say which pages and what changes"),
+    (r"\b\d+\s*(?:x\s*)?404s?\b", "a count of 404s — an audit finding"),
+]
+
+# ---------------------------------------------------------------------------
+# Check 5: page speed offered as a saving.
+#
+# Speed optimization is included in the SEO service. It is not an upsell and
+# it is never written up as something the client is being spared because
+# their site is already fast. This is a commitment to clients, so unlike
+# everything else in this file it fails on first sight rather than being
+# counted — one sentence of it in a document is the whole problem.
+
+SPEED_AS_SAVING_PATTERNS = [
+    r"(?:not|won'?t|will not|no)\s+(?:be\s+)?charg\w*[^.\n]{0,80}\bspeed\b",
+    r"\bspeed\b[^.\n]{0,80}(?:not|won'?t|will not|no)\s+(?:be\s+)?charg\w*",
+    r"\bspeed optimi[sz]ation\b[^.\n]{0,60}(?:is\s+)?(?:an?\s+)?(?:add[- ]?on|extra|upsell|optional extra|separate (?:fee|charge|cost|line item))",
+    r"(?:sav\w+|discount\w*|credit\w*|deduct\w*)[^.\n]{0,80}\bspeed optimi[sz]ation\b",
+    r"\bspeed optimi[sz]ation\b[^.\n]{0,60}(?:sav\w+|discount|credit)\b",
+    r"(?:since|because|as)\s+your\s+(?:site|website)\s+is\s+already\s+fast[^.\n]{0,80}(?:charg|cost|fee|includ|need)",
+]
+
+# ---------------------------------------------------------------------------
+# Check 6: the sections a full client-facing document has to carry.
+#
+# Only run with --full, because most requests are a slice — a keyword
+# refresh, a content calendar — and failing those for missing an off-page
+# section would be the gate that gets switched off. The names are matched
+# loosely: any heading containing one of the alternatives counts.
+
+REQUIRED_SECTIONS = [
+    ("the priorities table", [r"what we will do first", r"\bpriorit(?:y|ies)\b"]),
+    ("voice and tone", [r"\bvoice\b", r"\btone\b", r"how it will sound"]),
+    ("the keyword set", [r"\bkeywords?\b"]),
+    ("the page plan", [r"page plan", r"page architecture", r"what gets built"]),
+    ("changes to existing pages", [r"pages you already have", r"existing pages", r"changes to (?:your )?(?:current|existing)"]),
+    ("links and authority", [r"\bbacklinks?\b", r"\blinks?\b.*\bauthority\b", r"off[- ]page", r"\banchor text\b"]),
+    ("page speed", [r"\bpage speed\b", r"\bsite speed\b", r"core web vitals"]),
+    ("objectives with baselines", [r"\bobjectives?\b", r"\btargets?\b", r"how we will know"]),
+    ("reporting", [r"\breport(?:s|ing)?\b"]),
 ]
 
 # ---------------------------------------------------------------------------
@@ -290,6 +373,34 @@ def find_dead_advice(text: str) -> list:
     return hits
 
 
+def find_audit_leakage(text: str) -> list:
+    """Audit vocabulary in a document meant to be forwarded."""
+    hits = []
+    for pattern, reason in AUDIT_LEAK_PATTERNS:
+        for m in re.finditer(pattern, text, re.IGNORECASE):
+            hits.append((_line_of(text, m.start()), m.group(0), reason))
+    return hits
+
+
+def find_speed_as_saving(text: str) -> list:
+    """Speed work offered as a discount, an extra, or a kindness."""
+    hits = []
+    for pattern in SPEED_AS_SAVING_PATTERNS:
+        for m in re.finditer(pattern, text, re.IGNORECASE):
+            hits.append((_line_of(text, m.start()), snip(m.group(0))))
+    return hits
+
+
+def find_missing_sections(text: str) -> list:
+    """Which of the required client-facing sections have no heading."""
+    headings = " \n ".join(HEADING_LINE_PATTERN.findall(text)).lower()
+    missing = []
+    for label, alternatives in REQUIRED_SECTIONS:
+        if not any(re.search(alt, headings, re.IGNORECASE) for alt in alternatives):
+            missing.append(label)
+    return missing
+
+
 def find_phase_headings(text: str) -> set:
     phases = set()
     for line in HEADING_LINE_PATTERN.findall(text):
@@ -311,11 +422,14 @@ def main():
     positional = []
     expected_phases = None
     check_language = True
+    check_sections = False
     i = 0
     while i < len(raw):
         a = raw[i]
         if a == "--no-language":
             check_language = False
+        elif a == "--full":
+            check_sections = True
         elif a.startswith("--phases"):
             if "=" in a:
                 val = a.partition("=")[2]
@@ -429,6 +543,51 @@ def main():
                 print(f"       {snippet}")
             if len(bare) > 6:
                 print(f"       ... and {len(bare) - 6} more")
+
+    # ── Audit content leaking into a client document ─────────────────────
+    leaks = find_audit_leakage(text)
+    if leaks:
+        print(f"\n[REVIEW] {len(leaks)} phrase(s) that read as audit findings rather than plan — "
+              f"the client should be able to forward this document unedited:")
+        seen = set()
+        for line, matched, reason in leaks[:12]:
+            if reason in seen:
+                print(f"       line {line}: \"{matched}\"")
+            else:
+                print(f"       line {line}: \"{matched}\" — {reason}")
+                seen.add(reason)
+        if len(leaks) > 12:
+            print(f"       ... and {len(leaks) - 12} more")
+        print("       One sentence of finding is fine. A document built of them belongs in the audit.")
+    else:
+        print("\n[OK] No audit vocabulary detected — this reads as a plan, not a findings list")
+
+    # ── Speed offered as a saving ────────────────────────────────────────
+    # A commitment to clients, so this fails rather than being counted.
+    speed = find_speed_as_saving(text)
+    if speed:
+        print(f"\n[FAIL] Page speed is written up as a saving, an extra or a discount, in "
+              f"{len(speed)} place(s). Speed optimization is included in the SEO plan — it is "
+              f"never charged separately and never offered as something the client is being spared:")
+        for line, snippet in speed[:6]:
+            print(f"       line {line}: {snippet}")
+        failures += 1
+    else:
+        print("[OK] Page speed is not offered as a saving or an upsell")
+
+    # ── The sections a full document carries ─────────────────────────────
+    if check_sections:
+        missing = find_missing_sections(text)
+        if missing:
+            print(f"\n[FAIL] A full strategy document is missing {len(missing)} section(s) "
+                  f"the client needs:")
+            for label in missing:
+                print(f"       - {label}")
+            print("       See references/document-assembly.md for the table of contents. "
+                  "Off-page and existing-page changes are the two that go missing most.")
+            failures += 1
+        else:
+            print("\n[OK] Every required client-facing section has a heading")
 
     # Phase coverage (informational)
     found_phases = find_phase_headings(text)

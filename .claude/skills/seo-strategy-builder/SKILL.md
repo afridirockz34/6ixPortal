@@ -13,6 +13,32 @@ This skill packages that chain: what each phase needs, where the input comes fro
 
 This skill covers the **research and strategy** phases. It does not draft blog posts, service pages, or other client-facing content — that's `seo-content-production`, its companion skill. Used together, the two reproduce a complete multi-phase agency SEO strategy document: this skill for everything data-driven and structural, that one for everything voice-and-copy. A third companion, `seo-audit-report`, sits upstream of both — it's for a prospect who hasn't signed on yet, producing the evidence-backed weakness report that's meant to get them to. This skill and `seo-content-production` assume the engagement already exists. A fourth, `seo-client-pipeline`, sits above all three — it orchestrates the whole client lifecycle in one session, from intake through this skill's phases, into implementing the approved strategy on the live site, and the recurring performance checks that can send work back through this skill's Phase 20.
 
+## Who the document is for
+
+**The client, and whoever they forward it to.** That is the test for every
+sentence: a partner, a board or the client's own marketing person should be
+able to read it without us in the room and without the audit open beside it.
+
+Three things follow, and all three are enforced by
+`scripts/check_strategy_doc.py`:
+
+- **The audit stays in the audit.** Crawl-error counts, health scores,
+  severity ratings and a findings table belong to the document that says what
+  is wrong. This one says what we are going to do. One sentence of finding to
+  introduce a plan is right; a section of them is the wrong document.
+- **Every number is compared to something** — a competitor's equivalent from
+  the same pull, the same figure last period, or the target it is being
+  measured against. A figure on its own is not a finding.
+- **Page speed is included work, never a saving.** It appears in the technical
+  section with an owner and a month like everything else. It is never written
+  up as an extra, a discount, or something the client is being spared because
+  their site is already fast. That is a commitment to clients, so the script
+  fails a document that breaks it rather than merely flagging it.
+
+`references/document-assembly.md` has the full table of contents, including
+the two sections that keep going missing: the off-page plan and the changes to
+pages the client already has.
+
 ## The model
 
 ```
@@ -120,7 +146,7 @@ fill a gap. A wrong fact in Phase 1 is reproduced by every phase after it.
 5. **Ground every claim in supplied data**, and flag rather than invent whatever's missing. A gap flagged as `[NEEDS CLIENT INPUT: ...]` or `[NEEDS DATA: ...]` is a normal, useful output — a filled-in guess dressed up as fact is not.
 6. **Run the fact-check before finalizing any phase touching GEO/AEO, schema, GMB, citations, or reporting metrics** — these are exactly the areas where vendor templates go stale fastest. `references/fact-check-registry.md` is a snapshot; treat it as a starting checklist to re-verify, not a substitute for checking current documentation.
 7. **Assemble the finished phases into one document** once all requested phases are built — see `references/document-assembly.md` for how the pieces fit into a single ordered deliverable (and where seo-content-production's phases slot in if the full 19-phase equivalent is being built). Phase 20 is never part of this initial assembly — see that file for why.
-8. **Run the completeness, fact-check and readability scan** before calling the document done: `python scripts/check_strategy_doc.py <document_file>`. It flags unresolved `[NEEDS...]` placeholders, dead-advice language from the fact-check registry, and the prose failures in `references/plain-language.md` it can see — hedged non-commitments, actions buried in nouns, 45-word sentences, and jargon used before it is explained. The same mechanical safety net `seo-content-production`'s `seo-content-production/scripts/check_draft.py` provides for content, applied to strategy claims and strategy prose instead. Where the deliverable includes keyword or topic tables, also run `python scripts/check_keyword_set.py <file.csv> --kind website|topics|gmb`. Neither script can tell you the document is clear — for that, hand it to somebody who was not in the research and ask them what we are going to do.
+8. **Run the completeness, fact-check and readability scan** before calling the document done: `python scripts/check_strategy_doc.py <document_file> --full` (drop `--full` for a partial build). It flags unresolved `[NEEDS...]` placeholders, dead-advice language from the fact-check registry, the prose failures in `references/plain-language.md` it can see — hedged non-commitments, actions buried in nouns, 45-word sentences, and jargon used before it is explained — audit content that has leaked into a document meant to be forwarded, page speed written up as a saving rather than as included work, and, with `--full`, any required client-facing section that has no heading. The same mechanical safety net `seo-content-production`'s `seo-content-production/scripts/check_draft.py` provides for content, applied to strategy claims and strategy prose instead. Where the deliverable includes keyword or topic tables, also run `python scripts/check_keyword_set.py <file.csv> --kind website|topics|gmb`. Neither script can tell you the document is clear — for that, hand it to somebody who was not in the research and ask them what we are going to do.
 9. **Once the strategy is approved, record its targets and take a baseline.** A strategy whose targets live only in a PDF can't be checked against later — the review two months on can only say the number moved, not whether it moved as far as we said it would, and Phase 20 then has nothing to retrospect against but whatever someone remembers to paste in. If the portal connector is in this session: `save_client_artifact` the document, `save_strategy_projections` for the targets Phase 5 actually commits to, and `capture_performance_snapshot` so the baseline is where they stood the day the work started. Read `references/performance-tracking.md` first — it covers the metric keys, and the rule that only targets the strategy argues for in writing get saved. A target invented to fill a row makes every later comparison meaningless.
 10. **Once content is live, run Phase 20 on a recurring cadence** (quarterly by default) to check whether the scored priorities actually performed, and feed what's learned back into the next period's Phase 7/8 and Phase 14. A strategy that's never checked against results is a one-shot guess no matter how well-sourced its first draft was.
 
@@ -186,6 +212,7 @@ Every reference file here — especially `phase11-12-geo-schema.md` and `fact-ch
 - `references/client-context.md` — how to get the client's answers from the portal, from a document they filled in, or from neither
 - `references/performance-tracking.md` — snapshots and projections: the tracked metric keys, how to read a `check_performance` result, and the rules for saving a target you can stand behind
 - `references/off-page.md` — the disavow audit, anchor text, and where links actually come from for a local professional service
+- `references/backlink-plan.md` — the five off-page artifacts that actually ship: current profile, disavow shortlist, named prospect list, anchor plan per page, twelve-month schedule. Read this when the strategy includes links at all, because off-page is the part that keeps surviving as a paragraph instead of a plan
 - `references/local-and-gmb.md` — what to assess from the client's active services, and the BrightLocal data behind Phase 6: rank grids, competitors on the same grid, reviews, citations, and the credit discipline a 200–400-credit run demands
 - `references/ai-visibility.md` — Ahrefs Brand Radar and BrightLocal AI Visibility, which answers which question, and the honesty rules for the least settled area in this skill set
 - `references/questionnaire-fields.md` — generated map of every questionnaire question to the key it's stored under, for filing a returned document back to the portal
@@ -194,5 +221,5 @@ Every reference file here — especially `phase11-12-geo-schema.md` and `fact-ch
 - `references/fact-check-registry.md` — current status of common SEO/schema/AI-search claims: what's dead, what's still real
 - `references/document-assembly.md` — how to combine every phase into one ordered final document, and how this composes with seo-content-production
 - `assets/nr-lawyers-foundation-document.md` — a complete worked example of a Phase 1 output
-- `scripts/check_strategy_doc.py` — completeness check (unresolved placeholders), fact-check scan (dead-advice language) and readability scan (hedges, buried actions, over-long sentences, unexplained jargon) for an assembled strategy document
+- `scripts/check_strategy_doc.py` — completeness check (unresolved placeholders), fact-check scan (dead-advice language), readability scan (hedges, buried actions, over-long sentences, unexplained jargon), audit-leakage scan, the page-speed-as-a-saving gate, and `--full` for the client-facing section list
 - `scripts/check_keyword_set.py` — shape check for a keyword, blog-topic or GMB keyword set: every row complete, every keyword in a named cluster with a target page, controlled vocabularies respected, no duplicates, clusters roughly even, no single angle dominating a cluster

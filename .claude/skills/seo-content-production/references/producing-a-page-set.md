@@ -24,6 +24,10 @@ nr-lawyers/content/
   service/domestic-assault-lawyer-toronto.md
   location/criminal-lawyer-casa-loma.md
   blog/bail-hearing-process-ontario.md
+  off-page/prospect-list.md
+  off-page/anchor-text-plan.md
+  off-page/disavow-shortlist.md
+  existing-pages/url-and-title-changes.md
 ```
 
 Each document is: the **SEO meta block**, then the page in full with heading
@@ -36,6 +40,33 @@ Headings carry their tag in brackets — `[H2] Who Needs a Bail Hearing Lawyer i
 Toronto` — because whoever builds the page is not the person who wrote it, and
 a markdown `##` does not tell them whether that was meant to be an H2 or an H3
 inside a collapsed section.
+
+## The deliverables that are not pages
+
+Four of them, and they go in the same package. They keep getting left out
+because they have no page to point at, and a client who was told the plan
+covers links and then receives thirty page documents has been given most of
+what they bought and none of the part they were least sure about.
+
+| File | What it is | Source |
+|---|---|---|
+| `off-page/prospect-list.md` | Named link targets in tiers, with a route in and a month for each | `seo-strategy-builder/references/backlink-plan.md` §3 |
+| `off-page/anchor-text-plan.md` | Per destination page, the anchor variations to rotate | `backlink-plan.md` §4 |
+| `off-page/disavow-shortlist.md` | Domains to disown, each with a reason in words, plus the plain-text disavow file | `backlink-plan.md` §2 |
+| `existing-pages/url-and-title-changes.md` | Every page that already exists and is being retitled, rewritten or moved, with its redirect | the strategy's *Changes to pages you already have* table |
+
+The last one is the one that breaks a site if it is missing. A page set that
+adds thirty pages and says nothing about the forty already there leaves the
+new pages competing with the old for the same searches, and leaves whoever
+builds them guessing about redirects.
+
+**Where production is split into phases** — four months at a time, which is
+usual for a twelve-month plan — these four are produced in phase one, not
+spread across the three. The page documents arrive in batches; the off-page
+plan and the existing-page changes are the whole year's, up front, because
+they are what the first month's work is drawn from.
+
+---
 
 ## The index document
 
