@@ -2260,6 +2260,67 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             </div>
         </div>
 
+        <?php
+        /* ── Daily history ───────────────────────────────────────────────
+           The visitors chart and every before/after depend on this table
+           having rows in it, and it is filled by a WP-Cron job — which only
+           fires when somebody visits the site. On a portal nobody browses,
+           the chart silently keeps its old modelled view and there is no way
+           to tell a broken feature from one that has no data yet. So: say
+           what is there, and give a button. */
+        $trk_first = class_exists('Six_Tracking') ? Six_Tracking::measurement_started($view_client_id) : '';
+        $trk_start = class_exists('Six_Tracking') ? Six_Tracking::engagement_start($view_client_id) : '';
+        $trk_days  = 0; $trk_before = 0;
+        if ( class_exists('Six_Tracking') ) {
+            foreach ( array('gsc_clicks','organic_sessions') as $mk ) {
+                $rows = Six_Tracking::daily($view_client_id, $mk, 480);
+                if ( count($rows) > $trk_days ) {
+                    $trk_days = count($rows);
+                    $trk_before = 0;
+                    foreach ( $rows as $d ) if ( $trk_start && $d['date'] < $trk_start ) $trk_before++;
+                }
+            }
+        }
+        $trk_ok = $trk_days >= 7;
+        $fit_ok = class_exists('Six_Tracking') && $trk_before >= Six_Tracking::MIN_FIT_POINTS;
+        ?>
+        <div style="background:var(--dark2);border:1px solid <?php echo $trk_ok ? 'rgba(86,211,100,0.25)' : 'rgba(227,179,65,0.35)'; ?>;border-radius:14px;overflow:hidden;grid-column:1/-1">
+            <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <span style="font-size:13px;font-weight:700">Daily history</span>
+                <?php if($trk_ok): ?>
+                    <span style="font-size:10px;background:rgba(86,211,100,0.1);color:var(--success);padding:2px 8px;border-radius:10px;font-weight:700">● <?php echo (int)$trk_days; ?> days recorded</span>
+                <?php else: ?>
+                    <span style="font-size:10px;background:rgba(227,179,65,0.12);color:var(--warning);padding:2px 8px;border-radius:10px;font-weight:700">● Not collected yet</span>
+                <?php endif; ?>
+                <span style="font-size:10.5px;color:var(--text3);margin-left:auto">Feeds the customer's visitors chart and every before/after comparison.</span>
+            </div>
+            <div style="padding:14px 18px">
+                <?php if(!$trk_ok): ?>
+                <div style="font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.55">
+                    Nothing has been recorded day by day for this client yet, so the customer's visitors chart is still showing the old estimated view.
+                    Connect Search Console or GA4 above, then run the backfill — it reaches back about 16 months, which is what makes the
+                    &ldquo;where you were heading without us&rdquo; line possible at all.
+                </div>
+                <?php else: ?>
+                <div style="font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.55">
+                    <?php echo (int)$trk_days; ?> days recorded<?php if($trk_first): ?>, from <?php echo esc_html(date_i18n('j M Y', strtotime($trk_first))); ?><?php endif; ?>.
+                    <?php if($trk_start): ?>Work started <?php echo esc_html(date_i18n('j M Y', strtotime($trk_start))); ?>.<?php endif; ?>
+                    <br>
+                    <?php if($fit_ok): ?>
+                        <span style="color:var(--success)">✓ The &ldquo;without us&rdquo; comparison can be drawn — <?php echo (int)$trk_before; ?> days of history from before the work began.</span>
+                    <?php else: ?>
+                        <span style="color:var(--warning)">Only <?php echo (int)$trk_before; ?> day<?php echo $trk_before===1?'':'s'; ?> of history from before the work began, so the chart shows the measured line alone. <?php echo class_exists('Six_Tracking') ? Six_Tracking::MIN_FIT_POINTS : 14; ?> are needed before a trend can honestly be fitted — run the backfill if you have not.</span>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button class="six-btn six-btn-primary six-btn-sm six-sync-tracking" data-client="<?php echo $view_client_id; ?>" data-backfill="1" style="font-size:11px">Backfill all history</button>
+                    <button class="six-btn six-btn-ghost six-btn-sm six-sync-tracking" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Sync recent only</button>
+                </div>
+                <div class="six-ds-adv-result" style="margin-top:8px;font-size:12px"></div>
+            </div>
+        </div>
+
     </div>
     <script>
     (function(){
@@ -2268,6 +2329,36 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             var card=btn.closest('div[style*="border-radius:14px"]')||btn.parentNode;
             return card.querySelector('.six-ds-adv-result')||btn.parentNode.querySelector('.six-ds-adv-result');
         }
+        // Backfill or refresh the daily history. Reports per source, because
+        // "nothing came back" and "Search Console says you cannot read that
+        // property" need different responses from the advisor.
+        document.querySelectorAll('.six-sync-tracking').forEach(function(btn){
+            btn.addEventListener('click',function(){
+                var out=resultEl(btn), label=btn.textContent, full=btn.dataset.backfill?1:0;
+                btn.disabled=true; btn.textContent=full?'Backfilling…':'Syncing…';
+                if(out){out.style.color='var(--text3)';out.textContent=full?'Reaching back through Search Console and GA4. This can take a minute.':'Reading the last 30 days…';}
+                post({action:'six_sync_tracking',client_id:btn.dataset.client,backfill:full}).then(function(res){
+                    btn.disabled=false; btn.textContent=label;
+                    if(!out) return;
+                    var d=res&&res.data;
+                    if(res&&res.success&&d){
+                        var got=(d.daily_rows||0)+(d.page_rows||0);
+                        out.style.color=got?'var(--success)':'var(--warning)';
+                        var html=(d.message||'Done.');
+                        if(d.fit_note) html+='<div style="color:var(--text3);margin-top:4px">'+d.fit_note+'</div>';
+                        if(d.notes&&d.notes.length) html+='<div style="color:var(--text3);margin-top:4px">'+d.notes.join('<br>')+'</div>';
+                        if(got) html+='<div style="color:var(--text3);margin-top:4px">Reload to see it on the chart.</div>';
+                        out.innerHTML=html;
+                    } else {
+                        out.style.color='var(--danger)';
+                        out.textContent=(d&&(d.message||d))||'Could not sync. Nothing was changed.';
+                    }
+                }).catch(function(){
+                    btn.disabled=false; btn.textContent=label;
+                    if(out){out.style.color='var(--danger)';out.textContent='Could not reach the server. Nothing was changed.';}
+                });
+            });
+        });
         document.querySelectorAll('.six-ds-adv-save').forEach(function(btn){
             btn.addEventListener('click',function(){
                 var key=btn.dataset.key, inp=document.getElementById(btn.dataset.input), out=resultEl(btn);
