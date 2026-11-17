@@ -4570,6 +4570,11 @@ function sixServiceWizard(serviceId, clientId, slug, name, activateMode){
         +'<div style="'+th+'">Before</div>'
         +'<div style="'+th+'">Now</div>'
         +'<div style="'+th+'">Target</div><div></div>';
+      var hint=document.createElement('div');
+      hint.style.cssText='font-size:10.5px;color:var(--text3,#8a8a99);margin-bottom:8px;line-height:1.5';
+      hint.textContent='Every figure here can be edited after it is read, and the × empties a row — '
+        + 'an empty row means that card does not appear on the customer\'s dashboard at all.';
+      klist.appendChild(hint);
       klist.appendChild(head);
     }
     (W.catalog||[]).forEach(function(c){
@@ -4583,7 +4588,7 @@ function sixServiceWizard(serviceId, clientId, slug, name, activateMode){
         +'<input class="six-input k-prev" value="'+esc(have.previous||'')+'" placeholder="—" style="'+cell+'">'
         +'<input class="six-input k-cur" value="'+esc(have.current||'')+'" placeholder="—" style="'+cell+'">'
         +'<input class="six-input k-tgt" value="'+esc(have.target||'')+'" placeholder="—" style="'+cell+'">'
-        +'<button class="k-clr" title="Clear this row" style="background:none;border:none;color:var(--text3,#8a8a99);cursor:pointer;font-size:16px;line-height:1">&times;</button>';
+        +'<button class="k-clr" title="Remove this metric — emptying the row takes the card off the customer\'s dashboard" style="background:none;border:none;color:var(--text3,#8a8a99);cursor:pointer;font-size:16px;line-height:1">&times;</button>';
       row.querySelector('.k-clr').onclick=function(){
         row.querySelectorAll('input').forEach(function(i){ i.value=''; });
         row.style.outline='none';

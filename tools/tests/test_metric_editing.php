@@ -52,6 +52,11 @@ check( 'a refused delete tells the advisor rather than looking like a success',
 // ── The wizard can clear a row and can set a target ──────────────────────
 check( 'the wizard has a target column', strpos( $adv, 'k-tgt' ) !== false );
 check( 'and a clear button on every catalog row', strpos( $adv, 'k-clr' ) !== false );
+check( 'whose effect is stated on screen, not left to a tooltip nobody hovers',
+	strpos( $adv, 'an empty row means that card does not appear' ) !== false,
+	'an advisor reads "clear" as "reset", not as "remove the card"' );
+check( 'and the pulled figures are described as editable',
+	strpos( $adv, 'can be edited after it is read' ) !== false );
 check( 'and collects the target, not just current and previous',
 	preg_match( '/target:\s*row\.querySelector\(\s*[\'"]\.k-tgt/', $adv ) === 1 );
 check( 'and the Before / Now / Target headings replaced "Last month"',
