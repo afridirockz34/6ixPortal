@@ -79,6 +79,21 @@ document so nothing is lost. The equivalent table, where one is needed:
 
 This precise, dated record is what `references/monitoring-and-escalation.md` and `seo-strategy-builder`'s Phase 20 retrospective both depend on to separate "we changed X on this date" from "a Google algorithm update landed the same week" — the Google Update Correlation discipline in `seo-strategy-builder/references/fact-check-registry.md` only works when there's an actual dated record of what was touched, not a recollection of roughly when something happened.
 
+**Then close the task the change belongs to.** `update_task` with `status:
+"complete"` and the `work_log_id` the `log_work` call returned. The board is
+the only place that says what has shipped; a change that is logged but leaves
+its task on `todo` makes the next session plan work that is already done, and
+makes the month look emptier than it was.
+
+Two states before that one, and they carry real information:
+
+- `implementation` when you start building it, so a board read mid-month
+  distinguishes work in progress from work not begun.
+- `client_review` when the copy or the plan has gone to the client. Nothing
+  moves past it until they approve — that is the state's whole purpose, and
+  moving a task out of it on our own say-so is the same mistake as treating a
+  generated strategy as an approved one.
+
 Where a document was produced as well, save it via `save_client_artifact` (`type: "implementation_log"`) if the portal connector supports writing — same write-scoped-token caution as elsewhere: if writing fails or the connector is read-only, say so rather than silently continuing as if it was filed. **Append to the existing log for this client rather than overwriting it** if one already exists — Stage 6 re-implementations extend the same record, they don't start a fresh one.
 
 ## What never happens here

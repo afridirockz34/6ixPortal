@@ -218,6 +218,66 @@ class Six_MCP_Server {
 				),
 			),
 			array(
+				'name'        => 'create_tasks',
+				'title'       => 'Turn an approved strategy into a task board',
+				'description' => 'Create the plan as rows the advisor works from: one task per thing that has to be done, across the whole engagement. Call this once the client has approved the strategy, not before. **Tasks are created as a draft** — the advisor edits the titles, dates and order and then publishes, so write them as the plan you would hand over, not as placeholders. Cover every deliverable the strategy commits to, including the ones that are easy to forget: backlinks and digital PR, citations, Google Business Profile work, technical fixes and URL changes on pages that already exist, not only new content. Give each task a month_no across the full twelve months even if the content itself is produced in phases; the board shows the year and the content arrives in batches. Requires a write-scoped token.',
+				'inputSchema' => array(
+					'type'       => 'object',
+					'properties' => array(
+						'client_id' => array( 'type' => 'integer', 'description' => 'The client id, from list_clients.' ),
+						'tasks'     => array(
+							'type'        => 'array',
+							'description' => 'Each: title (required), service_slug, category (Content, Technical, On-Page, Backlinks, Digital PR, Citations, GMB, Local, Reporting), detail, deliverable (what gets produced), entity (the URL or asset), keyword, month_no (1-12), priority (1-3), due_date, status.',
+							'items'       => array( 'type' => 'object' ),
+						),
+						'replace_draft' => array( 'type' => 'boolean', 'description' => 'Delete the existing unpublished draft first. Use when regenerating a plan the advisor has not published yet; it never touches published tasks.' ),
+					),
+					'required'   => array( 'client_id', 'tasks' ),
+				),
+			),
+			array(
+				'name'        => 'list_tasks',
+				'title'       => 'What is planned, in review, or done',
+				'description' => 'Read the client\'s task board with a count by state. Read this before implementing anything, before a monthly report, and before proposing new work — it is how you know what has already shipped, what is sitting with the client for approval, and what is next. The four states are: todo (not started), client_review (sent to the client, waiting on their approval), implementation (approved and being built), complete (done and verified).',
+				'inputSchema' => array(
+					'type'       => 'object',
+					'properties' => array(
+						'client_id'    => array( 'type' => 'integer', 'description' => 'The client id, from list_clients.' ),
+						'status'       => array( 'type' => 'string', 'description' => 'todo, client_review, implementation or complete.' ),
+						'service_slug' => array( 'type' => 'string', 'description' => 'Narrow to one service.' ),
+						'phase'        => array( 'type' => 'integer', 'description' => 'Narrow to a four-month phase: 1, 2 or 3.' ),
+						'month_no'     => array( 'type' => 'integer', 'description' => 'Narrow to one month of the plan, 1-12.' ),
+						'published_only' => array( 'type' => 'boolean', 'description' => 'Only tasks the advisor has published. Default false, which returns drafts too.' ),
+					),
+					'required'   => array( 'client_id' ),
+				),
+			),
+			array(
+				'name'        => 'update_task',
+				'title'       => 'Move a task along, or correct it',
+				'description' => 'Change a task\'s state or its details. Move it to `implementation` when you start building it, and to `complete` when the change is live and verified — which stamps the completion date, because "done" with no date cannot be reported on. Link the work log entry with work_log_id and the saved document with artifact_id so the board shows the evidence rather than only the tick. Requires a write-scoped token.',
+				'inputSchema' => array(
+					'type'       => 'object',
+					'properties' => array(
+						'client_id'   => array( 'type' => 'integer', 'description' => 'The client id, from list_clients.' ),
+						'task_id'     => array( 'type' => 'integer', 'description' => 'The task id, from list_tasks.' ),
+						'status'      => array( 'type' => 'string', 'description' => 'todo, client_review, implementation or complete.' ),
+						'title'       => array( 'type' => 'string' ),
+						'detail'      => array( 'type' => 'string' ),
+						'deliverable' => array( 'type' => 'string' ),
+						'entity'      => array( 'type' => 'string', 'description' => 'The URL or asset this task is about.' ),
+						'keyword'     => array( 'type' => 'string' ),
+						'priority'    => array( 'type' => 'integer', 'description' => '1, 2 or 3.' ),
+						'month_no'    => array( 'type' => 'integer', 'description' => 'Move it in the timeline, 1-12.' ),
+						'due_date'    => array( 'type' => 'string', 'description' => 'YYYY-MM-DD.' ),
+						'notes'       => array( 'type' => 'string', 'description' => 'What happened, for the advisor.' ),
+						'artifact_id' => array( 'type' => 'integer', 'description' => 'The saved document this produced.' ),
+						'work_log_id' => array( 'type' => 'integer', 'description' => 'The work-log entry that completed it, from log_work.' ),
+					),
+					'required'   => array( 'client_id', 'task_id' ),
+				),
+			),
+			array(
 				'name'        => 'log_work',
 				'title'       => 'Record a change you made for a client',
 				'description' => 'Write one row into the client\'s work log: what you changed, on what, when, and what it was before. This is what lets the portal say *what we did* rather than only that a number moved, and it is what the customer\'s "optimization proof" section is built from. Log every change you make or approve, one call per change, for any service — SEO, Google Ads, Google Business, a website build. Always fill before_value and after_value where something was replaced: "title changed" is not evidence, "<title>X</title> became <title>Y</title>" is. Requires a write-scoped token.',
@@ -494,7 +554,7 @@ class Six_MCP_Server {
 
 		// Write tools need a write-scoped token. Reported as a tool error
 		// rather than a protocol error so the model can explain it.
-		if ( in_array( $name, array( 'update_client_profile', 'save_client_artifact', 'issue_strategy_questionnaire', 'capture_performance_snapshot', 'save_strategy_projections', 'log_work', 'propose_metrics', 'record_entity_metrics' ), true ) ) {
+		if ( in_array( $name, array( 'update_client_profile', 'save_client_artifact', 'issue_strategy_questionnaire', 'capture_performance_snapshot', 'save_strategy_projections', 'log_work', 'propose_metrics', 'record_entity_metrics', 'create_tasks', 'update_task' ), true ) ) {
 			$allowed = Six_Profile_API::require_write( $request );
 			if ( is_wp_error( $allowed ) ) {
 				return self::result( $id, self::tool_result( array(
@@ -629,6 +689,68 @@ class Six_MCP_Server {
 				return self::result( $id, self::unwrap( Six_Profile_API::create_artifact(
 					self::sub_request( $request, 'POST', '/clients/' . $client_id . '/artifacts', array( 'id' => $client_id ), $body )
 				) ) );
+
+			case 'create_tasks':
+				if ( ! class_exists( 'Six_Tasks' ) ) {
+					return self::result( $id, self::tool_result( array(
+						'error'   => 'tasks_unavailable',
+						'message' => 'The task board is not available on this site.',
+					), true ) );
+				}
+				$trows = isset( $args['tasks'] ) && is_array( $args['tasks'] ) ? $args['tasks'] : array();
+				if ( ! $trows ) {
+					return self::result( $id, self::tool_result( array(
+						'error'   => 'no_tasks',
+						'message' => 'Pass at least one task. Each needs a title.',
+					), true ) );
+				}
+				if ( ! empty( $args['replace_draft'] ) ) Six_Tasks::clear_drafts( $client_id );
+				$made = Six_Tasks::create( $client_id, $trows, 'claude' );
+				return self::result( $id, self::tool_result( array(
+					'created'  => $made['saved'],
+					'ids'      => $made['ids'],
+					'rejected' => $made['failed'],
+					'note'     => $made['saved']
+						? 'Created as a draft under Reports in the advisor dashboard. The client sees nothing until the advisor publishes it.'
+						: 'Nothing was created.',
+				), ! $made['saved'] ) );
+
+			case 'list_tasks':
+				if ( ! class_exists( 'Six_Tasks' ) ) {
+					return self::result( $id, self::tool_result( array( 'tasks' => array(), 'summary' => array() ) ) );
+				}
+				$t_args = array(
+					'status'       => (string) ( $args['status'] ?? '' ),
+					'service_slug' => (string) ( $args['service_slug'] ?? '' ),
+					'phase'        => (int) ( $args['phase'] ?? 0 ),
+					'month_no'     => (int) ( $args['month_no'] ?? 0 ),
+				);
+				if ( ! empty( $args['published_only'] ) ) $t_args['published'] = true;
+				return self::result( $id, self::tool_result( array(
+					'tasks'          => Six_Tasks::all( $client_id, $t_args ),
+					'summary'        => Six_Tasks::summary( $client_id, (string) ( $args['service_slug'] ?? '' ) ),
+					'status_meaning' => Six_Tasks::STATUS_MEANS,
+				) ) );
+
+			case 'update_task':
+				if ( ! class_exists( 'Six_Tasks' ) ) {
+					return self::result( $id, self::tool_result( array(
+						'error'   => 'tasks_unavailable',
+						'message' => 'The task board is not available on this site.',
+					), true ) );
+				}
+				$fields = array();
+				foreach ( array( 'status', 'title', 'detail', 'deliverable', 'entity', 'keyword',
+				                 'priority', 'month_no', 'due_date', 'notes', 'artifact_id', 'work_log_id' ) as $f ) {
+					if ( isset( $args[ $f ] ) ) $fields[ $f ] = $args[ $f ];
+				}
+				$upd = Six_Tasks::update( $client_id, (int) ( $args['task_id'] ?? 0 ), $fields );
+				return self::result( $id, self::tool_result(
+					$upd['ok']
+						? array( 'updated' => true, 'task_id' => (int) ( $args['task_id'] ?? 0 ) )
+						: array( 'error' => 'not_updated', 'message' => $upd['error'] ),
+					! $upd['ok']
+				) );
 
 			case 'log_work':
 				if ( ! class_exists( 'Six_Tracking' ) ) {

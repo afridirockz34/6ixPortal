@@ -1535,24 +1535,33 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             <?php if(!empty($svc_metrics)): ?>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:14px">
                 <?php foreach($svc_metrics as $met):
-                    $c_n=floatval(preg_replace('/[^0-9.]/','',$met->current_value));
-                    $t_n=floatval(preg_replace('/[^0-9.]/','',$met->target_value));
-                    $pct=($t_n>0)?min(100,round(($c_n/$t_n)*100)):0;
-                    $mc=$pct>=75?'var(--success)':($pct>=50?$sd_item['color']:'var(--warning)');
+                    /* Same direction-aware arithmetic as the customer's page.
+                       This panel had its own copy of current ÷ target, so an
+                       average position of 11.3 against a target of 6 showed a
+                       full bar here too. */
+                    $lower = class_exists('Six_Dash_Metrics') ? Six_Dash_Metrics::lower_is_better($met->label) : false;
+                    $prog  = class_exists('Six_Dash_Metrics')
+                        ? Six_Dash_Metrics::progress($met->current_value, $met->target_value, $lower, $met->previous_value)
+                        : array('pct'=>null);
+                    $pct = $prog['pct'];
+                    $t_n = class_exists('Six_Dash_Metrics') ? Six_Dash_Metrics::number($met->target_value) : null;
+                    $mc  = $pct===null ? 'var(--text3)' : ($pct>=75?'var(--success)':($pct>=50?$sd_item['color']:'var(--warning)'));
                 ?>
-                <div style="background:var(--dark3);border-radius:10px;padding:12px;position:relative">
+                <div id="mrow-<?php echo (int)$met->id; ?>" style="background:var(--dark3);border-radius:10px;padding:12px;position:relative">
                     <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin-bottom:6px"><?php echo esc_html($met->label); ?></div>
                     <div style="font-size:20px;font-weight:800;font-family:var(--font-head);margin-bottom:6px;line-height:1"><?php echo esc_html($met->current_value); ?></div>
-                    <?php if($t_n>0): ?>
+                    <?php if($t_n!==null): ?>
                     <div style="height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;margin-bottom:4px">
-                        <div style="height:100%;width:<?php echo $pct; ?>%;background:<?php echo $mc; ?>;border-radius:2px"></div>
+                        <div style="height:100%;width:<?php echo (int)($pct??0); ?>%;background:<?php echo $mc; ?>;border-radius:2px"></div>
                     </div>
-                    <div style="font-size:10px;color:var(--text3)">Target: <?php echo esc_html($met->target_value); ?></div>
+                    <div style="font-size:10px;color:var(--text3)">Target: <?php echo esc_html($met->target_value); ?><?php echo $lower?' or lower':''; ?> · <?php echo $pct===null?'—':$pct.'%'; ?></div>
+                    <?php else: ?>
+                    <div style="font-size:10px;color:var(--text3);opacity:.75">No target set</div>
                     <?php endif; ?>
                     <!-- Edit/Delete -->
                     <div style="position:absolute;top:8px;right:8px;display:flex;gap:4px">
                         <button class="six-btn six-btn-ghost" style="padding:2px 6px;font-size:10px;color:var(--cyan)" onclick="populateMetricForm(<?php echo $met->id; ?>,'<?php echo esc_js($met->label); ?>','<?php echo esc_js($met->current_value); ?>','<?php echo esc_js($met->previous_value); ?>','<?php echo esc_js($met->target_value); ?>','<?php echo esc_js($met->service_slug); ?>')">Edit</button>
-                        <button class="six-btn six-btn-ghost six-del-metric" style="padding:2px 6px;font-size:10px;color:var(--danger)" data-metric-id="<?php echo $met->id; ?>">Delete</button>
+                        <button class="six-btn six-btn-ghost six-delete-metric" style="padding:2px 6px;font-size:10px;color:var(--danger)" data-id="<?php echo (int)$met->id; ?>">Delete</button>
                     </div>
                 </div>
                 <?php endforeach; ?>
@@ -1667,64 +1676,14 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 <div class="metric-result-<?php echo esc_attr($slug); ?>" style="font-size:11px;margin-top:6px"></div>
             </div>
 
-            <?php
-            /* ── Work done by hand ───────────────────────────────────────
-               Claude logs what it changes through the connector. This is for
-               everything a person did themselves, so the customer's
-               optimization proof shows the work rather than the tool that
-               happened to do it. */
-            $wl_proof = class_exists('Six_Tracking') ? Six_Tracking::proof($view_client_id, $slug) : array();
-            ?>
-            <div style="background:var(--dark4);border-radius:10px;padding:14px;margin-top:12px">
-                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:4px">
-                    <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">+ Log work done</div>
-                    <?php if($wl_proof): ?>
-                    <div style="font-size:10.5px;color:var(--text3)">
-                        <?php echo number_format(array_sum(array_column($wl_proof,'deployed'))); ?> live across <?php echo count($wl_proof); ?> categor<?php echo count($wl_proof)===1?'y':'ies'; ?>
-                    </div>
-                    <?php endif; ?>
-                </div>
-                <div style="font-size:10.5px;color:var(--text3);margin-bottom:10px">Appears on the customer's dashboard under Optimization proof. Anything Claude changed is already logged — this is for work you or a developer did by hand.</div>
-                <div style="display:grid;grid-template-columns:1.4fr 2fr 1fr auto;gap:8px;align-items:end">
-                    <div>
-                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Category</div>
-                        <input class="six-input wl-category" list="wl-cats-<?php echo esc_attr($slug); ?>" placeholder="Title Tags" style="font-size:12px;padding:7px 10px">
-                        <datalist id="wl-cats-<?php echo esc_attr($slug); ?>">
-                            <?php foreach($wl_proof as $wc): ?><option value="<?php echo esc_attr($wc['category']); ?>"><?php endforeach; ?>
-                            <option value="Title Tags"><option value="Meta Descriptions"><option value="Schema Markup">
-                            <option value="Page Content"><option value="Internal Links"><option value="Image Alt Text">
-                            <option value="Technical Fixes"><option value="Ad Copy"><option value="Negative Keywords">
-                            <option value="GBP Posts"><option value="Citations"><option value="Backlinks">
-                        </datalist>
-                    </div>
-                    <div>
-                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">What you did</div>
-                        <input class="six-input wl-title" placeholder="Rewrote the bail hearing page title" style="font-size:12px;padding:7px 10px">
-                    </div>
-                    <div>
-                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">How many</div>
-                        <input class="six-input wl-count" type="number" min="1" max="500" value="1" style="font-size:12px;padding:7px 10px">
-                    </div>
-                    <button class="six-btn six-btn-primary six-btn-sm six-log-work"
-                            data-slug="<?php echo esc_attr($slug); ?>"
-                            data-client="<?php echo $view_client_id; ?>"
-                            style="font-size:11px;padding:8px 12px">Log</button>
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px">
-                    <div>
-                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Page or thing changed</div>
-                        <input class="six-input wl-entity" placeholder="https://… or campaign name" style="font-size:12px;padding:7px 10px">
-                    </div>
-                    <div>
-                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Before</div>
-                        <input class="six-input wl-before" placeholder="what it was" style="font-size:12px;padding:7px 10px">
-                    </div>
-                    <div>
-                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">After</div>
-                        <input class="six-input wl-after" placeholder="what it is now" style="font-size:12px;padding:7px 10px">
-                    </div>
-                </div>
-                <div class="wl-result-<?php echo esc_attr($slug); ?>" style="font-size:11px;margin-top:8px"></div>
+
+            <?php /* The work log lives under Reports now — one record for the
+                     whole engagement rather than one per service panel, because
+                     a change usually belongs to a task, not to a metric row. */ ?>
+            <div style="font-size:10.5px;color:var(--text3);margin-top:10px">
+                Work done by hand is logged under
+                <a href="<?php echo $base_url; ?>&ctab=reports" style="color:var(--cyan)">Reports &rarr; Work log</a>,
+                next to the task board it belongs to.
             </div>
 
         </div>
@@ -3061,6 +3020,244 @@ function advCompleteOnboarding(clientId){
     <!-- ═══════════════════════ CTAB: REPORTS ═══════════════════════ -->
     <?php elseif($ctab==='reports'): ?>
 
+    <?php
+    /* ── The plan, as rows ───────────────────────────────────────────────
+       An approved strategy arrives here through the connector: one task per
+       thing that has to be done, across the engagement. It arrives as a draft
+       — the advisor fixes the dates and the order, then publishes.
+
+       The four states are the whole vocabulary. "Client review" exists because
+       copy sitting with a client is not the same as work not started, and
+       reporting the two as one is how a month looks idle when it is not. */
+    $tb_tasks   = class_exists('Six_Tasks') ? Six_Tasks::all($view_client_id) : array();
+    $tb_sum     = class_exists('Six_Tasks') ? Six_Tasks::summary($view_client_id) : array('total'=>0,'by_status'=>array(),'by_phase'=>array(),'published'=>0);
+    $tb_status  = class_exists('Six_Tasks') ? Six_Tasks::STATUSES : array();
+    $tb_means   = class_exists('Six_Tasks') ? Six_Tasks::STATUS_MEANS : array();
+    $tb_colors  = array('todo'=>'var(--text3)','client_review'=>'var(--warning)','implementation'=>'var(--cyan)','complete'=>'var(--success)');
+    $tb_drafts  = 0; foreach($tb_tasks as $tt){ if(empty($tt['published'])) $tb_drafts++; }
+    // Group by phase so a twelve-month plan reads as three blocks of four
+    // months, which is how the content is produced even though the board
+    // always shows the full year.
+    $tb_phases = array();
+    foreach($tb_tasks as $tt){ $tb_phases[(int)$tt['phase']][] = $tt; }
+    ksort($tb_phases);
+    ?>
+
+    <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px">
+        <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+            <div>
+                <span style="font-size:13px;font-weight:700">Tasks &amp; timeline</span>
+                <span style="font-size:10.5px;color:var(--text3);margin-left:8px">
+                    <?php echo (int)$tb_sum['total']; ?> task<?php echo (int)$tb_sum['total']===1?'':'s'; ?>
+                    <?php if($tb_drafts): ?> &middot; <span style="color:var(--warning)"><?php echo $tb_drafts; ?> unpublished</span><?php endif; ?>
+                </span>
+            </div>
+            <?php if($tb_tasks): ?>
+            <div style="display:flex;gap:8px">
+                <?php if($tb_drafts): ?>
+                <button class="six-btn six-btn-primary six-btn-sm six-publish-tasks" data-client="<?php echo $view_client_id; ?>"
+                        style="font-size:11px">Publish <?php echo $tb_drafts; ?> draft<?php echo $tb_drafts===1?'':'s'; ?></button>
+                <?php endif; ?>
+                <?php if((int)$tb_sum['published']): ?>
+                <button class="six-btn six-btn-ghost six-btn-sm six-publish-tasks" data-client="<?php echo $view_client_id; ?>" data-unpublish="1"
+                        style="font-size:11px">Unpublish all</button>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
+        </div>
+
+        <?php if(!$tb_tasks): ?>
+        <div style="padding:30px 18px;text-align:center">
+            <div style="font-size:13px;font-weight:600;margin-bottom:6px">No plan yet</div>
+            <p style="font-size:11.5px;color:var(--text3);max-width:460px;margin:0 auto">
+                Tasks appear here once the client has approved the strategy and it has been turned into a plan.
+                They arrive as a draft so you can fix the dates and the order before anything is published.
+            </p>
+        </div>
+        <?php else: ?>
+
+        <!-- Count by state. Four words the whole engagement is reported in. -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(255,255,255,0.05)">
+            <?php foreach($tb_status as $sk => $sl): $n = (int)($tb_sum['by_status'][$sk] ?? 0); ?>
+            <div style="background:var(--dark2);padding:12px 14px">
+                <div style="font-size:19px;font-weight:800;color:<?php echo $tb_colors[$sk]; ?>"><?php echo $n; ?></div>
+                <div style="font-size:10.5px;font-weight:600;margin-top:1px"><?php echo esc_html($sl); ?></div>
+                <div style="font-size:9.5px;color:var(--text3);margin-top:2px"><?php echo esc_html($tb_means[$sk] ?? ''); ?></div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+
+        <?php foreach($tb_phases as $ph => $rows):
+            $ph_done = 0; foreach($rows as $r){ if($r['status']==='complete') $ph_done++; }
+            $ph_months = array_filter(array_map(function($r){ return (int)$r['month_no']; }, $rows));
+            $ph_lo = $ph_months ? min($ph_months) : 0; $ph_hi = $ph_months ? max($ph_months) : 0;
+        ?>
+        <div style="padding:11px 18px;border-top:1px solid rgba(255,255,255,0.05);background:var(--dark3);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+            <div style="font-size:11px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:var(--text2)">
+                Phase <?php echo (int)$ph; ?>
+                <?php if($ph_lo): ?><span style="font-weight:500;color:var(--text3);text-transform:none;letter-spacing:0">&nbsp;&middot; month<?php echo $ph_lo===$ph_hi?'':'s'; ?> <?php echo $ph_lo; ?><?php echo $ph_lo===$ph_hi?'':'&ndash;'.$ph_hi; ?></span><?php endif; ?>
+            </div>
+            <div style="font-size:10.5px;color:var(--text3)"><?php echo $ph_done; ?> of <?php echo count($rows); ?> complete</div>
+        </div>
+
+        <?php foreach($rows as $tk): ?>
+        <div class="six-task-row" id="task-<?php echo (int)$tk['id']; ?>"
+             style="padding:11px 18px;border-top:1px solid rgba(255,255,255,0.04);display:grid;grid-template-columns:34px 1fr 150px 120px auto;gap:10px;align-items:center">
+            <div style="font-size:10px;color:var(--text3);text-align:center">M<?php echo (int)$tk['month_no']; ?></div>
+            <div style="min-width:0">
+                <div style="font-size:12px;font-weight:600;line-height:1.35"><?php echo esc_html($tk['title']); ?></div>
+                <div style="font-size:10px;color:var(--text3);margin-top:2px">
+                    <?php if($tk['category']): ?><span style="color:var(--text2)"><?php echo esc_html($tk['category']); ?></span><?php endif; ?>
+                    <?php if($tk['deliverable']): ?> &middot; <?php echo esc_html($tk['deliverable']); ?><?php endif; ?>
+                    <?php if($tk['entity']): ?> &middot; <span style="word-break:break-all"><?php echo esc_html($tk['entity']); ?></span><?php endif; ?>
+                    <?php if(empty($tk['published'])): ?> &middot; <span style="color:var(--warning)">draft</span><?php endif; ?>
+                </div>
+            </div>
+            <div>
+                <select class="six-input six-task-status" data-id="<?php echo (int)$tk['id']; ?>" data-client="<?php echo $view_client_id; ?>"
+                        style="font-size:11px;padding:6px 8px;border-color:<?php echo $tb_colors[$tk['status']] ?? 'var(--border)'; ?>44">
+                    <?php foreach($tb_status as $sk => $sl): ?>
+                    <option value="<?php echo esc_attr($sk); ?>" <?php selected($tk['status'],$sk); ?>><?php echo esc_html($sl); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div style="font-size:10px;color:var(--text3)">
+                <?php if($tk['status']==='complete' && !empty($tk['completed_at'])): ?>
+                    done <?php echo esc_html(date('M j', strtotime($tk['completed_at']))); ?>
+                <?php elseif(!empty($tk['due_date'])): ?>
+                    due <?php echo esc_html(date('M j', strtotime($tk['due_date']))); ?>
+                <?php else: ?>
+                    &mdash;
+                <?php endif; ?>
+            </div>
+            <button class="six-btn six-btn-ghost six-btn-sm six-delete-task" data-id="<?php echo (int)$tk['id']; ?>"
+                    data-client="<?php echo $view_client_id; ?>" style="font-size:10px;padding:5px 9px">Remove</button>
+        </div>
+        <?php endforeach; ?>
+        <?php endforeach; ?>
+        <?php endif; ?>
+
+        <!-- Add one by hand, for work the strategy did not foresee. -->
+        <div style="padding:13px 18px;border-top:1px solid rgba(255,255,255,0.05);background:var(--dark4)">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;margin-bottom:8px">+ Add a task</div>
+            <div style="display:grid;grid-template-columns:2.4fr 1fr 70px auto;gap:8px;align-items:end">
+                <div>
+                    <div style="font-size:10px;color:var(--text3);margin-bottom:4px">What has to be done</div>
+                    <input class="six-input" id="tk-title" placeholder="Rewrite the bail hearing page title" style="font-size:12px;padding:7px 10px">
+                </div>
+                <div>
+                    <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Category</div>
+                    <input class="six-input" id="tk-cat" list="tk-cats" placeholder="On-Page" style="font-size:12px;padding:7px 10px">
+                    <datalist id="tk-cats">
+                        <option value="Content"><option value="On-Page"><option value="Technical">
+                        <option value="Backlinks"><option value="Digital PR"><option value="Citations">
+                        <option value="GMB"><option value="Local"><option value="Reporting">
+                    </datalist>
+                </div>
+                <div>
+                    <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Month</div>
+                    <input class="six-input" id="tk-month" type="number" min="1" max="24" value="1" style="font-size:12px;padding:7px 10px">
+                </div>
+                <button class="six-btn six-btn-primary six-btn-sm" id="six-add-task" data-client="<?php echo $view_client_id; ?>"
+                        style="font-size:11px;padding:8px 12px">Add</button>
+            </div>
+            <div id="tk-result" style="font-size:11px;margin-top:8px"></div>
+        </div>
+    </div>
+
+    <?php
+    /* ── Work log ────────────────────────────────────────────────────────
+       Moved here from under live metrics. A change belongs next to the task
+       it closes, not next to the number it may eventually move. Claude logs
+       what it changes through the connector; this form is for work a person
+       did by hand, so the customer's optimization proof shows the work rather
+       than whichever tool happened to do it. */
+    $wl_proof  = class_exists('Six_Tracking') ? Six_Tracking::proof($view_client_id) : array();
+    $wl_recent = class_exists('Six_Tracking') ? Six_Tracking::work_log($view_client_id, array('limit'=>25)) : array();
+    $wl_svcs   = array();
+    foreach($c_svcs as $s){ if(isset($svc_def[$s->service_slug])) $wl_svcs[$s->service_slug] = $svc_def[$s->service_slug]['name']; }
+    ?>
+    <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px">
+        <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap">
+            <span style="font-size:13px;font-weight:700">Work log</span>
+            <?php if($wl_proof): ?>
+            <span style="font-size:10.5px;color:var(--text3)">
+                <?php echo number_format(array_sum(array_column($wl_proof,'deployed'))); ?> live across <?php echo count($wl_proof); ?> categor<?php echo count($wl_proof)===1?'y':'ies'; ?>
+            </span>
+            <?php endif; ?>
+        </div>
+        <div style="padding:14px 18px">
+            <div style="font-size:10.5px;color:var(--text3);margin-bottom:10px">Appears on the customer's dashboard under Optimization proof. Anything Claude changed is already logged &mdash; this is for work you or a developer did by hand.</div>
+            <div style="display:grid;grid-template-columns:1fr 1.3fr 2fr 70px auto;gap:8px;align-items:end">
+                <div>
+                    <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Service</div>
+                    <select class="six-input wl-slug" style="font-size:12px;padding:7px 10px">
+                        <?php if(!$wl_svcs): ?><option value="">&mdash;</option><?php endif; ?>
+                        <?php foreach($wl_svcs as $ws => $wn): ?><option value="<?php echo esc_attr($ws); ?>"><?php echo esc_html($wn); ?></option><?php endforeach; ?>
+                    </select>
+                </div>
+                <div>
+                    <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Category</div>
+                    <input class="six-input wl-category" list="wl-cats" placeholder="Title Tags" style="font-size:12px;padding:7px 10px">
+                    <datalist id="wl-cats">
+                        <?php foreach($wl_proof as $wc): ?><option value="<?php echo esc_attr($wc['category']); ?>"><?php endforeach; ?>
+                        <option value="Title Tags"><option value="Meta Descriptions"><option value="Schema Markup">
+                        <option value="Page Content"><option value="Internal Links"><option value="Image Alt Text">
+                        <option value="Technical Fixes"><option value="Ad Copy"><option value="Negative Keywords">
+                        <option value="GBP Posts"><option value="Citations"><option value="Backlinks">
+                    </datalist>
+                </div>
+                <div>
+                    <div style="font-size:10px;color:var(--text3);margin-bottom:4px">What you did</div>
+                    <input class="six-input wl-title" placeholder="Rewrote the bail hearing page title" style="font-size:12px;padding:7px 10px">
+                </div>
+                <div>
+                    <div style="font-size:10px;color:var(--text3);margin-bottom:4px">How many</div>
+                    <input class="six-input wl-count" type="number" min="1" max="500" value="1" style="font-size:12px;padding:7px 10px">
+                </div>
+                <button class="six-btn six-btn-primary six-btn-sm six-log-work" data-client="<?php echo $view_client_id; ?>"
+                        style="font-size:11px;padding:8px 12px">Log</button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px">
+                <div>
+                    <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Page or thing changed</div>
+                    <input class="six-input wl-entity" placeholder="https://… or campaign name" style="font-size:12px;padding:7px 10px">
+                </div>
+                <div>
+                    <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Before</div>
+                    <input class="six-input wl-before" placeholder="what it was" style="font-size:12px;padding:7px 10px">
+                </div>
+                <div>
+                    <div style="font-size:10px;color:var(--text3);margin-bottom:4px">After</div>
+                    <input class="six-input wl-after" placeholder="what it is now" style="font-size:12px;padding:7px 10px">
+                </div>
+            </div>
+            <div class="wl-result" style="font-size:11px;margin-top:8px"></div>
+        </div>
+
+        <?php if($wl_recent): ?>
+        <div style="border-top:1px solid rgba(255,255,255,0.05);max-height:340px;overflow:auto">
+            <?php foreach($wl_recent as $we): ?>
+            <div style="padding:9px 18px;border-bottom:1px solid rgba(255,255,255,0.03);display:flex;gap:10px;align-items:baseline">
+                <div style="font-size:9.5px;color:var(--text3);white-space:nowrap;width:52px"><?php echo esc_html(date('M j', strtotime($we['performed_at']))); ?></div>
+                <div style="flex:1;min-width:0">
+                    <div style="font-size:11.5px"><?php echo esc_html($we['title']); ?></div>
+                    <div style="font-size:9.5px;color:var(--text3)">
+                        <?php echo esc_html($we['category']); ?>
+                        <?php if(!empty($we['entity'])): ?> &middot; <span style="word-break:break-all"><?php echo esc_html($we['entity']); ?></span><?php endif; ?>
+                        <?php if(!empty($we['before']) || !empty($we['after'])): ?>
+                            &middot; <span style="color:var(--text3)"><?php echo esc_html($we['before'] ?: '—'); ?></span>
+                            &rarr; <span style="color:var(--text2)"><?php echo esc_html($we['after'] ?: '—'); ?></span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <div style="font-size:9.5px;color:<?php echo $we['status']==='deployed'?'var(--success)':'var(--text3)'; ?>"><?php echo esc_html($we['status']); ?></div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+    </div>
+
     <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px">
         <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.05)">
             <span style="font-size:13px;font-weight:700">Upload Report</span>
@@ -4276,7 +4473,11 @@ function sixServiceWizard(serviceId, clientId, slug, name, activateMode){
     // The catalog rows go to the customer's stat cards; the free rows go to
     // the service's detail table. Two different homes, collected separately.
     body.querySelectorAll('.wiz-krow').forEach(function(row){
-      W.kpis[row.dataset.key] = { current: row.querySelector('.k-cur').value, previous: row.querySelector('.k-prev').value };
+      W.kpis[row.dataset.key] = {
+        current:  row.querySelector('.k-cur').value,
+        previous: row.querySelector('.k-prev').value,
+        target:   row.querySelector('.k-tgt').value
+      };
     });
     W.metrics=[];
     body.querySelectorAll('.wiz-mrow').forEach(function(row){
@@ -4355,23 +4556,43 @@ function sixServiceWizard(serviceId, clientId, slug, name, activateMode){
     //    because "1,240" with no unit is a number the customer cannot read and
     //    a number the advisor can enter wrong.
     var klist=body.querySelector('#wiz-kpis');
-    var KGRID='display:grid;grid-template-columns:1fr 110px 110px;gap:8px;align-items:center';
+    // Four columns now. The target used to be missing entirely here, so a
+    // figure read during activation arrived on the customer's dashboard with
+    // nothing to measure it against — which is why a card could sit at 0%
+    // for ever with "Target: –". And every row can be cleared: an advisor
+    // could edit a pulled number but had no way to say "do not show this one".
+    var KGRID='display:grid;grid-template-columns:1fr 104px 104px 104px 26px;gap:8px;align-items:center';
     if((W.catalog||[]).length){
       var head=document.createElement('div');
       head.style.cssText=KGRID+';margin-bottom:6px';
+      var th='font-size:9.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3,#8a8a99)';
       head.innerHTML='<div></div>'
-        +'<div style="font-size:9.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3,#8a8a99)">Last month</div>'
-        +'<div style="font-size:9.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3,#8a8a99)">Now</div>';
+        +'<div style="'+th+'">Before</div>'
+        +'<div style="'+th+'">Now</div>'
+        +'<div style="'+th+'">Target</div><div></div>';
+      var hint=document.createElement('div');
+      hint.style.cssText='font-size:10.5px;color:var(--text3,#8a8a99);margin-bottom:8px;line-height:1.5';
+      hint.textContent='Every figure here can be edited after it is read, and the × empties a row — '
+        + 'an empty row means that card does not appear on the customer\'s dashboard at all.';
+      klist.appendChild(hint);
       klist.appendChild(head);
     }
     (W.catalog||[]).forEach(function(c){
       var have=W.kpis[c.key]||{};
       var row=document.createElement('div'); row.className='wiz-krow'; row.dataset.key=c.key;
       row.style.cssText=KGRID+';margin-bottom:8px';
-      row.innerHTML='<div><div style="font-size:12px;font-weight:600;color:var(--text1,#fff)">'+esc(c.label)+'</div>'
+      var cell='width:100%;min-width:0;font-size:12px;padding:6px 8px';
+      row.innerHTML='<div><div style="font-size:12px;font-weight:600;color:var(--text1,#fff)">'+esc(c.label)
+          +(c.lower_better?' <span style="font-size:9.5px;font-weight:600;color:var(--text3,#8a8a99)">· lower is better</span>':'')+'</div>'
           +'<div style="font-size:10.5px;color:var(--text3,#8a8a99);margin-top:2px">'+esc(c.unit||'')+'</div></div>'
-        +'<input class="six-input k-prev" value="'+esc(have.previous||'')+'" placeholder="—" style="width:100%;min-width:0;font-size:12px;padding:6px 8px">'
-        +'<input class="six-input k-cur" value="'+esc(have.current||'')+'" placeholder="—" style="width:100%;min-width:0;font-size:12px;padding:6px 8px">';
+        +'<input class="six-input k-prev" value="'+esc(have.previous||'')+'" placeholder="—" style="'+cell+'">'
+        +'<input class="six-input k-cur" value="'+esc(have.current||'')+'" placeholder="—" style="'+cell+'">'
+        +'<input class="six-input k-tgt" value="'+esc(have.target||'')+'" placeholder="—" style="'+cell+'">'
+        +'<button class="k-clr" title="Remove this metric — emptying the row takes the card off the customer\'s dashboard" style="background:none;border:none;color:var(--text3,#8a8a99);cursor:pointer;font-size:16px;line-height:1">&times;</button>';
+      row.querySelector('.k-clr').onclick=function(){
+        row.querySelectorAll('input').forEach(function(i){ i.value=''; });
+        row.style.outline='none';
+      };
       klist.appendChild(row);
     });
     if(!(W.catalog||[]).length) klist.innerHTML='<div style="font-size:12px;color:var(--text3,#8a8a99)">This service has no dashboard cards — it is tracked by delivery milestones instead.</div>';
@@ -4412,6 +4633,14 @@ function sixServiceWizard(serviceId, clientId, slug, name, activateMode){
             var n=keyed[row.dataset.key]; if(!n) return;
             if(n.current!=='' && n.current!=null) row.querySelector('.k-cur').value=n.current;
             if(n.previous) row.querySelector('.k-prev').value=n.previous;
+            if(n.target) row.querySelector('.k-tgt').value=n.target;
+            // The window each figure covers, under the row — Search Console
+            // reports 28 days, GA4 reports 30, a page check is one moment, and
+            // they were all arriving in a column headed "Now".
+            if(n.period){
+              var lbl=row.querySelector('div > div:nth-child(2)');
+              if(lbl) lbl.innerHTML=esc(n.unit||lbl.textContent)+' · <span style="color:var(--text2,#b5b5c5)">'+esc(n.period)+'</span>';
+            }
             row.style.outline='1px solid rgba(86,211,100,.45)';
             row.style.outlineOffset='3px';
           });
@@ -4590,12 +4819,27 @@ if(saveMetric) saveMetric.addEventListener('click',function(){
 });
 
 // ── Metric delete ────────────────────────────────────────────────────────────
+//
+// The button carried class six-del-metric and data-metric-id while this
+// listener looked for .six-delete-metric and dataset.id, so Delete had never
+// worked — and because nothing reported a failure, it looked like a delete
+// that simply had not redrawn.
 document.querySelectorAll('.six-delete-metric').forEach(function(btn){
     btn.addEventListener('click',function(){
-        if(!confirm('Delete this metric?'))return;
-        var id=this.dataset.id;
+        if(!confirm('Delete this metric? The customer stops seeing it immediately.'))return;
+        var id=this.dataset.id, self=this, old=self.textContent;
+        self.disabled=true; self.textContent='…';
         post({action:'six_delete_metric',metric_id:id}).then(function(res){
-            if(res.success){var row=document.getElementById('mrow-'+id);if(row){row.style.opacity='0.3';setTimeout(function(){row.remove();},300);}}
+            if(res&&res.success){
+                var row=document.getElementById('mrow-'+id);
+                if(row){row.style.opacity='0.3';setTimeout(function(){row.remove();},300);}
+            } else {
+                self.disabled=false; self.textContent=old;
+                alert((res&&res.data&&(res.data.message||res.data))||'Could not delete it. Nothing was changed.');
+            }
+        }).catch(function(){
+            self.disabled=false; self.textContent=old;
+            alert('Could not reach the server. Nothing was changed.');
         });
     });
 });
@@ -5136,12 +5380,14 @@ document.querySelectorAll('.prop-dismiss').forEach(function(btn){
 });
 
 // ── Log work done by hand ──────────────────────────────────────────────
+// One form now, under Reports, rather than one per service panel.
 document.querySelectorAll('.six-log-work').forEach(function(btn){
     btn.addEventListener('click',function(){
-        var slug = this.dataset.slug, client = this.dataset.client, self = this;
-        var scope = this.closest('div[style*="--dark4"]') || document;
-        var box = document.querySelector('.wl-result-'+slug);
+        var client = this.dataset.client, self = this;
+        var scope = document;
+        var box = document.querySelector('.wl-result');
         var q = function(c){ var el = scope.querySelector(c); return el ? el.value : ''; };
+        var slug = q('.wl-slug');
         var title = (q('.wl-title')||'').trim();
         if(!title){ if(box) box.innerHTML='<span style="color:var(--danger)">Give it a title — one line somebody reading the dashboard would understand.</span>'; return; }
         self.disabled = true; self.textContent = 'Logging…';
@@ -5164,6 +5410,89 @@ document.querySelectorAll('.six-log-work').forEach(function(btn){
         });
     });
 });
+
+// ── The task board ─────────────────────────────────────────────────────
+// Every handler reports what the server actually did. A status select that
+// snaps back to its old value is the honest answer when a write fails; one
+// that stays put while the database rejected it is the bug this codebase
+// keeps rediscovering.
+document.querySelectorAll('.six-task-status').forEach(function(sel){
+    sel.dataset.was = sel.value;
+    sel.addEventListener('change',function(){
+        var self = this, was = this.dataset.was;
+        self.disabled = true;
+        post({action:'six_update_task', client_id:self.dataset.client, task_id:self.dataset.id, status:self.value})
+        .then(function(r){
+            self.disabled = false;
+            if(r && r.success){
+                self.dataset.was = self.value;
+                self.style.borderColor = 'rgba(86,211,100,0.55)';
+                setTimeout(function(){ location.reload(); }, 500);
+            } else {
+                self.value = was;
+                alert((r && r.data) ? r.data : 'The status did not save. Nothing was changed.');
+            }
+        }).catch(function(){
+            self.disabled = false; self.value = was;
+            alert('Could not reach the server. Nothing was changed.');
+        });
+    });
+});
+
+document.querySelectorAll('.six-delete-task').forEach(function(btn){
+    btn.addEventListener('click',function(){
+        var self = this, id = this.dataset.id;
+        if(!confirm('Remove this task from the plan?')) return;
+        self.disabled = true;
+        post({action:'six_delete_task', client_id:self.dataset.client, task_id:id})
+        .then(function(r){
+            if(r && r.success){
+                var row = document.getElementById('task-'+id);
+                if(row) row.remove();
+            } else {
+                self.disabled = false;
+                alert((r && r.data) ? r.data : 'Could not remove it. Nothing was changed.');
+            }
+        }).catch(function(){
+            self.disabled = false;
+            alert('Could not reach the server. Nothing was changed.');
+        });
+    });
+});
+
+document.querySelectorAll('.six-publish-tasks').forEach(function(btn){
+    btn.addEventListener('click',function(){
+        var self = this, un = self.dataset.unpublish ? 1 : 0;
+        if(un && !confirm('Unpublish the whole plan? The client stops seeing the timeline.')) return;
+        self.disabled = true; self.textContent = un ? 'Unpublishing…' : 'Publishing…';
+        post({action:'six_publish_tasks', client_id:self.dataset.client, unpublish:un})
+        .then(function(r){
+            if(r && r.success){ location.reload(); }
+            else { self.disabled = false; alert((r && r.data) ? r.data : 'Nothing was published.'); }
+        }).catch(function(){ self.disabled = false; alert('Could not reach the server.'); });
+    });
+});
+
+var addTaskBtn = document.getElementById('six-add-task');
+if(addTaskBtn){
+    addTaskBtn.addEventListener('click',function(){
+        var self = this, box = document.getElementById('tk-result');
+        var title = (document.getElementById('tk-title')||{}).value || '';
+        if(!title.trim()){ box.innerHTML = '<span style="color:var(--danger)">Give it a title — one line somebody reading the board would understand.</span>'; return; }
+        self.disabled = true; self.textContent = 'Adding…';
+        post({action:'six_add_task', client_id:self.dataset.client, title:title.trim(),
+              category:(document.getElementById('tk-cat')||{}).value||'',
+              month_no:(document.getElementById('tk-month')||{}).value||1})
+        .then(function(r){
+            self.disabled = false; self.textContent = 'Add';
+            if(r && r.success){ location.reload(); }
+            else { box.innerHTML = '<span style="color:var(--danger)">'+((r&&r.data)||'The task was not created.')+'</span>'; }
+        }).catch(function(){
+            self.disabled = false; self.textContent = 'Add';
+            box.innerHTML = '<span style="color:var(--danger)">Could not reach the server. Nothing was created.</span>';
+        });
+    });
+}
 
 // ── Advisor saves client profile ───────────────────────────────────────
 var advSaveProfileBtn = document.getElementById('adv-save-profile-btn');

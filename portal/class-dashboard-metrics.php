@@ -325,6 +325,148 @@ class Six_Dash_Metrics {
 	}
 
 	/**
+	 * The key in the metric catalog whose label matches this one.
+	 *
+	 * The detail rows in six_metrics are keyed on the label an advisor typed,
+	 * and the daily readings in six_daily_metrics are keyed on the catalog's
+	 * own key. Joining them is the only way a target graph gets a real line
+	 * under it rather than two points.
+	 */
+	public static function key_for( $label ) {
+		$needle = strtolower( trim( (string) $label ) );
+		if ( $needle === '' ) return '';
+		foreach ( self::catalog() as $svc ) {
+			foreach ( $svc['metrics'] as $key => $m ) {
+				if ( $needle === $key || $needle === strtolower( $m['label'] ) ) return $key;
+			}
+		}
+		foreach ( self::extra_metrics() as $key => $m ) {
+			if ( $needle === $key || $needle === strtolower( $m['label'] ) ) return $key;
+		}
+		return '';
+	}
+
+	/**
+	 * One metric's journey towards its target, as a drawable series.
+	 *
+	 * Replaces the progress bar, which could say 62% and nothing else — not
+	 * whether the number is moving, not how fast, not whether it moved at all
+	 * since the work started.
+	 *
+	 * What this will not do is draw a line it does not have. Where the daily
+	 * sync has readings, the line is those readings. Where it does not, the
+	 * series is exactly the points we know — the starting figure and today's
+	 * — and `sparse` says so, so the chart can draw two dots and a dashed
+	 * connector instead of a confident curve through invented days. A smooth
+	 * thirty-day line interpolated from two numbers is a measurement the
+	 * client never gave us, on a chart they will read as one.
+	 *
+	 * Geometry, from the brief: the target sits at TARGET_AT of the plot
+	 * height, and every value is placed against it, so a metric halfway to
+	 * its target draws at roughly 42% — inside the 40-50% band asked for —
+	 * without anybody inventing a scale. `y` is a 0-1 fraction of plot
+	 * height, already pointing the way the metric improves, so a falling
+	 * average position climbs the chart.
+	 *
+	 * @return array{has:bool,...}
+	 */
+	const TARGET_AT = 0.85;   // where the target circle sits, as plot height
+	const PLOT_CAP  = 0.95;   // nothing is ever drawn above this
+
+	public static function target_series( $user_id, $label, $current, $target,
+	                                      $previous = null, $days = 90 ) {
+		$lower = self::lower_is_better( $label );
+		$c     = self::number( $current );
+		$t     = self::number( $target );
+		$p     = self::number( $previous );
+
+		if ( $c === null ) {
+			return array( 'has' => false, 'reason' => 'nothing measured yet' );
+		}
+
+		$key    = self::key_for( $label );
+		$daily  = ( $key && class_exists( 'Six_Tracking' ) )
+			? Six_Tracking::daily( $user_id, $key, $days ) : array();
+
+		$points = array();
+		if ( count( $daily ) >= 3 ) {
+			// Real readings. Thinned to at most 30 marks so a 90-day series
+			// stays legible, keeping the first and last exactly.
+			$step = max( 1, (int) ceil( count( $daily ) / 30 ) );
+			foreach ( $daily as $i => $row ) {
+				if ( $i % $step && $i !== count( $daily ) - 1 ) continue;
+				$points[] = array(
+					'date'  => $row['date'],
+					'label' => date_i18n( 'j M', strtotime( $row['date'] ) ),
+					'value' => (float) $row['value'],
+				);
+			}
+			$sparse = false;
+		} else {
+			// Two known figures, or one. Drawn as the dots they are.
+			if ( $p !== null ) {
+				$points[] = array( 'date' => '', 'label' => 'Before', 'value' => $p );
+			}
+			$points[] = array( 'date' => '', 'label' => 'Now', 'value' => $c );
+			$sparse = true;
+		}
+
+		// ── The scale ────────────────────────────────────────────────────
+		// Higher-is-better: the axis runs from zero, with the target at
+		// TARGET_AT. Lower-is-better: the axis runs from the worst figure we
+		// have seen up to the target, so better is still up — an average
+		// position of 18 improving to 11 has to climb, not fall.
+		$values = array_column( $points, 'value' );
+		$values[] = $c;
+		if ( $t !== null ) $values[] = $t;
+
+		if ( $lower ) {
+			$worst = max( $values );
+			$best  = $t !== null ? min( $t, min( $values ) ) : min( $values );
+			$span  = $worst - $best;
+			$place = function ( $v ) use ( $worst, $span ) {
+				if ( $span <= 0.0001 ) return self::TARGET_AT;
+				return min( self::PLOT_CAP, max( 0.0, ( $worst - $v ) / $span * self::TARGET_AT ) );
+			};
+		} else {
+			$top   = $t !== null && $t > 0 ? (float) $t : max( $values );
+			$place = function ( $v ) use ( $top ) {
+				if ( $top <= 0.0001 ) return 0.0;
+				return min( self::PLOT_CAP, max( 0.0, $v / $top * self::TARGET_AT ) );
+			};
+		}
+
+		foreach ( $points as $i => $pt ) {
+			$points[ $i ]['y'] = round( $place( $pt['value'] ), 4 );
+		}
+
+		$prog = self::progress( $current, $target, $lower, $previous );
+
+		return array(
+			'has'       => true,
+			'label'     => (string) $label,
+			'unit'      => self::unit_for( $label ),
+			'points'    => $points,
+			'sparse'    => $sparse,
+			'measured'  => ! $sparse,
+			'current'   => $c,
+			'target'    => $t,
+			'target_y'  => $t === null ? null : round( $place( $t ), 4 ),
+			'lower'     => $lower,
+			'pct'       => $prog['pct'],
+			'met'       => $prog['met'],
+			'reason'    => $prog['reason'],
+			// Short enough to sit on one line beside the target. The longer
+			// version is the card's tooltip: a footer that wraps onto two
+			// lines pushes into the target figure beside it.
+			'note'      => $sparse ? 'Two readings so far' : '',
+			'note_long' => $sparse
+				? 'Only two readings exist for this metric. The line fills in day by day once the daily sync has more.'
+				: '',
+		);
+	}
+
+	/**
 	 * The unit text for a metric, by key OR by label.
 	 *
 	 * By label too because six_metrics rows are keyed on the advisor's typed
@@ -535,6 +677,55 @@ class Six_Dash_Metrics {
 	 *
 	 * @return array{has:bool,source:string,baseline_mo:int,current_mo:int,points:array}
 	 */
+	/**
+	 * A trailing seven-day mean, so the line reads as a trend and not as a
+	 * week's worth of weekday-and-weekend.
+	 *
+	 * Trailing rather than centred: a centred window needs days that have
+	 * not happened yet, and filling them in is how a chart ends on a figure
+	 * nobody measured. The first few days average over what exists, so the
+	 * line starts slightly rougher than it ends, which is honest.
+	 */
+	public static function weekly_mean( array $values, $window = 7 ) {
+		$out = array();
+		$n   = count( $values );
+		for ( $i = 0; $i < $n; $i++ ) {
+			$from  = max( 0, $i - $window + 1 );
+			$slice = array_slice( $values, $from, $i - $from + 1 );
+			$slice = array_filter( $slice, function ( $v ) { return $v !== null && $v !== ''; } );
+			$out[] = $slice ? (float) ( array_sum( $slice ) / count( $slice ) ) : 0.0;
+		}
+		return $out;
+	}
+
+	/**
+	 * Which point in the window is the day the work started.
+	 *
+	 * Three cases, and the middle one is the one that used to be wrong. The
+	 * day falls inside the window: split there. It is before the window, so
+	 * every day on screen is already "with us": split at the first point,
+	 * and both lines run the whole width. There is no start date at all:
+	 * null, and the chart draws one line with no comparison, because there
+	 * is nothing honest to compare against.
+	 *
+	 * @return int|null index into $points
+	 */
+	public static function split_index( array $points, $started_on ) {
+		$started_on = trim( (string) $started_on );
+		if ( $started_on === '' || ! $points ) return null;
+		$start = substr( $started_on, 0, 10 );
+
+		$first = $points[0]['date'] ?? '';
+		$last  = $points[ count( $points ) - 1 ]['date'] ?? '';
+		if ( $last && $start > $last ) return null;        // starts after the window
+		if ( $first && $start <= $first ) return 0;        // started before it
+
+		foreach ( $points as $i => $pt ) {
+			if ( ( $pt['date'] ?? '' ) >= $start ) return $i;
+		}
+		return null;
+	}
+
 	public static function visitor_series( $user_id, array $ctx ) {
 		$slugs   = self::card_services( $ctx['slugs'] ?? array() );
 		$budgets = $ctx['budgets'] ?? array();
@@ -608,14 +799,25 @@ class Six_Dash_Metrics {
 		$daily = class_exists( 'Six_Tracking' ) ? Six_Tracking::graph_series( $user_id, '', 180 ) : array( 'has' => false );
 		if ( ! empty( $daily['has'] ) && count( $daily['dates'] ) >= 7 ) {
 			$has_proj = ! empty( $daily['projected'] );
+
+			// Smoothed over seven days before it is drawn. The raw daily
+			// figure for a small site swings by half its value between a
+			// Tuesday and a Sunday, and a chart of that noise reads as
+			// instability rather than as a week with a weekend in it. The
+			// sums below still use the raw numbers — this is how the line is
+			// drawn, not what the figures are.
+			$smooth_after  = self::weekly_mean( $daily['actual'] );
+			$smooth_before = $has_proj ? self::weekly_mean( $daily['projected'] ) : array();
+
 			foreach ( $daily['dates'] as $i => $d ) {
-				$after  = (float) ( $daily['actual'][ $i ] ?? 0 );
-				$before = $has_proj ? (float) ( $daily['projected'][ $i ] ?? 0 ) : null;
+				$after  = (float) ( $smooth_after[ $i ] ?? 0 );
+				$before = $has_proj ? (float) ( $smooth_before[ $i ] ?? 0 ) : null;
 				$points[] = array(
 					'date'   => $d,
 					'label'  => gmdate( 'j M', strtotime( $d ) ),
 					'before' => $before === null ? null : (int) round( $before ),
 					'after'  => (int) round( $after ),
+					'raw'    => (int) round( (float) ( $daily['actual'][ $i ] ?? 0 ) ),
 				);
 			}
 
@@ -625,9 +827,41 @@ class Six_Dash_Metrics {
 			// baseline is the same window off the fitted line, so the "+N vs
 			// before" compares like with like.
 			$tail       = array_slice( $points, -30 );
-			$current    = (int) round( array_sum( array_column( $tail, 'after' ) ) );
+			$current    = (int) round( array_sum( array_column( $tail, 'raw' ) ) );
 			$base_tail  = $has_proj ? array_sum( array_column( $tail, 'before' ) ) : 0;
 			$baseline   = $has_proj ? (int) round( $base_tail ) : 0;
+
+			// The chart shows the last 30 days only. Everything before that
+			// was fitted on, not drawn — a client looking at this month does
+			// not want six months of axis to read past first.
+			$window = $tail;
+			$start  = class_exists( 'Six_Tracking' ) ? Six_Tracking::engagement_start( $user_id ) : '';
+			$split  = self::split_index( $window, $start );
+
+			// Before the work started there is one line, because there was
+			// nothing to compare against yet. The two lines exist only from
+			// the day the service was switched on.
+			// The two lines have to leave from the same point, or the chart
+			// shows a step at the split that is fit error rather than
+			// anything that happened. The claim being made is "your own
+			// trend, carried on from the day we started", so the fitted line
+			// is anchored to the measured figure on that day and its slope —
+			// which is the whole content of the claim — is untouched.
+			$anchor = 0.0;
+			if ( $split !== null && $has_proj
+			     && isset( $window[ $split ]['before'], $window[ $split ]['after'] ) ) {
+				$anchor = (float) $window[ $split ]['after'] - (float) $window[ $split ]['before'];
+			}
+
+			foreach ( $window as $i => $pt ) {
+				if ( $split === null || $i < $split ) {
+					$window[ $i ]['before'] = null;
+				} elseif ( $anchor ) {
+					$window[ $i ]['before'] = max( 0, (int) round( $pt['before'] + $anchor ) );
+				}
+				unset( $window[ $i ]['raw'] );
+			}
+			$points = array_values( $window );
 
 			$metric_label = array(
 				'organic_sessions' => 'organic sessions',
@@ -644,7 +878,11 @@ class Six_Dash_Metrics {
 				'last_month'     => self::last_calendar_month( $points ),
 				'target'         => self::visitor_target( $user_id ),
 				'points'         => $points,
-				'projected_from' => $has_proj ? 'fit' : 'none',
+				'split_at'       => $split,
+				'split_on'       => $split === null ? '' : ( $points[ $split ]['date'] ?? '' ),
+				'started_on'     => $start,
+				'window_days'    => count( $points ),
+				'projected_from' => $has_proj && $split !== null ? 'fit' : 'none',
 				'metric'         => $metric_label[ $daily['metric'] ] ?? $daily['metric'],
 				'measured_from'  => $daily['source'] ?? '',
 				'fitted_on'      => (int) ( $daily['fitted_on'] ?? 0 ),

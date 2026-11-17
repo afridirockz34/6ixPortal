@@ -202,6 +202,56 @@ than a fabricated percentage. Where GA4 *is* connected (an existing client), set
 `bounce_rate` to `{"value": "62%", "source": "Google Analytics, last 28 days"}`
 and the tile appears.
 
+### `onpage`
+
+Produced by `scripts/crawl_onpage.py`, which reads the live site and returns
+the findings per URL:
+
+```bash
+python scripts/crawl_onpage.py https://theirsite.ca --markdown onpage.md --into audit.json
+```
+
+It writes the whole block straight into the audit file. The renderer draws two
+tables from it: a count per issue group with one line on why each matters, and
+`examples` — the worked rows.
+
+```json
+"onpage": {
+  "pages_read": 184,
+  "links_checked": 412,
+  "crawled_on": "9 November 2026",
+  "crawl_limit_hit": false,
+  "findings": { "title_too_long": [ … ], "meta_missing": [ … ] },
+  "examples": [
+    {"url": "https://theirsite.ca/bail/", "existing": "Bail | Firm", "length": 11,
+     "suggestion": "Bail Hearing Lawyer in Toronto | Firm Name"}
+  ],
+  "verdict": "Most of the site has no meta description at all."
+}
+```
+
+Three things the block is shaped to prevent.
+
+**A count that is not a count.** `crawl_limit_hit` is rendered as a sentence
+saying the figures cover the pages read rather than the whole site. "47 pages
+have no meta description" and "47 of the first 300 we read" are different
+claims, and only one of them is true of a truncated crawl.
+
+**A section that appears with nothing in it.** No findings and no examples
+renders nothing, the same rule every other block follows. An empty section
+reads as "we checked and it is fine", which is a claim the crawl did not make.
+
+**The whole fix list, handed over free.** `examples` is three to five rows,
+written out in full, with the title or description we would actually use. That
+is proof the work can be done. The complete sheet is the work itself, and it
+is the first implementation deliverable after signature — see
+`seo-content-production/references/producing-a-page-set.md`. Keep `examples`
+short and let the counts carry the weight.
+
+`alt=""` on a decorative image is correct markup and is not reported as a
+fault. Anybody technical on the client's side will check that, and a report
+that calls correct markup a mistake loses the room.
+
 ## Structure
 
 1. **Cover** — client name, domain, market, audit date, prepared-by line. This is

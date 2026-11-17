@@ -208,6 +208,114 @@ code, out = run(GOOD, "--phases", "5,7")
 check("phase coverage still reports alongside the language pass",
       "Phase headings detected" in out and "no detected heading" in out, out[-600:])
 
+# ── Audit content leaking into a client document ────────────────────────
+# The test the client applies: can they forward this to their partner without
+# editing it? A strategy carrying crawl counts and severity scores fails it.
+AUDITY = """# SEO strategy
+
+## Technical findings
+
+The crawl found 412 crawl errors and 38 redirect chains across the site.
+Overall health score is 61/100. Severity: high. The previous agency left
+fourteen orphan pages behind when they handed over.
+"""
+code, out = run(AUDITY)
+check("audit vocabulary in a strategy is surfaced",
+      "audit vocabulary" in out or "an audit finding" in out, out[-900:])
+check("and each phrase is named with what to say instead",
+      "pages nothing links to" in out, out[-900:])
+check("but it does not fail the document on its own",
+      code == 0, "a review item became a hard failure")
+
+code, out = run(GOOD)
+check("a plan with no audit vocabulary reports clean",
+      "[OK] No audit vocabulary" in out, out[-600:])
+
+# One sentence of finding is how a plan is introduced. It must survive.
+ONE_FINDING = GOOD + """
+## Meta descriptions
+
+One hundred and eighty pages have no meta description. We write them in
+month one, starting with the nine service pages.
+"""
+code, out = run(ONE_FINDING)
+check("a single finding used to introduce a plan still passes",
+      code == 0, out[-700:])
+
+# ── Page speed is never a saving ────────────────────────────────────────
+# A commitment to clients, so unlike everything else here it fails on sight.
+for sentence in (
+    "Because your website is already fast, we will not be charging you for speed optimization.",
+    "Speed optimization is an optional extra at $400 per month.",
+    "You save the speed optimization fee this quarter.",
+):
+    code, out = run(GOOD + "\n## Scope\n\n" + sentence + "\n")
+    check(f"speed as a saving fails: {sentence[:44]}…",
+          code == 1 and "included in the SEO plan" in out, out[-700:])
+
+SPEED_OK = GOOD + """
+## Page speed and Core Web Vitals
+
+The site loads in 2.1 seconds on mobile. We keep it under 2.5 as pages are
+added, and we report the figure every month.
+"""
+code, out = run(SPEED_OK)
+check("speed written as included work passes",
+      code == 0 and "[OK] Page speed is not offered as a saving" in out, out[-700:])
+
+# ── The sections a full document carries ────────────────────────────────
+FULL = """# SEO strategy — Example Firm
+
+## What we will do first
+One table.
+
+## How it will sound — voice and tone
+We write the way the partners speak.
+
+## The 100 keywords, by cluster
+Ninety-six phrases.
+
+## The page plan
+Fourteen new pages.
+
+## Changes to pages you already have
+Four titles and one address.
+
+## Links and authority
+Six hundred and twelve sites link here. The closest competitor has 2,100.
+
+## Page speed and Core Web Vitals
+The site loads in 2.1 seconds on mobile.
+
+## Objectives, with baselines
+Organic sessions go from 2,800 a month to 5,000 a month.
+
+## What the monthly report contains
+Rankings, traffic, and what we changed.
+"""
+code, out = run(FULL, "--full")
+check("a complete document passes the section check",
+      code == 0 and "Every required client-facing section" in out, out[-900:])
+
+for dropped, label in (("## Links and authority", "links and authority"),
+                       ("## Changes to pages you already have", "changes to existing pages"),
+                       ("## Page speed and Core Web Vitals", "page speed")):
+    cut = "\n".join(l for l in FULL.splitlines() if not l.startswith(dropped))
+    code, out = run(cut, "--full")
+    check(f"a document missing {label} fails --full",
+          code == 1 and label in out, out[-700:])
+
+# The gate that fails good work gets switched off, so a partial build —
+# a keyword refresh, a calendar — must never be judged against the full list.
+code, out = run(GOOD)
+check("a partial document is not judged against the full section list",
+      code == 0 and "required client-facing section" not in out, out[-700:])
+
+r = subprocess.run([sys.executable, str(SCRIPT), "--help"],
+                   capture_output=True, text=True)
+check("--help explains that --full is for a complete document only",
+      "--full" in r.stdout and "partial build" in r.stdout, r.stdout[:2000])
+
 print()
 print(f"Passed: {passed}  Failed: {failed}")
 sys.exit(1 if failed else 0)

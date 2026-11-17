@@ -654,13 +654,32 @@ add_action( 'wp_ajax_six_get_service_setup', function() {
     $catalog = array(); $kpis = array();
     if ( class_exists( 'Six_Dash_Metrics' ) ) {
         foreach ( Six_Dash_Metrics::editable_metrics( array( $slug ), false ) as $key => $m ) {
+            // Which way the metric improves, so the wizard can say "lower is
+            // better" beside the ones where a smaller number is the goal.
+            $m['lower_better'] = Six_Dash_Metrics::lower_is_better( $key );
             $catalog[] = $m;
         }
         $ktbl = $wpdb->prefix . 'six_client_kpis';
         if ( ! function_exists( 'six_table_exists' ) || six_table_exists( $ktbl ) ) {
             foreach ( (array) $wpdb->get_results( $wpdb->prepare(
                 "SELECT kpi_key, kpi_value, kpi_prev FROM {$ktbl} WHERE client_id=%d", $client_id ) ) as $r ) {
-                $kpis[ $r->kpi_key ] = array( 'current' => $r->kpi_value, 'previous' => $r->kpi_prev );
+                $kpis[ $r->kpi_key ] = array( 'current' => $r->kpi_value, 'previous' => $r->kpi_prev, 'target' => '' );
+            }
+        }
+        // The target is not in the KPI table; it lives on the service's detail
+        // row. Load it so re-opening the wizard shows the target already set
+        // rather than an empty box that silently wipes it on save.
+        $mtbl_c = $wpdb->prefix . 'six_metrics';
+        if ( ! function_exists( 'six_table_exists' ) || six_table_exists( $mtbl_c ) ) {
+            $by_label = array();
+            foreach ( $catalog as $cm ) $by_label[ strtolower( trim( $cm['label'] ) ) ] = $cm['key'];
+            foreach ( (array) $wpdb->get_results( $wpdb->prepare(
+                "SELECT label, target_value FROM {$mtbl_c} WHERE client_id=%d AND service_slug=%s", $client_id, $slug ) ) as $r ) {
+                $k = $by_label[ strtolower( trim( $r->label ) ) ] ?? '';
+                if ( $k && $r->target_value !== '' ) {
+                    if ( ! isset( $kpis[ $k ] ) ) $kpis[ $k ] = array( 'current' => '', 'previous' => '' );
+                    $kpis[ $k ]['target'] = $r->target_value;
+                }
             }
         }
     }
@@ -725,12 +744,25 @@ add_action( 'wp_ajax_six_save_service_setup', function() {
         if ( function_exists( 'six_table_exists' ) && ! six_table_exists( $ktbl ) ) {
             $kpi_failed['_table'] = 'The KPI table is missing — open any WordPress admin page once to build it.';
         } else {
+            $mtbl_k = $wpdb->prefix . 'six_metrics';
             foreach ( $kpis as $key => $vals ) {
                 $key = sanitize_key( $key );
                 if ( ! six_kpi_key_allowed( $key ) ) continue;
-                $value = sanitize_text_field( $vals['current'] ?? '' );
-                $prev  = sanitize_text_field( $vals['previous'] ?? '' );
-                if ( $value === '' && $prev === '' ) continue;
+                $value  = sanitize_text_field( $vals['current'] ?? '' );
+                $prev   = sanitize_text_field( $vals['previous'] ?? '' );
+                $target = sanitize_text_field( $vals['target'] ?? '' );
+                $label  = function_exists( 'six_kpi_label' ) ? six_kpi_label( $key ) : $key;
+
+                // An advisor clearing every box means "stop showing this",
+                // and it used to mean nothing at all: the loop skipped the row
+                // and the old figure stayed on the customer's dashboard with
+                // no way to remove it.
+                if ( $value === '' && $prev === '' && $target === '' ) {
+                    $wpdb->delete( $ktbl, array( 'client_id' => $client_id, 'kpi_key' => $key ) );
+                    $wpdb->delete( $mtbl_k, array( 'client_id' => $client_id, 'label' => $label ) );
+                    continue;
+                }
+
                 $written = $wpdb->replace( $ktbl, array(
                     'client_id'  => $client_id,
                     'kpi_key'    => $key,
@@ -743,6 +775,29 @@ add_action( 'wp_ajax_six_save_service_setup', function() {
                     error_log( '6ix KPI: wizard could not save ' . $key . ' for client ' . $client_id . ' — ' . $wpdb->last_error );
                 } else {
                     $kpi_saved++;
+                }
+
+                // The KPI table has no target column — the target lives on the
+                // service's detail row. Without this the wizard could collect a
+                // target and silently drop it, which is how a card ends up
+                // reading "No target set" however often somebody set one.
+                if ( ! function_exists( 'six_table_exists' ) || six_table_exists( $mtbl_k ) ) {
+                    $m_row = array(
+                        'client_id'      => $client_id,
+                        'service_slug'   => $slug,
+                        'label'          => $label,
+                        'previous_value' => $prev,
+                        'current_value'  => $value,
+                        'target_value'   => $target,
+                        'unit'           => class_exists( 'Six_Dash_Metrics' ) ? Six_Dash_Metrics::unit_for( $key ) : '',
+                        'updated_at'     => current_time( 'mysql' ),
+                    );
+                    $m_id = $wpdb->get_var( $wpdb->prepare(
+                        "SELECT id FROM {$mtbl_k} WHERE client_id=%d AND service_slug=%s AND label=%s",
+                        $client_id, $slug, $label
+                    ) );
+                    if ( $m_id ) $wpdb->update( $mtbl_k, $m_row, array( 'id' => (int) $m_id ) );
+                    else         $wpdb->insert( $mtbl_k, $m_row );
                 }
             }
         }
@@ -1133,10 +1188,47 @@ add_action( 'wp_ajax_six_suggest_metrics', function() {
 
 add_action( 'wp_ajax_six_delete_metric', function() {
     check_ajax_referer( 'six_nonce', 'nonce' );
-    if ( ! Six_Roles::is_advisor() ) wp_send_json_error( 'Permission denied' );
+    if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied' );
     global $wpdb;
-    $wpdb->delete( $wpdb->prefix . 'six_metrics', array( 'id' => intval( $_POST['metric_id'] ?? 0 ) ) );
-    wp_send_json_success();
+
+    $id = intval( $_POST['metric_id'] ?? 0 );
+    if ( ! $id ) wp_send_json_error( 'Missing metric.' );
+
+    $mtbl = $wpdb->prefix . 'six_metrics';
+    $row  = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$mtbl} WHERE id=%d", $id ) );
+    if ( ! $row ) wp_send_json_error( 'That metric no longer exists.' );
+
+    $wpdb->suppress_errors( true );
+    $gone = $wpdb->delete( $mtbl, array( 'id' => $id ) );
+    $err  = $wpdb->last_error;
+
+    // The detail row and the stat card are two tables. Deleting only the first
+    // leaves the customer's card showing a figure the advisor believes they
+    // just removed — which is the same class of bug as a write that reports
+    // success without landing, in the other direction.
+    $also = 0;
+    if ( $gone !== false && class_exists( 'Six_Dash_Metrics' ) ) {
+        $ktbl = $wpdb->prefix . 'six_client_kpis';
+        if ( ! function_exists( 'six_table_exists' ) || six_table_exists( $ktbl ) ) {
+            foreach ( Six_Dash_Metrics::editable_metrics( array_keys( Six_Dash_Metrics::catalog() ), true ) as $key => $m ) {
+                if ( strcasecmp( trim( $m['label'] ), trim( $row->label ) ) === 0 ) {
+                    $also = (int) $wpdb->delete( $ktbl, array( 'client_id' => (int) $row->client_id, 'kpi_key' => $key ) );
+                    break;
+                }
+            }
+        }
+    }
+    $wpdb->suppress_errors( false );
+
+    if ( $gone === false ) {
+        error_log( '6ix: metric delete failed for ' . $id . ': ' . $err );
+        wp_send_json_error( $err ?: 'The delete failed and nothing was changed.' );
+    }
+    wp_send_json_success( array(
+        'deleted'      => (int) $gone,
+        'card_cleared' => $also,
+        'message'      => $also ? 'Deleted, and cleared from the customer\'s stat cards.' : 'Deleted.',
+    ) );
 } );
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2303,7 +2395,61 @@ add_action( 'wp_ajax_six_competitor_analysis', function() {
             : 'No competitor data yet for ' . $domain . '. Add a few competitor URLs or target keywords in the profile, then run again.' );
     }
 
-    $data = array( 'domain' => $domain, 'rows' => $rows, 'ran_at' => time() );
+    /* The client's own line on the same table.
+     *
+     * A list of competitors with the client absent from it answers "who else
+     * is out there" and not the question they actually asked, which is "where
+     * am I". Their own figures come from the SAME provider on the SAME pull,
+     * so the comparison is like with like — their measured analytics belong
+     * on a separate line with its own label, never in this column beside
+     * third-party estimates of everyone else.
+     */
+    $me = null;
+    if ( method_exists( $seo, 'site_metrics' ) ) {
+        $sm = $seo::site_metrics( $domain, $loc );
+        if ( empty( $sm['error'] ) ) {
+            $me = array(
+                'domain'   => $domain,
+                'visits'   => (int) ( $sm['organic_traffic'] ?? 0 ),
+                'keywords' => (int) ( $sm['organic_keywords'] ?? 0 ),
+                'shared'   => 0,
+                'you'      => true,
+                'insight'  => 'Your site, estimated on the same basis as the rows above',
+            );
+        }
+    }
+    if ( $me === null ) {
+        $rk = $seo::ranked_keywords( $domain, $loc, 100 );
+        if ( empty( $rk['error'] ) && ! empty( $rk['ranked_keywords'] ) ) {
+            $v = 0;
+            foreach ( $rk['ranked_keywords'] as $k ) $v += intval( $k['traffic'] ?? 0 );
+            $me = array(
+                'domain'   => $domain,
+                'visits'   => $v,
+                'keywords' => count( $rk['ranked_keywords'] ),
+                'shared'   => 0,
+                'you'      => true,
+                'insight'  => 'Your site, estimated on the same basis as the rows above',
+            );
+        }
+    }
+
+    // Where they sit on that list. Reported as a position out of a named
+    // total, because "3rd" with no denominator is not a fact.
+    $place = null;
+    if ( $me ) {
+        $place = 1;
+        foreach ( $rows as $r ) if ( (int) $r['visits'] > (int) $me['visits'] ) $place++;
+    }
+
+    $data = array(
+        'domain' => $domain,
+        'rows'   => $rows,
+        'you'    => $me,
+        'place'  => $place,
+        'of'     => $me ? count( $rows ) + 1 : count( $rows ),
+        'ran_at' => time(),
+    );
     update_user_meta( $uid, 'six_comp_analysis_data', $data );
     update_user_meta( $uid, 'six_comp_analysis_at', time() );
     wp_send_json_success( array( 'locked' => false, 'ran_at' => time(), 'next_at' => time() + $window, 'data' => $data ) );
@@ -3450,5 +3596,149 @@ add_action( 'wp_ajax_six_sync_tracking', function () {
 		'message'     => $res['daily'] || $res['pages']
 			? sprintf( '%d daily readings and %d page readings recorded.', $res['daily'], $res['pages'] )
 			: 'Nothing came back. ' . ( $res['notes'] ? implode( ' ', $res['notes'] ) : 'No source is connected for this client.' ),
+	) );
+} );
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * The task board
+ *
+ * An approved strategy becomes rows here: one per thing that has to be done,
+ * across the engagement. Claude writes the plan through MCP, the advisor edits
+ * and publishes it, and Claude reads it back to know what has already shipped.
+ *
+ * Tasks arrive unpublished on purpose. A generated plan is a draft until a
+ * human has looked at the dates and the order; publishing is the deliberate
+ * act that lets it count as a commitment.
+ * ───────────────────────────────────────────────────────────────────────── */
+
+/** The board for one client, grouped as the Reports tab renders it. */
+add_action( 'wp_ajax_six_list_tasks', function () {
+	check_ajax_referer( 'six_nonce', 'nonce' );
+	if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+	if ( ! class_exists( 'Six_Tasks' ) ) wp_send_json_success( array( 'tasks' => array(), 'summary' => array(), 'statuses' => array() ) );
+
+	$client_id = intval( $_POST['client_id'] ?? 0 );
+	if ( ! $client_id ) wp_send_json_error( 'Missing client.' );
+	$slug = sanitize_key( $_POST['service_slug'] ?? '' );
+
+	wp_send_json_success( array(
+		'tasks'    => Six_Tasks::all( $client_id, array(
+			'service_slug' => $slug,
+			'status'       => sanitize_key( $_POST['status'] ?? '' ),
+			'phase'        => intval( $_POST['phase'] ?? 0 ),
+		) ),
+		'summary'  => Six_Tasks::summary( $client_id, $slug ),
+		'statuses' => Six_Tasks::STATUSES,
+		'meanings' => Six_Tasks::STATUS_MEANS,
+	) );
+} );
+
+/**
+ * Change one task.
+ *
+ * Reports the database's answer rather than its own optimism — the pattern
+ * this codebase keeps getting wrong. A status that did not save must not look
+ * like one that did, because the whole point of the board is that it says what
+ * is true.
+ */
+add_action( 'wp_ajax_six_update_task', function () {
+	check_ajax_referer( 'six_nonce', 'nonce' );
+	if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+	if ( ! class_exists( 'Six_Tasks' ) ) wp_send_json_error( 'The task board is not available on this site.' );
+
+	$client_id = intval( $_POST['client_id'] ?? 0 );
+	$task_id   = intval( $_POST['task_id'] ?? 0 );
+	if ( ! $client_id || ! $task_id ) wp_send_json_error( 'Missing task.' );
+
+	$fields = array();
+	foreach ( array( 'status', 'title', 'detail', 'deliverable', 'entity', 'keyword',
+	                 'category', 'assigned_to', 'notes' ) as $f ) {
+		if ( isset( $_POST[ $f ] ) ) $fields[ $f ] = wp_unslash( $_POST[ $f ] );
+	}
+	foreach ( array( 'priority', 'month_no', 'sort_order' ) as $f ) {
+		if ( isset( $_POST[ $f ] ) && $_POST[ $f ] !== '' ) $fields[ $f ] = intval( $_POST[ $f ] );
+	}
+	if ( isset( $_POST['due_date'] ) ) $fields['due_date'] = sanitize_text_field( wp_unslash( $_POST['due_date'] ) );
+
+	$res = Six_Tasks::update( $client_id, $task_id, $fields );
+	if ( ! $res['ok'] ) wp_send_json_error( $res['error'] );
+
+	wp_send_json_success( array(
+		'task_id' => $task_id,
+		'summary' => Six_Tasks::summary( $client_id ),
+		'message' => 'Saved.',
+	) );
+} );
+
+/** Add one task by hand, for work the strategy did not foresee. */
+add_action( 'wp_ajax_six_add_task', function () {
+	check_ajax_referer( 'six_nonce', 'nonce' );
+	if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+	if ( ! class_exists( 'Six_Tasks' ) ) wp_send_json_error( 'The task board is not available on this site.' );
+
+	$client_id = intval( $_POST['client_id'] ?? 0 );
+	$title     = sanitize_text_field( wp_unslash( $_POST['title'] ?? '' ) );
+	if ( ! $client_id ) wp_send_json_error( 'Missing client.' );
+	if ( $title === '' ) wp_send_json_error( 'A task needs a title.' );
+
+	$res = Six_Tasks::create( $client_id, array( array(
+		'title'        => $title,
+		'service_slug' => sanitize_key( $_POST['service_slug'] ?? '' ),
+		'category'     => sanitize_text_field( wp_unslash( $_POST['category'] ?? '' ) ),
+		'detail'       => wp_kses_post( wp_unslash( $_POST['detail'] ?? '' ) ),
+		'deliverable'  => sanitize_text_field( wp_unslash( $_POST['deliverable'] ?? '' ) ),
+		'entity'       => sanitize_text_field( wp_unslash( $_POST['entity'] ?? '' ) ),
+		'month_no'     => max( 1, intval( $_POST['month_no'] ?? 1 ) ),
+		'priority'     => intval( $_POST['priority'] ?? 2 ),
+		'due_date'     => sanitize_text_field( wp_unslash( $_POST['due_date'] ?? '' ) ),
+	) ), 'advisor' );
+
+	if ( ! $res['saved'] ) {
+		wp_send_json_error( $res['failed'] ? reset( $res['failed'] ) : 'The task was not created.' );
+	}
+	wp_send_json_success( array( 'id' => $res['ids'][0] ?? 0, 'message' => 'Task added.' ) );
+} );
+
+/** Remove a task the advisor does not want on the plan. */
+add_action( 'wp_ajax_six_delete_task', function () {
+	check_ajax_referer( 'six_nonce', 'nonce' );
+	if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+	if ( ! class_exists( 'Six_Tasks' ) ) wp_send_json_error( 'The task board is not available on this site.' );
+
+	$client_id = intval( $_POST['client_id'] ?? 0 );
+	$task_id   = intval( $_POST['task_id'] ?? 0 );
+	if ( ! $client_id || ! $task_id ) wp_send_json_error( 'Missing task.' );
+
+	$res = Six_Tasks::delete( $client_id, $task_id );
+	if ( ! $res['ok'] ) wp_send_json_error( $res['error'] );
+	wp_send_json_success( array( 'task_id' => $task_id, 'summary' => Six_Tasks::summary( $client_id ) ) );
+} );
+
+/**
+ * Publish the plan, or one phase of it.
+ *
+ * Publishing is what turns a draft into the timeline the client is shown, so
+ * it reports how many rows actually changed. "Published" with nothing written
+ * is exactly the failure this codebase keeps repeating.
+ */
+add_action( 'wp_ajax_six_publish_tasks', function () {
+	check_ajax_referer( 'six_nonce', 'nonce' );
+	if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+	if ( ! class_exists( 'Six_Tasks' ) ) wp_send_json_error( 'The task board is not available on this site.' );
+
+	$client_id = intval( $_POST['client_id'] ?? 0 );
+	if ( ! $client_id ) wp_send_json_error( 'Missing client.' );
+	$publish = empty( $_POST['unpublish'] );
+	$phase   = intval( $_POST['phase'] ?? 0 );
+
+	$res = Six_Tasks::publish( $client_id, $publish, $phase );
+	if ( ! $res['ok'] ) wp_send_json_error( $res['error'] );
+
+	wp_send_json_success( array(
+		'changed' => $res['count'],
+		'summary' => Six_Tasks::summary( $client_id ),
+		'message' => $res['count']
+			? sprintf( '%d task%s %s.', $res['count'], $res['count'] === 1 ? '' : 's', $publish ? 'published' : 'unpublished' )
+			: 'Nothing changed — every task was already ' . ( $publish ? 'published' : 'a draft' ) . '.',
 	) );
 } );

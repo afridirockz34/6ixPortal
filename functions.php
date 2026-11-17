@@ -82,6 +82,7 @@ $optional_files = array(
     'class-unread.php',          // "something new in here" dots for the customer sidebar
     'class-performance.php',     // performance snapshots over time + strategy projections
     'class-tracking.php',        // work log, per-entity metrics, daily series, metric proposals
+    'class-tasks.php',           // the approved strategy as a task board the advisor works from
     'class-website-project.php', // website build milestones + maintenance add-on
     'class-profile-api.php',     // REST profile contract for external tools/skills
     'class-mcp-server.php',      // same contract as MCP, for claude.ai custom connectors
@@ -450,6 +451,54 @@ function six_create_tables() {
             KEY client_service (client_id, service_slug)
         ) $charset",
 
+        // The plan, as rows somebody can tick off.
+        //
+        // An approved strategy is a document until it becomes a list of things
+        // with owners and states. These rows are what the advisor works from,
+        // what Claude reads to know what is already delivered or waiting on the
+        // client, and what the work log closes out against.
+        //
+        // Four states, in the order work moves through them:
+        //   todo           not started
+        //   client_review  sent to the client, waiting on their approval
+        //   implementation being built or deployed
+        //   complete       done and verified
+        //
+        // `published` exists because a freshly generated plan is a draft: the
+        // advisor edits the titles, dates and order before the client sees any
+        // of it. Nothing unpublished appears on the customer's side.
+        "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}six_tasks (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            client_id bigint(20) NOT NULL,
+            service_slug varchar(50) NOT NULL DEFAULT '',
+            phase tinyint(4) NOT NULL DEFAULT 1,
+            month_no tinyint(4) NOT NULL DEFAULT 1,
+            category varchar(80) NOT NULL DEFAULT '',
+            title varchar(255) NOT NULL,
+            detail text,
+            deliverable varchar(255) DEFAULT '',
+            entity varchar(500) DEFAULT '',
+            keyword varchar(255) DEFAULT '',
+            status varchar(30) NOT NULL DEFAULT 'todo',
+            priority tinyint(4) NOT NULL DEFAULT 2,
+            due_date date DEFAULT NULL,
+            assigned_to varchar(190) DEFAULT '',
+            artifact_id bigint(20) DEFAULT 0,
+            work_log_id bigint(20) DEFAULT 0,
+            sort_order int(11) DEFAULT 0,
+            published tinyint(1) NOT NULL DEFAULT 0,
+            origin varchar(20) NOT NULL DEFAULT 'claude',
+            notes text,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            created_by bigint(20) DEFAULT 0,
+            completed_at datetime NULL,
+            PRIMARY KEY (id),
+            KEY client_status (client_id, status),
+            KEY client_phase (client_id, phase, month_no),
+            KEY client_service (client_id, service_slug)
+        ) $charset",
+
         "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}six_client_artifacts (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             client_id bigint(20) NOT NULL,
@@ -558,7 +607,7 @@ function six_create_tables() {
  * The schema version. Bump this whenever a table is added or changed in
  * six_create_tables(), and the next page load creates it.
  */
-const SIX_DB_VERSION = '2026.11.16.1';
+const SIX_DB_VERSION = '2026.11.17.1';
 
 /**
  * Run six_create_tables() when the code's schema version moves ahead of what

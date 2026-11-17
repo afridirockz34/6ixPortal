@@ -262,15 +262,11 @@ $svc_svg_icons = array(
             <?php echo $dot['svc'][$s->service_slug] ?? ''; ?>
         </a>
         <?php endforeach; ?>
-        <?php // Website maintenance is an advisor-enabled add-on, so it has no
-              // row in six_client_services — it appears here only once the
-              // advisor switches it on from the client's profile.
-        if ( class_exists('Six_Website_Project') && Six_Website_Project::maintenance_on($user_id) ): ?>
-        <a href="?tab=website" class="six-nav-item <?php echo $active_tab==='website'?'active':''; ?>" style="padding-left:28px">
-            <span class="six-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span>
-            <span style="font-size:12px">Website Maintenance</span>
-        </a>
-        <?php endif; ?>
+        <?php /* Website maintenance is a billing line, not a service with a
+                 dashboard of its own. It used to appear here under Services
+                 the moment an advisor switched it on, which put a nav item in
+                 front of the customer that leads to nothing they manage — it
+                 belongs in Billing, where its charge is, and nowhere else. */ ?>
         <a href="?tab=advisor"  class="six-nav-item <?php echo $active_tab==='advisor' ?'active':''; ?>"><span class="six-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span> Advisor<?php if($unread_msgs>0): ?><span class="six-badge"><?php echo $unread_msgs; ?></span><?php endif; ?></a>
         <?php
         // Only once an advisor has issued it — before that the client has no
@@ -620,6 +616,39 @@ if ( $web_proj && $web_proj['total'] > 0 ):
 [data-theme="dark"] .six-kc-trend.dn{background:rgba(255,107,107,.12);color:#FF6B6B}
 [data-theme="dark"] .six-roi-val{color:#FF7DA8}
 
+/* ── Target graphs ───────────────────────────────────────────────────
+   Two to a row on a desktop, one on a phone. Everything inside is drawn
+   from CSS variables so the same markup reads correctly in both themes;
+   the one hard-coded colour is the target's glow, which is built from the
+   service's own accent at a fixed opacity. */
+.six-target-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:16px 20px 18px}
+@media(max-width:620px){.six-target-grid{grid-template-columns:1fr}}
+.six-target-card{background:var(--dark3,rgba(127,127,127,.05));border:1px solid var(--border);
+  border-radius:12px;padding:14px 14px 10px;min-width:0}
+.six-target-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px}
+.six-target-name{font-size:12px;font-weight:700;color:var(--text1);line-height:1.3}
+.six-target-unit{font-size:10px;color:var(--text3);margin-top:2px}
+.six-target-now{font-size:19px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.six-target-pct{font-size:10px;color:var(--text3);margin-top:3px;white-space:nowrap}
+.six-target-plot{height:112px;margin:2px -2px 0}
+.six-target-plot svg{display:block;width:100%;height:100%;overflow:visible}
+.six-target-foot{display:flex;align-items:baseline;justify-content:space-between;gap:8px;
+  flex-wrap:wrap;font-size:10px;color:var(--text3);margin-top:6px;line-height:1.4}
+.six-target-goal{white-space:nowrap;font-weight:600;color:var(--text2)}
+.six-target-empty{height:112px;display:flex;align-items:center;justify-content:center;
+  font-size:11px;color:var(--text3)}
+
+/* Performance / Reporting switch — the two halves of a service page */
+.six-svc-switch{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0 0 20px;
+  border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--dark2)}
+.six-svc-switch button{appearance:none;border:0;background:transparent;cursor:pointer;
+  padding:13px 10px;font-size:13px;font-weight:700;color:var(--text3);font-family:inherit;
+  transition:background .15s,color .15s;border-right:1px solid var(--border)}
+.six-svc-switch button:last-child{border-right:0}
+.six-svc-switch button:hover{color:var(--text2)}
+.six-svc-switch button[aria-selected="true"]{color:#fff;background:linear-gradient(135deg,#FF6699,#8781BA)}
+.six-svc-switch button .six-switch-sub{display:block;font-size:10px;font-weight:500;opacity:.8;margin-top:2px}
+
 /* Hero row */
 .six-hero-row{display:grid;grid-template-columns:1fr 320px;gap:16px;margin-bottom:20px;align-items:stretch}
 .six-chart-pane{background:var(--dark2);border:1px solid var(--border);border-radius:16px;padding:24px;display:flex;flex-direction:column}
@@ -772,12 +801,27 @@ if ( $web_proj && $web_proj['total'] > 0 ):
     // A "without us" line only exists when we could fit one on readings from
     // before the engagement started. Where we could not, nothing is drawn
     // rather than a flat line asserted at a baseline nobody measured.
-    var hasBefore = VIS.projected_from && VIS.projected_from !== 'none'
-                    && pts.length && pts[0].before !== null && pts[0].before !== undefined;
-    var maxY = Math.max.apply(null, pts.map(function(p){
-      return hasBefore ? Math.max(p.before, p.after) : p.after;
-    })) * 1.12 || 1;
-    var X = function(i){ return pad.l + (i/(n-1)) * (W-pad.l-pad.r); };
+    // The split is the day the service was switched on. Before it there is
+    // one line, because there was nothing to compare against yet; from it
+    // the measured line and the "without us" line diverge. A client whose
+    // service started before this window sees both lines run the full width
+    // (split 0); one with no recorded start date sees neither (split null),
+    // because a comparison line drawn from no start date is a claim about a
+    // day we never identified.
+    var split = (VIS.split_at === null || VIS.split_at === undefined) ? -1 : VIS.split_at;
+    var hasBefore = VIS.projected_from && VIS.projected_from !== 'none' && split >= 0;
+
+    // The line tops out at 80% of the plot: a chart whose line touches the
+    // frame reads as a number with nowhere left to go.
+    var peak = Math.max.apply(null, pts.map(function(p){
+      return (hasBefore && p.before !== null && p.before !== undefined)
+        ? Math.max(p.before, p.after) : p.after;
+    })) || 1;
+    var maxY = peak / 0.80;
+    // And the same horizontally, with the slack on the right so the end of
+    // the line has room for its marker and its label.
+    var spanW = (W - pad.l - pad.r) * 0.80;
+    var X = function(i){ return pad.l + (n > 1 ? (i/(n-1)) * spanW : spanW/2); };
     var Y = function(v){ return H-pad.b - (v/maxY) * (H-pad.t-pad.b); };
 
     var g = document.getElementById('vis-grid'); g.innerHTML='';
@@ -814,16 +858,47 @@ if ( $web_proj && $web_proj['total'] > 0 ):
       xl.appendChild(t);
     });
 
+    // The day the service was switched on, marked on the plot. Without it
+    // the divergence looks like something that happened on its own.
+    if (split > 0 && split < n) {
+      var sx = X(split);
+      var sl = document.createElementNS(ns,'line');
+      sl.setAttribute('x1',sx); sl.setAttribute('x2',sx);
+      sl.setAttribute('y1',pad.t); sl.setAttribute('y2',H-pad.b);
+      sl.setAttribute('stroke', isDark ? 'rgba(255,255,255,0.18)' : 'rgba(15,20,40,0.18)');
+      sl.setAttribute('stroke-width','1'); sl.setAttribute('stroke-dasharray','3 4');
+      g.appendChild(sl);
+      var st = document.createElementNS(ns,'text');
+      st.setAttribute('x', sx + 5); st.setAttribute('y', pad.t + 11);
+      st.setAttribute('font-size','10'); st.setAttribute('fill', lbl());
+      st.setAttribute('font-family','monospace');
+      st.textContent = 'we started';
+      g.appendChild(st);
+    }
+
     var afterPts = pts.map(function(p,i){ return [X(i), Y(p.after)]; });
     document.getElementById('vis-after').setAttribute('d', smooth(afterPts));
 
     if (hasBefore) {
-      var beforePts = pts.map(function(p,i){ return [X(i), Y(p.before)]; });
+      // Only from the split onwards. Mapping every point would draw the
+      // grey line across days before the work started, where it would be
+      // claiming to describe a period in which we did nothing.
+      var beforePts = [];
+      for (var bi = Math.max(0, split); bi < n; bi++) {
+        if (pts[bi].before === null || pts[bi].before === undefined) continue;
+        beforePts.push([X(bi), Y(pts[bi].before)]);
+      }
+      if (beforePts.length < 2) {
+        document.getElementById('vis-gap').setAttribute('d','');
+        document.getElementById('vis-before').setAttribute('d','');
+      } else {
+      var afterFrom = afterPts.slice(Math.max(0, split));
       // Shade the gap between the two lines — that gap is the whole point.
       var rev = ''; for (var k=beforePts.length-1;k>=0;k--){ rev += 'L '+beforePts[k][0]+','+beforePts[k][1]+' '; }
       document.getElementById('vis-gap').setAttribute('d',
-        smooth(afterPts) + ' L ' + beforePts[beforePts.length-1][0] + ',' + beforePts[beforePts.length-1][1] + ' ' + rev + ' Z');
+        smooth(afterFrom) + ' L ' + beforePts[beforePts.length-1][0] + ',' + beforePts[beforePts.length-1][1] + ' ' + rev + ' Z');
       document.getElementById('vis-before').setAttribute('d', smooth(beforePts));
+      }
     } else {
       document.getElementById('vis-gap').setAttribute('d','');
       document.getElementById('vis-before').setAttribute('d','');
@@ -895,7 +970,7 @@ if ( $web_proj && $web_proj['total'] > 0 ):
     '    <span style="display:flex;align-items:center;gap:6px"><span style="width:14px;height:0;border-top:2px dashed '+(isDark?'rgba(255,255,255,.45)':'rgba(15,20,40,.4)')+';display:inline-block"></span>Without us</span>',
     '  </div>',
     '  <div id="vis-plot" style="position:relative;width:100%;height:210px;margin:6px 0 4px">',
-    '    <svg id="vis-svg" style="width:100%;height:100%;overflow:visible" role="img" aria-label="Monthly visitors with and without 6ix Developers">',
+    '    <svg id="vis-svg" style="width:100%;height:100%;overflow:visible" role="img" aria-label="Visitors over the last 30 days, with and without 6ix Developers">',
     '      <defs>',
     '        <linearGradient id="visGap" x1="0" y1="0" x2="0" y2="1">',
     '          <stop offset="0%" stop-color="#FF6699" stop-opacity=".22"/>',
@@ -920,8 +995,10 @@ if ( $web_proj && $web_proj['total'] > 0 ):
        + (!live
           ? 'Projected from your services and budget using industry benchmarks. Switches to measured traffic once your advisor connects your reporting tools.'
           : hasFit
-            ? ('Solid line: your ' + unit + ', measured daily by ' + (VIS.measured_from === 'ga4' ? 'Google Analytics' : 'Google Search Console') + '. '
-               + 'Dashed line: your own trend over the ' + VIS.fitted_on + ' days before we started, carried forward.')
+            ? ('The last ' + (VIS.window_days || 30) + ' days, smoothed over seven so a weekend does not read as a drop. '
+               + 'Solid line: your ' + unit + ', measured daily by ' + (VIS.measured_from === 'ga4' ? 'Google Analytics' : 'Google Search Console') + '. '
+               + 'Dashed line, from the day we started' + (VIS.split_on ? ' (' + VIS.split_on + ')' : '') + ': your own trend over the '
+               + VIS.fitted_on + ' days before that, carried forward from where you stood on the day.')
             : (VIS.daily
                ? ('Your ' + unit + ', measured daily by ' + (VIS.measured_from === 'ga4' ? 'Google Analytics' : 'Google Search Console') + '. '
                   + (VIS.note || 'There is not yet enough history from before we started to draw a "without us" comparison.'))
@@ -959,6 +1036,10 @@ if ( $web_proj && $web_proj['total'] > 0 ):
   document.addEventListener('six-theme-changed', build);
   window.addEventListener('resize', render);
   window.addEventListener('load', render);
+  // The theme toggle swaps an attribute rather than reloading the page, and
+  // this chart reads its colours once at build time — so without a handle on
+  // the builder it kept its light greys on a dark background.
+  window.sixRedrawVisits = build;
   build();
 })();
 </script>
@@ -1130,17 +1211,49 @@ $comp_rows   = (is_array($comp_saved) && !empty($comp_saved['rows'])) ? $comp_sa
     <?php if($comp_last): ?>Last analyzed <?php echo date('M j, Y', $comp_last); ?> &middot; next available <?php echo date('M j, Y', $comp_next); ?><?php else: ?>Run your first analysis to pull live competitor data into the table below.<?php endif; ?>
 </div>
 
+<?php
+/* The client's own line, on the same table.
+ *
+ * A table of competitors with the client missing from it answers "who else is
+ * out there" and not the question they clicked to ask, which is "where am I".
+ * Their own row carries the SAME third-party estimate as everybody else's, so
+ * the comparison is like with like. Their measured analytics are a different
+ * claim and get their own line underneath, named as measured.
+ */
+$comp_you   = (is_array($comp_saved) && !empty($comp_saved['you'])) ? $comp_saved['you'] : null;
+$comp_place = $comp_saved['place'] ?? null;
+$comp_of    = $comp_saved['of'] ?? (count($comp_rows) + ($comp_you ? 1 : 0));
+$comp_all   = $comp_rows;
+if ($comp_you) $comp_all[] = $comp_you;
+usort($comp_all, function($a,$b){ return intval($b['visits']) <=> intval($a['visits']); });
+
+/* Their real figure, where an account is connected. Shown beside the estimate
+   rather than inside the column, because a measured number and an estimated
+   one on the same axis is exactly the comparison a client can catch us
+   making. */
+$comp_measured = null;
+if (class_exists('Six_Dash_Metrics')) {
+    $mv = Six_Dash_Metrics::live('seo', $user_id);
+    if (is_array($mv) && !empty($mv['organic_visitors'])) {
+        $comp_measured = (int) $mv['organic_visitors'];
+    }
+}
+?>
 <div class="six-card">
     <div class="six-card-header" style="border-bottom:1px solid var(--border);padding-bottom:12px">
-        <span class="six-card-title">Competitors in Your Market</span>
-        <span style="font-size:11px;color:var(--text3)">Live search data</span>
+        <span class="six-card-title">Where you stand</span>
+        <span style="font-size:11px;color:var(--text3)">
+            <?php if($comp_place): ?>#<?php echo (int)$comp_place; ?> of <?php echo (int)$comp_of; ?> by estimated organic visits
+            <?php else: ?>Live search data<?php endif; ?>
+        </span>
     </div>
     <div class="six-card-body" style="padding:0;overflow-x:auto">
         <table style="width:100%;border-collapse:collapse;min-width:660px">
             <thead>
                 <tr style="text-align:left">
                     <?php $th='padding:10px 16px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);border-bottom:1px solid var(--border);white-space:nowrap'; ?>
-                    <th style="<?php echo $th; ?>">Competitor</th>
+                    <th style="<?php echo $th; ?>">#</th>
+                    <th style="<?php echo $th; ?>">Site</th>
                     <th style="<?php echo $th; ?>;text-align:right">Est. Monthly Visits</th>
                     <th style="<?php echo $th; ?>;text-align:right">Keywords Ranked</th>
                     <th style="<?php echo $th; ?>;text-align:right">Shared Keywords</th>
@@ -1148,20 +1261,32 @@ $comp_rows   = (is_array($comp_saved) && !empty($comp_saved['rows'])) ? $comp_sa
                 </tr>
             </thead>
             <tbody id="comp-tbody">
-                <?php if($comp_rows): $td='padding:11px 16px;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.04);vertical-align:top'; foreach($comp_rows as $r): ?>
-                <tr>
-                    <td style="<?php echo $td; ?>;font-weight:600"><?php echo esc_html($r['domain']); ?></td>
+                <?php if($comp_all): $td='padding:11px 16px;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.04);vertical-align:top';
+                    foreach($comp_all as $ri=>$r):
+                        $is_you = !empty($r['you']); ?>
+                <tr<?php echo $is_you ? ' style="background:rgba(255,102,153,0.07)"' : ''; ?>>
+                    <td style="<?php echo $td; ?>;color:var(--text3);font-variant-numeric:tabular-nums"><?php echo $ri+1; ?></td>
+                    <td style="<?php echo $td; ?>;font-weight:600"><?php echo esc_html($r['domain']); ?><?php
+                        if($is_you): ?> <span style="font-size:10px;font-weight:700;color:var(--pink);background:rgba(255,102,153,0.12);padding:2px 6px;border-radius:20px;margin-left:4px">You</span><?php endif; ?></td>
                     <td style="<?php echo $td; ?>;text-align:right;font-variant-numeric:tabular-nums"><?php echo number_format(intval($r['visits'])); ?></td>
                     <td style="<?php echo $td; ?>;text-align:right;font-variant-numeric:tabular-nums"><?php echo number_format(intval($r['keywords'])); ?></td>
                     <td style="<?php echo $td; ?>;text-align:right;font-variant-numeric:tabular-nums"><?php echo number_format(intval($r['shared'])); ?></td>
                     <td style="<?php echo $td; ?>;color:var(--text2);font-size:12px"><?php echo esc_html($r['insight']??''); ?></td>
                 </tr>
                 <?php endforeach; else: ?>
-                <tr><td colspan="5" style="padding:36px 16px;text-align:center;color:var(--text3);font-size:13px">No analysis yet — click <strong>Run Analysis</strong> to pull your competitors' traffic and keywords.</td></tr>
+                <tr><td colspan="6" style="padding:36px 16px;text-align:center;color:var(--text3);font-size:13px">No analysis yet — click <strong>Run Analysis</strong> to pull your competitors' traffic and keywords.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
     </div>
+    <?php if($comp_all): ?>
+    <div style="padding:12px 16px;border-top:1px solid var(--border);font-size:11px;color:var(--text3);line-height:1.6">
+        Every figure in this table is a third-party estimate of what each site earns from search, pulled on the same day so the rows compare.
+        <?php if($comp_measured !== null): ?>
+        <br>Your own analytics measured <strong style="color:var(--text2)"><?php echo number_format($comp_measured); ?></strong> organic visitors over the last 30 days. That is the number to trust for your own site — the estimate above exists so it can be set beside the others on the same basis.
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
 </div>
 <div id="comp-run-msg" style="font-size:12px;margin-top:10px"></div>
 
@@ -1372,6 +1497,63 @@ $recent_work = ($proof_rows && class_exists('Six_Tracking'))
     ? Six_Tracking::work_log($user_id, array('service_slug'=>$svc_slug,'status'=>'deployed','limit'=>5))
     : array();
 ?>
+<?php
+/* Rendered here, shown under Reporting — the client's tasks belong beside
+   the record of what has been done, not stacked below the graphs where the
+   last two sections of a service page went unread. Buffered rather than
+   moved because a client with no metrics yet has no Reporting pane to put
+   it in, and the plan still has to appear for them. */
+ob_start();
+?>
+<?php
+/* ── The plan, as the client sees it ──────────────────────────────────────
+   Only what the advisor has published. A draft plan is working material: the
+   dates move while it is being edited, and a client who watched them move
+   would reasonably conclude the schedule means nothing.
+
+   Four states, and the client-review one is the reason this block earns its
+   place — it names the things that are waiting on them, which no chart can. */
+$plan_rows = class_exists('Six_Tasks')
+    ? Six_Tasks::all($user_id, array('service_slug'=>$svc_slug, 'published'=>true))
+    : array();
+if ( $plan_rows ):
+    $plan_labels = Six_Tasks::STATUSES;
+    $plan_colors = array('todo'=>'var(--text3)','client_review'=>'var(--warning)','implementation'=>$sd['color'],'complete'=>'var(--success)');
+    $plan_count  = array('todo'=>0,'client_review'=>0,'implementation'=>0,'complete'=>0);
+    foreach($plan_rows as $pl){ if(isset($plan_count[$pl['status']])) $plan_count[$pl['status']]++; }
+    $plan_waiting = $plan_count['client_review'];
+?>
+<div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px">
+    <div style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.05)">
+        <div style="font-size:12px;font-weight:700;color:var(--text1)">Your plan</div>
+        <div style="font-size:10.5px;color:var(--text3);margin-top:2px">
+            <?php echo number_format($plan_count['complete']); ?> of <?php echo number_format(count($plan_rows)); ?> complete<?php
+            if($plan_waiting): ?> &middot; <span style="color:var(--warning)"><?php echo $plan_waiting; ?> waiting on your approval</span><?php endif; ?>
+        </div>
+    </div>
+    <?php
+    $plan_by_month = array();
+    foreach($plan_rows as $pl){ $plan_by_month[(int)$pl['month_no']][] = $pl; }
+    ksort($plan_by_month);
+    foreach($plan_by_month as $pm => $pms): ?>
+    <div style="padding:9px 20px;border-top:1px solid rgba(255,255,255,0.05);background:var(--dark3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3)">Month <?php echo (int)$pm; ?></div>
+        <?php foreach($pms as $pl): ?>
+        <div style="display:flex;align-items:baseline;gap:12px;padding:9px 20px;border-top:1px solid rgba(255,255,255,0.03)">
+            <div style="flex:1;min-width:0">
+                <div style="font-size:12px;color:var(--text1);line-height:1.35"><?php echo esc_html($pl['title']); ?></div>
+                <?php if($pl['deliverable']): ?><div style="font-size:10px;color:var(--text3);margin-top:1px"><?php echo esc_html($pl['deliverable']); ?></div><?php endif; ?>
+            </div>
+            <div style="flex-shrink:0;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;color:<?php echo $plan_colors[$pl['status']]; ?>;background:<?php echo $plan_colors[$pl['status']]; ?>18">
+                <?php echo esc_html($plan_labels[$pl['status']] ?? $pl['status']); ?>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    <?php endforeach; ?>
+</div>
+<?php endif; ?>
+
+<?php $plan_html = ob_get_clean(); ?>
+
 <?php if(!empty($s_mets)): ?>
 
 <!-- Metrics — clean table row layout instead of box-on-box -->
@@ -1413,6 +1595,81 @@ $recent_work = ($proof_rows && class_exists('Six_Tracking'))
     </div>
     <?php endforeach; ?>
     </div>
+</div>
+
+<?php /* The two halves of a service page. The numbers above are always on
+         screen; everything else belongs to one side or the other. Reporting
+         used to sit below Performance, which put the record of what we did
+         below the fold on every service page a client opened. */ ?>
+<div class="six-svc-switch" role="tablist" data-slug="<?php echo esc_attr($svc_slug); ?>">
+    <button type="button" role="tab" data-pane="performance" aria-selected="true"
+            aria-controls="six-pane-performance">Performance
+        <span class="six-switch-sub">The numbers and the graphs</span></button>
+    <button type="button" role="tab" data-pane="reporting" aria-selected="false"
+            aria-controls="six-pane-reporting">Reporting
+        <span class="six-switch-sub">What we did, and what is next</span></button>
+</div>
+
+<div id="six-pane-performance" role="tabpanel">
+<div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px">
+    <!-- One graph per metric, two to a row.
+         The progress bars these replace could say 62% and nothing else: not
+         whether the number is moving, not how fast, not whether it had moved
+         at all since the work started. Each graph draws the readings we
+         actually have, with the target as a marked point the line is heading
+         towards — and says plainly when there are only two readings, rather
+         than drawing a month of days nobody measured. -->
+    <div class="six-target-grid">
+    <?php foreach($s_mets as $i=>$met):
+        $tser = class_exists('Six_Dash_Metrics')
+            ? Six_Dash_Metrics::target_series($user_id, $met->label, $met->current_value,
+                                              $met->target_value, $met->previous_value)
+            : array('has'=>false);
+        $lower = class_exists('Six_Dash_Metrics') ? Six_Dash_Metrics::lower_is_better($met->label) : false;
+        $pct   = $tser['pct'] ?? null;
+        $mc    = $pct===null ? 'var(--text3)' : ($pct>=75?'var(--success)':($pct>=40?$sd['color']:'var(--warning)'));
+        $gid   = 'tg-'.$i.'-'.substr(md5($met->label),0,6);
+    ?>
+        <div class="six-target-card">
+            <div class="six-target-head">
+                <div>
+                    <div class="six-target-name"><?php echo esc_html($met->label); ?></div>
+                    <?php
+                    /* "· lower is better" with no unit in front of it left a
+                       stray separator leading the line. */
+                    $row_unit = $met->unit ?: ($tser['unit'] ?? '');
+                    $unit_bits = array_filter(array($row_unit, $lower ? 'lower is better' : ''));
+                    if ($unit_bits): ?><div class="six-target-unit"><?php echo esc_html(implode(' · ', $unit_bits)); ?></div><?php endif; ?>
+                </div>
+                <div style="text-align:right">
+                    <div class="six-target-now" style="color:<?php echo $mc; ?>"><?php echo esc_html($met->current_value); ?></div>
+                    <div class="six-target-pct">
+                        <?php if($pct===null): ?>No target set
+                        <?php elseif(!empty($tser['met'])): ?>Target met
+                        <?php else: ?><?php echo (int)$pct; ?>% of the way<?php endif; ?>
+                    </div>
+                </div>
+            </div>
+            <?php if(!empty($tser['has'])): ?>
+            <div class="six-target-plot" data-graph="<?php echo esc_attr(wp_json_encode($tser)); ?>"
+                 data-colour="<?php echo esc_attr($sd['color']); ?>" id="<?php echo $gid; ?>"></div>
+            <div class="six-target-foot">
+                <span title="<?php echo esc_attr($tser['note_long'] ?? ''); ?>"><?php echo $tser['sparse'] ? esc_html($tser['note']) : 'Measured daily'; ?></span>
+                <?php if($tser['target']!==null): ?>
+                <span class="six-target-goal">Target <?php echo esc_html($met->target_value); ?><?php echo $lower?' or lower':''; ?></span>
+                <?php endif; ?>
+            </div>
+            <?php else: ?>
+            <div class="six-target-empty">Nothing measured for this yet.</div>
+            <?php endif; ?>
+        </div>
+    <?php endforeach; ?>
+    </div>
+</div>
+</div><!-- /performance pane -->
+
+<div id="six-pane-reporting" role="tabpanel" hidden>
+<div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px">
     <?php
     /* ── Optimization proof ───────────────────────────────────────────────
        What we actually did, rolled up by category. The dashboard could show a
@@ -1489,41 +1746,9 @@ $recent_work = ($proof_rows && class_exists('Six_Tracking'))
     </div>
     <?php endif; ?>
 
-    <!-- Detail rows for each metric with progress vs target -->
-    <?php foreach($s_mets as $i=>$met):
-        /* current ÷ target is backwards for a metric that improves by falling.
-           An average position of 11.3 against a target of 6 used to render as
-           a full green bar. Six_Dash_Metrics::progress() knows the direction,
-           uses the starting figure where there is one, and returns null rather
-           than 0% when nobody has set a target — "no target" and "no progress"
-           are different facts and the bar cannot say both. */
-        $lower = class_exists('Six_Dash_Metrics') ? Six_Dash_Metrics::lower_is_better($met->label) : false;
-        $prog  = class_exists('Six_Dash_Metrics')
-            ? Six_Dash_Metrics::progress($met->current_value, $met->target_value, $lower, $met->previous_value)
-            : array('pct'=>null,'met'=>false,'reason'=>'');
-        $pct   = $prog['pct'];
-        $mc    = $pct===null ? 'var(--text3)' : ($pct>=75?'var(--success)':($pct>=40?$sd['color']:'var(--warning)'));
-    ?>
-    <div style="display:flex;align-items:center;gap:16px;padding:12px 20px;border-bottom:1px solid rgba(255,255,255,0.04);<?php echo $i===count($s_mets)-1?'border-bottom:none':''; ?>">
-        <div style="width:140px;flex-shrink:0;font-size:12px;color:var(--text2)">
-            <?php echo esc_html($met->label); ?>
-            <?php $row_unit = $met->unit ?: ( class_exists('Six_Dash_Metrics') ? Six_Dash_Metrics::unit_for( $met->label ) : '' );
-            if ( $row_unit ): ?><div style="font-size:10px;color:var(--text3)"><?php echo esc_html($row_unit); ?></div><?php endif; ?>
-        </div>
-        <div style="flex:1;height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden" title="<?php echo esc_attr($prog['reason']); ?>">
-            <div style="height:100%;width:<?php echo (int)($pct??0); ?>%;background:<?php echo $mc; ?>;border-radius:3px;transition:width 1s ease"></div>
-        </div>
-        <div style="width:110px;text-align:right;font-size:11px;color:var(--text3)">
-            <?php if($met->target_value!==''&&$met->target_value!==null): ?>
-                Target: <?php echo esc_html($met->target_value); ?><?php echo $lower?' or lower':''; ?>
-            <?php else: ?>
-                <span style="opacity:.75">No target set</span>
-            <?php endif; ?>
-        </div>
-        <div style="width:46px;text-align:right;font-size:11px;font-weight:700;color:<?php echo $mc; ?>"><?php echo $pct===null?'—':$pct.'%'; ?></div>
-    </div>
-    <?php endforeach; ?>
 </div>
+<?php echo $plan_html; $plan_html = ''; ?>
+</div><!-- /reporting pane -->
 
 <?php
 /* Work logged but no metrics entered yet. The proof still belongs on screen:
@@ -1553,102 +1778,16 @@ if ( empty($s_mets) && $proof_rows ):
 </div>
 <?php endif; ?>
 
-<!-- Performance Chart -->
-<?php if(count($s_mets) >= 2 || !empty($trend['has'])): ?>
-<div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:20px;overflow:hidden;max-width:100%">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
-        <div style="font-size:13px;font-weight:700">Performance Trend</div>
-        <div style="display:flex;align-items:center;gap:14px<?php echo !empty($trend['has'])?';display:none':''; ?>">
-            <div style="display:flex;align-items:center;gap:5px"><div style="width:10px;height:3px;background:<?php echo $sd['color']; ?>;border-radius:2px"></div><span style="font-size:10px;color:var(--text3)">Current</span></div>
-            <div style="display:flex;align-items:center;gap:5px"><div style="width:10px;height:3px;background:rgba(255,255,255,0.2);border-radius:2px"></div><span style="font-size:10px;color:var(--text3)">Previous</span></div>
-            <div style="display:flex;align-items:center;gap:5px"><div style="width:10px;height:3px;border-top:2px dashed #56D364"></div><span style="font-size:10px;color:var(--text3)">Target</span></div>
-        </div>
-    </div>
-    <!-- Fixed-height wrapper prevents Chart.js infinite expansion -->
-    <div style="position:relative;height:220px;width:100%;overflow:hidden">
-        <canvas id="svc-perf-chart" style="display:block;max-width:100%"></canvas>
-    </div>
-</div>
-<script>
-(function(){
-    var d=<?php echo $chart_json; ?>;
-    var canvas=document.getElementById('svc-perf-chart');
-    if(!canvas) return;
-    if(!(d.trend && d.trend.has) && !d.labels.length) return;
-    if(window.Chart){initChart();return;}
-    var script=document.createElement('script');
-    script.src='https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js';
-    script.onload=initChart;
-    document.head.appendChild(script);
-    function initChart(){
-        // A real time series when snapshots exist, otherwise the original
-        // current-vs-previous comparison.
-        if (d.trend && d.trend.has) {
-            var palette = ['#FF6699','#6ACAFD','#56D364','#E3B341','#8781BA'];
-            new Chart(canvas,{
-                type:'line',
-                data:{
-                    labels:d.trend.labels,
-                    datasets:d.trend.series.map(function(sr,i){
-                        var c = palette[i % palette.length];
-                        return {
-                            label: sr.label + (sr.lower_better ? ' (lower is better)' : ''),
-                            data: sr.values,
-                            borderColor: c,
-                            backgroundColor: 'transparent',
-                            borderWidth: 2,
-                            pointRadius: 3,
-                            pointBackgroundColor: c,
-                            tension: 0.25,
-                            spanGaps: true
-                        };
-                    })
-                },
-                options:{
-                    responsive:true, maintainAspectRatio:false,
-                    animation:{duration:500,resize:{duration:0}},
-                    interaction:{mode:'index',intersect:false},
-                    plugins:{
-                        legend:{display:true,position:'bottom',
-                            labels:{color:'rgba(255,255,255,0.55)',boxWidth:10,boxHeight:3,font:{size:10},padding:12}},
-                        tooltip:{backgroundColor:'rgba(13,17,23,0.95)',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:10,titleFont:{size:11},bodyFont:{size:11}}
-                    },
-                    scales:{
-                        x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'rgba(255,255,255,0.35)',font:{size:10}},border:{display:false}},
-                        y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'rgba(255,255,255,0.35)',font:{size:10}},beginAtZero:true,border:{display:false}}
-                    }
-                }
-            });
-            return;
-        }
-        new Chart(canvas,{
-            type:'bar',
-            data:{
-                labels:d.labels,
-                datasets:[
-                    {label:'Current',data:d.current,backgroundColor:d.color+'BB',borderRadius:5,borderSkipped:false,barPercentage:0.45,categoryPercentage:0.8},
-                    {label:'Previous',data:d.prev,backgroundColor:'rgba(255,255,255,0.1)',borderRadius:5,borderSkipped:false,barPercentage:0.45,categoryPercentage:0.8},
-                    {label:'Target',data:d.target,type:'line',borderColor:'#56D364',backgroundColor:'transparent',borderWidth:2,borderDash:[4,4],pointRadius:3,pointBackgroundColor:'#56D364'}]
-            },
-            options:{
-                responsive:true,
-                maintainAspectRatio:false,
-                animation:{duration:500,resize:{duration:0}},
-                layout:{padding:0},
-                plugins:{
-                    legend:{display:false},
-                    tooltip:{backgroundColor:'rgba(13,17,23,0.95)',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:10,titleFont:{size:11},bodyFont:{size:11}}
-                },
-                scales:{
-                    x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'rgba(255,255,255,0.35)',font:{size:10}},border:{display:false}},
-                    y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'rgba(255,255,255,0.35)',font:{size:10}},beginAtZero:true,border:{display:false}}
-                }
-            }
-        });
-    }
-})();
-</script>
-<?php endif; ?>
+<?php /* No metrics yet means no Reporting pane to hold the plan, so it goes
+         here on its own. Emitted once either way: the pane clears the
+         variable after printing it. */
+if ( ! empty( $plan_html ) ) { echo $plan_html; $plan_html = ''; } ?>
+
+<?php /* The "Performance Trend" bar chart is gone. It plotted each metric's
+         current value beside a Previous series that is blank for most of
+         them, so it rendered as a row of lonely bars with nothing to compare
+         against — and it put metrics measured in different units on one
+         axis. Each metric now has its own target graph above. */ ?>
 
 <?php else: ?>
 <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:28px 24px;margin-bottom:20px;display:flex;align-items:center;gap:20px">
@@ -2114,6 +2253,14 @@ try {
 } catch (\Throwable $e) { $invoices=array(); }
 $active_svcs_b=array_filter((array)$services,fn($s)=>$s->status==='active'&&floatval($s->budget)>0);
 $billing_total=array_sum(array_map(fn($s)=>floatval($s->budget),(array)$active_svcs_b));
+
+/* Website maintenance is an advisor-enabled add-on with no row in
+   six_client_services, so it was invisible here — it only ever appeared as a
+   nav item under Services, which is the one place it does not belong. It is a
+   recurring charge; this is where a recurring charge is listed. */
+$maint_on  = class_exists('Six_Website_Project') && Six_Website_Project::maintenance_on($user_id);
+$maint_fee = $maint_on ? floatval(Six_Website_Project::maintenance_fee($user_id)) : 0;
+if ($maint_fee > 0) $billing_total += $maint_fee;
 $next_billing=date('M 1, Y',strtotime('first day of next month'));
 ?>
 <div class="six-page-header"><div><h1 class="six-page-title">Billing</h1><p class="six-page-sub">Payment method and billing history</p></div></div>
@@ -2140,7 +2287,7 @@ $next_billing=date('M 1, Y',strtotime('first day of next month'));
     <div class="six-card">
         <div class="six-card-header" style="border-bottom:1px solid var(--border)"><span class="six-card-title">Current Plan</span></div>
         <div class="six-card-body" style="padding:20px">
-            <?php if(empty($active_svcs_b)): ?>
+            <?php if(empty($active_svcs_b) && !$maint_on): ?>
             <div style="text-align:center;padding:20px;color:var(--text3);font-size:13px">No active services with budget set.</div>
             <?php else: ?>
             <table style="width:100%;font-size:12px;border-collapse:collapse;margin-bottom:14px">
@@ -2155,6 +2302,14 @@ $next_billing=date('M 1, Y',strtotime('first day of next month'));
                     <td style="padding:10px 0;text-align:right;font-weight:700">$<?php echo number_format($s->budget,0); ?></td>
                 </tr>
                 <?php endforeach; ?>
+                <?php if($maint_on): ?>
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
+                    <td style="padding:10px 0;color:var(--text2)">Website Maintenance</td>
+                    <td style="padding:10px 0;text-align:right;font-weight:700">
+                        <?php echo $maint_fee > 0 ? '$'.number_format($maint_fee,0) : '<span style="font-weight:400;color:var(--text3);font-size:11px">fee not set</span>'; ?>
+                    </td>
+                </tr>
+                <?php endif; ?>
                 </tbody>
             </table>
             <div style="display:flex;justify-content:space-between;padding:12px 0 0;font-size:15px;font-weight:800;font-family:var(--font-head);border-top:2px solid var(--border)"><span>Total / Month</span><span style="color:var(--pink)">$<?php echo number_format($billing_total,0); ?></span></div>
@@ -2321,7 +2476,10 @@ function post(d){ return fetch(AJAX,{method:'POST',headers:{'Content-Type':'appl
             if(label) label.textContent = 'Dark';
         }
         localStorage.setItem('six_theme', theme);
-        // Reload page so chart colours rebuild correctly
+        // Redraw anything that baked a colour in at build time.
+        if(typeof window.sixRedrawVisits === 'function') {
+            try { window.sixRedrawVisits(); } catch(e) {}
+        }
         if(window.sixDashChart) {
             var dk = theme==='dark';
             var tc = dk ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.65)';
@@ -3043,5 +3201,223 @@ function setBnavActive(el) {
     if(href.includes('tab='+currentTab)) b.classList.add('active');
   });
 })();
+})();
+</script>
+
+<script>
+/* ──────────────────────────────────────────────────────────────────────────
+ * Target graphs
+ *
+ * One per metric: the readings we have, drawn as a line heading towards the
+ * target, which sits as a glowing circle near the top of the plot.
+ *
+ * The y positions are computed server-side (Six_Dash_Metrics::target_series)
+ * as fractions of the plot height, already pointing the way the metric
+ * improves — so an average position falling from 18 to 11 climbs the chart.
+ * This file only draws what it is given. It never interpolates: where the
+ * series is `sparse` the connector to the target is dashed and the footer
+ * says there are two readings, because a smooth curve through days nobody
+ * measured is a measurement we invented.
+ *
+ * Both themes come from the same markup. Grid and label colours are read off
+ * the live theme at draw time and redrawn when it changes; the line and the
+ * target take the service's own accent, which is legible on either
+ * background.
+ * ────────────────────────────────────────────────────────────────────────── */
+(function(){
+  var NS = 'http://www.w3.org/2000/svg';
+  var PAD_L = 8, PAD_R = 10, PAD_T = 12, PAD_B = 20;
+
+  function dark(){
+    var r = document.getElementById('six-portal-root') || document.documentElement;
+    var a = r.getAttribute('data-theme');
+    if (a === 'dark')  return true;
+    if (a === 'light') return false;
+    try { return (localStorage.getItem('six_theme') || 'light') === 'dark'; }
+    catch (e) { return false; }
+  }
+
+  function el(name, attrs){
+    var n = document.createElementNS(NS, name);
+    for (var k in attrs) if (attrs[k] !== null && attrs[k] !== undefined) n.setAttribute(k, attrs[k]);
+    return n;
+  }
+
+  function draw(box){
+    var data;
+    try { data = JSON.parse(box.getAttribute('data-graph') || '{}'); }
+    catch (e) { return; }
+    if (!data.points || !data.points.length) return;
+
+    var accent = box.getAttribute('data-colour') || '#FF6699';
+    var isDark = dark();
+    var gridC  = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,20,40,0.08)';
+    var textC  = isDark ? 'rgba(255,255,255,0.40)' : 'rgba(15,20,40,0.45)';
+
+    box.textContent = '';
+    // The box's own pixel size, so nothing is scaled and the text is drawn at
+    // the size it is set in. preserveAspectRatio="none" on a fixed viewBox
+    // stretched every label sideways.
+    var W = Math.max(180, Math.round(box.clientWidth || 300));
+    var H = Math.max(80,  Math.round(box.clientHeight || 112));
+    var svg = el('svg', {viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, role: 'img'});
+    svg.setAttribute('aria-label',
+      data.label + ': ' + data.current + (data.target !== null ? ' of a target of ' + data.target : ''));
+
+    var plotW = W - PAD_L - PAD_R, plotH = H - PAD_T - PAD_B;
+    // y is a fraction of plot height where 1 is the top, so it is flipped
+    // here and nowhere else.
+    function Y(frac){ return PAD_T + plotH * (1 - frac); }
+
+    // Where the measured line is allowed to run. It stops short of the right
+    // edge to leave room for the target, and short of it again so the line
+    // never reads as having nowhere left to go — the brief's "not more than
+    // 80% of the graph". With no target there is nothing to leave room for,
+    // so it runs most of the width.
+    var hasTarget = data.target_y !== null && data.target_y !== undefined;
+    var lineEnd   = PAD_L + plotW * (hasTarget ? 0.62 : 0.88);
+    var targetX   = PAD_L + plotW * 0.88;
+    function X(i, n){
+      if (n <= 1) return PAD_L + (lineEnd - PAD_L) * 0.5;
+      return PAD_L + (lineEnd - PAD_L) * (i / (n - 1));
+    }
+
+    var defs = el('defs');
+    var uid  = 'tg' + Math.random().toString(36).slice(2, 8);
+    var grad = el('linearGradient', {id: uid + 'f', x1: '0', y1: '0', x2: '0', y2: '1'});
+    grad.appendChild(el('stop', {offset: '0%',   'stop-color': accent, 'stop-opacity': isDark ? '0.30' : '0.22'}));
+    grad.appendChild(el('stop', {offset: '100%', 'stop-color': accent, 'stop-opacity': '0'}));
+    defs.appendChild(grad);
+    var glow = el('radialGradient', {id: uid + 'g'});
+    glow.appendChild(el('stop', {offset: '0%',   'stop-color': accent, 'stop-opacity': '0.55'}));
+    glow.appendChild(el('stop', {offset: '55%',  'stop-color': accent, 'stop-opacity': '0.18'}));
+    glow.appendChild(el('stop', {offset: '100%', 'stop-color': accent, 'stop-opacity': '0'}));
+    defs.appendChild(glow);
+    svg.appendChild(defs);
+
+    // Baseline only. A full grid in a 112px box is noise.
+    svg.appendChild(el('line', {x1: PAD_L, y1: Y(0), x2: W - PAD_R, y2: Y(0),
+                                stroke: gridC, 'stroke-width': 1}));
+
+    var pts = data.points, n = pts.length;
+    var xs  = pts.map(function(_, i){ return X(i, n); });
+    var ys  = pts.map(function(p){ return Y(p.y); });
+
+    if (n > 1) {
+      var area = 'M' + xs[0] + ',' + Y(0);
+      for (var i = 0; i < n; i++) area += ' L' + xs[i] + ',' + ys[i];
+      area += ' L' + xs[n - 1] + ',' + Y(0) + ' Z';
+      svg.appendChild(el('path', {d: area, fill: 'url(#' + uid + 'f)', stroke: 'none'}));
+
+      var line = 'M' + xs[0] + ',' + ys[0];
+      for (var j = 1; j < n; j++) line += ' L' + xs[j] + ',' + ys[j];
+      svg.appendChild(el('path', {d: line, fill: 'none', stroke: accent, 'stroke-width': 2.2,
+                                  'stroke-linecap': 'round', 'stroke-linejoin': 'round'}));
+    }
+
+    // The target, and the run towards it.
+    if (hasTarget) {
+      var tx = targetX, ty = Y(data.target_y);
+      var lastX = xs[n - 1], lastY = ys[n - 1];
+
+      svg.appendChild(el('path', {
+        d: 'M' + lastX + ',' + lastY + ' L' + tx + ',' + ty,
+        fill: 'none', stroke: accent, 'stroke-width': 1.6, 'stroke-opacity': '0.45',
+        'stroke-dasharray': '3 4', 'stroke-linecap': 'round'}));
+
+      svg.appendChild(el('circle', {cx: tx, cy: ty, r: 13, fill: 'url(#' + uid + 'g)'}));
+      svg.appendChild(el('circle', {cx: tx, cy: ty, r: 5.5, fill: 'none',
+                                    stroke: accent, 'stroke-width': 1.6, 'stroke-opacity': '0.65'}));
+      svg.appendChild(el('circle', {cx: tx, cy: ty, r: 3, fill: accent}));
+    }
+
+    // Where it stands now, as a filled dot with a ring that reads on both
+    // backgrounds without knowing the card's exact colour.
+    if (n) {
+      var cx = xs[n - 1], cy = ys[n - 1];
+      svg.appendChild(el('circle', {cx: cx, cy: cy, r: 5.5, fill: accent, 'fill-opacity': '0.18'}));
+      svg.appendChild(el('circle', {cx: cx, cy: cy, r: 3, fill: accent}));
+    }
+
+    // Two labels at most: the first reading and the last. More than that in
+    // a box this wide overlaps into illegibility.
+    function tick(x, text, anchorPos){
+      var tn = el('text', {x: x, y: H - 6, fill: textC, 'font-size': '9',
+                           'text-anchor': anchorPos || 'middle'});
+      tn.textContent = text;
+      return tn;
+    }
+    if (n > 1) {
+      svg.appendChild(tick(xs[0], pts[0].label, 'start'));
+      svg.appendChild(tick(xs[n - 1], pts[n - 1].label, 'middle'));
+      if (hasTarget) svg.appendChild(tick(targetX, 'Target', 'middle'));
+    } else if (n === 1) {
+      svg.appendChild(tick(xs[0], pts[0].label, 'middle'));
+    }
+
+    box.appendChild(svg);
+  }
+
+  function drawAll(){
+    document.querySelectorAll('.six-target-plot[data-graph]').forEach(draw);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', drawAll);
+  } else {
+    drawAll();
+  }
+
+  // The theme toggle swaps an attribute rather than reloading, so the grid
+  // and label colours have to be recomputed when it does.
+  var root = document.getElementById('six-portal-root') || document.documentElement;
+  if (window.MutationObserver) {
+    new MutationObserver(drawAll).observe(root, {attributes: true, attributeFilter: ['data-theme']});
+  }
+  window.addEventListener('resize', function(){
+    clearTimeout(window.__sixTgT);
+    window.__sixTgT = setTimeout(drawAll, 150);
+  });
+})();
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Performance / Reporting
+ *
+ * A service page is two things: the numbers, and the record of what was done
+ * to move them. They were stacked, so the second half was below the fold and
+ * nobody scrolled to it. Two halves of one control now, with the choice
+ * remembered per service so a client who lives in Reporting does not land on
+ * Performance every time.
+ * ────────────────────────────────────────────────────────────────────────── */
+(function(){
+  var sw = document.querySelector('.six-svc-switch');
+  if (!sw) return;
+  var slug = sw.getAttribute('data-slug') || 'svc';
+  var panes = {
+    performance: document.getElementById('six-pane-performance'),
+    reporting:   document.getElementById('six-pane-reporting')
+  };
+  if (!panes.performance || !panes.reporting) return;
+
+  function show(which, remember){
+    Object.keys(panes).forEach(function(k){
+      panes[k].hidden = (k !== which);
+    });
+    sw.querySelectorAll('button').forEach(function(b){
+      b.setAttribute('aria-selected', b.getAttribute('data-pane') === which ? 'true' : 'false');
+    });
+    if (remember) { try { localStorage.setItem('six_svc_pane_' + slug, which); } catch (e) {} }
+    // The graphs are drawn into a hidden element as zero-width unless they
+    // are redrawn once the pane is actually on screen.
+    window.dispatchEvent(new Event('resize'));
+  }
+
+  sw.querySelectorAll('button').forEach(function(b){
+    b.addEventListener('click', function(){ show(b.getAttribute('data-pane'), true); });
+  });
+
+  var saved = 'performance';
+  try { saved = localStorage.getItem('six_svc_pane_' + slug) || 'performance'; } catch (e) {}
+  show(panes[saved] ? saved : 'performance', false);
 })();
 </script>

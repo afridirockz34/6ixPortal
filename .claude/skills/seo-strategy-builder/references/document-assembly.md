@@ -15,9 +15,16 @@ both have shipped:
    a `Change` column is unreadable to anyone without the predecessor's document
    open beside it. The client has one document — ours — and every sentence has
    to make sense from inside it.
+3. **Letting the audit leak into it.** The strategy and the audit are two
+   documents with two jobs. The audit says what is wrong; the strategy says
+   what we are going to do about it. A strategy carrying crawl-error counts,
+   severity scores, a technical findings table and a list of what the previous
+   agency got wrong is not a document the client can forward to anybody — and
+   forwarding it is most of what it is for. See *This is a client document*
+   below.
 
-Both are easy to commit, because both reflect how the work genuinely happened.
-Neither is how it gets read.
+All three are easy to commit, because all three reflect how the work genuinely
+happened. None of them is how it gets read.
 
 ---
 
@@ -35,6 +42,62 @@ decode.
 
 ---
 
+## This is a client document
+
+The test: **the client should be able to send this to their partner, their
+board or their own marketing person without editing it.** Everything below
+fails that test, and every one of them has appeared in a strategy document we
+sent.
+
+| Does not belong here | Where it belongs |
+|---|---|
+| Crawl-error counts, 404 lists, redirect-chain tables | The audit report |
+| Severity scores, health scores, "27/100" | The audit report |
+| A findings table of everything wrong with the site | The audit report |
+| What the previous agency got wrong | Appendix B, if anywhere |
+| Our phase numbers, our build order, our tooling costs | Nowhere the client sees |
+| Raw exports — backlink dumps, keyword lists with 40 columns | An appendix or a separate sheet |
+
+The strategy may *refer* to what the audit found — "the site has 180 pages
+with no meta description; fixing them is month one" — in one sentence, in
+plain words, where it explains what we are doing. One sentence of finding, a
+paragraph of plan. Not the other way round.
+
+**Say it in the fewest technical words that are still true.** Not *canonical
+tag implementation across duplicate URL variants*; rather *several pages exist
+at more than one address, so we will tell Google which address is the real one
+for each.* `plain-language.md` is the standard and `check_strategy_doc.py`
+counts the failures.
+
+**Compare every number to something.** A figure on its own is not a finding.
+612 referring domains means nothing; 612 against a competitor's 2,100, pulled
+the same day, is an argument. Every baseline in the document carries either a
+competitor's equivalent, the same figure from a previous period, or the target
+it is being compared to — and says which.
+
+---
+
+## Speed optimization is part of the plan, never a discount
+
+Page speed work is included in the SEO service. It is not an upsell, it is not
+a saving, and it is **never** written up as something the client is being
+spared because their site is already fast.
+
+That is a commitment, so it holds even when it would make a nice line in a
+proposal. Two reasons it keeps getting broken: a fast site makes "we are not
+charging you for this" sound generous, and speed is easy to price separately
+because it is easy to measure.
+
+What to write instead: speed appears in the technical section as work with an
+owner and a month, like everything else. If the site is already fast, the
+section says what is measured, what the targets are, and that the work is
+keeping it there as pages get added — because a site that passes Core Web
+Vitals today fails them three months into a content programme if nobody is
+watching. `check_strategy_doc.py` fails a document that offers speed work as a
+saving.
+
+---
+
 ## The client-facing table of contents
 
 Every title below is the section name. None of them contains a phase number.
@@ -44,6 +107,7 @@ Every title below is the section name. None of them contains a phase number.
 | Section | What it is |
 |---|---|
 | Summary and decisions needed | One page. What we found, what we are doing, and the three to five decisions we need from the client, each with a recommendation. Written last |
+| What we will do first | The numbered priorities table — see below. The one page a client who reads nothing else will read |
 | How to read the figures | Which numbers are measured (their GA4, Search Console) and which are estimated (Ahrefs), with the period and pull date for each. Two sentences per source |
 
 **Part 1 — Where the business stands**
@@ -77,6 +141,7 @@ Every title below is the section name. None of them contains a phase number.
 | The 40 Google Business Profile keywords, and where each one goes | `keyword-strategy.md` §2, `local-and-gmb.md` |
 | One owner for every search | `keyword-strategy.md` — the keyword map |
 | The page plan | `phase9-10-architecture-linking.md` |
+| Changes to pages you already have | `phase9-10-architecture-linking.md` — see below |
 | Internal linking rules | `house-standards.md` §10 |
 | The 100 blog topics, by cluster | `keyword-strategy.md` §3 |
 | The publishing schedule | `phase13-14-content-calendar.md` |
@@ -103,7 +168,11 @@ Every title below is the section name. None of them contains a phase number.
 | Review strategy | `local-and-gmb.md` |
 | Schema plan, page type by page type | `phase11-12-geo-schema.md` |
 | Appearing in AI answers | `ai-visibility.md`, `phase11-12-geo-schema.md` |
-| Links and off-page work | `off-page.md` |
+| Page speed and Core Web Vitals | `phase17-18-19-tools-tracking-reporting.md` — included work, never a saving |
+| Links and authority — the plan | `backlink-plan.md`, judgement from `off-page.md` |
+| Who we will approach for links, in tiers | `backlink-plan.md` §3 — the prospect sheet |
+| Anchor text, page by page | `backlink-plan.md` §4 |
+| Links to disown, and why | `backlink-plan.md` §2 |
 
 **Part 6 — How we will know it worked**
 
@@ -124,6 +193,42 @@ Every title below is the section name. None of them contains a phase number.
 | B — Decisions on the previous plan | *Only where a predecessor exists.* Every page or recommendation of theirs, and what we are doing with it |
 | C — Open questions for the client | Everything still marked `[NEEDS CLIENT INPUT]`, as a list they can answer in one sitting |
 | D — Sources and pull dates | Every figure's source and the date it was pulled |
+
+### The priorities table
+
+Front matter, straight after the summary, and the section most clients read
+twice. Numbered, ordered by what we do first, with the starting point on every
+row so the client can see the size of the gap rather than being told it is
+large:
+
+| # | What we are going to do | Where it stands today | By when |
+|---|---|---|---|
+| 1 | Get the bail hearing page built and ranking | No page exists | Month 2 |
+| 2 | Take keywords in positions 1–3 from 107 to 200 | 107 (Ahrefs, 9 Nov 2026) | 6 months |
+| 3 | Move the link profile from 18% dofollow to 40% | 18% (Ahrefs, 9 Nov 2026) | 12 months |
+
+Eight rows at most. A priority list of twenty is a task list, and a client
+cannot tell from it what matters. The rest of the work belongs in the task
+board, which is where a long list is useful.
+
+### Changes to pages you already have
+
+The strategy is mostly about pages that do not exist yet, which is why the
+pages that *do* exist get skipped — and they are the ones already earning
+something. One table, one row per existing page we are changing:
+
+| Page today | What changes | New URL, if it moves | Why |
+|---|---|---|---|
+| `/criminal-law/sexual-assault.html` | New URL, retitled, expanded to 1,800 words | `/sexual-assault-lawyer-toronto/` | The address says nothing about the service or the city; the page already ranks on page 2 and the words it is missing are the ones people search |
+| `/about-us/` | Title and meta description only | — | Title is the firm name alone |
+
+**A URL change is a real change with a real risk**, so every row that moves an
+address says so plainly, and the plan says a 301 redirect goes in at the same
+moment, old address to new. A moved page with no redirect loses whatever it
+had earned. Where a page ranks well already and the gain is small, say that
+and leave it: *this page is already working; we are changing its title and
+nothing else.* A client reading a plan that moves every URL on their site is
+right to be nervous.
 
 ### The objectives table
 
@@ -176,12 +281,16 @@ next to what happened, and a merged revision destroys exactly that.
 ## Before calling it done
 
 ```bash
-python scripts/check_strategy_doc.py <assembled_document>
+python scripts/check_strategy_doc.py <assembled_document> --full
 python scripts/check_keyword_set.py <keywords.csv> --kind website
 ```
 
 The first checks unresolved placeholders, dead-advice language from
-`fact-check-registry.md`, and the readability failures in `plain-language.md`.
+`fact-check-registry.md`, the readability failures in `plain-language.md`,
+audit content that has leaked in, page speed written up as a saving, and —
+with `--full` — that every section above has a heading. Drop `--full` when
+the request was a slice rather than the whole document; a keyword refresh is
+not missing an off-page section, it was never asked for one.
 The second checks the keyword tables' shape. Neither replaces a human read for
 voice, accuracy and — for a regulated client — compliance sign-off.
 
