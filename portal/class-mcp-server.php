@@ -218,6 +218,88 @@ class Six_MCP_Server {
 				),
 			),
 			array(
+				'name'        => 'log_work',
+				'title'       => 'Record a change you made for a client',
+				'description' => 'Write one row into the client\'s work log: what you changed, on what, when, and what it was before. This is what lets the portal say *what we did* rather than only that a number moved, and it is what the customer\'s "optimization proof" section is built from. Log every change you make or approve, one call per change, for any service — SEO, Google Ads, Google Business, a website build. Always fill before_value and after_value where something was replaced: "title changed" is not evidence, "<title>X</title> became <title>Y</title>" is. Requires a write-scoped token.',
+				'inputSchema' => array(
+					'type'       => 'object',
+					'properties' => array(
+						'client_id'    => array( 'type' => 'integer', 'description' => 'The client id, from list_clients.' ),
+						'service_slug' => array( 'type' => 'string', 'description' => 'seo, google-ads, google-business or website. Which service this work belongs to.' ),
+						'category'     => array( 'type' => 'string', 'description' => 'The kind of work, used to group the proof table. Keep it consistent across calls for the same client: e.g. Title Tags, Meta Descriptions, Schema Markup, Page Content, Internal Links, Image Alt Text, Ad Copy, Negative Keywords, GBP Posts, Citations.' ),
+						'action'       => array( 'type' => 'string', 'description' => 'created, rewrote, retitled, deployed, fixed, removed.' ),
+						'entity'       => array( 'type' => 'string', 'description' => 'What was changed — the full URL, the campaign name, the listing, the keyword.' ),
+						'title'        => array( 'type' => 'string', 'description' => 'One line a human reads, e.g. "Retitled the sexual assault page".' ),
+						'detail'       => array( 'type' => 'string', 'description' => 'Longer description, including why.' ),
+						'before_value' => array( 'type' => 'string', 'description' => 'Exactly what it was. Leave empty only for genuinely new work.' ),
+						'after_value'  => array( 'type' => 'string', 'description' => 'Exactly what it is now.' ),
+						'status'       => array( 'type' => 'string', 'description' => 'deployed (live now), pending (approved, not yet live) or planned. Default deployed.' ),
+						'keyword'      => array( 'type' => 'string', 'description' => 'The primary keyword this work targets, if it has one.' ),
+						'artifact_id'  => array( 'type' => 'integer', 'description' => 'The saved artifact this came from, from save_client_artifact.' ),
+						'approver'     => array( 'type' => 'string', 'description' => 'Who signed it off. A change nobody approved should not be logged as deployed.' ),
+						'score'        => array( 'type' => 'integer', 'description' => 'The content gate score, where there was one.' ),
+						'verify_url'   => array( 'type' => 'string', 'description' => 'Where the client can check this themselves.' ),
+						'verify_how'   => array( 'type' => 'string', 'description' => 'How to check it, in one sentence a non-technical client can follow.' ),
+						'performed_at' => array( 'type' => 'string', 'description' => 'When it happened, YYYY-MM-DD or a full timestamp. Defaults to now.' ),
+					),
+					'required'   => array( 'client_id', 'title' ),
+				),
+			),
+			array(
+				'name'        => 'list_work_log',
+				'title'       => 'What has been done for this client',
+				'description' => 'Read the client\'s work log — every change logged for them, newest first, with a rollup by category showing how much of each kind of work is deployed versus pending. Read this before a monthly report, a retrospective, or any claim about what has been done, and before logging new work so the categories stay consistent with what is already there.',
+				'inputSchema' => array(
+					'type'       => 'object',
+					'properties' => array(
+						'client_id'    => array( 'type' => 'integer', 'description' => 'The client id, from list_clients.' ),
+						'service_slug' => array( 'type' => 'string', 'description' => 'Narrow to one service.' ),
+						'category'     => array( 'type' => 'string', 'description' => 'Narrow to one category.' ),
+						'status'       => array( 'type' => 'string', 'description' => 'deployed, pending or planned.' ),
+						'since'        => array( 'type' => 'string', 'description' => 'Only work on or after this date, YYYY-MM-DD.' ),
+						'limit'        => array( 'type' => 'integer', 'description' => 'How many rows, 1-500. Default 100.' ),
+					),
+					'required'   => array( 'client_id' ),
+				),
+			),
+			array(
+				'name'        => 'propose_metrics',
+				'title'       => 'Send figures to the advisor for confirmation',
+				'description' => 'Put figures you have read in front of the client\'s advisor, who confirms them and sets the target before anything reaches the customer\'s dashboard. **Nothing you send here appears to the customer until a human accepts it** — that is the point, and it is why you should propose freely rather than hesitating over whether a number is dashboard-ready. Always give period_start and period_end: a figure with no period is not checkable, and the advisor is the one who has to understand it. Name the real source in `source` (e.g. "Search Console, 15 Oct – 12 Nov" or "Ahrefs estimate"), because an estimate and a measurement must not be confused once they are side by side. Requires a write-scoped token.',
+				'inputSchema' => array(
+					'type'       => 'object',
+					'properties' => array(
+						'client_id'    => array( 'type' => 'integer', 'description' => 'The client id, from list_clients.' ),
+						'service_slug' => array( 'type' => 'string', 'description' => 'seo, google-ads, google-business or website.' ),
+						'metrics'      => array(
+							'type'        => 'array',
+							'description' => 'The figures. Each: metric_key (one of the portal\'s keys where it maps to one, e.g. organic_visitors, keywords_page1, seo_avg_position, paid_clicks, gmb_views), label, unit, current_value, previous_value, suggested_target, period_start, period_end, source, note.',
+							'items'       => array( 'type' => 'object' ),
+						),
+					),
+					'required'   => array( 'client_id', 'metrics' ),
+				),
+			),
+			array(
+				'name'        => 'record_entity_metrics',
+				'title'       => 'Record where pages or keywords stood today',
+				'description' => 'Store per-page or per-keyword positions and traffic for one date, so a later check can ask what a specific page did before and after you changed it. The portal syncs Search Console pages daily on its own; use this for anything it cannot see — rank-tracker keyword positions, local grid placements, a competitor\'s page. Capture a reading BEFORE publishing a change: without one there is no "before", and the comparison can only be asserted. Requires a write-scoped token.',
+				'inputSchema' => array(
+					'type'       => 'object',
+					'properties' => array(
+						'client_id'    => array( 'type' => 'integer', 'description' => 'The client id, from list_clients.' ),
+						'service_slug' => array( 'type' => 'string', 'description' => 'seo, google-ads, google-business or website.' ),
+						'source'       => array( 'type' => 'string', 'description' => 'What produced these, e.g. "Ahrefs rank tracker" or "BrightLocal grid".' ),
+						'entities'     => array(
+							'type'        => 'array',
+							'description' => 'Each: entity (the URL, keyword, campaign or listing), entity_type (page, keyword, location, campaign or listing), position, clicks, impressions, ctr, captured_on (YYYY-MM-DD, defaults to today).',
+							'items'       => array( 'type' => 'object' ),
+						),
+					),
+					'required'   => array( 'client_id', 'entities' ),
+				),
+			),
+			array(
 				'name'        => 'get_live_metrics',
 				'title'       => 'Live data from the client\'s connected accounts',
 				'description' => 'Everything the portal can currently read for one client, from the accounts they have actually connected: Google Analytics 4 (sessions, users, pageviews, and the split by channel — the organic figure is the Organic Search channel, not the total), Search Console (clicks, impressions, CTR, average position), Google Ads (clicks, impressions, conversions, cost) and Meta Ads. This is MEASURED data about their own property, which is a different and much stronger claim than any third-party estimate: state it as fact and say the period. Every source reports its own status — ok, not_connected, or error with the reason — so a missing number is never silently filled by a guess. Use this before writing any audit, strategy, report or performance review, and use get_search_console_queries for the query-level detail.',
@@ -356,7 +438,10 @@ class Six_MCP_Server {
 				"Start with list_clients to turn a business or person's name into a client_id, then get_client_profile before producing any audit, strategy or analysis, so the work is grounded in that client's real answers rather than assumptions.\n\n" .
 				"The portal is also a live window onto the accounts each client has connected. get_live_metrics returns their Google Analytics 4, Search Console, Google Ads and Meta figures; get_search_console_queries returns what Google actually serves them for; get_pagespeed measures any URL with Google's own tool. Read these before writing numbers into an audit, strategy or report.\n\n" .
 				"The distinction those tools exist to protect: data from a client's own connected account is MEASURED and may be stated as fact with its period named. Anything from a third party — Ahrefs above all — is an ESTIMATE and must say so, because the client can check the first kind against an analytics tab they already have open. Ahrefs stays correct for competitors, backlinks and keyword volume, which no client account can see. Never put a measured series and an estimated series on the same axis. Every source in get_live_metrics reports its own status, so not_connected and error are distinguishable from each other and from zero; none of the three is a reason to invent a figure.\n\n" .
-				"Save what you produce with save_client_artifact so it reaches their dashboard and later sessions can see it. Writing to a profile needs a write-scoped token; the customer's original answers are always preserved.",
+				"Save what you produce with save_client_artifact so it reaches their dashboard and later sessions can see it. Writing to a profile needs a write-scoped token; the customer's original answers are always preserved.\n\n" .
+				"Record what you change, not only what you produce. log_work takes one row per change — what you changed, on what, and what it was before — and it is what lets the portal say what we did rather than only that a number moved. It is also what the customer's optimization-proof section is built from, so a change that is not logged did not happen as far as the client can see. Keep the `category` consistent for a client; list_work_log shows what is already there. This applies to every service, not only SEO.\n\n" .
+				"Figures you read go to the advisor, never straight to the customer. propose_metrics puts them in front of the person who answers for that client, beside whatever the integrations say, and they reach the dashboard when that person accepts them and sets the target. So propose freely, always with period_start, period_end and the real source named — an estimate and a measurement must not become indistinguishable once they are side by side.\n\n" .
+				"Before you publish a change, capture where the thing stood. The portal syncs Search Console pages daily by itself; record_entity_metrics is for what it cannot see, such as rank-tracker positions or a local grid. Without a reading from before, a before-and-after can only be asserted.",
 		);
 	}
 
@@ -409,7 +494,7 @@ class Six_MCP_Server {
 
 		// Write tools need a write-scoped token. Reported as a tool error
 		// rather than a protocol error so the model can explain it.
-		if ( in_array( $name, array( 'update_client_profile', 'save_client_artifact', 'issue_strategy_questionnaire', 'capture_performance_snapshot', 'save_strategy_projections' ), true ) ) {
+		if ( in_array( $name, array( 'update_client_profile', 'save_client_artifact', 'issue_strategy_questionnaire', 'capture_performance_snapshot', 'save_strategy_projections', 'log_work', 'propose_metrics', 'record_entity_metrics' ), true ) ) {
 			$allowed = Six_Profile_API::require_write( $request );
 			if ( is_wp_error( $allowed ) ) {
 				return self::result( $id, self::tool_result( array(
@@ -544,6 +629,103 @@ class Six_MCP_Server {
 				return self::result( $id, self::unwrap( Six_Profile_API::create_artifact(
 					self::sub_request( $request, 'POST', '/clients/' . $client_id . '/artifacts', array( 'id' => $client_id ), $body )
 				) ) );
+
+			case 'log_work':
+				if ( ! class_exists( 'Six_Tracking' ) ) {
+					return self::result( $id, self::tool_result( array(
+						'error'   => 'tracking_unavailable',
+						'message' => 'The work log is not available on this site.',
+					), true ) );
+				}
+				$logged = Six_Tracking::log_work( $client_id, array(
+					'service_slug' => (string) ( $args['service_slug'] ?? '' ),
+					'category'     => (string) ( $args['category'] ?? '' ),
+					'action'       => (string) ( $args['action'] ?? 'changed' ),
+					'entity'       => (string) ( $args['entity'] ?? '' ),
+					'title'        => (string) ( $args['title'] ?? '' ),
+					'detail'       => (string) ( $args['detail'] ?? '' ),
+					'before_value' => (string) ( $args['before_value'] ?? '' ),
+					'after_value'  => (string) ( $args['after_value'] ?? '' ),
+					'status'       => (string) ( $args['status'] ?? 'deployed' ),
+					'keyword'      => (string) ( $args['keyword'] ?? '' ),
+					'artifact_id'  => (int) ( $args['artifact_id'] ?? 0 ),
+					'approver'     => (string) ( $args['approver'] ?? '' ),
+					'score'        => $args['score'] ?? '',
+					'verify_url'   => (string) ( $args['verify_url'] ?? '' ),
+					'verify_how'   => (string) ( $args['verify_how'] ?? '' ),
+					'performed_at' => (string) ( $args['performed_at'] ?? '' ),
+					'origin'       => 'claude',
+				) );
+				return self::result( $id, self::tool_result(
+					$logged['ok']
+						? array( 'logged' => true, 'id' => $logged['id'],
+						         'note'   => 'Recorded. It appears in the advisor\'s work log and in the customer\'s optimization proof.' )
+						: array( 'error' => 'not_logged', 'message' => $logged['error'] ),
+					! $logged['ok']
+				) );
+
+			case 'list_work_log':
+				if ( ! class_exists( 'Six_Tracking' ) ) {
+					return self::result( $id, self::tool_result( array( 'entries' => array(), 'by_category' => array() ) ) );
+				}
+				$svc = (string) ( $args['service_slug'] ?? '' );
+				return self::result( $id, self::tool_result( array(
+					'entries'     => Six_Tracking::work_log( $client_id, array(
+						'service_slug' => $svc,
+						'category'     => (string) ( $args['category'] ?? '' ),
+						'status'       => (string) ( $args['status'] ?? '' ),
+						'since'        => (string) ( $args['since'] ?? '' ),
+						'limit'        => (int) ( $args['limit'] ?? 100 ),
+					) ),
+					'by_category' => Six_Tracking::proof( $client_id, $svc ),
+				) ) );
+
+			case 'propose_metrics':
+				if ( ! class_exists( 'Six_Tracking' ) ) {
+					return self::result( $id, self::tool_result( array(
+						'error'   => 'tracking_unavailable',
+						'message' => 'Metric proposals are not available on this site.',
+					), true ) );
+				}
+				$rows = isset( $args['metrics'] ) && is_array( $args['metrics'] ) ? $args['metrics'] : array();
+				if ( ! $rows ) {
+					return self::result( $id, self::tool_result( array(
+						'error'   => 'no_metrics',
+						'message' => 'Pass at least one metric. Each needs a metric_key or a label, and a current_value.',
+					), true ) );
+				}
+				$res = Six_Tracking::propose_metrics( $client_id, $rows, (string) ( $args['service_slug'] ?? '' ), 'claude' );
+				return self::result( $id, self::tool_result( array(
+					'proposed' => $res['saved'],
+					'rejected' => $res['failed'],
+					'note'     => $res['saved']
+						? 'Waiting for the advisor. These do not reach the customer\'s dashboard until a human accepts them and sets the target.'
+						: 'Nothing was saved. Each metric needs a metric_key or a label, and a current_value.',
+				), ! $res['saved'] ) );
+
+			case 'record_entity_metrics':
+				if ( ! class_exists( 'Six_Tracking' ) ) {
+					return self::result( $id, self::tool_result( array(
+						'error'   => 'tracking_unavailable',
+						'message' => 'Entity metrics are not available on this site.',
+					), true ) );
+				}
+				$ents = isset( $args['entities'] ) && is_array( $args['entities'] ) ? $args['entities'] : array();
+				if ( ! $ents ) {
+					return self::result( $id, self::tool_result( array(
+						'error'   => 'no_entities',
+						'message' => 'Pass at least one entity, each with at least an `entity`.',
+					), true ) );
+				}
+				$res = Six_Tracking::record_entities(
+					$client_id, $ents,
+					(string) ( $args['service_slug'] ?? '' ),
+					(string) ( $args['source'] ?? 'claude' )
+				);
+				return self::result( $id, self::tool_result( array(
+					'recorded' => $res['saved'],
+					'rejected' => $res['failed'],
+				), ! $res['saved'] ) );
 
 			case 'get_live_metrics':
 				return self::result( $id, self::tool_result(

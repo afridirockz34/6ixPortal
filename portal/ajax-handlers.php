@@ -1053,8 +1053,12 @@ add_action( 'wp_ajax_six_suggest_metrics', function() {
             if ( empty( $p['error'] ) ) {
                 $live      = true;
                 $sources[] = 'Live page check of ' . $p['url'];
-                $rows[] = array( 'label' => 'Page Load (ms)', 'unit' => 'milliseconds to first render', 'previous' => '', 'current' => (string) $p['load_time_ms'], 'target' => '', 'source' => 'Measured now' );
-                $rows[] = array( 'label' => 'On-page Issues', 'unit' => 'issues outstanding', 'previous' => '', 'current' => (string) count( $p['issues'] ), 'target' => '', 'source' => 'Measured now' );
+                // These carry keys so the advisor's saved figure reaches
+                // six_client_kpis and can hold a target. Without a key the
+                // wizard has nothing to write against, which is why On-page
+                // Issues showed "Target: –" however often anybody set one.
+                $rows[] = array( 'key' => 'page_load_ms', 'label' => 'Page Load (ms)', 'unit' => 'milliseconds to first render', 'previous' => '', 'current' => (string) $p['load_time_ms'], 'target' => '', 'source' => 'Measured now', 'lower_better' => true );
+                $rows[] = array( 'key' => 'onpage_issues', 'label' => 'On-page Issues', 'unit' => 'issues outstanding', 'previous' => '', 'current' => (string) count( $p['issues'] ), 'target' => '', 'source' => 'Measured now', 'lower_better' => true );
             }
         }
     }
@@ -1075,6 +1079,47 @@ add_action( 'wp_ajax_six_suggest_metrics', function() {
         if ( $k && isset( $seen[ $k ] ) ) continue;
         if ( $k ) $seen[ $k ] = true;
         $unique[] = $r;
+    }
+
+    // Every row says what window it covers.
+    //
+    // "3,390" on its own is not a checkable figure, and the advisor entering
+    // it is the person who most needs to know whether it is a month, 28 days
+    // or a reading taken just now. Each source has its own window — Search
+    // Console lags two days and reports 28; GA4 reports 30; a live page check
+    // is a single moment — and the panel was showing all of them in a column
+    // headed "current".
+    $window = function ( $days, $lag = 0 ) {
+        $end   = strtotime( "-{$lag} days" );
+        $start = strtotime( '-' . ( $days + $lag ) . ' days' );
+        return array(
+            'start' => gmdate( 'Y-m-d', $start ),
+            'end'   => gmdate( 'Y-m-d', $end ),
+            'label' => gmdate( 'j M', $start ) . ' – ' . gmdate( 'j M', $end ),
+            'days'  => $days,
+        );
+    };
+    $at_a_moment = array(
+        'start' => gmdate( 'Y-m-d' ), 'end' => gmdate( 'Y-m-d' ),
+        'label' => 'as at ' . gmdate( 'j M' ), 'days' => 0,
+    );
+    foreach ( $unique as $i => $r ) {
+        $src = strtolower( (string) ( $r['source'] ?? '' ) );
+        if ( strpos( $src, 'search console' ) !== false )      $w = $window( 28, 2 );
+        elseif ( strpos( $src, 'ga4' ) !== false )             $w = $window( 30 );
+        elseif ( strpos( $src, 'google ads' ) !== false )      $w = $window( 30 );
+        elseif ( strpos( $src, 'meta' ) !== false )            $w = $window( 30 );
+        else                                                   $w = $at_a_moment;   // Ahrefs, live page check
+        $unique[ $i ]['period']       = $w['label'];
+        $unique[ $i ]['period_start'] = $w['start'];
+        $unique[ $i ]['period_end']   = $w['end'];
+        // The previous column is the equal-length window immediately before.
+        $unique[ $i ]['previous_period'] = $w['days']
+            ? gmdate( 'j M', strtotime( '-' . ( $w['days'] * 2 + 2 ) . ' days' ) ) . ' – ' . gmdate( 'j M', strtotime( '-' . ( $w['days'] + 2 ) . ' days' ) )
+            : '';
+        if ( ! isset( $unique[ $i ]['lower_better'] ) && class_exists( 'Six_Dash_Metrics' ) ) {
+            $unique[ $i ]['lower_better'] = Six_Dash_Metrics::lower_is_better( $r['key'] ?? $r['label'] ?? '' );
+        }
     }
 
     wp_send_json_success( array(
@@ -3143,4 +3188,205 @@ add_action( 'wp_ajax_six_advisor_revoke_token', function () {
     if ( $id === '' ) wp_send_json_error( 'No token specified.' );
     Six_Profile_API::revoke_token( $id );
     wp_send_json_success();
+} );
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Claude's figures, and the work log
+ *
+ * Two sources of truth now meet on the advisor's screen: numbers pulled from
+ * a connected account, and numbers a Claude session read while doing the work.
+ * The second kind never reaches the customer on its own — it waits here until
+ * the person who answers for this client accepts it and sets a target. That
+ * review step is the whole design, not a formality.
+ * ───────────────────────────────────────────────────────────────────────── */
+
+/** Pending proposals for a client, so the panel can render them. */
+add_action( 'wp_ajax_six_list_proposals', function () {
+	check_ajax_referer( 'six_nonce', 'nonce' );
+	if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+	if ( ! class_exists( 'Six_Tracking' ) ) wp_send_json_success( array( 'proposals' => array() ) );
+
+	$client_id = intval( $_POST['client_id'] ?? 0 );
+	$slug      = sanitize_key( $_POST['service_slug'] ?? '' );
+	if ( ! $client_id ) wp_send_json_error( 'Missing client.' );
+
+	wp_send_json_success( array(
+		'proposals' => Six_Tracking::proposals( $client_id, 'pending', $slug ),
+	) );
+} );
+
+/**
+ * Accept a proposal: write the figure onto the dashboard and set its target.
+ *
+ * Writes to both tables on purpose. six_client_kpis is what the customer's
+ * stat cards read; six_metrics is what the service page's detail rows read.
+ * Filling only one is how an advisor's number used to stop at the advisor's
+ * own screen.
+ */
+add_action( 'wp_ajax_six_accept_proposal', function () {
+	check_ajax_referer( 'six_nonce', 'nonce' );
+	if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+	if ( ! class_exists( 'Six_Tracking' ) ) wp_send_json_error( 'Tracking is not available on this site.' );
+	global $wpdb;
+
+	$id        = intval( $_POST['proposal_id'] ?? 0 );
+	$client_id = intval( $_POST['client_id'] ?? 0 );
+	if ( ! $id || ! $client_id ) wp_send_json_error( 'Missing proposal or client.' );
+
+	$tbl = Six_Tracking::proposals_table();
+	$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$tbl} WHERE id=%d AND client_id=%d", $id, $client_id ) );
+	if ( ! $row ) wp_send_json_error( 'That proposal no longer exists.' );
+
+	// The advisor can change anything before accepting; what they submit wins
+	// over what was proposed, because they are the one standing behind it.
+	$current  = sanitize_text_field( wp_unslash( $_POST['current_value']  ?? $row->current_value ) );
+	$previous = sanitize_text_field( wp_unslash( $_POST['previous_value'] ?? $row->previous_value ) );
+	$target   = sanitize_text_field( wp_unslash( $_POST['target_value']   ?? $row->suggested_target ) );
+	$label    = sanitize_text_field( wp_unslash( $_POST['label'] ?? $row->label ) );
+	if ( $current === '' ) wp_send_json_error( 'A figure is required before this can be accepted.' );
+
+	$failed = array();
+	$wpdb->suppress_errors( true );
+
+	// 1. The stat cards, keyed. Only for keys the catalog knows.
+	if ( $row->metric_key && function_exists( 'six_kpi_key_allowed' ) && six_kpi_key_allowed( $row->metric_key ) ) {
+		$ktbl = $wpdb->prefix . 'six_client_kpis';
+		if ( function_exists( 'six_table_exists' ) && ! six_table_exists( $ktbl ) ) {
+			$failed['kpi'] = 'The KPI table is missing — open any WordPress admin page once to build it.';
+		} else {
+			$ok = $wpdb->replace( $ktbl, array(
+				'client_id'  => $client_id,
+				'kpi_key'    => $row->metric_key,
+				'kpi_value'  => $current,
+				'kpi_prev'   => $previous,
+				'updated_at' => current_time( 'mysql' ),
+			) );
+			if ( $ok === false ) $failed['kpi'] = $wpdb->last_error ?: 'the stat-card write failed';
+		}
+	}
+
+	// 2. The service detail rows, by label, with the target.
+	$mtbl = $wpdb->prefix . 'six_metrics';
+	if ( function_exists( 'six_table_exists' ) && ! six_table_exists( $mtbl ) ) {
+		$failed['metric'] = 'The metrics table is missing.';
+	} else {
+		$data = array(
+			'client_id'      => $client_id,
+			'service_slug'   => $row->service_slug,
+			'label'          => $label,
+			'previous_value' => $previous,
+			'current_value'  => $current,
+			'target_value'   => $target,
+			'unit'           => $row->unit,
+			'updated_at'     => current_time( 'mysql' ),
+		);
+		$existing = $wpdb->get_var( $wpdb->prepare(
+			"SELECT id FROM {$mtbl} WHERE client_id=%d AND service_slug=%s AND label=%s",
+			$client_id, $row->service_slug, $label
+		) );
+		$ok = $existing
+			? $wpdb->update( $mtbl, $data, array( 'id' => (int) $existing ) )
+			: $wpdb->insert( $mtbl, $data );
+		if ( $ok === false ) $failed['metric'] = $wpdb->last_error ?: 'the detail-row write failed';
+	}
+	$wpdb->suppress_errors( false );
+
+	// Only mark it resolved if something actually landed. A proposal marked
+	// accepted whose write failed is the worst of both: gone from the queue
+	// and absent from the dashboard.
+	if ( count( $failed ) >= ( $row->metric_key ? 2 : 1 ) ) {
+		wp_send_json_error( implode( ' ', $failed ) );
+	}
+	Six_Tracking::resolve_proposal( $id, 'accepted' );
+
+	wp_send_json_success( array(
+		'accepted' => true,
+		'partial'  => $failed ? implode( ' ', $failed ) : '',
+		'message'  => $failed
+			? 'Saved, but not everywhere: ' . implode( ' ', $failed )
+			: 'Saved. The customer sees this now.',
+	) );
+} );
+
+/** Dismiss a proposal without writing it anywhere. */
+add_action( 'wp_ajax_six_dismiss_proposal', function () {
+	check_ajax_referer( 'six_nonce', 'nonce' );
+	if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+	if ( ! class_exists( 'Six_Tracking' ) ) wp_send_json_error( 'Tracking is not available on this site.' );
+	$id = intval( $_POST['proposal_id'] ?? 0 );
+	if ( ! $id ) wp_send_json_error( 'Missing proposal.' );
+	if ( ! Six_Tracking::resolve_proposal( $id, 'dismissed' ) ) wp_send_json_error( 'Could not dismiss it.' );
+	wp_send_json_success( array( 'dismissed' => true ) );
+} );
+
+/**
+ * Log work done by hand.
+ *
+ * Claude logs what it changes through the connector; this is for everything
+ * an advisor or developer did themselves. The customer's optimization-proof
+ * section reads both the same way, which is the point — it should show the
+ * work, not the tool that happened to do it.
+ */
+add_action( 'wp_ajax_six_log_work', function () {
+	check_ajax_referer( 'six_nonce', 'nonce' );
+	if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+	if ( ! class_exists( 'Six_Tracking' ) ) wp_send_json_error( 'Tracking is not available on this site.' );
+
+	$client_id = intval( $_POST['client_id'] ?? 0 );
+	if ( ! $client_id ) wp_send_json_error( 'Missing client.' );
+
+	$count = max( 1, min( 500, intval( $_POST['count'] ?? 1 ) ) );
+	$base  = array(
+		'service_slug' => sanitize_key( $_POST['service_slug'] ?? '' ),
+		'category'     => sanitize_text_field( wp_unslash( $_POST['category'] ?? '' ) ),
+		'action'       => sanitize_text_field( wp_unslash( $_POST['action_type'] ?? 'changed' ) ),
+		'entity'       => sanitize_text_field( wp_unslash( $_POST['entity'] ?? '' ) ),
+		'title'        => sanitize_text_field( wp_unslash( $_POST['title'] ?? '' ) ),
+		'detail'       => sanitize_textarea_field( wp_unslash( $_POST['detail'] ?? '' ) ),
+		'before_value' => sanitize_textarea_field( wp_unslash( $_POST['before_value'] ?? '' ) ),
+		'after_value'  => sanitize_textarea_field( wp_unslash( $_POST['after_value'] ?? '' ) ),
+		'status'       => sanitize_key( $_POST['status'] ?? 'deployed' ),
+		'verify_url'   => esc_url_raw( wp_unslash( $_POST['verify_url'] ?? '' ) ),
+		'verify_how'   => sanitize_textarea_field( wp_unslash( $_POST['verify_how'] ?? '' ) ),
+		'performed_at' => sanitize_text_field( wp_unslash( $_POST['performed_at'] ?? '' ) ),
+		'approver'     => wp_get_current_user()->display_name,
+		'origin'       => 'advisor',
+	);
+	if ( $base['title'] === '' ) wp_send_json_error( 'Give it a title — one line somebody reading the dashboard would understand.' );
+
+	// A bulk count exists because real work arrives in batches: "44 image alt
+	// attributes added" is one action, not 44 forms. The rows are identical
+	// apart from a sequence, so the rollup counts them correctly.
+	$saved = 0; $error = '';
+	for ( $i = 0; $i < $count; $i++ ) {
+		$row = $base;
+		if ( $count > 1 ) $row['title'] = $base['title'] . ' (' . ( $i + 1 ) . ' of ' . $count . ')';
+		$r = Six_Tracking::log_work( $client_id, $row );
+		if ( $r['ok'] ) $saved++;
+		elseif ( ! $error ) $error = $r['error'];
+	}
+
+	if ( ! $saved ) wp_send_json_error( $error ?: 'Nothing was logged.' );
+	wp_send_json_success( array(
+		'logged'  => $saved,
+		'message' => $saved === $count
+			? ( $saved === 1 ? 'Logged.' : $saved . ' entries logged.' )
+			: $saved . ' of ' . $count . ' logged. ' . $error,
+	) );
+} );
+
+/** The work log for one client, for the advisor's own review. */
+add_action( 'wp_ajax_six_get_work_log', function () {
+	check_ajax_referer( 'six_nonce', 'nonce' );
+	if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+	if ( ! class_exists( 'Six_Tracking' ) ) wp_send_json_success( array( 'entries' => array(), 'by_category' => array() ) );
+
+	$client_id = intval( $_POST['client_id'] ?? 0 );
+	$slug      = sanitize_key( $_POST['service_slug'] ?? '' );
+	if ( ! $client_id ) wp_send_json_error( 'Missing client.' );
+
+	wp_send_json_success( array(
+		'entries'     => Six_Tracking::work_log( $client_id, array( 'service_slug' => $slug, 'limit' => 50 ) ),
+		'by_category' => Six_Tracking::proof( $client_id, $slug ),
+	) );
 } );

@@ -81,6 +81,7 @@ $optional_files = array(
     'class-dashboard-metrics.php', // service-aware dashboard stats + connector seam
     'class-unread.php',          // "something new in here" dots for the customer sidebar
     'class-performance.php',     // performance snapshots over time + strategy projections
+    'class-tracking.php',        // work log, per-entity metrics, daily series, metric proposals
     'class-website-project.php', // website build milestones + maintenance add-on
     'class-profile-api.php',     // REST profile contract for external tools/skills
     'class-mcp-server.php',      // same contract as MCP, for claude.ai custom connectors
@@ -325,6 +326,130 @@ function six_create_tables() {
             KEY client_metric (client_id, metric_key)
         ) $charset",
 
+        // ── What we actually did, and what it did to the numbers ─────────
+        //
+        // Four tables, and none of them is SEO-specific on purpose. A client
+        // on Google Ads or a website build needs the same four questions
+        // answered as a client on SEO: what did you change, when, what were
+        // the numbers before it, and what are they now. `service_slug` is what
+        // keeps them apart.
+
+        // Every change we make on a client's behalf, one row per change.
+        // Without this the portal can say a number moved and cannot say what
+        // we did, so a monthly report is a chart and an assertion. The
+        // before/after columns are the whole point: "title changed" is not
+        // evidence, "<title>X</title> became <title>Y</title> on 14 Nov" is.
+        //
+        // category is free text rather than an enum because the categories
+        // differ per service and per client — Title Tags and Schema Markup for
+        // SEO, Ad Copy and Negative Keywords for Ads — and an enum here means
+        // a migration every time a service learns a new kind of work.
+        "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}six_work_log (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            client_id bigint(20) NOT NULL,
+            service_slug varchar(50) NOT NULL DEFAULT '',
+            category varchar(80) NOT NULL DEFAULT '',
+            action varchar(40) NOT NULL DEFAULT 'changed',
+            entity varchar(500) NOT NULL DEFAULT '',
+            title varchar(255) NOT NULL DEFAULT '',
+            detail text,
+            before_value text,
+            after_value text,
+            status varchar(20) NOT NULL DEFAULT 'deployed',
+            keyword varchar(255) DEFAULT '',
+            artifact_id bigint(20) DEFAULT 0,
+            approver varchar(190) DEFAULT '',
+            score int(11) DEFAULT NULL,
+            verify_url varchar(500) DEFAULT '',
+            verify_how text,
+            origin varchar(20) NOT NULL DEFAULT 'advisor',
+            performed_at datetime DEFAULT CURRENT_TIMESTAMP,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            created_by bigint(20) DEFAULT 0,
+            PRIMARY KEY (id),
+            KEY client_service (client_id, service_slug),
+            KEY client_cat (client_id, category),
+            KEY client_when (client_id, performed_at)
+        ) $charset",
+
+        // Where one page, keyword, campaign or listing stood on one date.
+        // The client-level snapshot table cannot answer "did the page we
+        // rewrote move", because it stores one row per client per week with
+        // service totals in it. This is the table that makes a before/after
+        // for a specific change possible, so it has to be capturing BEFORE
+        // the change ships or there is no before.
+        "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}six_entity_metrics (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            client_id bigint(20) NOT NULL,
+            service_slug varchar(50) NOT NULL DEFAULT '',
+            entity_type varchar(30) NOT NULL DEFAULT 'page',
+            entity varchar(500) NOT NULL,
+            entity_hash char(32) NOT NULL,
+            captured_on date NOT NULL,
+            position decimal(8,2) DEFAULT NULL,
+            clicks int(11) DEFAULT NULL,
+            impressions int(11) DEFAULT NULL,
+            ctr decimal(8,4) DEFAULT NULL,
+            extra longtext,
+            source varchar(60) NOT NULL DEFAULT '',
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY one_per_day (client_id, entity_type, entity_hash, captured_on),
+            KEY client_type_day (client_id, entity_type, captured_on),
+            KEY client_entity (client_id, entity_hash)
+        ) $charset",
+
+        // One number per client per metric per DAY. The weekly snapshot table
+        // is the right grain for a KPI review and the wrong grain for a graph:
+        // two captures draw a straight line between two points, which is what
+        // the visitors chart has been doing. A daily series is what makes it
+        // a line that moves.
+        "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}six_daily_metrics (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            client_id bigint(20) NOT NULL,
+            metric_key varchar(60) NOT NULL,
+            captured_on date NOT NULL,
+            value decimal(16,4) DEFAULT 0,
+            source varchar(40) NOT NULL DEFAULT '',
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY one_per_day (client_id, metric_key, captured_on),
+            KEY client_metric (client_id, metric_key),
+            KEY client_day (client_id, captured_on)
+        ) $charset",
+
+        // A figure Claude read, waiting for an advisor to confirm it.
+        //
+        // Nothing Claude produces writes straight to the customer's dashboard.
+        // It lands here, the advisor sees it beside whatever the integrations
+        // say, and accepting it is what moves it onto the stat cards. That is
+        // the difference between a number a human stands behind and a number
+        // that appeared.
+        "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}six_metric_proposals (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            client_id bigint(20) NOT NULL,
+            service_slug varchar(50) NOT NULL DEFAULT '',
+            metric_key varchar(60) NOT NULL DEFAULT '',
+            label varchar(120) NOT NULL DEFAULT '',
+            unit varchar(60) DEFAULT '',
+            current_value varchar(100) DEFAULT '',
+            previous_value varchar(100) DEFAULT '',
+            suggested_target varchar(100) DEFAULT '',
+            period_start date DEFAULT NULL,
+            period_end date DEFAULT NULL,
+            source varchar(190) DEFAULT '',
+            origin varchar(20) NOT NULL DEFAULT 'claude',
+            note text,
+            status varchar(20) NOT NULL DEFAULT 'pending',
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            created_by bigint(20) DEFAULT 0,
+            reviewed_at datetime NULL,
+            reviewed_by bigint(20) DEFAULT 0,
+            PRIMARY KEY (id),
+            KEY client_status (client_id, status),
+            KEY client_service (client_id, service_slug)
+        ) $charset",
+
         "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}six_client_artifacts (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             client_id bigint(20) NOT NULL,
@@ -433,7 +558,7 @@ function six_create_tables() {
  * The schema version. Bump this whenever a table is added or changed in
  * six_create_tables(), and the next page load creates it.
  */
-const SIX_DB_VERSION = '2026.11.09.2';
+const SIX_DB_VERSION = '2026.11.16.1';
 
 /**
  * Run six_create_tables() when the code's schema version moves ahead of what

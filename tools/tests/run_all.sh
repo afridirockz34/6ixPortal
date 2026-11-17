@@ -22,7 +22,14 @@ run "Competitors on the grid"       python3 tools/tests/test_rivals.py
 run "GA4 / Search Console"          php     tools/tests/test_ga4.php
 run "Pull metrics precedence"       php     tools/tests/test_pull_metrics.php
 run "MCP live integration reads"    php     tools/tests/test_mcp_live_metrics.php
+run "Tracking: fit, labels, writes" php     tools/tests/test_tracking.php
+run "Progress bars + trend arrows" php     tools/tests/test_metric_math.php
+run "MCP work log + proposals"      php     tools/tests/test_mcp_tracking_tools.php
+run "Advisor accepts a figure"      php     tools/tests/test_proposal_accept.php
 run "Content publish gate"          python3 tools/tests/test_content_gate.py
+run "Keyword / topic set shape"      python3 tools/tests/test_keyword_set.py
+run "Strategy readability gate"      python3 tools/tests/test_strategy_language.py
+run "Page section budgets"           python3 tools/tests/test_section_budget.py
 
 if [ "$fail" -ne 0 ]; then
   printf '\n\033[31m%s suite(s) failed.\033[0m\n' "$fail"; exit 1

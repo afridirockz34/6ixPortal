@@ -15,7 +15,7 @@ This skill assumes a signed client with a profile already built. For a prospect 
 
 ## The model
 
-One **client profile** (a single file) plus a small set of **page templates** produces every piece of content for that client. The profile is the expensive, one-time investment — real facts, real credentials, real voice decisions, usually developed with the client directly. The templates are reusable across every client. A draft is always: profile + template + this piece's specific topic and keyword.
+One **client profile** (a single file) plus a small set of **page templates** produces every piece of content for that client. The profile carries twelve standards tables — `house-standards.md` is their specification — and each template is a **fixed section contract**: the headings, as formulas, in order. That contract is why seventy pages read as one body of work instead of seventy separate attempts, and it is the difference between our output and the agency deliverable we are measured against. The profile is the expensive, one-time investment — real facts, real credentials, real voice decisions, usually developed with the client directly. The templates are reusable across every client. A draft is always: profile + template + this piece's specific topic and keyword.
 
 ```
 client profile  ─┬─>  blog post template   ─┐
@@ -41,11 +41,15 @@ Save the completed profile somewhere durable — the user's project files, not j
 ## Drafting a piece of content
 
 1. **Load the client's profile.** If it's not already in context, ask for it or read it from wherever it's stored.
-2. **Pick the content type** — blog post, service page, location page, or audience page — and read that template's section in `references/content-templates.md`. Each template specifies section structure, word-count targets, minimum internal links, minimum FAQ count, and meta-element rules.
+2. **Pick the content type** — service page, service hub page, location page, blog post, audience page or resource guide — and read that template's section in `references/content-templates.md`. Each is a contract: the heading formulas in order, with per-section word counts and the job each section does. A page that ships with different headings is a different page type or a mistake.
+
+   Three sections exist in the contract because their absence is what makes a page read as a description of the business rather than an offer: **who needs this**, **what the client provides**, and **what it delivers**. Historically ours have lacked all three.
 3. **Get the specifics for this piece**: target keyword, target URL, and (for location/audience pages) the city or audience segment. If these weren't given, ask — don't guess a keyword's search volume or a city's court name. If Ahrefs is connected (`mcp__Ahrefs__*` tools in the session's tool list), spot-check the target keyword's current volume/difficulty via `keywords-explorer-overview` before drafting rather than relying solely on whatever number `seo-strategy-builder` assigned it — campaigns run over months and keyword data drifts.
 
    **When the ask is "what should we write next" rather than a named piece**, and the portal connector is in this session, `check_performance` is a better answer than working down the calendar in order: it shows which metrics are behind the targets the strategy set, and the content gap usually sits under the one that's lagging. Treat it as a tie-breaker on sequence, not a licence to rewrite the calendar — and a metric marked `no_projection` simply never had a target, so it isn't evidence of anything.
-4. **Draft against the template**, applying the profile's voice pillars, terminology rules, and banned-phrase list throughout. The template tells you *what* goes in each section; the profile tells you *how it sounds*.
+4. **Draft against the contract**, applying the profile's voice pillars, terminology rules, banned-phrase list and **claims policy** throughout. The template tells you *what* goes in each section; the profile tells you *how it sounds and how hard it pushes*.
+
+   The claims policy is the switch set that decides whether superlatives, comparative claims, aggregate-outcome phrasing, urgency language, free-consultation promotion, density targets and the risk-bearing schema types are permitted for this client. It is set by the person who answers for the pages, never inferred. Whatever the switches say, one rule stands: **a specific number or credential with no source is written `[VERIFY: …]` for the approver, not generated.** The policy decides how hard the copy pushes; it does not license inventing a figure, because the client is the one who gets asked to substantiate it.
 
    **Write it to be usable as a source, not only to rank.** An AI answer reads a handful of sources and writes a reply rather than ranking ten links, so a page can rank third and be absent from the answer most people now read. Four things separate a page that gets used from one that does not, and all four are things a good page wants anyway: it answers the question directly and early in a sentence that still makes sense lifted out of context; it carries something only this client has (a real figure, a named process, a case they handled, a credential); it is attributable to a named author with real credentials on the page; and it carries a visible, accurate date. `seo-strategy-builder/references/ai-visibility.md` has the detail, including what does **not** belong in a brief on these grounds — keyword density, `llms.txt`, schema added for citation purposes, or any instruction to write "for AI". Where the client has a BrightLocal AI Visibility report with results, read which sources those platforms actually cited for their prompts and brief against those; a real answer beats any general principle.
 5. **Run the quality gate** before presenting the draft: `python scripts/check_draft.py <draft_file> <profile_file> "<Content type>" --approver="Name <email>"`. It checks the meta block, word count against the template's range, internal link count, FAQ count, heading structure, and banned phrases, and returns a **readiness score out of 100**. Nothing publishes unless three things are true at once: the score is **70 or better**, no check has failed, and a **named person has approved it**. Fix what it flags before calling the draft done.
@@ -54,6 +58,10 @@ Save the completed profile somewhere durable — the user's project files, not j
 6. **State what's grounded vs. generated.** Facts, credentials, and outcomes come from the profile — never invent a case result, a statistic, or a credential that isn't in it. If the piece needs a fact the profile doesn't have (a specific court name for a new city, a recent case outcome), say so and ask, rather than filling the gap with something plausible-sounding.
 
    This extends to performance figures. A client's own numbers from the portal are tempting material for a case study or a credibility line in copy — but each one carries a `source`, and an `estimate` is a modelled placeholder the dashboard shows before a data provider is connected, not a measurement. Only a `live` or `advisor` figure can go into published copy, and a published claim about results needs the client's sign-off regardless of where the number came from. See `seo-strategy-builder/references/performance-tracking.md`.
+
+## When the ask is a whole page set rather than one page
+
+A strategy that stops at a plan is half a deliverable. Read `references/producing-a-page-set.md` — it covers the unit (one document per page, named after its slug), the index document that makes a 70-page set reviewable, the dependency order (hubs before their children, service pages before the location and blog pages that link to them), how the work survives being spread across many sessions, and how many pages the plan actually supports.
 
 ## Why the quality gate matters
 
@@ -72,8 +80,10 @@ The `references/ymyl-legal-pack.md` file's schema and AI-search guidance is a sn
 - `seo-strategy-builder/references/client-context.md` — how to get the client's answers from the portal, from a document they filled in, or from neither
 - `seo-strategy-builder/references/performance-tracking.md` — using a performance check to decide what to write next, and which figures may appear in published copy
 - `seo-strategy-builder/references/ai-visibility.md` — what makes a page usable as a source in an AI answer, what to leave out of a brief, and the rule against promising a citation nobody controls
-- `references/client-profile-template.md` — the structure for a new client profile: business identity, voice pillars, terminology rules, target audiences, YMYL status
-- `references/content-templates.md` — the four page-type templates with section structure, word counts, and requirements
+- `references/house-standards.md` — the twelve tables every client profile carries: voice pillars, core messages, say-this-not-that, good/bad voice examples, the blocklist, content lengths, critical placements, meta formats, grammar, linking rules, readability, and the claims policy that decides how hard the copy pushes
+- `references/client-profile-template.md` — the blank shapes for those twelve tables, plus business identity, audiences and YMYL status
+- `references/content-templates.md` — the six page types as fixed section contracts: the heading formulas in order, the meta block, Key Takeaways and Schema Recommendations
+- `references/producing-a-page-set.md` — how a plan becomes 70 finished page documents: the unit, the index, the order, batching across sessions, and the per-page gate
 - `references/ymyl-legal-pack.md` — domain pack for regulated-profession clients: compliance flags, current schema guidance, terminology, what NOT to claim
 - `assets/nr-lawyers-client-profile.md` — a complete worked example profile
-- `scripts/check_draft.py` — mechanical quality check for word count, links, FAQ count, headings, banned phrases
+- `scripts/check_draft.py` — mechanical quality check for the meta block, word count, links, FAQ count, headings, banned phrases, the page type's section contract, the Key Takeaways and Schema Recommendations blocks, and unresolved `[VERIFY]` markers

@@ -2,7 +2,24 @@
 
 ## Phase 13 — Blog Topic List
 
-**What it produces:** a large topic list (the source document's scale is 100 topics — adjust to what the client's keyword research actually supports; padding to hit a round number produces thin, low-value topics), clustered by funnel stage (top: informational/awareness, middle: comparison/consideration, bottom: commercial/ready-to-act) and mapped to intent.
+**What it produces:** about 100 blog topics in the exact shape
+`references/keyword-strategy.md` specifies — ten named clusters by **subject**,
+columns `# | Blog Title | Target Keyword | Funnel Stage | Angle | Priority`.
+**Read `references/keyword-strategy.md` before starting;** it holds the
+controlled `Angle` vocabulary and the rule that stops one angle taking over a
+cluster.
+
+Two things that distinguish this from the topic list we used to produce:
+
+- **Blog Title is the real headline, written out.** Not "post about bail
+  hearings" — the title the published page will carry. If it isn't good enough
+  to publish, it isn't good enough to put in the plan, and a list of subject
+  labels is a list somebody still has to do the work on.
+- **Angle comes from the controlled vocabulary.** This is the column that stops
+  100 topics becoming 100 restatements of the same article, which is the normal
+  failure and the reason long topic lists read as filler. Clustering by subject
+  rather than by funnel stage is what makes the set read as coverage of an area;
+  the Funnel Stage column still carries the stage for every row.
 
 **Required inputs:** the keyword clusters from Phase 7/8, and the page architecture from Phase 9 (so blog topics complement rather than duplicate the planned service/location pages).
 
@@ -12,12 +29,22 @@ Here is [Client]'s foundation document: [paste].
 Here are the clustered keywords from Phase 7/8: [paste].
 Here is the page architecture from Phase 9: [paste].
 
-Generate a blog topic list from these keyword clusters — informational
-and long-tail terms not already assigned to a service/location page in
-the architecture. For each topic: target keyword, funnel stage, search
-intent, and a one-line angle. Do not invent topics unrelated to the
-keyword data provided; every topic should trace back to a real keyword
-or cluster.
+Produce the blog topic table exactly as keyword-strategy.md specifies:
+about 100 topics in ten named clusters by subject, columns
+# | Blog Title | Target Keyword | Funnel Stage | Angle | Priority.
+
+Write each Blog Title as a real, publishable headline. Take every Angle
+from keyword-strategy.md's controlled vocabulary, and don't let one
+angle dominate a cluster unless the cluster is named for that angle.
+Every Target Keyword comes from the Phase 7/8 research — informational
+and long-tail terms not already assigned to a service or location page
+in the architecture. A topic that traces to no keyword is a topic
+somebody made up; leave it out. If the research supports fewer than
+100, ship fewer and say how many it supported.
+```
+
+```bash
+python scripts/check_keyword_set.py topics.csv --kind topics
 ```
 
 ## Phase 14 — Content Calendar

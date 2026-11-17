@@ -26,6 +26,12 @@ the repo and a parse error takes the whole deploy down.
 | `bash tools/tests/run_all.sh` | everything below, in one go |
 | `python3 tools/check_seo_skills.py` | the skills still work read cold: frontmatter, every path reference, every bundled script |
 | `php tools/check_skill_drift.php` | metric keys and profile stages the skills quote vs. the code that emits them |
+| `python3 tools/tests/test_keyword_set.py` | the keyword/topic/GMB set shape: named clusters, target pages, controlled vocabularies |
+| `python3 tools/tests/test_strategy_language.py` | the readability gate — good prose passes, a document of hedges fails |
+| `python3 tools/tests/test_section_budget.py` | each page template's section minimums actually fit inside its word limit |
+| `php tools/tests/test_tracking.php` | the visitors graph's trend fit, and that no write reports success without a table |
+| `php tools/tests/test_metric_math.php` | progress bars and trend arrows point the way the metric actually improves |
+| `php tools/tests/test_proposal_accept.php` | accepting a figure writes to both tables, and a failed write leaves it pending |
 | `php tools/generate-questionnaire-reference.php` | regenerates the questionnaire docs from the schema — run after any question change, and commit the result |
 
 Pushing to `main` deploys to the live site over SFTP. There is no staging.
@@ -90,6 +96,51 @@ anything local:
 - A BrightLocal rank grid's `rank: 0` means **did not appear**, not rank zero.
   Averaging raw values scores the invisible points as the best ones.
 - `summary.avg_rank` already accounts for that. Quote it; never recompute it.
+
+### The deliverable can be accurate and still be worthless
+
+Two failures here are not about facts, and both have shipped.
+
+- **A keyword list with no clusters and no target pages.** Every number right,
+  a hundred rows sorted by score, and the client cannot see their own site in
+  it or tell what gets built first. The format is the deliverable:
+  `seo-strategy-builder/references/keyword-strategy.md` is the contract, and
+  `check_keyword_set.py` enforces the mechanical half of it.
+- **Prose nobody can follow.** No typos, every sentence defensible, and the
+  client reads it three times without learning what we are going to do —
+  because it is built out of hedges ("consider improving where possible"),
+  actions buried in nouns ("implementation of"), and terms used before they are
+  explained. `seo-strategy-builder/references/plain-language.md` is the house
+  style; `check_strategy_doc.py` counts the patterns and fails a document made
+  of them.
+
+Both checkers were widened after they rejected sets and documents that were
+actually fine — a gate that fails good work gets switched off. Keep that
+direction: when one fires on something correct, fix the checker and add the
+case to its suite.
+
+### A limit that cannot be satisfied
+
+`content-templates.md` shipped with service-page section minimums summing to
+2,470 against a 2,500 ceiling, while `check_draft.py` also counted the SEO meta
+block and the schema notes — about 250 words of instructions to the developer —
+toward the same limit. Every individual range looked generous. Nobody added
+them up, and the first writer to follow the contract had to leave four sections
+short to stay inside the limit.
+
+Two rules now, both enforced by `tools/tests/test_section_budget.py`:
+
+- **A word count counts page copy.** From the H1 down to and including Key
+  Takeaways. The meta block and `Schema Recommendations` are production notes,
+  excluded from the count and reported separately.
+- **Every template states its budget — the sum of its section minimums — and
+  that sum must sit below the page type's floor in the profile's Content
+  Standards table.** The test re-adds the table on every run, so the stated
+  figure cannot drift from the ranges above it.
+
+If a page genuinely needs more than its ceiling it is the wrong page type: a
+blog post wanting 2,500 words is a resource guide, and a service page wanting
+3,000 is two service pages.
 
 ---
 

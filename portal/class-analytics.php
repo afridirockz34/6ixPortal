@@ -482,6 +482,156 @@ class Six_Analytics {
         return 'Search Console: ' . $msg;
     }
 
+    // ── Per-day and per-page series ────────────────────────────────────────
+    //
+    // The summary methods above aggregate a whole period into one figure,
+    // which is the right shape for a stat card and the wrong shape for a
+    // graph: two aggregates drawn against each other produce a straight line
+    // between two points, which is exactly what the visitors chart has been
+    // showing. These return the dimension Google already has and we were
+    // throwing away.
+
+    /**
+     * Search Console, day by day.
+     *
+     * @return array{rows:array<string,array>,site:string}|array{error:string}
+     *         rows keyed Y-m-d => clicks, impressions, ctr, position.
+     */
+    public static function gsc_daily( $site, $days = 90 ) {
+        $res = self::resolve_gsc_site( $site );
+        if ( isset( $res['error'] ) ) return $res;
+        $site = $res['site'];
+
+        $token = self::token();
+        if ( is_array( $token ) ) return $token;
+
+        $days  = max( 1, min( 480, intval( $days ) ) );
+        // Search Console lags roughly two days; asking for today returns a
+        // partial row that reads as a collapse on the chart.
+        $start = gmdate( 'Y-m-d', strtotime( "-{$days} days" ) );
+        $end   = gmdate( 'Y-m-d', strtotime( '-2 days' ) );
+        $url   = 'https://searchconsole.googleapis.com/webmasters/v3/sites/' . rawurlencode( $site ) . '/searchAnalytics/query';
+
+        $q = self::gsc_query( $url, $token, array(
+            'startDate' => $start, 'endDate' => $end,
+            'dimensions' => array( 'date' ), 'rowLimit' => 500,
+        ) );
+        if ( isset( $q['error'] ) ) return $q;
+
+        $rows = array();
+        foreach ( $q['rows'] ?? array() as $r ) {
+            $d = $r['keys'][0] ?? '';
+            if ( ! $d ) continue;
+            $rows[ $d ] = array(
+                'clicks'      => intval( $r['clicks'] ?? 0 ),
+                'impressions' => intval( $r['impressions'] ?? 0 ),
+                'ctr'         => round( floatval( $r['ctr'] ?? 0 ) * 100, 2 ),
+                'position'    => round( floatval( $r['position'] ?? 0 ), 2 ),
+            );
+        }
+        ksort( $rows );
+        return array( 'rows' => $rows, 'site' => $site, 'start' => $start, 'end' => $end );
+    }
+
+    /**
+     * Search Console by page, for the period — what each URL earned.
+     *
+     * This is what makes "did the page we rewrote move" answerable, so it is
+     * stored per page per day rather than read once and discarded.
+     */
+    public static function gsc_pages( $site, $days = 28, $rows = 200 ) {
+        $res = self::resolve_gsc_site( $site );
+        if ( isset( $res['error'] ) ) return $res;
+        $site = $res['site'];
+
+        $token = self::token();
+        if ( is_array( $token ) ) return $token;
+
+        $days  = max( 1, min( 480, intval( $days ) ) );
+        $start = gmdate( 'Y-m-d', strtotime( "-{$days} days" ) );
+        $end   = gmdate( 'Y-m-d', strtotime( '-2 days' ) );
+        $url   = 'https://searchconsole.googleapis.com/webmasters/v3/sites/' . rawurlencode( $site ) . '/searchAnalytics/query';
+
+        $q = self::gsc_query( $url, $token, array(
+            'startDate' => $start, 'endDate' => $end,
+            'dimensions' => array( 'page' ),
+            'rowLimit'   => max( 1, min( 5000, (int) $rows ) ),
+        ) );
+        if ( isset( $q['error'] ) ) return $q;
+
+        $out = array();
+        foreach ( $q['rows'] ?? array() as $r ) {
+            $out[] = array(
+                'page'        => $r['keys'][0] ?? '',
+                'clicks'      => intval( $r['clicks'] ?? 0 ),
+                'impressions' => intval( $r['impressions'] ?? 0 ),
+                'ctr'         => round( floatval( $r['ctr'] ?? 0 ) * 100, 2 ),
+                'position'    => round( floatval( $r['position'] ?? 0 ), 2 ),
+            );
+        }
+        return array( 'rows' => $out, 'site' => $site, 'start' => $start, 'end' => $end );
+    }
+
+    /**
+     * GA4 sessions day by day, split into organic and everything else.
+     *
+     * Organic is reported separately because the SEO graph must not quietly
+     * take credit for a paid campaign's traffic.
+     *
+     * @return array{rows:array<string,array>}|array{error:string}
+     */
+    public static function ga4_daily( $property_id, $days = 90 ) {
+        $raw = trim( (string) $property_id );
+        if ( preg_match( '/^(G|UA|GTM)-/i', $raw ) ) {
+            return array( 'error' => 'That is a measurement or container ID, not a GA4 property ID. '
+                . 'Use the plain number under Analytics → Admin → Property details.' );
+        }
+        $property_id = preg_replace( '/[^0-9]/', '', $raw );
+        if ( ! $property_id || $property_id !== $raw ) {
+            return array( 'error' => 'GA4 property ID "' . $raw . '" is not a plain number.' );
+        }
+
+        $token = self::token();
+        if ( is_array( $token ) ) return $token;
+
+        $days = max( 1, min( 365, intval( $days ) ) );
+        $body = array(
+            'dateRanges' => array( array( 'startDate' => "{$days}daysAgo", 'endDate' => 'yesterday' ) ),
+            'dimensions' => array( array( 'name' => 'date' ), array( 'name' => 'sessionDefaultChannelGroup' ) ),
+            'metrics'    => array( array( 'name' => 'sessions' ), array( 'name' => 'totalUsers' ) ),
+            'limit'      => 10000,
+        );
+        $resp = wp_remote_post(
+            "https://analyticsdata.googleapis.com/v1beta/properties/{$property_id}:runReport",
+            array(
+                'timeout' => 30,
+                'headers' => array( 'Authorization' => 'Bearer ' . $token, 'Content-Type' => 'application/json' ),
+                'body'    => wp_json_encode( $body ),
+            )
+        );
+        if ( is_wp_error( $resp ) ) return array( 'error' => 'GA4 network error: ' . $resp->get_error_message() );
+        $data = json_decode( wp_remote_retrieve_body( $resp ), true );
+        if ( isset( $data['error'] ) ) {
+            return array( 'error' => 'GA4: ' . self::explain( $data['error']['message'] ?? 'error', $property_id ) );
+        }
+
+        $rows = array();
+        foreach ( $data['rows'] ?? array() as $r ) {
+            $d  = $r['dimensionValues'][0]['value'] ?? '';          // YYYYMMDD
+            $ch = $r['dimensionValues'][1]['value'] ?? 'Other';
+            if ( strlen( $d ) !== 8 ) continue;
+            $day = substr( $d, 0, 4 ) . '-' . substr( $d, 4, 2 ) . '-' . substr( $d, 6, 2 );
+            $s   = intval( $r['metricValues'][0]['value'] ?? 0 );
+            $u   = intval( $r['metricValues'][1]['value'] ?? 0 );
+            if ( ! isset( $rows[ $day ] ) ) $rows[ $day ] = array( 'sessions' => 0, 'users' => 0, 'organic_sessions' => 0 );
+            $rows[ $day ]['sessions'] += $s;
+            $rows[ $day ]['users']    += $u;
+            if ( stripos( $ch, 'Organic' ) !== false ) $rows[ $day ]['organic_sessions'] += $s;
+        }
+        ksort( $rows );
+        return array( 'rows' => $rows, 'property_id' => $property_id );
+    }
+
     private static function gsc_query( $url, $token, $body ) {
         $resp = wp_remote_post( $url, array(
             'timeout' => 30,
