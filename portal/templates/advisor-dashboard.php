@@ -1577,6 +1577,53 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             </div>
             <?php endif; ?>
 
+            <?php
+            /* ── Waiting for you: figures a Claude session read ───────────
+               Two sources of truth meet here. Numbers pulled from a connected
+               account, and numbers a Claude session read while doing the work.
+               The second kind never reaches the customer on its own — it waits
+               until you accept it and set a target. That review is the design,
+               not a formality. */
+            $pending = class_exists('Six_Tracking') ? Six_Tracking::proposals($view_client_id, 'pending', $slug) : array();
+            if ( $pending ): ?>
+            <div style="border:1px solid var(--pink);border-radius:10px;overflow:hidden;margin-bottom:12px">
+                <div style="padding:9px 12px;background:rgba(255,102,153,0.08);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                    <span style="font-size:11.5px;font-weight:700;color:var(--pink)"><?php echo count($pending); ?> figure<?php echo count($pending)===1?'':'s'; ?> waiting for you</span>
+                    <span style="font-size:10.5px;color:var(--text3)">Read by a Claude session. The customer does not see these until you accept them.</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr auto;gap:6px;padding:7px 12px;border-top:1px solid var(--border);font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3)">
+                    <div>Metric &amp; where it came from</div>
+                    <div>Before</div>
+                    <div>Now</div>
+                    <div>Target</div>
+                    <div></div>
+                </div>
+                <?php foreach($pending as $pp): ?>
+                <div class="prop-row" data-id="<?php echo (int)$pp['id']; ?>" style="display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr auto;gap:6px;align-items:start;padding:9px 12px;border-top:1px solid var(--border)">
+                    <div style="min-width:0">
+                        <input class="six-input prop-label" value="<?php echo esc_attr($pp['label'] ?: $pp['metric_key']); ?>" style="font-size:12px;padding:6px 8px;width:100%">
+                        <div style="font-size:10px;color:var(--text3);margin-top:3px;line-height:1.45">
+                            <?php echo esc_html($pp['source'] ?: 'source not stated'); ?>
+                            <?php if($pp['period_label']): ?><br><strong style="color:var(--text2)"><?php echo esc_html($pp['period_label']); ?></strong><?php endif; ?>
+                            <?php if($pp['note']): ?><br><?php echo esc_html($pp['note']); ?><?php endif; ?>
+                        </div>
+                    </div>
+                    <div><input class="six-input prop-prev" value="<?php echo esc_attr($pp['previous_value']); ?>" placeholder="—" style="font-size:12px;padding:6px 8px;width:100%"></div>
+                    <div><input class="six-input prop-cur" value="<?php echo esc_attr($pp['current_value']); ?>" style="font-size:12px;padding:6px 8px;width:100%"></div>
+                    <div>
+                        <input class="six-input prop-tgt" value="<?php echo esc_attr($pp['suggested_target']); ?>" placeholder="set one" style="font-size:12px;padding:6px 8px;width:100%">
+                        <?php if($pp['suggested_target']): ?><div style="font-size:9.5px;color:var(--text3);margin-top:2px">suggested</div><?php endif; ?>
+                    </div>
+                    <div style="display:flex;gap:4px;align-items:flex-start">
+                        <button class="six-btn six-btn-primary six-btn-sm prop-accept" data-client="<?php echo $view_client_id; ?>" style="font-size:11px;padding:7px 10px">Accept</button>
+                        <button class="six-btn six-btn-ghost six-btn-sm prop-dismiss" style="font-size:11px;padding:7px 8px;color:var(--text3)" title="Discard this figure">✕</button>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+                <div class="prop-msg-<?php echo esc_attr($slug); ?>" style="font-size:11px;padding:0 12px 9px"></div>
+            </div>
+            <?php endif; ?>
+
             <!-- Reads the connected accounts. Nothing here is generated or
                  estimated by a model: every row comes back with the account it
                  was read from, and if nothing is connected you get told that
@@ -1589,7 +1636,8 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
 
             <!-- Add metric form for this service -->
             <div style="background:var(--dark4);border-radius:10px;padding:14px" id="metric-form-<?php echo esc_attr($slug); ?>">
-                <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">+ Add / Update Metric</div>
+                <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">+ Add / Update Metric</div>
+                <div style="font-size:10.5px;color:var(--text3);margin-bottom:10px">Both periods must be the same length, or the comparison flatters. For a metric where lower is better — average position, page load, on-page issues — the target is the number you want to get <em>down</em> to.</div>
                 <input type="hidden" class="metric-svc-slug" value="<?php echo esc_attr($slug); ?>">
                 <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:8px;align-items:end">
                     <div>
@@ -1597,16 +1645,19 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                         <input class="six-input metric-label-<?php echo esc_attr($slug); ?>" placeholder="e.g. Monthly Traffic" style="font-size:12px;padding:7px 10px">
                     </div>
                     <div>
-                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Last month</div>
+                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Before</div>
                         <input class="six-input metric-prev-<?php echo esc_attr($slug); ?>" placeholder="310" style="font-size:12px;padding:7px 10px">
+                        <div style="font-size:9.5px;color:var(--text3);margin-top:3px">the previous period</div>
                     </div>
                     <div>
-                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Current month</div>
+                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Now</div>
                         <input class="six-input metric-current-<?php echo esc_attr($slug); ?>" placeholder="420" style="font-size:12px;padding:7px 10px">
+                        <div style="font-size:9.5px;color:var(--text3);margin-top:3px">what it is today</div>
                     </div>
                     <div>
-                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Next month (target)</div>
+                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Target</div>
                         <input class="six-input metric-target-<?php echo esc_attr($slug); ?>" placeholder="600" style="font-size:12px;padding:7px 10px">
+                        <div style="font-size:9.5px;color:var(--text3);margin-top:3px">from the strategy</div>
                     </div>
                     <button class="six-btn six-btn-primary six-btn-sm six-add-metric-svc"
                             data-slug="<?php echo esc_attr($slug); ?>"
@@ -1614,6 +1665,66 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                             style="font-size:11px;padding:8px 12px">Save</button>
                 </div>
                 <div class="metric-result-<?php echo esc_attr($slug); ?>" style="font-size:11px;margin-top:6px"></div>
+            </div>
+
+            <?php
+            /* ── Work done by hand ───────────────────────────────────────
+               Claude logs what it changes through the connector. This is for
+               everything a person did themselves, so the customer's
+               optimization proof shows the work rather than the tool that
+               happened to do it. */
+            $wl_proof = class_exists('Six_Tracking') ? Six_Tracking::proof($view_client_id, $slug) : array();
+            ?>
+            <div style="background:var(--dark4);border-radius:10px;padding:14px;margin-top:12px">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:4px">
+                    <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">+ Log work done</div>
+                    <?php if($wl_proof): ?>
+                    <div style="font-size:10.5px;color:var(--text3)">
+                        <?php echo number_format(array_sum(array_column($wl_proof,'deployed'))); ?> live across <?php echo count($wl_proof); ?> categor<?php echo count($wl_proof)===1?'y':'ies'; ?>
+                    </div>
+                    <?php endif; ?>
+                </div>
+                <div style="font-size:10.5px;color:var(--text3);margin-bottom:10px">Appears on the customer's dashboard under Optimization proof. Anything Claude changed is already logged — this is for work you or a developer did by hand.</div>
+                <div style="display:grid;grid-template-columns:1.4fr 2fr 1fr auto;gap:8px;align-items:end">
+                    <div>
+                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Category</div>
+                        <input class="six-input wl-category" list="wl-cats-<?php echo esc_attr($slug); ?>" placeholder="Title Tags" style="font-size:12px;padding:7px 10px">
+                        <datalist id="wl-cats-<?php echo esc_attr($slug); ?>">
+                            <?php foreach($wl_proof as $wc): ?><option value="<?php echo esc_attr($wc['category']); ?>"><?php endforeach; ?>
+                            <option value="Title Tags"><option value="Meta Descriptions"><option value="Schema Markup">
+                            <option value="Page Content"><option value="Internal Links"><option value="Image Alt Text">
+                            <option value="Technical Fixes"><option value="Ad Copy"><option value="Negative Keywords">
+                            <option value="GBP Posts"><option value="Citations"><option value="Backlinks">
+                        </datalist>
+                    </div>
+                    <div>
+                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">What you did</div>
+                        <input class="six-input wl-title" placeholder="Rewrote the bail hearing page title" style="font-size:12px;padding:7px 10px">
+                    </div>
+                    <div>
+                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">How many</div>
+                        <input class="six-input wl-count" type="number" min="1" max="500" value="1" style="font-size:12px;padding:7px 10px">
+                    </div>
+                    <button class="six-btn six-btn-primary six-btn-sm six-log-work"
+                            data-slug="<?php echo esc_attr($slug); ?>"
+                            data-client="<?php echo $view_client_id; ?>"
+                            style="font-size:11px;padding:8px 12px">Log</button>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px">
+                    <div>
+                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Page or thing changed</div>
+                        <input class="six-input wl-entity" placeholder="https://… or campaign name" style="font-size:12px;padding:7px 10px">
+                    </div>
+                    <div>
+                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Before</div>
+                        <input class="six-input wl-before" placeholder="what it was" style="font-size:12px;padding:7px 10px">
+                    </div>
+                    <div>
+                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">After</div>
+                        <input class="six-input wl-after" placeholder="what it is now" style="font-size:12px;padding:7px 10px">
+                    </div>
+                </div>
+                <div class="wl-result-<?php echo esc_attr($slug); ?>" style="font-size:11px;margin-top:8px"></div>
             </div>
 
         </div>
@@ -4840,16 +4951,30 @@ document.querySelectorAll('.six-suggest-metrics').forEach(function(btn){
             // absent and the panel says which account could not be reached.
             var srcList=(r.data.sources||[]).join(' · ');
             var html='<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">'
-                +'<div style="padding:8px 12px;background:var(--dark3);font-size:11px;color:var(--text3)">Read just now from '+esc(srcList||'the connected accounts')+' — check and add</div>';
+                +'<div style="padding:8px 12px;background:var(--dark3);font-size:11px;color:var(--text3)">Read just now from '+esc(srcList||'the connected accounts')+' — check and add</div>'
+                // Column headings, because every row's "current" covers a
+                // different window: Search Console reports 28 days and lags
+                // two, GA4 reports 30, a live page check is one moment. The
+                // period is printed under each figure rather than left for
+                // the advisor to remember.
+                +'<div style="display:grid;grid-template-columns:auto 2fr 1fr 1fr 1fr auto;gap:6px;padding:6px 12px;border-top:1px solid var(--border);font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3)">'
+                +'<span></span><span>Metric</span><span>Before</span><span>Now</span><span>Target</span><span></span></div>';
             r.data.metrics.forEach(function(m){
-                var tip='Source: '+(m.source||'connected account')+'.'+(m.note?'\n\nWhy this metric: '+m.note:'');
-                html+='<div class="sugg-row" style="display:grid;grid-template-columns:auto 2fr 1fr 1fr 1fr auto;gap:6px;align-items:center;padding:8px 12px;border-top:1px solid var(--border)">'
-                    +'<span title="'+esc(tip)+'" style="cursor:help;color:var(--cyan);font-size:14px;display:inline-flex;align-items:center" aria-label="Where this number comes from">ⓘ</span>'
-                    +'<input class="six-input sm-label" value="'+esc(m.label)+'" title="'+esc(tip)+'" style="font-size:12px;padding:6px 8px">'
-                    +'<input class="six-input sm-prev" value="'+esc(m.previous)+'" placeholder="prev" title="'+esc(tip)+'" style="font-size:12px;padding:6px 8px">'
-                    +'<input class="six-input sm-cur" value="'+esc(m.current)+'" placeholder="current" title="'+esc(tip)+'" style="font-size:12px;padding:6px 8px">'
-                    +'<input class="six-input sm-tgt" value="'+esc(m.target)+'" placeholder="target" title="'+esc(tip)+'" style="font-size:12px;padding:6px 8px">'
-                    +'<button class="six-btn six-btn-primary six-btn-sm sm-add" style="font-size:11px">Add</button>'
+                var tip='Source: '+(m.source||'connected account')+'.'
+                      +(m.period?'\nPeriod: '+m.period:'')
+                      +(m.lower_better?'\nLower is better for this metric.':'')
+                      +(m.note?'\n\nWhy this metric: '+m.note:'');
+                var per = m.period ? '<div style="font-size:9.5px;color:var(--text3);margin-top:2px">'+esc(m.period)+'</div>' : '';
+                var pper= m.previous_period ? '<div style="font-size:9.5px;color:var(--text3);margin-top:2px">'+esc(m.previous_period)+'</div>' : '';
+                html+='<div class="sugg-row" style="display:grid;grid-template-columns:auto 2fr 1fr 1fr 1fr auto;gap:6px;align-items:start;padding:8px 12px;border-top:1px solid var(--border)">'
+                    +'<span title="'+esc(tip)+'" style="cursor:help;color:var(--cyan);font-size:14px;display:inline-flex;align-items:center;padding-top:6px" aria-label="Where this number comes from">ⓘ</span>'
+                    +'<div><input class="six-input sm-label" value="'+esc(m.label)+'" title="'+esc(tip)+'" style="font-size:12px;padding:6px 8px;width:100%">'
+                    +'<div style="font-size:9.5px;color:var(--text3);margin-top:2px">'+esc(m.source||'')+(m.lower_better?' · lower is better':'')+'</div></div>'
+                    +'<div><input class="six-input sm-prev" value="'+esc(m.previous)+'" placeholder="—" title="'+esc(tip)+'" style="font-size:12px;padding:6px 8px;width:100%">'+pper+'</div>'
+                    +'<div><input class="six-input sm-cur" value="'+esc(m.current)+'" title="'+esc(tip)+'" style="font-size:12px;padding:6px 8px;width:100%">'+per+'</div>'
+                    +'<div><input class="six-input sm-tgt" value="'+esc(m.target)+'" placeholder="set one" title="Set this from the strategy, not from a guess." style="font-size:12px;padding:6px 8px;width:100%">'
+                    +'<div style="font-size:9.5px;color:var(--text3);margin-top:2px">from the strategy</div></div>'
+                    +'<button class="six-btn six-btn-primary six-btn-sm sm-add" style="font-size:11px;margin-top:1px">Add</button>'
                     +'</div>';
             });
             html+='<div style="padding:8px 12px;border-top:1px solid var(--border)"><button class="six-btn six-btn-ghost six-btn-sm sm-add-all" style="font-size:11px;color:var(--success)">Add all</button></div></div>';
@@ -4868,6 +4993,84 @@ document.querySelectorAll('.six-suggest-metrics').forEach(function(btn){
                 (function next(){ if(i>=rows.length){ setTimeout(function(){location.reload();},700); return; } addRow(rows[i++], next); })();
             });
         }).catch(function(){ self.disabled=false; self.textContent='↓ Pull metrics'; if(box) box.innerHTML='<div style="font-size:12px;color:var(--danger)">Could not reach the connected accounts. Nothing was changed — try again.</div>'; });
+    });
+});
+
+// ── Accept or dismiss a figure a Claude session proposed ───────────────
+//
+// Accepting writes to both tables: six_client_kpis feeds the customer's stat
+// cards, six_metrics feeds the service page's detail rows. Filling only one
+// is how an advisor's number used to stop at the advisor's own screen.
+document.querySelectorAll('.prop-accept').forEach(function(btn){
+    btn.addEventListener('click',function(){
+        var row = this.closest('.prop-row');
+        var box = row.parentElement.querySelector('[class^="prop-msg-"]');
+        var self = this;
+        self.disabled = true; self.textContent = 'Saving…';
+        post({action:'six_accept_proposal', client_id:this.dataset.client,
+              proposal_id:row.dataset.id,
+              label:row.querySelector('.prop-label').value,
+              previous_value:row.querySelector('.prop-prev').value,
+              current_value:row.querySelector('.prop-cur').value,
+              target_value:row.querySelector('.prop-tgt').value})
+        .then(function(r){
+            if(r && r.success){
+                row.style.opacity = '.45';
+                row.querySelectorAll('input,button').forEach(function(el){ el.disabled = true; });
+                self.textContent = 'Accepted';
+                if(box) box.innerHTML = '<span style="color:'+((r.data&&r.data.partial)?'var(--warning)':'var(--success)')+'">'
+                    + ((r.data && r.data.message) || 'Saved. The customer sees this now.') + '</span>';
+                setTimeout(function(){ location.reload(); }, 1200);
+            } else {
+                self.disabled = false; self.textContent = 'Accept';
+                if(box) box.innerHTML = '<span style="color:var(--danger)">'
+                    + ((r && r.data && (r.data.message||r.data)) || 'Could not save it. Nothing was changed.') + '</span>';
+            }
+        }).catch(function(){
+            self.disabled = false; self.textContent = 'Accept';
+            if(box) box.innerHTML = '<span style="color:var(--danger)">Could not reach the server. Nothing was changed.</span>';
+        });
+    });
+});
+document.querySelectorAll('.prop-dismiss').forEach(function(btn){
+    btn.addEventListener('click',function(){
+        var row = this.closest('.prop-row'); var self = this;
+        self.disabled = true;
+        post({action:'six_dismiss_proposal', proposal_id:row.dataset.id})
+        .then(function(r){
+            if(r && r.success){ row.style.opacity='.3'; row.querySelectorAll('input,button').forEach(function(el){el.disabled=true;}); }
+            else { self.disabled = false; }
+        }).catch(function(){ self.disabled = false; });
+    });
+});
+
+// ── Log work done by hand ──────────────────────────────────────────────
+document.querySelectorAll('.six-log-work').forEach(function(btn){
+    btn.addEventListener('click',function(){
+        var slug = this.dataset.slug, client = this.dataset.client, self = this;
+        var scope = this.closest('div[style*="--dark4"]') || document;
+        var box = document.querySelector('.wl-result-'+slug);
+        var q = function(c){ var el = scope.querySelector(c); return el ? el.value : ''; };
+        var title = (q('.wl-title')||'').trim();
+        if(!title){ if(box) box.innerHTML='<span style="color:var(--danger)">Give it a title — one line somebody reading the dashboard would understand.</span>'; return; }
+        self.disabled = true; self.textContent = 'Logging…';
+        post({action:'six_log_work', client_id:client, service_slug:slug,
+              category:q('.wl-category'), title:title, entity:q('.wl-entity'),
+              before_value:q('.wl-before'), after_value:q('.wl-after'),
+              count:q('.wl-count')||1, status:'deployed'})
+        .then(function(r){
+            self.disabled = false; self.textContent = 'Log';
+            if(r && r.success){
+                if(box) box.innerHTML='<span style="color:var(--success)">'+((r.data&&r.data.message)||'Logged.')+'</span>';
+                ['.wl-title','.wl-entity','.wl-before','.wl-after'].forEach(function(c){ var el=scope.querySelector(c); if(el) el.value=''; });
+                setTimeout(function(){ location.reload(); }, 900);
+            } else {
+                if(box) box.innerHTML='<span style="color:var(--danger)">'+((r&&r.data&&(r.data.message||r.data))||'Nothing was logged.')+'</span>';
+            }
+        }).catch(function(){
+            self.disabled = false; self.textContent = 'Log';
+            if(box) box.innerHTML='<span style="color:var(--danger)">Could not reach the server. Nothing was logged.</span>';
+        });
     });
 });
 

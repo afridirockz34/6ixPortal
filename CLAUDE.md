@@ -31,6 +31,7 @@ the repo and a parse error takes the whole deploy down.
 | `python3 tools/tests/test_section_budget.py` | each page template's section minimums actually fit inside its word limit |
 | `php tools/tests/test_tracking.php` | the visitors graph's trend fit, and that no write reports success without a table |
 | `php tools/tests/test_metric_math.php` | progress bars and trend arrows point the way the metric actually improves |
+| `php tools/tests/test_proposal_accept.php` | accepting a figure writes to both tables, and a failed write leaves it pending |
 | `php tools/generate-questionnaire-reference.php` | regenerates the questionnaire docs from the schema — run after any question change, and commit the result |
 
 Pushing to `main` deploys to the live site over SFTP. There is no staging.
