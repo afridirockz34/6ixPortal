@@ -3390,3 +3390,65 @@ add_action( 'wp_ajax_six_get_work_log', function () {
 		'by_category' => Six_Tracking::proof( $client_id, $slug ),
 	) );
 } );
+
+/**
+ * Backfill and refresh a client's daily history, on demand.
+ *
+ * The daily sync is a WP-Cron job, and WP-Cron only fires when somebody
+ * visits the site. On a portal that nobody browses for a day, the job that
+ * fills six_daily_metrics may not have run at all — and until it has, the
+ * visitors chart falls back to its old modelled view and the advisor has no
+ * way to tell whether the feature is broken or simply has no data yet.
+ *
+ * So: a button. It also reports what came back per source, including the
+ * reason a source produced nothing, because "0 rows" and "Search Console says
+ * you do not have access to that property" need different responses.
+ */
+add_action( 'wp_ajax_six_sync_tracking', function () {
+	check_ajax_referer( 'six_nonce', 'nonce' );
+	if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+	if ( ! class_exists( 'Six_Tracking' ) ) wp_send_json_error( 'Tracking is not available on this site.' );
+
+	$client_id = intval( $_POST['client_id'] ?? 0 );
+	if ( ! $client_id ) wp_send_json_error( 'Missing client.' );
+	@set_time_limit( 180 );
+
+	// A full backfill when asked for, otherwise the normal incremental window.
+	$days = ! empty( $_POST['backfill'] ) ? 480 : 0;
+	$res  = Six_Tracking::sync_client( $client_id, $days );
+
+	$first = Six_Tracking::measurement_started( $client_id );
+	$start = Six_Tracking::engagement_start( $client_id );
+
+	// Can the "without us" line be drawn yet? This is the question the advisor
+	// actually has, and it has a precise answer: enough readings from before
+	// the engagement started to fit a trend on.
+	$fit_note = '';
+	if ( $first && $start ) {
+		$before = 0;
+		foreach ( Six_Tracking::daily( $client_id, 'gsc_clicks', 480 ) as $d ) {
+			if ( $d['date'] < $start ) $before++;
+		}
+		if ( ! $before ) {
+			foreach ( Six_Tracking::daily( $client_id, 'organic_sessions', 480 ) as $d ) {
+				if ( $d['date'] < $start ) $before++;
+			}
+		}
+		$fit_note = $before >= Six_Tracking::MIN_FIT_POINTS
+			? 'The "without us" comparison can be drawn: ' . $before . ' days of history from before ' . $start . '.'
+			: 'Only ' . $before . ' day(s) of history from before ' . $start . ', so the chart shows the measured line alone. '
+			  . Six_Tracking::MIN_FIT_POINTS . ' are needed before a trend can honestly be fitted.';
+	}
+
+	wp_send_json_success( array(
+		'daily_rows'  => $res['daily'],
+		'page_rows'   => $res['pages'],
+		'notes'       => $res['notes'],
+		'first_day'   => $first,
+		'start'       => $start,
+		'fit_note'    => $fit_note,
+		'message'     => $res['daily'] || $res['pages']
+			? sprintf( '%d daily readings and %d page readings recorded.', $res['daily'], $res['pages'] )
+			: 'Nothing came back. ' . ( $res['notes'] ? implode( ' ', $res['notes'] ) : 'No source is connected for this client.' ),
+	) );
+} );
