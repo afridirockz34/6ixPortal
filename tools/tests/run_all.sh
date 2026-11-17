@@ -27,6 +27,7 @@ run "Progress bars + trend arrows" php     tools/tests/test_metric_math.php
 run "MCP work log + proposals"      php     tools/tests/test_mcp_tracking_tools.php
 run "Advisor accepts a figure"      php     tools/tests/test_proposal_accept.php
 run "Deleting + clearing metrics"   php     tools/tests/test_metric_editing.php
+run "Task board + Reports"          php     tools/tests/test_tasks.php
 run "Content publish gate"          python3 tools/tests/test_content_gate.py
 run "Keyword / topic set shape"      python3 tools/tests/test_keyword_set.py
 run "Strategy readability gate"      python3 tools/tests/test_strategy_language.py

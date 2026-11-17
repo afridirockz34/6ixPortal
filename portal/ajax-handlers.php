@@ -3544,3 +3544,147 @@ add_action( 'wp_ajax_six_sync_tracking', function () {
 			: 'Nothing came back. ' . ( $res['notes'] ? implode( ' ', $res['notes'] ) : 'No source is connected for this client.' ),
 	) );
 } );
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * The task board
+ *
+ * An approved strategy becomes rows here: one per thing that has to be done,
+ * across the engagement. Claude writes the plan through MCP, the advisor edits
+ * and publishes it, and Claude reads it back to know what has already shipped.
+ *
+ * Tasks arrive unpublished on purpose. A generated plan is a draft until a
+ * human has looked at the dates and the order; publishing is the deliberate
+ * act that lets it count as a commitment.
+ * ───────────────────────────────────────────────────────────────────────── */
+
+/** The board for one client, grouped as the Reports tab renders it. */
+add_action( 'wp_ajax_six_list_tasks', function () {
+	check_ajax_referer( 'six_nonce', 'nonce' );
+	if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+	if ( ! class_exists( 'Six_Tasks' ) ) wp_send_json_success( array( 'tasks' => array(), 'summary' => array(), 'statuses' => array() ) );
+
+	$client_id = intval( $_POST['client_id'] ?? 0 );
+	if ( ! $client_id ) wp_send_json_error( 'Missing client.' );
+	$slug = sanitize_key( $_POST['service_slug'] ?? '' );
+
+	wp_send_json_success( array(
+		'tasks'    => Six_Tasks::all( $client_id, array(
+			'service_slug' => $slug,
+			'status'       => sanitize_key( $_POST['status'] ?? '' ),
+			'phase'        => intval( $_POST['phase'] ?? 0 ),
+		) ),
+		'summary'  => Six_Tasks::summary( $client_id, $slug ),
+		'statuses' => Six_Tasks::STATUSES,
+		'meanings' => Six_Tasks::STATUS_MEANS,
+	) );
+} );
+
+/**
+ * Change one task.
+ *
+ * Reports the database's answer rather than its own optimism — the pattern
+ * this codebase keeps getting wrong. A status that did not save must not look
+ * like one that did, because the whole point of the board is that it says what
+ * is true.
+ */
+add_action( 'wp_ajax_six_update_task', function () {
+	check_ajax_referer( 'six_nonce', 'nonce' );
+	if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+	if ( ! class_exists( 'Six_Tasks' ) ) wp_send_json_error( 'The task board is not available on this site.' );
+
+	$client_id = intval( $_POST['client_id'] ?? 0 );
+	$task_id   = intval( $_POST['task_id'] ?? 0 );
+	if ( ! $client_id || ! $task_id ) wp_send_json_error( 'Missing task.' );
+
+	$fields = array();
+	foreach ( array( 'status', 'title', 'detail', 'deliverable', 'entity', 'keyword',
+	                 'category', 'assigned_to', 'notes' ) as $f ) {
+		if ( isset( $_POST[ $f ] ) ) $fields[ $f ] = wp_unslash( $_POST[ $f ] );
+	}
+	foreach ( array( 'priority', 'month_no', 'sort_order' ) as $f ) {
+		if ( isset( $_POST[ $f ] ) && $_POST[ $f ] !== '' ) $fields[ $f ] = intval( $_POST[ $f ] );
+	}
+	if ( isset( $_POST['due_date'] ) ) $fields['due_date'] = sanitize_text_field( wp_unslash( $_POST['due_date'] ) );
+
+	$res = Six_Tasks::update( $client_id, $task_id, $fields );
+	if ( ! $res['ok'] ) wp_send_json_error( $res['error'] );
+
+	wp_send_json_success( array(
+		'task_id' => $task_id,
+		'summary' => Six_Tasks::summary( $client_id ),
+		'message' => 'Saved.',
+	) );
+} );
+
+/** Add one task by hand, for work the strategy did not foresee. */
+add_action( 'wp_ajax_six_add_task', function () {
+	check_ajax_referer( 'six_nonce', 'nonce' );
+	if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+	if ( ! class_exists( 'Six_Tasks' ) ) wp_send_json_error( 'The task board is not available on this site.' );
+
+	$client_id = intval( $_POST['client_id'] ?? 0 );
+	$title     = sanitize_text_field( wp_unslash( $_POST['title'] ?? '' ) );
+	if ( ! $client_id ) wp_send_json_error( 'Missing client.' );
+	if ( $title === '' ) wp_send_json_error( 'A task needs a title.' );
+
+	$res = Six_Tasks::create( $client_id, array( array(
+		'title'        => $title,
+		'service_slug' => sanitize_key( $_POST['service_slug'] ?? '' ),
+		'category'     => sanitize_text_field( wp_unslash( $_POST['category'] ?? '' ) ),
+		'detail'       => wp_kses_post( wp_unslash( $_POST['detail'] ?? '' ) ),
+		'deliverable'  => sanitize_text_field( wp_unslash( $_POST['deliverable'] ?? '' ) ),
+		'entity'       => sanitize_text_field( wp_unslash( $_POST['entity'] ?? '' ) ),
+		'month_no'     => max( 1, intval( $_POST['month_no'] ?? 1 ) ),
+		'priority'     => intval( $_POST['priority'] ?? 2 ),
+		'due_date'     => sanitize_text_field( wp_unslash( $_POST['due_date'] ?? '' ) ),
+	) ), 'advisor' );
+
+	if ( ! $res['saved'] ) {
+		wp_send_json_error( $res['failed'] ? reset( $res['failed'] ) : 'The task was not created.' );
+	}
+	wp_send_json_success( array( 'id' => $res['ids'][0] ?? 0, 'message' => 'Task added.' ) );
+} );
+
+/** Remove a task the advisor does not want on the plan. */
+add_action( 'wp_ajax_six_delete_task', function () {
+	check_ajax_referer( 'six_nonce', 'nonce' );
+	if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+	if ( ! class_exists( 'Six_Tasks' ) ) wp_send_json_error( 'The task board is not available on this site.' );
+
+	$client_id = intval( $_POST['client_id'] ?? 0 );
+	$task_id   = intval( $_POST['task_id'] ?? 0 );
+	if ( ! $client_id || ! $task_id ) wp_send_json_error( 'Missing task.' );
+
+	$res = Six_Tasks::delete( $client_id, $task_id );
+	if ( ! $res['ok'] ) wp_send_json_error( $res['error'] );
+	wp_send_json_success( array( 'task_id' => $task_id, 'summary' => Six_Tasks::summary( $client_id ) ) );
+} );
+
+/**
+ * Publish the plan, or one phase of it.
+ *
+ * Publishing is what turns a draft into the timeline the client is shown, so
+ * it reports how many rows actually changed. "Published" with nothing written
+ * is exactly the failure this codebase keeps repeating.
+ */
+add_action( 'wp_ajax_six_publish_tasks', function () {
+	check_ajax_referer( 'six_nonce', 'nonce' );
+	if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+	if ( ! class_exists( 'Six_Tasks' ) ) wp_send_json_error( 'The task board is not available on this site.' );
+
+	$client_id = intval( $_POST['client_id'] ?? 0 );
+	if ( ! $client_id ) wp_send_json_error( 'Missing client.' );
+	$publish = empty( $_POST['unpublish'] );
+	$phase   = intval( $_POST['phase'] ?? 0 );
+
+	$res = Six_Tasks::publish( $client_id, $publish, $phase );
+	if ( ! $res['ok'] ) wp_send_json_error( $res['error'] );
+
+	wp_send_json_success( array(
+		'changed' => $res['count'],
+		'summary' => Six_Tasks::summary( $client_id ),
+		'message' => $res['count']
+			? sprintf( '%d task%s %s.', $res['count'], $res['count'] === 1 ? '' : 's', $publish ? 'published' : 'unpublished' )
+			: 'Nothing changed — every task was already ' . ( $publish ? 'published' : 'a draft' ) . '.',
+	) );
+} );

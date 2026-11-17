@@ -1549,6 +1549,53 @@ if ( empty($s_mets) && $proof_rows ):
 </div>
 <?php endif; ?>
 
+<?php
+/* ── The plan, as the client sees it ──────────────────────────────────────
+   Only what the advisor has published. A draft plan is working material: the
+   dates move while it is being edited, and a client who watched them move
+   would reasonably conclude the schedule means nothing.
+
+   Four states, and the client-review one is the reason this block earns its
+   place — it names the things that are waiting on them, which no chart can. */
+$plan_rows = class_exists('Six_Tasks')
+    ? Six_Tasks::all($user_id, array('service_slug'=>$svc_slug, 'published'=>true))
+    : array();
+if ( $plan_rows ):
+    $plan_labels = Six_Tasks::STATUSES;
+    $plan_colors = array('todo'=>'var(--text3)','client_review'=>'var(--warning)','implementation'=>$sd['color'],'complete'=>'var(--success)');
+    $plan_count  = array('todo'=>0,'client_review'=>0,'implementation'=>0,'complete'=>0);
+    foreach($plan_rows as $pl){ if(isset($plan_count[$pl['status']])) $plan_count[$pl['status']]++; }
+    $plan_waiting = $plan_count['client_review'];
+?>
+<div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px">
+    <div style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.05)">
+        <div style="font-size:12px;font-weight:700;color:var(--text1)">Your plan</div>
+        <div style="font-size:10.5px;color:var(--text3);margin-top:2px">
+            <?php echo number_format($plan_count['complete']); ?> of <?php echo number_format(count($plan_rows)); ?> complete<?php
+            if($plan_waiting): ?> &middot; <span style="color:var(--warning)"><?php echo $plan_waiting; ?> waiting on your approval</span><?php endif; ?>
+        </div>
+    </div>
+    <?php
+    $plan_by_month = array();
+    foreach($plan_rows as $pl){ $plan_by_month[(int)$pl['month_no']][] = $pl; }
+    ksort($plan_by_month);
+    foreach($plan_by_month as $pm => $pms): ?>
+    <div style="padding:9px 20px;border-top:1px solid rgba(255,255,255,0.05);background:var(--dark3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3)">Month <?php echo (int)$pm; ?></div>
+        <?php foreach($pms as $pl): ?>
+        <div style="display:flex;align-items:baseline;gap:12px;padding:9px 20px;border-top:1px solid rgba(255,255,255,0.03)">
+            <div style="flex:1;min-width:0">
+                <div style="font-size:12px;color:var(--text1);line-height:1.35"><?php echo esc_html($pl['title']); ?></div>
+                <?php if($pl['deliverable']): ?><div style="font-size:10px;color:var(--text3);margin-top:1px"><?php echo esc_html($pl['deliverable']); ?></div><?php endif; ?>
+            </div>
+            <div style="flex-shrink:0;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;color:<?php echo $plan_colors[$pl['status']]; ?>;background:<?php echo $plan_colors[$pl['status']]; ?>18">
+                <?php echo esc_html($plan_labels[$pl['status']] ?? $pl['status']); ?>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    <?php endforeach; ?>
+</div>
+<?php endif; ?>
+
 <!-- Performance Chart -->
 <?php if(count($s_mets) >= 2 || !empty($trend['has'])): ?>
 <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:20px;overflow:hidden;max-width:100%">
