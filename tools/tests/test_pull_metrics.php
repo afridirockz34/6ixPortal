@@ -120,7 +120,11 @@ check( 'no benchmark or AI language inside the metrics reader',
 
 // ── And the UI describes what the handler actually does ─────────────────────
 $tpl = file_get_contents( dirname( __DIR__, 2 ) . '/portal/templates/advisor-dashboard.php' );
-check( 'the button says Pull metrics', strpos( $tpl, '↓ Pull metrics' ) !== false );
+check( 'the button says Pull Metrics', strpos( $tpl, '>Pull Metrics</button>' ) !== false );
+check( 'and sits in the service header, which is what an advisor opens a service to press',
+	strpos( $tpl, 'six-btn-primary six-btn-sm six-suggest-metrics' ) !== false );
+check( 'the pulled figures land above the metric boxes, not below a long form',
+	strpos( $tpl, 'Pulled figures land here, above the boxes' ) !== false );
 check( 'the AI wording is gone everywhere, including the error path',
 	strpos( $tpl, 'Suggest metrics with AI' ) === false,
 	'the catch() branch used to restore the old label on a network error' );

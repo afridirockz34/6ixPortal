@@ -3859,3 +3859,41 @@ add_action( 'wp_ajax_six_set_engagement_start', function () {
 			: 'Cleared — the date falls back to when the service was approved.',
 	) );
 } );
+
+/**
+ * Which four metrics appear on the customer's overview.
+ *
+ * The dashboard used to take the first N metrics of each active service in
+ * catalog order, so an advisor who cared about calls and a client whose
+ * conversions mattered both got impressions. Four slots, chosen per client.
+ */
+add_action( 'wp_ajax_six_save_overview_cards', function () {
+	check_ajax_referer( 'six_nonce', 'nonce' );
+	if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+
+	$client_id = intval( $_POST['client_id'] ?? 0 );
+	if ( ! $client_id ) wp_send_json_error( 'Missing client.' );
+
+	$raw  = json_decode( wp_unslash( $_POST['cards'] ?? '[]' ), true );
+	$keep = array();
+	foreach ( (array) $raw as $entry ) {
+		$entry = (string) $entry;
+		if ( strpos( $entry, ':' ) === false ) continue;
+		list( $slug, $key ) = explode( ':', $entry, 2 );
+		$slug = sanitize_key( $slug ); $key = sanitize_key( $key );
+		if ( $slug && $key ) $keep[] = $slug . ':' . $key;
+		if ( count( $keep ) >= 4 ) break;
+	}
+
+	// An empty choice is a real choice: it means "go back to the default
+	// order", not "show nothing". Deleting the meta is what does that.
+	if ( $keep ) update_user_meta( $client_id, 'six_overview_cards', $keep );
+	else         delete_user_meta( $client_id, 'six_overview_cards' );
+
+	wp_send_json_success( array(
+		'saved'   => count( $keep ),
+		'message' => $keep
+			? count( $keep ) . ' card' . ( count( $keep ) === 1 ? '' : 's' ) . ' chosen — their overview updates on the next load.'
+			: 'Cleared. Their overview goes back to the first metrics of each service.',
+	) );
+} );
