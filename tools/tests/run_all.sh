@@ -30,6 +30,7 @@ run "Advisor accepts a figure"      php     tools/tests/test_proposal_accept.php
 run "Deleting + clearing metrics"   php     tools/tests/test_metric_editing.php
 run "Task board + Reports"          php     tools/tests/test_tasks.php
 run "Questionnaire scope + clear"   php     tools/tests/test_questionnaire_scope.php
+run "Reports say what they are"     php     tools/tests/test_reports_meta.php
 run "Content publish gate"          python3 tools/tests/test_content_gate.py
 run "Keyword / topic set shape"      python3 tools/tests/test_keyword_set.py
 run "Strategy readability gate"      python3 tools/tests/test_strategy_language.py

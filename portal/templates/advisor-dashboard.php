@@ -2272,6 +2272,29 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                     <?php endif; ?>
                 </div>
                 <?php endif; ?>
+                <?php
+                /* The day work began. Without it there is no day to compare
+                   either side of, so the customer's chart draws one line —
+                   and no amount of backfilling changes that, because the
+                   date used to be derived from the first reading, which
+                   guaranteed nothing sat before it. One box, and it says
+                   where the current date came from. */
+                $es_src = class_exists('Six_Tracking') ? Six_Tracking::engagement_start_source($view_client_id) : 'none';
+                ?>
+                <div style="background:var(--dark4);border-radius:10px;padding:12px 14px;margin-bottom:12px">
+                    <div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);margin-bottom:6px">Day work began</div>
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                        <input type="date" class="six-input" id="six-start-date" value="<?php echo esc_attr($trk_start); ?>"
+                               style="font-size:12px;padding:7px 10px;max-width:190px">
+                        <button class="six-btn six-btn-primary six-btn-sm" id="six-save-start" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Save</button>
+                        <span style="font-size:10.5px;color:var(--text3)">
+                            <?php if($es_src==='manual'): ?>Set by hand. Clear the box to fall back to the approval date.
+                            <?php elseif($es_src==='approval'): ?>Taken from the date the service was approved.
+                            <?php else: ?><span style="color:var(--warning)">Not set — the customer's chart cannot draw the comparison line without it.</span><?php endif; ?>
+                        </span>
+                    </div>
+                    <div id="six-start-result" style="font-size:11px;margin-top:7px"></div>
+                </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap">
                     <button class="six-btn six-btn-primary six-btn-sm six-sync-tracking" data-client="<?php echo $view_client_id; ?>" data-backfill="1" style="font-size:11px">Backfill all history</button>
                     <button class="six-btn six-btn-ghost six-btn-sm six-sync-tracking" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Sync recent only</button>
@@ -2283,6 +2306,28 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
     </div>
     <script>
     (function(){
+        var sb=document.getElementById('six-save-start');
+        if(sb) sb.addEventListener('click',function(){
+            var box=document.getElementById('six-start-result');
+            var inp=document.getElementById('six-start-date');
+            sb.disabled=true; sb.textContent='Saving…';
+            post({action:'six_set_engagement_start', client_id:sb.dataset.client, date:inp?inp.value:''})
+            .then(function(r){
+                sb.disabled=false; sb.textContent='Save';
+                if(r&&r.success){
+                    var d=r.data||{};
+                    box.style.color=d.ok?'var(--success)':'var(--warning)';
+                    box.textContent=d.message||'Saved.';
+                } else {
+                    box.style.color='var(--danger)';
+                    box.textContent=(r&&r.data)||'Could not save it. Nothing was changed.';
+                }
+            }).catch(function(){
+                sb.disabled=false; sb.textContent='Save';
+                box.style.color='var(--danger)';
+                box.textContent='Could not reach the server. Nothing was changed.';
+            });
+        });
         function resultEl(btn){
             // Nearest result box within this card.
             var card=btn.closest('div[style*="border-radius:14px"]')||btn.parentNode;
@@ -3263,8 +3308,37 @@ function advCompleteOnboarding(clientId){
             <span style="font-size:13px;font-weight:700">Upload Report</span>
         </div>
         <div style="padding:16px 18px">
-            <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;margin-bottom:10px">
-                <div><div style="font-size:10px;color:var(--text3);margin-bottom:4px">Report Title</div><input class="six-input" id="rpt-title" placeholder="e.g. March 2026 Performance Report" style="font-size:12px"></div>
+            <?php /* The client used to see a filename and a date and nothing
+                     else — not which service it covered, not what period it
+                     measured, not whether it was worth opening before the
+                     call. */ ?>
+            <div style="display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:10px;align-items:end;margin-bottom:10px">
+                <div><div style="font-size:10px;color:var(--text3);margin-bottom:4px">Report title</div><input class="six-input" id="rpt-title" placeholder="e.g. March performance" style="font-size:12px"></div>
+                <div><div style="font-size:10px;color:var(--text3);margin-bottom:4px">What it is</div>
+                    <select class="six-input" id="rpt-kind" style="font-size:12px">
+                        <option value="monthly">Monthly performance</option>
+                        <option value="audit">SEO audit</option>
+                        <option value="strategy">Strategy document</option>
+                        <option value="implementation">Implementation log</option>
+                        <option value="other">Something else</option>
+                    </select>
+                </div>
+                <div><div style="font-size:10px;color:var(--text3);margin-bottom:4px">Service</div>
+                    <select class="six-input" id="rpt-service" style="font-size:12px">
+                        <option value="">All services</option>
+                        <?php foreach($svc_def as $rs => $rsd): ?>
+                        <option value="<?php echo esc_attr($rs); ?>"><?php echo esc_html($rsd['name']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                <div><div style="font-size:10px;color:var(--text3);margin-bottom:4px">Period covered — from</div><input type="date" class="six-input" id="rpt-from" style="font-size:12px"></div>
+                <div><div style="font-size:10px;color:var(--text3);margin-bottom:4px">to</div><input type="date" class="six-input" id="rpt-to" style="font-size:12px"></div>
+            </div>
+            <div style="margin-bottom:10px">
+                <div style="font-size:10px;color:var(--text3);margin-bottom:4px">One line on what is in it</div>
+                <input class="six-input" id="rpt-summary" maxlength="200" placeholder="What the client will find inside, in a sentence." style="font-size:12px">
             </div>
             <div style="margin-bottom:10px">
                 <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Upload File (PDF, PNG, JPG — max 10MB)</div>
@@ -4918,6 +4992,12 @@ if(uploadReportBtn) uploadReportBtn.addEventListener('click',function(){
     var fd=new FormData();
     fd.append('action','six_upload_report'); fd.append('nonce',NONCE);
     fd.append('client_id',this.dataset.client); fd.append('title',title);
+    // What it is, which service and which period — so the client's list says
+    // something more than a filename and a date.
+    ['kind','service','from','to','summary'].forEach(function(f){
+        var el=document.getElementById('rpt-'+f);
+        if(el) fd.append({kind:'kind',service:'service_slug',from:'period_start',to:'period_end',summary:'summary'}[f], el.value||'');
+    });
     fd.append('report_file',files[0]);
     var self=this; self.textContent='Uploading…'; self.disabled=true; if(res)res.textContent='';
     fetch(AJAX,{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){

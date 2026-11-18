@@ -966,7 +966,10 @@ if ( $web_proj && $web_proj['total'] > 0 ):
                + 'Solid line: your ' + unit + ', measured daily by ' + (VIS.measured_from === 'ga4' ? 'Google Analytics' : 'Google Search Console') + '. '
                + 'Dashed line, from the day we started' + (VIS.split_on ? ' (' + VIS.split_on + ')' : '') + ': your own trend over the '
                + VIS.fitted_on + ' days before that, carried forward from where you stood on the day.')
-            : (VIS.daily
+            : (VIS.blocker === 'no_start'
+               ? ('Your ' + unit + ', measured daily by ' + (VIS.measured_from === 'ga4' ? 'Google Analytics' : 'Google Search Console') + '. '
+                  + 'The "without us" comparison needs the date the work began, which has not been recorded yet — your advisor can add it.')
+               : VIS.daily
                ? ('Your ' + unit + ', measured daily by ' + (VIS.measured_from === 'ga4' ? 'Google Analytics' : 'Google Search Console') + '. '
                   + (VIS.note || 'There is not yet enough history from before we started to draw a "without us" comparison.'))
                : 'Measured across the services you\'re running with us.'))
@@ -2192,15 +2195,48 @@ $q_done_at = $q_done ? six_strategy_questionnaire_submitted_at( $user_id ) : '';
 <?php elseif($active_tab==='reports'): ?>
 <div class="six-page-header"><div><h1 class="six-page-title">Reports</h1></div></div>
 <div class="six-card"><div class="six-card-body">
+<?php
+/* A row used to be a filename and a date. Nothing said which service the
+   report covered, what period it measured, or what was in it — so a client
+   opening this page before a call could not tell which of five files to
+   read. Everything below is a field the advisor filled in on upload; a
+   report filed before those fields existed simply shows fewer of them. */
+$rep_kinds = array(
+    'audit'          => array('SEO audit', 'What is wrong with the site today, and what it is costing.'),
+    'strategy'       => array('Strategy', 'The plan: what gets built, in what order, and the targets it commits to.'),
+    'monthly'        => array('Monthly performance', 'What moved last month, and what we changed to move it.'),
+    'implementation' => array('Implementation log', 'Every change made on the site, with what it was before.'),
+    'other'          => array('Report', ''),
+);
+$rep_svc = array('seo'=>'SEO','google-ads'=>'Google Ads','google-business'=>'Google Business Profile','website'=>'Website');
+?>
 <?php if(empty($reports)): ?>
 <div style="text-align:center;padding:40px;color:var(--text3)"><div style="margin-bottom:12px;color:var(--text3)"><?php echo class_exists('Six_Icon')?Six_Icon::get('reports','','36px'):''; ?></div>Your advisor will upload monthly reports here once campaigns are running.</div>
-<?php else: foreach($reports as $rep): ?>
-<div class="six-report-row" style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)">
-    <div style="display:flex;align-items:center;gap:12px">
-        <div style="font-size:24px"></div>
-        <div><div style="font-weight:600;font-size:13px"><?php echo esc_html($rep->title); ?></div><div style="font-size:11px;color:var(--text3)"><?php echo date('M j, Y',strtotime($rep->created_at)); ?></div></div>
+<?php else: foreach($reports as $rep):
+    $rk = $rep_kinds[$rep->type ?? 'other'] ?? $rep_kinds['other'];
+    $rs = !empty($rep->service_slug) ? ($rep_svc[$rep->service_slug] ?? $rep->service_slug) : '';
+    $rp = '';
+    if (!empty($rep->period_start) && !empty($rep->period_end)) {
+        $rp = date_i18n('j M', strtotime($rep->period_start)) . ' – ' . date_i18n('j M Y', strtotime($rep->period_end));
+    } elseif (!empty($rep->period)) { $rp = $rep->period; }
+?>
+<div class="six-report-row" style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:14px 0;border-bottom:1px solid var(--border)">
+    <div style="min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px">
+            <span style="font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--pink);background:rgba(255,102,153,.1);padding:2.5px 8px;border-radius:20px"><?php echo esc_html($rk[0]); ?></span>
+            <?php if($rs): ?><span style="font-size:10.5px;color:var(--text3)"><?php echo esc_html($rs); ?></span><?php endif; ?>
+        </div>
+        <div style="font-weight:600;font-size:13px"><?php echo esc_html($rep->title); ?></div>
+        <div style="font-size:11.5px;color:var(--text2);margin-top:2px;line-height:1.5">
+            <?php echo esc_html(!empty($rep->summary) ? $rep->summary : $rk[1]); ?>
+        </div>
+        <div style="font-size:10.5px;color:var(--text3);margin-top:3px">
+            <?php if($rp): ?>Covers <?php echo esc_html($rp); ?> &middot; <?php endif; ?>
+            Added <?php echo esc_html(date_i18n('j M Y', strtotime($rep->created_at))); ?>
+            <?php if(!empty($rep->file_size)): ?> &middot; <?php echo esc_html($rep->file_size); ?><?php endif; ?>
+        </div>
     </div>
-    <?php if($rep->file_url): ?><a href="<?php echo esc_url($rep->file_url); ?>" class="six-btn six-btn-secondary six-btn-sm" target="_blank">↓ Download</a><?php endif; ?>
+    <?php if($rep->file_url): ?><a href="<?php echo esc_url($rep->file_url); ?>" class="six-btn six-btn-secondary six-btn-sm" target="_blank" style="flex-shrink:0">↓ Download</a><?php endif; ?>
 </div>
 <?php endforeach; endif; ?>
 </div></div>

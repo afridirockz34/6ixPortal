@@ -1375,15 +1375,50 @@ add_action( 'wp_ajax_six_upload_report', function() {
 
     if ( ! $file_url ) wp_send_json_error( 'No file or URL provided' );
 
-    $wpdb->insert( $wpdb->prefix . 'six_reports', array(
+    /* What the report is, not just what it is called.
+     *
+     * A client opening Reports saw a row of filenames and a date. "March 2026
+     * Performance Report" tells them nothing about which service it covers,
+     * what period it measures, or whether it is worth opening before the
+     * call. Four fields fix that, and the kind is a controlled list so the
+     * list can be grouped rather than sorted by whatever got typed.
+     */
+    $kinds = array( 'audit', 'strategy', 'monthly', 'implementation', 'other' );
+    $kind  = sanitize_key( $_POST['kind'] ?? 'monthly' );
+    if ( ! in_array( $kind, $kinds, true ) ) $kind = 'monthly';
+
+    $row = array(
         'client_id'  => $client_id,
         'advisor_id' => get_current_user_id(),
         'title'      => $title,
-        'type'       => 'monthly',
+        'type'       => $kind,
         'file_url'   => $file_url,
         'file_size'  => $file_size,
         'period'     => sanitize_text_field( $_POST['period'] ?? '' ),
-    ) );
+    );
+
+    // Only if the columns are actually there. A write naming a column that
+    // does not exist fails the whole statement under MySQL strict mode, so
+    // the report would be lost rather than filed without its summary.
+    if ( function_exists( 'six_reports_ensure_columns' ) ) six_reports_ensure_columns();
+    $cols = array_map( 'strtolower', (array) $wpdb->get_col( "SHOW COLUMNS FROM {$wpdb->prefix}six_reports", 0 ) );
+    if ( in_array( 'service_slug', $cols, true ) ) $row['service_slug'] = sanitize_key( $_POST['service_slug'] ?? '' );
+    if ( in_array( 'summary', $cols, true ) )      $row['summary']      = sanitize_textarea_field( wp_unslash( $_POST['summary'] ?? '' ) );
+    foreach ( array( 'period_start', 'period_end' ) as $d ) {
+        if ( ! in_array( $d, $cols, true ) ) continue;
+        $raw = sanitize_text_field( $_POST[ $d ] ?? '' );
+        $ts  = $raw ? strtotime( $raw ) : false;
+        if ( $ts ) $row[ $d ] = gmdate( 'Y-m-d', $ts );
+    }
+
+    $wpdb->suppress_errors( true );
+    $ok  = $wpdb->insert( $wpdb->prefix . 'six_reports', $row );
+    $err = $wpdb->last_error;
+    $wpdb->suppress_errors( false );
+    if ( $ok === false ) {
+        error_log( '6ix reports: upload failed for client ' . $client_id . ' — ' . $err );
+        wp_send_json_error( 'The report was uploaded but could not be filed: ' . ( $err ?: 'the database refused it' ) );
+    }
     Six_Notifications::create( array(
         'user_id'    => $client_id, 'type' => 'report_uploaded',
         'title'      => 'New Report Available',
@@ -3785,5 +3820,42 @@ add_action( 'wp_ajax_six_publish_tasks', function () {
 		'message' => $res['count']
 			? sprintf( '%d task%s %s.', $res['count'], $res['count'] === 1 ? '' : 's', $publish ? 'published' : 'unpublished' )
 			: 'Nothing changed — every task was already ' . ( $publish ? 'published' : 'a draft' ) . '.',
+	) );
+} );
+
+/**
+ * The day work began, set by hand.
+ *
+ * This is what the customer's chart splits on, and without it there is no
+ * "without us" line at all. It used to fall back to the first day we had any
+ * reading, which guaranteed zero readings before the start and so guaranteed
+ * no second line — and Backfill made it worse rather than better. One box
+ * fixes it, which is the point: a feature gated on data nobody could create
+ * is the failure this codebase keeps repeating.
+ */
+add_action( 'wp_ajax_six_set_engagement_start', function () {
+	check_ajax_referer( 'six_nonce', 'nonce' );
+	if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+	if ( ! class_exists( 'Six_Tracking' ) ) wp_send_json_error( 'Tracking is not available on this site.' );
+
+	$client_id = intval( $_POST['client_id'] ?? 0 );
+	if ( ! $client_id ) wp_send_json_error( 'Missing client.' );
+
+	$res = Six_Tracking::set_engagement_start( $client_id, sanitize_text_field( wp_unslash( $_POST['date'] ?? '' ) ) );
+	if ( ! $res['ok'] ) wp_send_json_error( $res['error'] );
+
+	// Say immediately whether that was enough, rather than leaving the
+	// advisor to reload the customer's dashboard and guess.
+	$diag = Six_Tracking::baseline_diagnosis( $client_id, 'gsc_clicks', array( gmdate( 'Y-m-d' ) ) );
+	wp_send_json_success( array(
+		'date'    => $res['date'],
+		'source'  => Six_Tracking::engagement_start_source( $client_id ),
+		'ok'      => $diag['ok'],
+		'blocker' => $diag['blocker'],
+		'message' => $res['date']
+			? ( $diag['ok']
+				? 'Set. The comparison line will draw on their dashboard.'
+				: $diag['message'] )
+			: 'Cleared — the date falls back to when the service was approved.',
 	) );
 } );

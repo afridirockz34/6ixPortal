@@ -601,13 +601,64 @@ function six_create_tables() {
     }
 
     six_migrate_assignments_multi_advisor();
+    six_reports_ensure_columns();
+}
+
+/**
+ * Columns six_reports grew after it was first created.
+ *
+ * Added explicitly rather than by editing the CREATE statement above, because
+ * dbDelta does NOT alter an existing table when the statement says
+ * `CREATE TABLE IF NOT EXISTS` — its table-name regex captures `IF`, so a
+ * column added to that string is never applied to a live database. This
+ * codebase has lost writes that way before.
+ *
+ * Gated on a signature of what is wanted, so the SHOW COLUMNS costs nothing
+ * on a normal request.
+ *
+ * @return array{added:string[],failed:array<string,string>}
+ */
+function six_reports_ensure_columns( $force = false ) {
+    global $wpdb;
+    $out  = array( 'added' => array(), 'failed' => array() );
+    $need = array(
+        'service_slug' => "varchar(50) DEFAULT ''",
+        'summary'      => "text",
+        'period_start' => 'date DEFAULT NULL',
+        'period_end'   => 'date DEFAULT NULL',
+    );
+    $sig = md5( wp_json_encode( $need ) );
+    if ( ! $force && get_option( 'six_reports_cols_sig' ) === $sig ) return $out;
+
+    $tbl = $wpdb->prefix . 'six_reports';
+    if ( ! six_table_exists( $tbl ) ) return $out;   // created on the next pass
+
+    $have = array();
+    foreach ( (array) $wpdb->get_results( "SHOW COLUMNS FROM {$tbl}", ARRAY_A ) as $c ) {
+        $have[ strtolower( $c['Field'] ) ] = true;
+    }
+
+    $wpdb->suppress_errors( true );
+    foreach ( $need as $col => $def ) {
+        if ( isset( $have[ strtolower( $col ) ] ) ) continue;
+        if ( $wpdb->query( "ALTER TABLE {$tbl} ADD COLUMN `{$col}` {$def}" ) === false ) {
+            $out['failed'][ $col ] = $wpdb->last_error ?: 'could not add column';
+            error_log( '6ix reports: could not add column ' . $col . ' — ' . $wpdb->last_error );
+        } else {
+            $out['added'][] = $col;
+        }
+    }
+    $wpdb->suppress_errors( false );
+
+    if ( ! $out['failed'] ) update_option( 'six_reports_cols_sig', $sig, true );
+    return $out;
 }
 
 /**
  * The schema version. Bump this whenever a table is added or changed in
  * six_create_tables(), and the next page load creates it.
  */
-const SIX_DB_VERSION = '2026.11.17.1';
+const SIX_DB_VERSION = '2026.11.18.1';
 
 /**
  * Run six_create_tables() when the code's schema version moves ahead of what

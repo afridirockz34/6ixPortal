@@ -918,6 +918,9 @@ class Six_Dash_Metrics {
 				'started_on'     => $start,
 				'window_days'    => count( $points ),
 				'projected_from' => $has_proj && $split !== null ? 'fit' : 'none',
+				// Which of the three requirements is missing, so the caption
+				// can name it rather than saying the line is simply absent.
+				'blocker'        => $split === null && $has_proj ? 'no_start' : (string) ( $daily['blocker'] ?? '' ),
 				'metric'         => $metric_label[ $daily['metric'] ] ?? $daily['metric'],
 				'measured_from'  => $daily['source'] ?? '',
 				'fitted_on'      => (int) ( $daily['fitted_on'] ?? 0 ),
