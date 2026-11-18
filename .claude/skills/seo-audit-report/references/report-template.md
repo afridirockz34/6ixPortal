@@ -276,9 +276,48 @@ that calls correct markup a mistake loses the room.
 8. **One section per weakness** with a real finding. Finding, why it matters in
    business terms, severity, and a one-sentence teaser of what addressing it
    involves.
-9. **Closing** — names the service that addresses the findings (not a generic
-   "contact us for SEO help") and a clear, specific next step. The only place
-   the report explicitly pitches.
+9. **The two plans** — what a twelve-month engagement covers and what a
+   six-month one covers, side by side. See below.
+10. **Closing** — names the service that addresses the findings (not a generic
+    "contact us for SEO help") and a clear, specific next step. The only place
+    the report explicitly pitches.
+
+### `plans` — the same two options in every audit
+
+The audit is identical for every prospect, and it ends with both plans so
+they can see what they are choosing between before anybody quotes them. The
+strategy document is the one that is built for whichever they bought —
+`seo-strategy-builder/references/engagement-plans.md` has both in full, and
+the advisor records the choice when they set the service up, which is what a
+later session reads out of `commercial.plan_terms`.
+
+```json
+"plans": {
+  "lede": "Two ways to do this work. Both start with the same foundation.",
+  "rows": [
+    {"item": "Length", "twelve": "12 months", "six": "6 months"},
+    {"item": "Blog posts written", "twelve": "~40", "six": "~15"},
+    {"item": "Service pages", "twelve": "Full set", "six": "The highest-priority half"},
+    {"item": "Backlinks", "twelve": "Tiers 1–3, then ongoing digital PR", "six": "Tiers 1–3"},
+    {"item": "Quarterly content refresh", "twelve": "Included", "six": "—"},
+    {"item": "Competitor watch", "twelve": "Included", "six": "—"}
+  ],
+  "note": "The technical fixes, the titles and meta on existing pages, the URL
+           changes and the Google Business Profile work are the same on both.
+           They are finite, and everything else is built on them."
+}
+```
+
+**No price in this block, ever.** Plans and their contents live in the
+document; what they cost is a conversation, and a figure written into an
+audit is a figure somebody has to honour a year later. The same rule applies
+to the strategy document.
+
+**The six-month column is not a worse version of the same thing.** Both plans
+get the whole foundation; what the year adds is the compounding half — the
+long tail of content, the digital PR that takes months to land, and the two
+extras. Writing it any other way makes the six-month plan look like a
+penalty, which is not what it is.
 
 ## Which visual, and when
 

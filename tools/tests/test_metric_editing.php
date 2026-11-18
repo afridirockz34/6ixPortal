@@ -107,5 +107,31 @@ check( 'a maintenance client with no other services still sees the billing table
 check( 'and a fee nobody set reads as unset rather than as $0',
 	strpos( $cust, 'fee not set' ) !== false );
 
+// ── A metric the advisor removed in the setup wizard actually goes ───────
+//
+// The × took the row off the page and the save handler only ever upserted:
+// a row that was absent from the payload read as "nothing to say about it",
+// so it stayed exactly where it was. The advisor watched it disappear, saved,
+// and found it still on the customer's dashboard.
+$setup = substr( $ajax, strpos( $ajax, "wp_ajax_six_save_service_setup" ), 14000 );
+check( 'the setup save removes rows that were taken off the list',
+	strpos( $setup, 'label NOT IN' ) !== false,
+	'the handler only upserts, so the cross button changes nothing' );
+check( 'but never the rows the catalog loop owns',
+	strpos( $setup, '$kpi_labels' ) !== false,
+	'the sweep would wipe every stat-card metric' );
+check( 'a client with every row removed has them all removed',
+	strpos( $setup, "DELETE FROM {\$mt} WHERE client_id=%d AND service_slug=%s\", \$client_id, \$slug" ) !== false
+	|| strpos( $setup, 'WHERE client_id=%d AND service_slug=%s", $client_id, $slug' ) !== false,
+	'an empty keep-list needs its own statement, not an empty IN ()' );
+check( 'the delete is scoped to this one service',
+	substr_count( $setup, 'AND service_slug=%s' ) >= 2 );
+check( 'a refused delete is reported rather than counted as a save',
+	strpos( $setup, "\$kpi_failed['_removed']" ) !== false );
+check( 'and the count of what went comes back',
+	strpos( $setup, "'metrics_removed'" ) !== false );
+check( 'which the wizard shows, because the cross used to look like it worked',
+	strpos( $adv, 'removed from their dashboard' ) !== false );
+
 echo "\nPassed: $pass  Failed: $fail\n";
 exit( $fail ? 1 : 0 );

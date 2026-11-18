@@ -989,11 +989,14 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
     <!-- ── INTERNAL NAVIGATION TABS ──────────────────────────────────── -->
     <div class="six-client-tabs">
         <?php foreach(array(
+            /* Activity is gone — its one panel is now on Overview, where
+               an advisor opening a client is already looking. "AI Strategy"
+               is just Strategy: the recommendations are the point, not the
+               thing that drafted them. */
             'overview'     => array('icon'=>'', 'label'=>'Overview',          'short'=>'Overview'),
             'services'     => array('icon'=>'', 'label'=>'Services',          'short'=>'Services'),
-            'ai'           => array('icon'=>'', 'label'=>'AI Strategy',       'short'=>'AI'),
+            'strategy'     => array('icon'=>'', 'label'=>'Strategy',          'short'=>'Strategy'),
             'datasources'  => array('icon'=>'', 'label'=>'Data Sources',      'short'=>'Data'),
-            'activity'     => array('icon'=>'', 'label'=>'Activity',          'short'=>'Activity'),
             'profile'      => array('icon'=>'', 'label'=>'Client Profile',    'short'=>'Profile'),
             'reports'      => array('icon'=>'', 'label'=>'Reports',           'short'=>'Reports')) as $ctab_key => $ctab_def): ?>
         <a href="<?php echo $base_url; ?>&ctab=<?php echo $ctab_key; ?>"
@@ -1150,43 +1153,102 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
     </div>
     <?php endif; ?>
 
-    <!-- ═══════════════════════ CTAB: SERVICES & METRICS ═══════════════════════ -->
-    <?php elseif($ctab==='services'): ?>
-
-    <!-- ══ Two-tab metrics system: Overview KPIs vs Live Service Metrics ══ -->
-    <div style="display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid var(--border)">
-        <button type="button" class="six-mtab active" data-mtab="overview"
-            style="background:none;border:none;border-bottom:2px solid var(--cyan);color:var(--text1);font-size:13px;font-weight:700;padding:10px 14px;cursor:pointer">Overview KPIs</button>
-        <button type="button" class="six-mtab" data-mtab="services"
-            style="background:none;border:none;border-bottom:2px solid transparent;color:var(--text3);font-size:13px;font-weight:700;padding:10px 14px;cursor:pointer">Live Service Metrics</button>
+    <?php
+    /* Which four numbers the client sees first.
+     *
+     * The overview used to take the first metrics of each active service in
+     * catalog order, so every SEO client led with the same four whatever
+     * their business cared about. Four slots, chosen here. Choosing none
+     * means the old order, which is a real answer rather than an empty
+     * dashboard. */
+    $oc_choices = class_exists('Six_Dash_Metrics')
+        ? Six_Dash_Metrics::card_choices( array_column( (array) $c_active_svcs_arr, 'service_slug' ) ) : array();
+    $oc_chosen  = class_exists('Six_Dash_Metrics') ? Six_Dash_Metrics::chosen_cards( $view_client_id ) : array();
+    $oc_ids     = array_map( function($c){ return $c['slug'].':'.$c['key']; }, $oc_chosen );
+    if ( $oc_choices ):
+    ?>
+    <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px">
+        <div style="padding:13px 18px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap">
+            <span style="font-size:13px;font-weight:700">The four numbers on their overview</span>
+            <span style="font-size:10.5px;color:var(--text3)"><?php echo $oc_ids ? count($oc_ids).' chosen' : 'Not chosen — showing the first of each service'; ?></span>
+        </div>
+        <div style="padding:14px 18px">
+            <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Pick up to four. A card with nothing measured and no figure from you shows a dash and names the account to connect — it never shows a benchmark.</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:7px">
+                <?php foreach($oc_choices as $ch): $on = in_array($ch['id'], $oc_ids, true); ?>
+                <label style="display:flex;align-items:flex-start;gap:8px;padding:9px 11px;border:1px solid <?php echo $on?'rgba(255,102,153,.35)':'var(--border)'; ?>;border-radius:9px;cursor:pointer;background:<?php echo $on?'rgba(255,102,153,.06)':'transparent'; ?>">
+                    <input type="checkbox" class="oc-pick" value="<?php echo esc_attr($ch['id']); ?>" <?php checked($on); ?> style="margin-top:2px">
+                    <span style="min-width:0">
+                        <span style="display:block;font-size:12px;font-weight:600;color:var(--text1)"><?php echo esc_html($ch['label']); ?></span>
+                        <span style="display:block;font-size:10px;color:var(--text3)"><?php echo esc_html($ch['service']); ?><?php if($ch['unit']): ?> &middot; <?php echo esc_html($ch['unit']); ?><?php endif; ?></span>
+                    </span>
+                </label>
+                <?php endforeach; ?>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;margin-top:11px;flex-wrap:wrap">
+                <button class="six-btn six-btn-primary six-btn-sm" id="oc-save" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Save</button>
+                <span id="oc-count" style="font-size:10.5px;color:var(--text3)"></span>
+                <span id="oc-result" style="font-size:11px"></span>
+            </div>
+        </div>
     </div>
     <script>
     (function(){
-        document.querySelectorAll('.six-mtab').forEach(function(tab){
-            tab.addEventListener('click',function(){
-                var target=this.dataset.mtab;
-                document.querySelectorAll('.six-mtab').forEach(function(t){
-                    var on=t.dataset.mtab===target;
-                    t.style.borderBottomColor=on?'var(--cyan)':'transparent';
-                    t.style.color=on?'var(--text1)':'var(--text3)';
-                    t.classList.toggle('active',on);
-                });
-                document.querySelectorAll('[data-mpane]').forEach(function(p){
-                    p.style.display=p.dataset.mpane===target?'':'none';
-                });
+        var picks=function(){ return Array.prototype.slice.call(document.querySelectorAll('.oc-pick:checked')); };
+        var count=document.getElementById('oc-count');
+        function tally(){
+            var n=picks().length;
+            // Four slots. The fifth tick is refused here rather than silently
+            // dropped on save, which would leave the advisor believing they
+            // had chosen something they had not.
+            document.querySelectorAll('.oc-pick').forEach(function(c){ c.disabled = (!c.checked && n>=4); });
+            if(count) count.textContent = n ? n+' of 4 chosen' : 'None chosen — the default order is used';
+        }
+        document.querySelectorAll('.oc-pick').forEach(function(c){ c.addEventListener('change',tally); });
+        tally();
+        var b=document.getElementById('oc-save');
+        if(b) b.addEventListener('click',function(){
+            var res=document.getElementById('oc-result');
+            b.disabled=true; b.textContent='Saving…';
+            post({action:'six_save_overview_cards', client_id:b.dataset.client,
+                  cards:JSON.stringify(picks().map(function(c){return c.value;}))})
+            .then(function(r){
+                b.disabled=false; b.textContent='Save';
+                if(res){ res.style.color = (r&&r.success)?'var(--success)':'var(--danger)';
+                         res.textContent = (r&&r.success)?(r.data.message||'Saved.'):((r&&r.data)||'Could not save it.'); }
+            }).catch(function(){
+                b.disabled=false; b.textContent='Save';
+                if(res){ res.style.color='var(--danger)'; res.textContent='Could not reach the server. Nothing was changed.'; }
             });
         });
     })();
     </script>
+    <?php endif; ?>
 
-    <!-- ── TAB 1: Overview KPIs — the customer dashboard's top cards ── -->
-    <div data-mpane="overview">
+    <?php
+    /* Moved here from the Services tab and the Activity tab.
+     *
+     * Overview is where an advisor lands when they open a client, so it is
+     * where the two things they need first belong: whether the client has
+     * answered the questionnaire, and what has been said to them lately.
+     * Activity was a whole tab for one panel. */
+    ?>
+    <?php if ( empty($cq_vis) || !empty($cq_vis['show']) ): ?>
+
     <!-- ── SEO questionnaire progress ── -->
     <?php
-    $cq_slugs = (array) $wpdb->get_col( $wpdb->prepare(
-        "SELECT service_slug FROM {$wpdb->prefix}six_client_services WHERE client_id=%d AND status='active'",
-        $view_client_id
-    ) );
+    /* The questions they were actually given. Reading the live service list
+       here is what made a finished questionnaire sprout new questions when a
+       second service went live. */
+    $cq_slugs = function_exists('six_questionnaire_client_slugs')
+        ? six_questionnaire_client_slugs( $view_client_id )
+        : (array) $wpdb->get_col( $wpdb->prepare(
+            "SELECT service_slug FROM {$wpdb->prefix}six_client_services WHERE client_id=%d AND status='active'",
+            $view_client_id ) );
+    $cq_vis = function_exists('six_questionnaire_visible')
+        ? six_questionnaire_visible( $view_client_id ) : array('show'=>true,'clears_on'=>'');
+    $cq_gap = function_exists('six_questionnaire_scope_gap')
+        ? six_questionnaire_scope_gap( $view_client_id ) : array();
     $cq = function_exists('six_seo_questionnaire_progress')
         ? six_seo_questionnaire_progress($view_client_id, $cq_slugs, 'strategy') : null;
     $cq_issued = function_exists('six_strategy_questionnaire_issued')
@@ -1276,232 +1338,210 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
     </div>
     <?php endif; ?>
 
-    <!-- ── Website build + maintenance (advisor-only controls) ── -->
+        <?php endif; ?>
+
+    <?php if ( !empty($cq_gap) ): ?>
+    <div style="background:rgba(227,179,65,0.06);border:1px solid rgba(227,179,65,0.25);border-radius:12px;padding:13px 16px;margin-bottom:20px">
+        <div style="font-size:12px;font-weight:700;color:var(--warning);margin-bottom:3px">A service was activated after the questionnaire went out</div>
+        <div style="font-size:11.5px;color:var(--text2);line-height:1.55">
+            The questionnaire never asked about
+            <?php
+            $gap_names = array();
+            foreach($cq_gap as $gs){ $gap_names[] = $svc_def[$gs]['name'] ?? $gs; }
+            echo esc_html(implode(', ', $gap_names));
+            ?>. Re-issue it to add those questions — the client keeps every answer they have already given.
+        </div>
+    </div>
+    <?php endif; ?>
+
+
+
     <?php
-    $wp_rows  = class_exists('Six_Website_Project') ? Six_Website_Project::milestones($view_client_id) : array();
-    $wp_prog  = class_exists('Six_Website_Project') ? Six_Website_Project::progress($view_client_id)   : array('percent'=>0,'done'=>0,'total'=>0);
-    $wp_maint = class_exists('Six_Website_Project') && Six_Website_Project::maintenance_on($view_client_id);
-    $wp_fee   = class_exists('Six_Website_Project') ? Six_Website_Project::maintenance_fee($view_client_id) : 0;
+    // Communication history — every email/SMS this lead has actually been
+    // sent, at every stage (onboarding abandon nudge, the shared recovery
+    // sequence, admin notices excluded), read straight from Odoo's chatter —
+    // the same place Six_Odoo::log_communication()/send_email_odoo() already
+    // log every send to, so there's nothing new to keep in sync here.
+    $c_odoo_lead_id = intval( get_user_meta( $view_client_id, 'six_odoo_lead_id', true ) );
+    $c_messages     = ( $c_odoo_lead_id && class_exists( 'Six_Odoo' ) ) ? Six_Odoo::get_lead_messages( $c_odoo_lead_id, 100 ) : array();
+    $c_msg_colors   = array( 'Email' => 'var(--cyan)', 'SMS' => 'var(--success)', 'Portal Message' => 'var(--pink)', 'Call' => 'var(--warning)', 'Note' => 'var(--text3)' );
     ?>
-    <div style="background:var(--dark3);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px" id="wp-panel" data-client="<?php echo intval($view_client_id); ?>">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px;flex-wrap:wrap">
-            <div>
-                <div style="font-size:14px;font-weight:700;color:var(--text1)">Website Build &amp; Maintenance</div>
-                <div style="font-size:11px;color:var(--text3);margin-top:2px;max-width:520px">
-                    Milestones drive the progress bar on the client's dashboard. Maintenance is a recurring add-on only you can switch on — the client can't buy it themselves.
-                </div>
+    <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px">
+        <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:13px;font-weight:700">Communication History</span>
+            <?php if ( $c_odoo_lead_id && get_option( 'six_odoo_url' ) ) : ?>
+            <a href="<?php echo esc_url( rtrim( get_option( 'six_odoo_url' ), '/' ) . '/odoo/crm/' . $c_odoo_lead_id ); ?>" target="_blank" rel="noopener" style="font-size:11px;color:var(--cyan);text-decoration:none">Full record in Odoo →</a>
+            <?php endif; ?>
+        </div>
+        <?php if ( ! $c_odoo_lead_id ) : ?>
+        <div style="padding:32px;text-align:center;color:var(--text3);font-size:13px">Not synced to Odoo yet — nothing to show.</div>
+        <?php elseif ( empty( $c_messages ) ) : ?>
+        <div style="padding:32px;text-align:center;color:var(--text3);font-size:13px">No emails or texts have gone out to this lead yet.</div>
+        <?php else : ?>
+        <div style="padding:14px 18px;max-height:480px;overflow-y:auto">
+        <?php foreach ( $c_messages as $msg ) :
+            $mcolor = $c_msg_colors[ $msg['channel'] ] ?? 'var(--text3)';
+            $lines  = explode( "\n", $msg['body'] );
+            $first  = array_shift( $lines );
+            $rest   = trim( implode( "\n", $lines ) );
+        ?>
+        <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px">
+            <div style="width:30px;height:30px;border-radius:8px;background:<?php echo $mcolor; ?>15;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:<?php echo $mcolor; ?>;flex-shrink:0"><?php echo esc_html( strtoupper( substr( $msg['channel'], 0, 1 ) ) ); ?></div>
+            <div style="flex:1;min-width:0;padding-top:2px">
+                <div style="font-size:11px;font-weight:700;color:<?php echo $mcolor; ?>"><?php echo esc_html( $msg['channel'] ); ?><?php if ( $msg['direction'] ) : ?> · <?php echo esc_html( $msg['direction'] ); ?><?php endif; ?></div>
+                <div style="font-size:12.5px;line-height:1.6;margin-top:2px"><?php echo esc_html( $first ); ?></div>
+                <?php if ( $rest !== '' ) : ?>
+                <div style="font-size:11.5px;color:var(--text3);line-height:1.6;margin-top:4px;white-space:pre-wrap"><?php echo esc_html( $rest ); ?></div>
+                <?php endif; ?>
+                <div style="font-size:10px;color:var(--text3);margin-top:4px"><?php echo $msg['date'] ? esc_html( date_i18n( 'M j, Y \a\t g:i a', strtotime( $msg['date'] ) ) ) : ''; ?></div>
             </div>
-            <div style="font-family:var(--font-head);font-size:20px;font-weight:800;color:var(--text1)" id="wp-pct"><?php echo intval($wp_prog['percent']); ?>%</div>
         </div>
+        <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+    </div>
 
-        <!-- Maintenance toggle -->
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--dark2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:16px">
-            <label style="display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--text1);cursor:pointer">
-                <input type="checkbox" id="wp-maint" <?php checked($wp_maint); ?> style="width:16px;height:16px;accent-color:var(--pink);cursor:pointer">
-                Website maintenance active
-            </label>
-            <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text3)">
-                <span>$</span>
-                <input class="ob-input" type="number" min="0" step="1" id="wp-fee" value="<?php echo $wp_fee ? esc_attr(number_format($wp_fee,0,'.','')) : ''; ?>" placeholder="0" style="width:90px;font-size:12px;padding:6px 10px">
-                <span>/mo</span>
+    <?php
+    // Build unified activity feed
+    $activity = array();
+    foreach((array)$c_svcs as $s){
+        $activity[]=array('time'=>strtotime($s->created_at??'now'),'icon'=>'◈','color'=>'var(--cyan)','text'=>"Service request: <strong>".esc_html($s->service_name)."</strong> — ".ucfirst($s->status));
+    }
+    foreach((array)$c_recs as $r){
+        $activity[]=array('time'=>strtotime($r->created_at??'now'),'icon'=>'','color'=>'var(--pink)','text'=>"Recommendation: <strong>".esc_html($r->title)."</strong> — ".ucfirst($r->status));
+    }
+    foreach((array)$c_reports as $r){
+        $activity[]=array('time'=>strtotime($r->created_at??'now'),'icon'=>'','color'=>'var(--success)','text'=>"Report uploaded: <strong>".esc_html($r->title)."</strong>");
+    }
+    usort($activity, function($a,$b){ return $b['time'] - $a['time']; });
+    ?>
+
+    <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px">
+        <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.05)">
+            <span style="font-size:13px;font-weight:700">Activity Timeline</span>
+        </div>
+        <?php if(empty($activity)): ?>
+        <div style="padding:32px;text-align:center;color:var(--text3);font-size:13px">No activity yet for this client.</div>
+        <?php else: ?>
+        <div style="padding:14px 18px">
+        <?php foreach($activity as $act): ?>
+        <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px">
+            <div style="width:30px;height:30px;border-radius:8px;background:<?php echo $act['color']; ?>15;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0"><?php echo $act['icon']; ?></div>
+            <div style="flex:1;min-width:0;padding-top:4px">
+                <div style="font-size:12px;line-height:1.6"><?php echo $act['text']; ?></div>
+                <div style="font-size:10px;color:var(--text3);margin-top:2px"><?php echo human_time_diff($act['time'],time()); ?> ago</div>
             </div>
-            <span id="wp-maint-msg" style="font-size:11px;color:var(--success)"></span>
         </div>
+        <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+    </div>
 
-        <!-- Milestones -->
-        <div id="wp-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px"></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <input class="ob-input" type="text" id="wp-new" placeholder="Add a milestone — e.g. Content handover" style="flex:1;min-width:220px;font-size:12px;padding:8px 12px">
-            <button class="six-btn six-btn-primary six-btn-sm" id="wp-add" style="font-size:11px">Add</button>
-            <button class="six-btn six-btn-ghost six-btn-sm" id="wp-seed" style="font-size:11px">Use standard milestones</button>
+    <!-- Budget change requests log -->
+    <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;overflow:hidden">
+        <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.05)">
+            <span style="font-size:13px;font-weight:700">Budget Change Requests</span>
         </div>
+        <div style="padding:0">
+        <?php $has_reqs=false;
+        foreach($c_budget_reqs as $row){
+            $rd=maybe_unserialize($row->req_data);
+            if(!is_array($rd))continue; $has_reqs=true;
+            $sd2=$svc_def[$row->service_slug]??array('icon'=>'','color'=>'var(--pink)');
+            $status=$rd['status']??'pending';
+            $sc=$status==='approved'?'var(--success)':($status==='declined'?'var(--danger)':'var(--warning)');
+        ?>
+        <div style="padding:12px 18px;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <span style="font-size:13px"><?php echo $sd2['icon']; ?></span>
+            <span style="font-size:12px;font-weight:600"><?php echo esc_html($row->service_name); ?></span>
+            <span style="font-size:12px;color:var(--text3)">$<?php echo number_format($row->budget,0); ?> → $<?php echo number_format($rd['requested_budget']??0,0); ?>/mo</span>
+            <span style="margin-left:auto;font-size:11px;color:<?php echo $sc; ?>;font-weight:700;text-transform:capitalize"><?php echo $status; ?></span>
+            <?php if($status==='pending'): ?>
+            <div style="display:flex;gap:6px">
+                <button class="six-btn six-btn-primary six-btn-sm six-adv-approve-budget" data-service-id="<?php echo $row->id; ?>" data-budget="<?php echo intval($rd['requested_budget']??0); ?>" style="font-size:11px">Approve</button>
+                <button class="six-btn six-btn-ghost six-btn-sm six-adv-decline-budget" data-service-id="<?php echo $row->id; ?>" style="font-size:11px">Decline</button>
+            </div>
+            <?php endif; ?>
+        </div>
+        <?php } if(!$has_reqs): ?>
+        <div style="padding:24px;text-align:center;color:var(--text3);font-size:12px">No budget change requests.</div>
+        <?php endif; ?>
+        </div>
+    </div>
+
+
+    <!-- ═══════════════════════ CTAB: SERVICES & METRICS ═══════════════════════ -->
+    <?php elseif($ctab==='services'): ?>
+
+    <?php
+    /* One tab per service, rather than a stack of every service we sell.
+     *
+     * The page used to render all four — Google Ads, SEO, Google Business
+     * Profile, Website — for every client, with "Not requested" under three
+     * of them. An advisor scrolled past most of the page to reach the one
+     * service the client actually pays for. The tabs are the services they
+     * have; everything else is reachable from the Profile tab, where a
+     * service gets added in the first place.
+     */
+    $svc_live = array();
+    foreach($svc_def as $slug => $sd_item){
+        foreach($c_svcs as $s){
+            if($s->service_slug===$slug && in_array($s->status, array('active','pending'), true)){
+                $svc_live[$slug] = $sd_item; break;
+            }
+        }
+    }
+    $svc_first = $svc_live ? array_key_first($svc_live) : '';
+    ?>
+    <?php if(!$svc_live): ?>
+    <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:40px;text-align:center">
+        <div style="font-size:14px;font-weight:600;margin-bottom:6px">No services yet</div>
+        <p style="font-size:12.5px;color:var(--text3);max-width:420px;margin:0 auto">
+            Add a service from the <a href="<?php echo $base_url; ?>&ctab=profile" style="color:var(--cyan)">Profile tab</a>.
+            Each one gets its own tab here once it is requested or active.
+        </p>
+    </div>
+    <?php else: ?>
+
+    <div class="six-svctabs" style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border);flex-wrap:wrap">
+        <?php foreach($svc_live as $slug => $sd_item): ?>
+        <button type="button" class="six-svctab" data-svc="<?php echo esc_attr($slug); ?>"
+            style="background:none;border:none;border-bottom:2px solid <?php echo $slug===$svc_first?$sd_item['color']:'transparent'; ?>;
+                   color:<?php echo $slug===$svc_first?'var(--text1)':'var(--text3)'; ?>;font-size:13px;font-weight:700;
+                   padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:7px">
+            <span style="display:flex"><?php echo $sd_item['icon']; ?></span><?php echo esc_html($sd_item['name']); ?>
+        </button>
+        <?php endforeach; ?>
     </div>
     <script>
     (function(){
-      var panel=document.getElementById('wp-panel'); if(!panel) return;
-      var CLIENT=panel.getAttribute('data-client');
-      var list=document.getElementById('wp-list');
-      var rows=<?php echo wp_json_encode(array_map(function($r){
-          return array('id'=>intval($r->id),'title'=>$r->title,'status'=>$r->status);
-      }, (array)$wp_rows)); ?>;
-
-      function post(data){
-        return fetch(sixPortal.ajax_url,{method:'POST',credentials:'same-origin',
-          headers:{'Content-Type':'application/x-www-form-urlencoded'},
-          body:new URLSearchParams(Object.assign({nonce:sixPortal.nonce,client_id:CLIENT},data))
-        }).then(function(r){return r.json();});
-      }
-      function pct(){
-        if(!rows.length) return 0;
-        var done=rows.filter(function(r){return r.status==='done';}).length;
-        return Math.round(done/rows.length*100);
-      }
-      function render(){
-        document.getElementById('wp-pct').textContent=pct()+'%';
-        if(!rows.length){
-          list.innerHTML='<div style="font-size:12px;color:var(--text3);padding:6px 0">No milestones yet — add one, or start from the standard set.</div>';
-          return;
+        var tabs=document.querySelectorAll('.six-svctab');
+        var colours={<?php $cj=array(); foreach($svc_live as $s2=>$d2) $cj[]="'".esc_js($s2)."':'".esc_js($d2['color'])."'"; echo implode(',', $cj); ?>};
+        function show(slug){
+            tabs.forEach(function(b){
+                var on=b.dataset.svc===slug;
+                b.style.borderBottomColor=on?(colours[b.dataset.svc]||'var(--cyan)'):'transparent';
+                b.style.color=on?'var(--text1)':'var(--text3)';
+            });
+            document.querySelectorAll('[data-svcpane]').forEach(function(p){
+                p.style.display=p.dataset.svcpane===slug?'':'none';
+            });
+            try{ localStorage.setItem('six_adv_svctab_<?php echo intval($view_client_id); ?>', slug); }catch(e){}
         }
-        list.innerHTML=rows.map(function(r){
-          var done=r.status==='done';
-          return '<div style="display:flex;align-items:center;gap:10px;background:var(--dark2);border:1px solid var(--border);border-radius:8px;padding:9px 12px">'
-            +'<input type="checkbox" data-ms="'+r.id+'"'+(done?' checked':'')+' style="width:15px;height:15px;accent-color:var(--success);cursor:pointer">'
-            +'<span style="flex:1;font-size:12.5px;color:'+(done?'var(--text3)':'var(--text1)')+';'+(done?'text-decoration:line-through':'')+'">'+
-              r.title.replace(/[<>&]/g,function(c){return {'<':'&lt;','>':'&gt;','&':'&amp;'}[c];})+'</span>'
-            +'<button data-del="'+r.id+'" title="Remove" style="background:none;border:0;color:var(--text3);cursor:pointer;font-size:15px;line-height:1;padding:2px 4px">&times;</button>'
-          +'</div>';
-        }).join('');
-      }
-      list.addEventListener('change',function(e){
-        var id=e.target.getAttribute('data-ms'); if(!id) return;
-        post({action:'six_website_milestone_toggle',milestone_id:id}).then(function(r){
-          if(r&&r.success){ rows=r.data.milestones.map(function(m){return {id:+m.id,title:m.title,status:m.status};}); render(); }
-        });
-      });
-      list.addEventListener('click',function(e){
-        var id=e.target.getAttribute('data-del'); if(!id) return;
-        if(!confirm('Remove this milestone?')) return;
-        post({action:'six_website_milestone_delete',milestone_id:id}).then(function(r){
-          if(r&&r.success){ rows=r.data.milestones.map(function(m){return {id:+m.id,title:m.title,status:m.status};}); render(); }
-        });
-      });
-      document.getElementById('wp-add').addEventListener('click',function(){
-        var i=document.getElementById('wp-new'); var t=(i.value||'').trim(); if(!t) return;
-        post({action:'six_website_milestone_add',title:t}).then(function(r){
-          if(r&&r.success){ i.value=''; rows=r.data.milestones.map(function(m){return {id:+m.id,title:m.title,status:m.status};}); render(); }
-        });
-      });
-      document.getElementById('wp-seed').addEventListener('click',function(){
-        post({action:'six_website_milestone_add',title:''}).then(function(r){
-          if(r&&r.success){ rows=r.data.milestones.map(function(m){return {id:+m.id,title:m.title,status:m.status};}); render(); }
-          else alert((r&&r.data)||'Could not set up milestones.');
-        });
-      });
-      function saveMaint(){
-        var on=document.getElementById('wp-maint').checked;
-        var fee=document.getElementById('wp-fee').value||0;
-        post({action:'six_website_maintenance_set',enabled:on?1:0,fee:fee}).then(function(r){
-          var m=document.getElementById('wp-maint-msg');
-          m.textContent=(r&&r.success)?'Saved':'Could not save';
-          m.style.color=(r&&r.success)?'var(--success)':'var(--danger,#D93B3B)';
-          setTimeout(function(){m.textContent='';},2500);
-        });
-      }
-      document.getElementById('wp-maint').addEventListener('change',saveMaint);
-      document.getElementById('wp-fee').addEventListener('change',saveMaint);
-      render();
+        tabs.forEach(function(b){ b.addEventListener('click',function(){ show(b.dataset.svc); }); });
+        var saved='';
+        try{ saved=localStorage.getItem('six_adv_svctab_<?php echo intval($view_client_id); ?>')||''; }catch(e){}
+        if(saved && document.querySelector('[data-svcpane="'+saved+'"]')) show(saved);
     })();
     </script>
 
-    <!-- ── Advisor KPI Editor: customer dashboard fields ── -->
-    <div style="background:var(--dark3);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-            <div>
-                <div style="font-size:14px;font-weight:700;color:var(--text1)">Set Client KPI Targets</div>
-                <div style="font-size:11px;color:var(--text3);margin-top:2px;max-width:480px">
-                    These replace the AI estimates on the customer dashboard. Set realistic, achievable targets based on your expertise.
-                    <?php if($c_ai_data): ?>
-                    <span style="color:var(--warning)"> AI suggested: <?php echo esc_html( $c_ai_data['kpis'][0]['value'] ?? '—' ); ?> <?php echo esc_html( strtolower( $c_ai_data['kpis'][0]['label'] ?? '' ) ); ?></span>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px" id="kpi-editor-grid">
-        <?php
-        $kpi_tbl     = $wpdb->prefix . 'six_client_kpis';
-        $kpi_rows_adv = $wpdb->get_var("SHOW TABLES LIKE '{$kpi_tbl}'") === $kpi_tbl
-            ? $wpdb->get_results($wpdb->prepare(
-                "SELECT kpi_key, kpi_value FROM {$kpi_tbl} WHERE client_id=%d",
-                $view_client_id
-              ))
-            : array();
-        $kpi_vals_adv = array();
-        foreach( $kpi_rows_adv as $r ) $kpi_vals_adv[$r->kpi_key] = $r->kpi_value;
-
-        // Generated from the same catalog the customer's cards are rendered
-        // from, narrowed to the services this client actually has. The list
-        // used to be written out by hand here, which meant three fields that
-        // no card reads, no field at all for Google Business, and an advisor
-        // filling the panel in while the customer's dashboard carried on
-        // showing industry benchmarks.
-        $kpi_slugs = (array) $wpdb->get_col( $wpdb->prepare(
-            "SELECT service_slug FROM {$wpdb->prefix}six_client_services WHERE client_id=%d AND status='active'",
-            $view_client_id ) );
-        $kpi_fields = class_exists('Six_Dash_Metrics')
-            ? Six_Dash_Metrics::editable_metrics( $kpi_slugs, true )
-            : array();
-        foreach( $kpi_fields as $key => $f ):
-        ?>
-        <div>
-            <label style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:6px">
-                <?php echo esc_html($f['label']); ?>
-                <?php if ( ! empty($f['service_label']) ): ?><span style="font-weight:600;letter-spacing:0;text-transform:none;font-size:10px;color:var(--text3);opacity:.75"><?php echo esc_html($f['service_label']); ?></span><?php endif; ?>
-                <?php if ( ! empty($f['on_card']) ): ?><span style="font-weight:700;letter-spacing:0;text-transform:none;font-size:9px;color:#56D364;background:rgba(86,211,100,.12);border-radius:4px;padding:1px 5px">On their dashboard</span><?php endif; ?>
-            </label>
-            <div style="display:flex;gap:6px">
-                <input class="ob-input" style="flex:1;font-size:12px;padding:8px 12px"
-                    type="text"
-                    id="kpi-<?php echo esc_attr($key); ?>"
-                    value="<?php echo esc_attr($kpi_vals_adv[$key] ?? ''); ?>"
-                    placeholder="<?php echo esc_attr( $f['prefix'] ? $f['prefix'] . '0' : '0' ); ?>"
-                    data-kpi="<?php echo esc_attr($key); ?>"
-                    data-client="<?php echo esc_attr($view_client_id); ?>">
-                <button onclick="sixSaveKpi(this)" data-kpi="<?php echo esc_attr($key); ?>" data-client="<?php echo esc_attr($view_client_id); ?>"
-                    style="padding:8px 14px;background:rgba(106,202,253,.1);border:1px solid rgba(106,202,253,.2);border-radius:8px;color:#6ACAFD;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0;transition:all .2s"
-                    onmouseover="this.style.background='rgba(106,202,253,.2)'" onmouseout="this.style.background='rgba(106,202,253,.1)'"
-                >Save</button>
-            </div>
-            <?php /* The unit, always. "1,240" is not a figure anyone can
-                     check unless it says what of, and over what period. */ ?>
-            <div style="font-size:10px;color:var(--text3);margin-top:4px"><?php echo esc_html( trim( $f['unit'] . ( $f['hint'] ? ' · ' . $f['hint'] : '' ) ) ); ?></div>
-        </div>
-        <?php endforeach; ?>
-        <?php if ( empty($kpi_fields) ): ?>
-        <div style="grid-column:1/-1;font-size:12px;color:var(--text3)">No active services yet, so there are no dashboard figures to set. Activate a service first.</div>
-        <?php endif; ?>
-        </div>
-        <div id="kpi-save-msg" style="display:none;margin-top:12px;font-size:12px;color:#56D364"></div>
-    </div>
-
-    <script>
-    function sixSaveKpi(btn) {
-        var key    = btn.dataset.kpi;
-        var client = btn.dataset.client;
-        var input  = document.getElementById('kpi-' + key);
-        var val    = input ? input.value.trim() : '';
-        var msg    = document.getElementById('kpi-save-msg');
-        btn.textContent = 'Saving...';
-        var params = new URLSearchParams({
-            action: 'six_save_client_kpi',
-            nonce: NONCE,
-            client_id: client,
-            kpi_key: key,
-            kpi_value: val
-        });
-        fetch(AJAX, {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:params.toString()})
-        .then(r=>r.json()).then(function(r){
-            btn.textContent = r.success ? 'Saved' : 'Error';
-            if (msg) { msg.style.display='block'; msg.textContent = r.success ? 'Saved — customer dashboard updated.' : (r.data||'Error saving'); }
-            setTimeout(function(){ btn.textContent='Save'; if(msg) msg.style.display='none'; }, 2500);
-        });
-    }
-    </script>
-    </div><!-- /TAB 1 Overview KPIs -->
-
-    <!-- ── TAB 2: Live Service Metrics — per service, last/current/target ── -->
-    <div data-mpane="services" style="display:none">
-    <div style="font-size:11px;color:var(--text3);margin-bottom:14px;max-width:640px">
-        Each metric shows <strong>last month → current month → next month (target)</strong>. Turn on
-        <strong>Auto-from-source</strong> on a service to pull its numbers straight from the connected
-        account (Google Ads live now; GA4 &amp; Meta as they connect) so you don't re-enter them each month.
-    </div>
-
     <!-- Services list with per-service metric management -->
-    <?php foreach($svc_def as $slug => $sd_item):
+    <?php foreach($svc_live as $slug => $sd_item):
         $svc_row = null;
         foreach($c_svcs as $s){ if($s->service_slug===$slug){ $svc_row=$s; break; } }
         $svc_metrics = array_filter((array)$c_metrics, function($m) use ($slug){ return $m->service_slug === $slug; });
     ?>
+    <div data-svcpane="<?php echo esc_attr($slug); ?>" <?php echo $slug===$svc_first?'':'style="display:none"'; ?>>
     <div style="background:var(--dark2);border:1px solid <?php echo $sd_item['color']; ?>22;border-radius:14px;overflow:hidden;margin-bottom:16px">
         <!-- Service header -->
         <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
@@ -1516,7 +1556,12 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             </div>
             <div style="display:flex;gap:8px;align-items:center">
                 <?php if($svc_row&&$svc_row->status==='active'): ?>
-                <span style="font-size:10px;background:rgba(86,211,100,0.1);color:var(--success);padding:3px 9px;border-radius:10px;font-weight:700">● Active</span>
+                <?php /* The "● Active" badge is gone: a tab only exists for a
+                         service the client has, so the badge said what the
+                         tab already said. Pull Metrics is what an advisor
+                         actually comes here to press. */ ?>
+                <button class="six-btn six-btn-primary six-btn-sm six-suggest-metrics" data-slug="<?php echo esc_attr($slug); ?>"
+                        data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Pull Metrics</button>
                 <?php if(!$svc_row->advisor_id&&$advisor_id): ?>
                 <button class="six-btn six-btn-ghost six-btn-sm six-adv-assign-self" data-service-id="<?php echo $svc_row->id; ?>" style="font-size:11px">Assign to Me</button>
                 <?php endif; ?>
@@ -1532,6 +1577,11 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         <?php if($svc_row&&$svc_row->status==='active'): ?>
         <!-- Metrics for this service -->
         <div style="padding:14px 18px">
+            <?php /* Pulled figures land here, above the boxes they are about
+                     to change. They used to render below the Add/Update form,
+                     which put them off the bottom of a long panel — an
+                     advisor pressed Pull Metrics and saw nothing happen. */ ?>
+            <div class="metric-suggest-<?php echo esc_attr($slug); ?>" style="margin-bottom:12px"></div>
             <?php if(!empty($svc_metrics)): ?>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:14px">
                 <?php foreach($svc_metrics as $met):
@@ -1637,14 +1687,34 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                  estimated by a model: every row comes back with the account it
                  was read from, and if nothing is connected you get told that
                  rather than a plausible-looking number. -->
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px">
-                <div style="font-size:11px;color:var(--text3)">Set up this service: connect the account under <a href="<?php echo $base_url; ?>&ctab=datasources" style="color:var(--cyan)">Data Sources</a>, then pull the current figures. GA4 is the most accurate source for visitor numbers on every service.</div>
-                <button class="six-btn six-btn-ghost six-btn-sm six-suggest-metrics" data-slug="<?php echo esc_attr($slug); ?>" data-client="<?php echo $view_client_id; ?>" style="font-size:11px;color:var(--cyan);white-space:nowrap">↓ Pull metrics</button>
+            <?php
+            /* Three things an advisor does to a service, as three equal
+               buttons rather than three stacked panels. Everything below the
+               metric boxes used to be open at once, so the panel ran to
+               several screens and the work log and the task board lived on a
+               different tab entirely — which is why they were never used. */
+            ?>
+            <div class="six-svc-actions" data-slug="<?php echo esc_attr($slug); ?>"
+                 style="display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:4px 0 12px">
+                <button type="button" class="six-svc-act" data-act="metrics" data-slug="<?php echo esc_attr($slug); ?>"
+                    style="background:transparent;border:0;border-right:1px solid var(--border);color:var(--text2);font-family:inherit;font-size:12px;font-weight:700;padding:11px 8px;cursor:pointer">Add / Update metrics</button>
+                <button type="button" class="six-svc-act" data-act="work" data-slug="<?php echo esc_attr($slug); ?>"
+                    style="background:transparent;border:0;border-right:1px solid var(--border);color:var(--text2);font-family:inherit;font-size:12px;font-weight:700;padding:11px 8px;cursor:pointer">Log work</button>
+                <button type="button" class="six-svc-act" data-act="todo" data-slug="<?php echo esc_attr($slug); ?>"
+                    style="background:transparent;border:0;color:var(--text2);font-family:inherit;font-size:12px;font-weight:700;padding:11px 8px;cursor:pointer">To do<?php
+                        if(class_exists('Six_Tasks')){
+                            $svc_open = 0;
+                            foreach(Six_Tasks::all($view_client_id, array('service_slug'=>$slug)) as $st){
+                                if($st['status'] !== 'complete') $svc_open++;
+                            }
+                            if($svc_open) echo ' <span style="font-size:10px;background:rgba(255,102,153,.14);color:var(--pink);padding:1px 7px;border-radius:20px">'.intval($svc_open).'</span>';
+                        }
+                    ?></button>
             </div>
-            <div class="metric-suggest-<?php echo esc_attr($slug); ?>" style="margin-bottom:12px"></div>
+            <div style="font-size:10.5px;color:var(--text3);margin-bottom:10px">Nothing is connected? Set the account up under <a href="<?php echo $base_url; ?>&ctab=datasources" style="color:var(--cyan)">Data Sources</a> first — GA4 is the most accurate source for visitor numbers on every service.</div>
 
             <!-- Add metric form for this service -->
-            <div style="background:var(--dark4);border-radius:10px;padding:14px" id="metric-form-<?php echo esc_attr($slug); ?>">
+            <div class="six-svc-panel" data-panel="metrics" data-slug="<?php echo esc_attr($slug); ?>" style="display:none;background:var(--dark4);border-radius:10px;padding:14px" id="metric-form-<?php echo esc_attr($slug); ?>">
                 <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">+ Add / Update Metric</div>
                 <div style="font-size:10.5px;color:var(--text3);margin-bottom:10px">Both periods must be the same length, or the comparison flatters. For a metric where lower is better — average position, page load, on-page issues — the target is the number you want to get <em>down</em> to.</div>
                 <input type="hidden" class="metric-svc-slug" value="<?php echo esc_attr($slug); ?>">
@@ -1677,23 +1747,156 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             </div>
 
 
-            <?php /* The work log lives under Reports now — one record for the
-                     whole engagement rather than one per service panel, because
-                     a change usually belongs to a task, not to a metric row. */ ?>
-            <div style="font-size:10.5px;color:var(--text3);margin-top:10px">
-                Work done by hand is logged under
-                <a href="<?php echo $base_url; ?>&ctab=reports" style="color:var(--cyan)">Reports &rarr; Work log</a>,
-                next to the task board it belongs to.
+            <?php
+            /* Log work, per service.
+             *
+             * It lived under Reports for exactly one release, which was the
+             * wrong call: an advisor finishing a service's metrics is the
+             * person who knows what was done to that service, and sending
+             * them to another tab to record it meant it was not recorded.
+             * The entries still roll up into one record per client; this is
+             * just where the form is. */
+            $wl_proof   = class_exists('Six_Tracking') ? Six_Tracking::proof($view_client_id, $slug) : array();
+            $wl_recent  = class_exists('Six_Tracking') ? Six_Tracking::work_log($view_client_id, array('service_slug'=>$slug,'limit'=>12)) : array();
+            ?>
+            <div class="six-svc-panel" data-panel="work" data-slug="<?php echo esc_attr($slug); ?>" style="display:none;background:var(--dark4);border-radius:10px;padding:14px">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:4px">
+                    <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">Log work done</div>
+                    <?php if($wl_proof): ?>
+                    <div style="font-size:10.5px;color:var(--text3)"><?php echo number_format(array_sum(array_column($wl_proof,'deployed'))); ?> live across <?php echo count($wl_proof); ?> categor<?php echo count($wl_proof)===1?'y':'ies'; ?></div>
+                    <?php endif; ?>
+                </div>
+                <div style="font-size:10.5px;color:var(--text3);margin-bottom:10px">Appears on the customer's dashboard under Optimization proof, in this service. Anything Claude changed is already logged — this is for work you or a developer did by hand.</div>
+                <input type="hidden" class="wl-slug" value="<?php echo esc_attr($slug); ?>">
+                <div style="display:grid;grid-template-columns:1.3fr 2fr 70px auto;gap:8px;align-items:end">
+                    <div>
+                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Category</div>
+                        <input class="six-input wl-category" list="wl-cats-<?php echo esc_attr($slug); ?>" placeholder="Title Tags" style="font-size:12px;padding:7px 10px">
+                        <datalist id="wl-cats-<?php echo esc_attr($slug); ?>">
+                            <?php foreach($wl_proof as $wc): ?><option value="<?php echo esc_attr($wc['category']); ?>"><?php endforeach; ?>
+                            <option value="Title Tags"><option value="Meta Descriptions"><option value="Schema Markup">
+                            <option value="Page Content"><option value="Internal Links"><option value="Image Alt Text">
+                            <option value="Technical Fixes"><option value="Ad Copy"><option value="Negative Keywords">
+                            <option value="GBP Posts"><option value="Citations"><option value="Backlinks">
+                        </datalist>
+                    </div>
+                    <div>
+                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">What you did</div>
+                        <input class="six-input wl-title" placeholder="Rewrote the bail hearing page title" style="font-size:12px;padding:7px 10px">
+                    </div>
+                    <div>
+                        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">How many</div>
+                        <input class="six-input wl-count" type="number" min="1" max="500" value="1" style="font-size:12px;padding:7px 10px">
+                    </div>
+                    <button class="six-btn six-btn-primary six-btn-sm six-log-work" data-slug="<?php echo esc_attr($slug); ?>"
+                            data-client="<?php echo $view_client_id; ?>" style="font-size:11px;padding:8px 12px">Log</button>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px">
+                    <div><div style="font-size:10px;color:var(--text3);margin-bottom:4px">Page or thing changed</div>
+                        <input class="six-input wl-entity" placeholder="https://… or campaign name" style="font-size:12px;padding:7px 10px"></div>
+                    <div><div style="font-size:10px;color:var(--text3);margin-bottom:4px">Before</div>
+                        <input class="six-input wl-before" placeholder="what it was" style="font-size:12px;padding:7px 10px"></div>
+                    <div><div style="font-size:10px;color:var(--text3);margin-bottom:4px">After</div>
+                        <input class="six-input wl-after" placeholder="what it is now" style="font-size:12px;padding:7px 10px"></div>
+                </div>
+                <div class="wl-result-<?php echo esc_attr($slug); ?>" style="font-size:11px;margin-top:8px"></div>
+
+                <?php if($wl_recent): ?>
+                <div style="margin-top:12px;max-height:230px;overflow:auto;border-top:1px solid var(--border)">
+                    <?php foreach($wl_recent as $we): ?>
+                    <div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.03);display:flex;gap:10px;align-items:baseline">
+                        <div style="font-size:9.5px;color:var(--text3);white-space:nowrap;width:52px"><?php echo esc_html(date_i18n('j M', strtotime($we['performed_at']))); ?></div>
+                        <div style="flex:1;min-width:0">
+                            <div style="font-size:11.5px"><?php echo esc_html($we['title']); ?></div>
+                            <div style="font-size:9.5px;color:var(--text3)">
+                                <?php echo esc_html($we['category']); ?>
+                                <?php if(!empty($we['entity'])): ?> &middot; <span style="word-break:break-all"><?php echo esc_html($we['entity']); ?></span><?php endif; ?>
+                            </div>
+                        </div>
+                        <div style="font-size:9.5px;color:<?php echo $we['status']==='deployed'?'var(--success)':'var(--text3)'; ?>"><?php echo esc_html($we['status']); ?></div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+                <?php endif; ?>
+            </div>
+
+            <?php
+            /* The task board for this service only. The whole-engagement view
+               was under Reports, which meant a twelve-month plan for three
+               services arrived as one undifferentiated list. */
+            $svc_tasks  = class_exists('Six_Tasks') ? Six_Tasks::all($view_client_id, array('service_slug'=>$slug)) : array();
+            $svc_status = class_exists('Six_Tasks') ? Six_Tasks::STATUSES : array();
+            $svc_means  = class_exists('Six_Tasks') ? Six_Tasks::STATUS_MEANS : array();
+            $svc_tcol   = array('todo'=>'var(--text3)','client_review'=>'var(--warning)','implementation'=>'var(--cyan)','complete'=>'var(--success)');
+            $svc_draft  = 0; foreach($svc_tasks as $st2){ if(empty($st2['published'])) $svc_draft++; }
+            // Grouped by the category the plan gave each row, so a year of
+            // work reads as Content / Technical / Backlinks rather than as
+            // ninety numbered lines.
+            $svc_bycat = array();
+            foreach($svc_tasks as $st3){ $svc_bycat[$st3['category'] ?: 'Other'][] = $st3; }
+            ksort($svc_bycat);
+            ?>
+            <div class="six-svc-panel" data-panel="todo" data-slug="<?php echo esc_attr($slug); ?>" style="display:none;background:var(--dark4);border-radius:10px;padding:14px">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+                    <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">To do &mdash; <?php echo esc_html($sd_item['name']); ?></div>
+                    <?php if($svc_draft): ?>
+                    <button class="six-btn six-btn-primary six-btn-sm six-publish-tasks" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Publish <?php echo $svc_draft; ?> draft<?php echo $svc_draft===1?'':'s'; ?></button>
+                    <?php endif; ?>
+                </div>
+                <?php if(!$svc_tasks): ?>
+                <div style="font-size:11.5px;color:var(--text3);line-height:1.6">
+                    No plan for this service yet. Tasks appear here once the client approves the strategy and it is turned into a plan — they arrive as a draft so you can fix the dates before anything is published.
+                </div>
+                <?php else: foreach($svc_bycat as $cat => $rows): ?>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text2);margin:10px 0 4px"><?php echo esc_html($cat); ?> <span style="color:var(--text3);font-weight:500"><?php echo count($rows); ?></span></div>
+                <?php foreach($rows as $tk): ?>
+                <div id="task-<?php echo (int)$tk['id']; ?>" style="display:grid;grid-template-columns:30px 1fr 140px auto;gap:8px;align-items:center;padding:7px 0;border-top:1px solid rgba(255,255,255,0.04)">
+                    <div style="font-size:9.5px;color:var(--text3);text-align:center">M<?php echo (int)$tk['month_no']; ?></div>
+                    <div style="min-width:0">
+                        <div style="font-size:11.5px;line-height:1.35"><?php echo esc_html($tk['title']); ?></div>
+                        <?php if($tk['entity'] || empty($tk['published'])): ?>
+                        <div style="font-size:9.5px;color:var(--text3)">
+                            <?php if($tk['entity']): ?><span style="word-break:break-all"><?php echo esc_html($tk['entity']); ?></span><?php endif; ?>
+                            <?php if(empty($tk['published'])): ?> &middot; <span style="color:var(--warning)">draft</span><?php endif; ?>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                    <select class="six-input six-task-status" data-id="<?php echo (int)$tk['id']; ?>" data-client="<?php echo $view_client_id; ?>"
+                            style="font-size:11px;padding:5px 7px;border-color:<?php echo $svc_tcol[$tk['status']] ?? 'var(--border)'; ?>44">
+                        <?php foreach($svc_status as $sk => $sl): ?>
+                        <option value="<?php echo esc_attr($sk); ?>" <?php selected($tk['status'],$sk); ?>><?php echo esc_html($sl); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <button class="six-btn six-btn-ghost six-btn-sm six-delete-task" data-id="<?php echo (int)$tk['id']; ?>"
+                            data-client="<?php echo $view_client_id; ?>" style="font-size:10px;padding:4px 8px">Remove</button>
+                </div>
+                <?php endforeach; endforeach; endif; ?>
+
+                <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:10px">
+                    <div style="display:grid;grid-template-columns:2.4fr 1fr 64px auto;gap:8px;align-items:end">
+                        <div><div style="font-size:10px;color:var(--text3);margin-bottom:4px">Add a task</div>
+                            <input class="six-input tk-title" placeholder="Rewrite the bail hearing page title" style="font-size:12px;padding:7px 10px"></div>
+                        <div><div style="font-size:10px;color:var(--text3);margin-bottom:4px">Category</div>
+                            <input class="six-input tk-cat" list="tk-cats" placeholder="On-Page" style="font-size:12px;padding:7px 10px"></div>
+                        <div><div style="font-size:10px;color:var(--text3);margin-bottom:4px">Month</div>
+                            <input class="six-input tk-month" type="number" min="1" max="24" value="1" style="font-size:12px;padding:7px 10px"></div>
+                        <button class="six-btn six-btn-primary six-btn-sm six-add-task" data-slug="<?php echo esc_attr($slug); ?>"
+                                data-client="<?php echo $view_client_id; ?>" style="font-size:11px;padding:8px 12px">Add</button>
+                    </div>
+                    <div class="tk-result-<?php echo esc_attr($slug); ?>" style="font-size:11px;margin-top:7px"></div>
+                </div>
             </div>
 
         </div>
         <?php endif; // active svc ?>
     </div>
-    <?php endforeach; // svc_def ?>
-    </div><!-- /TAB 2 Live Service Metrics -->
+    </div><!-- /service pane -->
+    <?php endforeach; // one pane per live service ?>
+    <?php endif; // any services at all ?>
 
-    <!-- ═══════════════════════ CTAB: AI STRATEGY ═══════════════════════ -->
-    <?php elseif($ctab==='ai'): ?>
+    <!-- ═══════════════════════ CTAB: STRATEGY ═══════════════════════ -->
+    <?php /* 'ai' still answers, so a link an advisor bookmarked still works. */ ?>
+    <?php elseif($ctab==='strategy' || $ctab==='ai'): ?>
 
     <!-- ═══ AI STRATEGIST WORKSPACE ═══════════════════════════════════════ -->
     <div class="six-card" id="ai-strat" data-client="<?php echo intval($view_client_id); ?>" style="margin-bottom:20px;overflow:hidden">
@@ -2272,6 +2475,29 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                     <?php endif; ?>
                 </div>
                 <?php endif; ?>
+                <?php
+                /* The day work began. Without it there is no day to compare
+                   either side of, so the customer's chart draws one line —
+                   and no amount of backfilling changes that, because the
+                   date used to be derived from the first reading, which
+                   guaranteed nothing sat before it. One box, and it says
+                   where the current date came from. */
+                $es_src = class_exists('Six_Tracking') ? Six_Tracking::engagement_start_source($view_client_id) : 'none';
+                ?>
+                <div style="background:var(--dark4);border-radius:10px;padding:12px 14px;margin-bottom:12px">
+                    <div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);margin-bottom:6px">Day work began</div>
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                        <input type="date" class="six-input" id="six-start-date" value="<?php echo esc_attr($trk_start); ?>"
+                               style="font-size:12px;padding:7px 10px;max-width:190px">
+                        <button class="six-btn six-btn-primary six-btn-sm" id="six-save-start" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Save</button>
+                        <span style="font-size:10.5px;color:var(--text3)">
+                            <?php if($es_src==='manual'): ?>Set by hand. Clear the box to fall back to the approval date.
+                            <?php elseif($es_src==='approval'): ?>Taken from the date the service was approved.
+                            <?php else: ?><span style="color:var(--warning)">Not set — the customer's chart cannot draw the comparison line without it.</span><?php endif; ?>
+                        </span>
+                    </div>
+                    <div id="six-start-result" style="font-size:11px;margin-top:7px"></div>
+                </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap">
                     <button class="six-btn six-btn-primary six-btn-sm six-sync-tracking" data-client="<?php echo $view_client_id; ?>" data-backfill="1" style="font-size:11px">Backfill all history</button>
                     <button class="six-btn six-btn-ghost six-btn-sm six-sync-tracking" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Sync recent only</button>
@@ -2283,6 +2509,28 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
     </div>
     <script>
     (function(){
+        var sb=document.getElementById('six-save-start');
+        if(sb) sb.addEventListener('click',function(){
+            var box=document.getElementById('six-start-result');
+            var inp=document.getElementById('six-start-date');
+            sb.disabled=true; sb.textContent='Saving…';
+            post({action:'six_set_engagement_start', client_id:sb.dataset.client, date:inp?inp.value:''})
+            .then(function(r){
+                sb.disabled=false; sb.textContent='Save';
+                if(r&&r.success){
+                    var d=r.data||{};
+                    box.style.color=d.ok?'var(--success)':'var(--warning)';
+                    box.textContent=d.message||'Saved.';
+                } else {
+                    box.style.color='var(--danger)';
+                    box.textContent=(r&&r.data)||'Could not save it. Nothing was changed.';
+                }
+            }).catch(function(){
+                sb.disabled=false; sb.textContent='Save';
+                box.style.color='var(--danger)';
+                box.textContent='Could not reach the server. Nothing was changed.';
+            });
+        });
         function resultEl(btn){
             // Nearest result box within this card.
             var card=btn.closest('div[style*="border-radius:14px"]')||btn.parentNode;
@@ -2371,122 +2619,6 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         });
     })();
     </script>
-
-    <!-- ═══════════════════════ CTAB: ACTIVITY ═══════════════════════ -->
-    <?php elseif($ctab==='activity'): ?>
-
-    <?php
-    // Communication history — every email/SMS this lead has actually been
-    // sent, at every stage (onboarding abandon nudge, the shared recovery
-    // sequence, admin notices excluded), read straight from Odoo's chatter —
-    // the same place Six_Odoo::log_communication()/send_email_odoo() already
-    // log every send to, so there's nothing new to keep in sync here.
-    $c_odoo_lead_id = intval( get_user_meta( $view_client_id, 'six_odoo_lead_id', true ) );
-    $c_messages     = ( $c_odoo_lead_id && class_exists( 'Six_Odoo' ) ) ? Six_Odoo::get_lead_messages( $c_odoo_lead_id, 100 ) : array();
-    $c_msg_colors   = array( 'Email' => 'var(--cyan)', 'SMS' => 'var(--success)', 'Portal Message' => 'var(--pink)', 'Call' => 'var(--warning)', 'Note' => 'var(--text3)' );
-    ?>
-    <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px">
-        <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between">
-            <span style="font-size:13px;font-weight:700">Communication History</span>
-            <?php if ( $c_odoo_lead_id && get_option( 'six_odoo_url' ) ) : ?>
-            <a href="<?php echo esc_url( rtrim( get_option( 'six_odoo_url' ), '/' ) . '/odoo/crm/' . $c_odoo_lead_id ); ?>" target="_blank" rel="noopener" style="font-size:11px;color:var(--cyan);text-decoration:none">Full record in Odoo →</a>
-            <?php endif; ?>
-        </div>
-        <?php if ( ! $c_odoo_lead_id ) : ?>
-        <div style="padding:32px;text-align:center;color:var(--text3);font-size:13px">Not synced to Odoo yet — nothing to show.</div>
-        <?php elseif ( empty( $c_messages ) ) : ?>
-        <div style="padding:32px;text-align:center;color:var(--text3);font-size:13px">No emails or texts have gone out to this lead yet.</div>
-        <?php else : ?>
-        <div style="padding:14px 18px;max-height:480px;overflow-y:auto">
-        <?php foreach ( $c_messages as $msg ) :
-            $mcolor = $c_msg_colors[ $msg['channel'] ] ?? 'var(--text3)';
-            $lines  = explode( "\n", $msg['body'] );
-            $first  = array_shift( $lines );
-            $rest   = trim( implode( "\n", $lines ) );
-        ?>
-        <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px">
-            <div style="width:30px;height:30px;border-radius:8px;background:<?php echo $mcolor; ?>15;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:<?php echo $mcolor; ?>;flex-shrink:0"><?php echo esc_html( strtoupper( substr( $msg['channel'], 0, 1 ) ) ); ?></div>
-            <div style="flex:1;min-width:0;padding-top:2px">
-                <div style="font-size:11px;font-weight:700;color:<?php echo $mcolor; ?>"><?php echo esc_html( $msg['channel'] ); ?><?php if ( $msg['direction'] ) : ?> · <?php echo esc_html( $msg['direction'] ); ?><?php endif; ?></div>
-                <div style="font-size:12.5px;line-height:1.6;margin-top:2px"><?php echo esc_html( $first ); ?></div>
-                <?php if ( $rest !== '' ) : ?>
-                <div style="font-size:11.5px;color:var(--text3);line-height:1.6;margin-top:4px;white-space:pre-wrap"><?php echo esc_html( $rest ); ?></div>
-                <?php endif; ?>
-                <div style="font-size:10px;color:var(--text3);margin-top:4px"><?php echo $msg['date'] ? esc_html( date_i18n( 'M j, Y \a\t g:i a', strtotime( $msg['date'] ) ) ) : ''; ?></div>
-            </div>
-        </div>
-        <?php endforeach; ?>
-        </div>
-        <?php endif; ?>
-    </div>
-
-    <?php
-    // Build unified activity feed
-    $activity = array();
-    foreach((array)$c_svcs as $s){
-        $activity[]=array('time'=>strtotime($s->created_at??'now'),'icon'=>'◈','color'=>'var(--cyan)','text'=>"Service request: <strong>".esc_html($s->service_name)."</strong> — ".ucfirst($s->status));
-    }
-    foreach((array)$c_recs as $r){
-        $activity[]=array('time'=>strtotime($r->created_at??'now'),'icon'=>'','color'=>'var(--pink)','text'=>"Recommendation: <strong>".esc_html($r->title)."</strong> — ".ucfirst($r->status));
-    }
-    foreach((array)$c_reports as $r){
-        $activity[]=array('time'=>strtotime($r->created_at??'now'),'icon'=>'','color'=>'var(--success)','text'=>"Report uploaded: <strong>".esc_html($r->title)."</strong>");
-    }
-    usort($activity, function($a,$b){ return $b['time'] - $a['time']; });
-    ?>
-
-    <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px">
-        <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.05)">
-            <span style="font-size:13px;font-weight:700">Activity Timeline</span>
-        </div>
-        <?php if(empty($activity)): ?>
-        <div style="padding:32px;text-align:center;color:var(--text3);font-size:13px">No activity yet for this client.</div>
-        <?php else: ?>
-        <div style="padding:14px 18px">
-        <?php foreach($activity as $act): ?>
-        <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px">
-            <div style="width:30px;height:30px;border-radius:8px;background:<?php echo $act['color']; ?>15;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0"><?php echo $act['icon']; ?></div>
-            <div style="flex:1;min-width:0;padding-top:4px">
-                <div style="font-size:12px;line-height:1.6"><?php echo $act['text']; ?></div>
-                <div style="font-size:10px;color:var(--text3);margin-top:2px"><?php echo human_time_diff($act['time'],time()); ?> ago</div>
-            </div>
-        </div>
-        <?php endforeach; ?>
-        </div>
-        <?php endif; ?>
-    </div>
-
-    <!-- Budget change requests log -->
-    <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;overflow:hidden">
-        <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.05)">
-            <span style="font-size:13px;font-weight:700">Budget Change Requests</span>
-        </div>
-        <div style="padding:0">
-        <?php $has_reqs=false;
-        foreach($c_budget_reqs as $row){
-            $rd=maybe_unserialize($row->req_data);
-            if(!is_array($rd))continue; $has_reqs=true;
-            $sd2=$svc_def[$row->service_slug]??array('icon'=>'','color'=>'var(--pink)');
-            $status=$rd['status']??'pending';
-            $sc=$status==='approved'?'var(--success)':($status==='declined'?'var(--danger)':'var(--warning)');
-        ?>
-        <div style="padding:12px 18px;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-            <span style="font-size:13px"><?php echo $sd2['icon']; ?></span>
-            <span style="font-size:12px;font-weight:600"><?php echo esc_html($row->service_name); ?></span>
-            <span style="font-size:12px;color:var(--text3)">$<?php echo number_format($row->budget,0); ?> → $<?php echo number_format($rd['requested_budget']??0,0); ?>/mo</span>
-            <span style="margin-left:auto;font-size:11px;color:<?php echo $sc; ?>;font-weight:700;text-transform:capitalize"><?php echo $status; ?></span>
-            <?php if($status==='pending'): ?>
-            <div style="display:flex;gap:6px">
-                <button class="six-btn six-btn-primary six-btn-sm six-adv-approve-budget" data-service-id="<?php echo $row->id; ?>" data-budget="<?php echo intval($rd['requested_budget']??0); ?>" style="font-size:11px">Approve</button>
-                <button class="six-btn six-btn-ghost six-btn-sm six-adv-decline-budget" data-service-id="<?php echo $row->id; ?>" style="font-size:11px">Decline</button>
-            </div>
-            <?php endif; ?>
-        </div>
-        <?php } if(!$has_reqs): ?>
-        <div style="padding:24px;text-align:center;color:var(--text3);font-size:12px">No budget change requests.</div>
-        <?php endif; ?>
-        </div>
-    </div>
 
     <!-- ═══════════════════════ CTAB: CLIENT PROFILE ═══════════════════════ -->
     <?php elseif($ctab==='profile'): ?>
@@ -2873,6 +3005,131 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         <div id="adv-svc-msg-<?php echo $view_client_id;?>" style="font-size:12px;margin-top:6px"></div>
     </div>
 
+    <?php
+    /* Website build and maintenance, moved out of the metrics tab.
+     *
+     * Maintenance is a recurring charge with a fee, not a performance
+     * metric, so it belongs beside the other services and budgets rather
+     * than above the KPI editor it used to sit on. */
+    ?>
+<!-- ── Website build + maintenance (advisor-only controls) ── -->
+    <?php
+    $wp_rows  = class_exists('Six_Website_Project') ? Six_Website_Project::milestones($view_client_id) : array();
+    $wp_prog  = class_exists('Six_Website_Project') ? Six_Website_Project::progress($view_client_id)   : array('percent'=>0,'done'=>0,'total'=>0);
+    $wp_maint = class_exists('Six_Website_Project') && Six_Website_Project::maintenance_on($view_client_id);
+    $wp_fee   = class_exists('Six_Website_Project') ? Six_Website_Project::maintenance_fee($view_client_id) : 0;
+    ?>
+    <div style="background:var(--dark3);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px" id="wp-panel" data-client="<?php echo intval($view_client_id); ?>">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px;flex-wrap:wrap">
+            <div>
+                <div style="font-size:14px;font-weight:700;color:var(--text1)">Website Build &amp; Maintenance</div>
+                <div style="font-size:11px;color:var(--text3);margin-top:2px;max-width:520px">
+                    Milestones drive the progress bar on the client's dashboard. Maintenance is a recurring add-on only you can switch on — the client can't buy it themselves.
+                </div>
+            </div>
+            <div style="font-family:var(--font-head);font-size:20px;font-weight:800;color:var(--text1)" id="wp-pct"><?php echo intval($wp_prog['percent']); ?>%</div>
+        </div>
+
+        <!-- Maintenance toggle -->
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--dark2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:16px">
+            <label style="display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--text1);cursor:pointer">
+                <input type="checkbox" id="wp-maint" <?php checked($wp_maint); ?> style="width:16px;height:16px;accent-color:var(--pink);cursor:pointer">
+                Website maintenance active
+            </label>
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text3)">
+                <span>$</span>
+                <input class="ob-input" type="number" min="0" step="1" id="wp-fee" value="<?php echo $wp_fee ? esc_attr(number_format($wp_fee,0,'.','')) : ''; ?>" placeholder="0" style="width:90px;font-size:12px;padding:6px 10px">
+                <span>/mo</span>
+            </div>
+            <span id="wp-maint-msg" style="font-size:11px;color:var(--success)"></span>
+        </div>
+
+        <!-- Milestones -->
+        <div id="wp-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input class="ob-input" type="text" id="wp-new" placeholder="Add a milestone — e.g. Content handover" style="flex:1;min-width:220px;font-size:12px;padding:8px 12px">
+            <button class="six-btn six-btn-primary six-btn-sm" id="wp-add" style="font-size:11px">Add</button>
+            <button class="six-btn six-btn-ghost six-btn-sm" id="wp-seed" style="font-size:11px">Use standard milestones</button>
+        </div>
+    </div>
+    <script>
+    (function(){
+      var panel=document.getElementById('wp-panel'); if(!panel) return;
+      var CLIENT=panel.getAttribute('data-client');
+      var list=document.getElementById('wp-list');
+      var rows=<?php echo wp_json_encode(array_map(function($r){
+          return array('id'=>intval($r->id),'title'=>$r->title,'status'=>$r->status);
+      }, (array)$wp_rows)); ?>;
+
+      function post(data){
+        return fetch(sixPortal.ajax_url,{method:'POST',credentials:'same-origin',
+          headers:{'Content-Type':'application/x-www-form-urlencoded'},
+          body:new URLSearchParams(Object.assign({nonce:sixPortal.nonce,client_id:CLIENT},data))
+        }).then(function(r){return r.json();});
+      }
+      function pct(){
+        if(!rows.length) return 0;
+        var done=rows.filter(function(r){return r.status==='done';}).length;
+        return Math.round(done/rows.length*100);
+      }
+      function render(){
+        document.getElementById('wp-pct').textContent=pct()+'%';
+        if(!rows.length){
+          list.innerHTML='<div style="font-size:12px;color:var(--text3);padding:6px 0">No milestones yet — add one, or start from the standard set.</div>';
+          return;
+        }
+        list.innerHTML=rows.map(function(r){
+          var done=r.status==='done';
+          return '<div style="display:flex;align-items:center;gap:10px;background:var(--dark2);border:1px solid var(--border);border-radius:8px;padding:9px 12px">'
+            +'<input type="checkbox" data-ms="'+r.id+'"'+(done?' checked':'')+' style="width:15px;height:15px;accent-color:var(--success);cursor:pointer">'
+            +'<span style="flex:1;font-size:12.5px;color:'+(done?'var(--text3)':'var(--text1)')+';'+(done?'text-decoration:line-through':'')+'">'+
+              r.title.replace(/[<>&]/g,function(c){return {'<':'&lt;','>':'&gt;','&':'&amp;'}[c];})+'</span>'
+            +'<button data-del="'+r.id+'" title="Remove" style="background:none;border:0;color:var(--text3);cursor:pointer;font-size:15px;line-height:1;padding:2px 4px">&times;</button>'
+          +'</div>';
+        }).join('');
+      }
+      list.addEventListener('change',function(e){
+        var id=e.target.getAttribute('data-ms'); if(!id) return;
+        post({action:'six_website_milestone_toggle',milestone_id:id}).then(function(r){
+          if(r&&r.success){ rows=r.data.milestones.map(function(m){return {id:+m.id,title:m.title,status:m.status};}); render(); }
+        });
+      });
+      list.addEventListener('click',function(e){
+        var id=e.target.getAttribute('data-del'); if(!id) return;
+        if(!confirm('Remove this milestone?')) return;
+        post({action:'six_website_milestone_delete',milestone_id:id}).then(function(r){
+          if(r&&r.success){ rows=r.data.milestones.map(function(m){return {id:+m.id,title:m.title,status:m.status};}); render(); }
+        });
+      });
+      document.getElementById('wp-add').addEventListener('click',function(){
+        var i=document.getElementById('wp-new'); var t=(i.value||'').trim(); if(!t) return;
+        post({action:'six_website_milestone_add',title:t}).then(function(r){
+          if(r&&r.success){ i.value=''; rows=r.data.milestones.map(function(m){return {id:+m.id,title:m.title,status:m.status};}); render(); }
+        });
+      });
+      document.getElementById('wp-seed').addEventListener('click',function(){
+        post({action:'six_website_milestone_add',title:''}).then(function(r){
+          if(r&&r.success){ rows=r.data.milestones.map(function(m){return {id:+m.id,title:m.title,status:m.status};}); render(); }
+          else alert((r&&r.data)||'Could not set up milestones.');
+        });
+      });
+      function saveMaint(){
+        var on=document.getElementById('wp-maint').checked;
+        var fee=document.getElementById('wp-fee').value||0;
+        post({action:'six_website_maintenance_set',enabled:on?1:0,fee:fee}).then(function(r){
+          var m=document.getElementById('wp-maint-msg');
+          m.textContent=(r&&r.success)?'Saved':'Could not save';
+          m.style.color=(r&&r.success)?'var(--success)':'var(--danger,#D93B3B)';
+          setTimeout(function(){m.textContent='';},2500);
+        });
+      }
+      document.getElementById('wp-maint').addEventListener('change',saveMaint);
+      document.getElementById('wp-fee').addEventListener('change',saveMaint);
+      render();
+    })();
+    </script>
+
+
     <!-- ── Danger zone: delete customer ─────────────────────────────────── -->
     <div style="background:var(--dark2);border:1.5px solid rgba(220,38,38,0.35);border-radius:14px;padding:20px;margin-top:16px">
         <div style="font-size:12px;font-weight:700;color:var(--danger,#dc2626);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Danger zone</div>
@@ -3020,242 +3277,14 @@ function advCompleteOnboarding(clientId){
     <!-- ═══════════════════════ CTAB: REPORTS ═══════════════════════ -->
     <?php elseif($ctab==='reports'): ?>
 
-    <?php
-    /* ── The plan, as rows ───────────────────────────────────────────────
-       An approved strategy arrives here through the connector: one task per
-       thing that has to be done, across the engagement. It arrives as a draft
-       — the advisor fixes the dates and the order, then publishes.
-
-       The four states are the whole vocabulary. "Client review" exists because
-       copy sitting with a client is not the same as work not started, and
-       reporting the two as one is how a month looks idle when it is not. */
-    $tb_tasks   = class_exists('Six_Tasks') ? Six_Tasks::all($view_client_id) : array();
-    $tb_sum     = class_exists('Six_Tasks') ? Six_Tasks::summary($view_client_id) : array('total'=>0,'by_status'=>array(),'by_phase'=>array(),'published'=>0);
-    $tb_status  = class_exists('Six_Tasks') ? Six_Tasks::STATUSES : array();
-    $tb_means   = class_exists('Six_Tasks') ? Six_Tasks::STATUS_MEANS : array();
-    $tb_colors  = array('todo'=>'var(--text3)','client_review'=>'var(--warning)','implementation'=>'var(--cyan)','complete'=>'var(--success)');
-    $tb_drafts  = 0; foreach($tb_tasks as $tt){ if(empty($tt['published'])) $tb_drafts++; }
-    // Group by phase so a twelve-month plan reads as three blocks of four
-    // months, which is how the content is produced even though the board
-    // always shows the full year.
-    $tb_phases = array();
-    foreach($tb_tasks as $tt){ $tb_phases[(int)$tt['phase']][] = $tt; }
-    ksort($tb_phases);
-    ?>
-
-    <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px">
-        <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-            <div>
-                <span style="font-size:13px;font-weight:700">Tasks &amp; timeline</span>
-                <span style="font-size:10.5px;color:var(--text3);margin-left:8px">
-                    <?php echo (int)$tb_sum['total']; ?> task<?php echo (int)$tb_sum['total']===1?'':'s'; ?>
-                    <?php if($tb_drafts): ?> &middot; <span style="color:var(--warning)"><?php echo $tb_drafts; ?> unpublished</span><?php endif; ?>
-                </span>
-            </div>
-            <?php if($tb_tasks): ?>
-            <div style="display:flex;gap:8px">
-                <?php if($tb_drafts): ?>
-                <button class="six-btn six-btn-primary six-btn-sm six-publish-tasks" data-client="<?php echo $view_client_id; ?>"
-                        style="font-size:11px">Publish <?php echo $tb_drafts; ?> draft<?php echo $tb_drafts===1?'':'s'; ?></button>
-                <?php endif; ?>
-                <?php if((int)$tb_sum['published']): ?>
-                <button class="six-btn six-btn-ghost six-btn-sm six-publish-tasks" data-client="<?php echo $view_client_id; ?>" data-unpublish="1"
-                        style="font-size:11px">Unpublish all</button>
-                <?php endif; ?>
-            </div>
-            <?php endif; ?>
-        </div>
-
-        <?php if(!$tb_tasks): ?>
-        <div style="padding:30px 18px;text-align:center">
-            <div style="font-size:13px;font-weight:600;margin-bottom:6px">No plan yet</div>
-            <p style="font-size:11.5px;color:var(--text3);max-width:460px;margin:0 auto">
-                Tasks appear here once the client has approved the strategy and it has been turned into a plan.
-                They arrive as a draft so you can fix the dates and the order before anything is published.
-            </p>
-        </div>
-        <?php else: ?>
-
-        <!-- Count by state. Four words the whole engagement is reported in. -->
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(255,255,255,0.05)">
-            <?php foreach($tb_status as $sk => $sl): $n = (int)($tb_sum['by_status'][$sk] ?? 0); ?>
-            <div style="background:var(--dark2);padding:12px 14px">
-                <div style="font-size:19px;font-weight:800;color:<?php echo $tb_colors[$sk]; ?>"><?php echo $n; ?></div>
-                <div style="font-size:10.5px;font-weight:600;margin-top:1px"><?php echo esc_html($sl); ?></div>
-                <div style="font-size:9.5px;color:var(--text3);margin-top:2px"><?php echo esc_html($tb_means[$sk] ?? ''); ?></div>
-            </div>
-            <?php endforeach; ?>
-        </div>
-
-        <?php foreach($tb_phases as $ph => $rows):
-            $ph_done = 0; foreach($rows as $r){ if($r['status']==='complete') $ph_done++; }
-            $ph_months = array_filter(array_map(function($r){ return (int)$r['month_no']; }, $rows));
-            $ph_lo = $ph_months ? min($ph_months) : 0; $ph_hi = $ph_months ? max($ph_months) : 0;
-        ?>
-        <div style="padding:11px 18px;border-top:1px solid rgba(255,255,255,0.05);background:var(--dark3);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-            <div style="font-size:11px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:var(--text2)">
-                Phase <?php echo (int)$ph; ?>
-                <?php if($ph_lo): ?><span style="font-weight:500;color:var(--text3);text-transform:none;letter-spacing:0">&nbsp;&middot; month<?php echo $ph_lo===$ph_hi?'':'s'; ?> <?php echo $ph_lo; ?><?php echo $ph_lo===$ph_hi?'':'&ndash;'.$ph_hi; ?></span><?php endif; ?>
-            </div>
-            <div style="font-size:10.5px;color:var(--text3)"><?php echo $ph_done; ?> of <?php echo count($rows); ?> complete</div>
-        </div>
-
-        <?php foreach($rows as $tk): ?>
-        <div class="six-task-row" id="task-<?php echo (int)$tk['id']; ?>"
-             style="padding:11px 18px;border-top:1px solid rgba(255,255,255,0.04);display:grid;grid-template-columns:34px 1fr 150px 120px auto;gap:10px;align-items:center">
-            <div style="font-size:10px;color:var(--text3);text-align:center">M<?php echo (int)$tk['month_no']; ?></div>
-            <div style="min-width:0">
-                <div style="font-size:12px;font-weight:600;line-height:1.35"><?php echo esc_html($tk['title']); ?></div>
-                <div style="font-size:10px;color:var(--text3);margin-top:2px">
-                    <?php if($tk['category']): ?><span style="color:var(--text2)"><?php echo esc_html($tk['category']); ?></span><?php endif; ?>
-                    <?php if($tk['deliverable']): ?> &middot; <?php echo esc_html($tk['deliverable']); ?><?php endif; ?>
-                    <?php if($tk['entity']): ?> &middot; <span style="word-break:break-all"><?php echo esc_html($tk['entity']); ?></span><?php endif; ?>
-                    <?php if(empty($tk['published'])): ?> &middot; <span style="color:var(--warning)">draft</span><?php endif; ?>
-                </div>
-            </div>
-            <div>
-                <select class="six-input six-task-status" data-id="<?php echo (int)$tk['id']; ?>" data-client="<?php echo $view_client_id; ?>"
-                        style="font-size:11px;padding:6px 8px;border-color:<?php echo $tb_colors[$tk['status']] ?? 'var(--border)'; ?>44">
-                    <?php foreach($tb_status as $sk => $sl): ?>
-                    <option value="<?php echo esc_attr($sk); ?>" <?php selected($tk['status'],$sk); ?>><?php echo esc_html($sl); ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div style="font-size:10px;color:var(--text3)">
-                <?php if($tk['status']==='complete' && !empty($tk['completed_at'])): ?>
-                    done <?php echo esc_html(date('M j', strtotime($tk['completed_at']))); ?>
-                <?php elseif(!empty($tk['due_date'])): ?>
-                    due <?php echo esc_html(date('M j', strtotime($tk['due_date']))); ?>
-                <?php else: ?>
-                    &mdash;
-                <?php endif; ?>
-            </div>
-            <button class="six-btn six-btn-ghost six-btn-sm six-delete-task" data-id="<?php echo (int)$tk['id']; ?>"
-                    data-client="<?php echo $view_client_id; ?>" style="font-size:10px;padding:5px 9px">Remove</button>
-        </div>
-        <?php endforeach; ?>
-        <?php endforeach; ?>
-        <?php endif; ?>
-
-        <!-- Add one by hand, for work the strategy did not foresee. -->
-        <div style="padding:13px 18px;border-top:1px solid rgba(255,255,255,0.05);background:var(--dark4)">
-            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;margin-bottom:8px">+ Add a task</div>
-            <div style="display:grid;grid-template-columns:2.4fr 1fr 70px auto;gap:8px;align-items:end">
-                <div>
-                    <div style="font-size:10px;color:var(--text3);margin-bottom:4px">What has to be done</div>
-                    <input class="six-input" id="tk-title" placeholder="Rewrite the bail hearing page title" style="font-size:12px;padding:7px 10px">
-                </div>
-                <div>
-                    <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Category</div>
-                    <input class="six-input" id="tk-cat" list="tk-cats" placeholder="On-Page" style="font-size:12px;padding:7px 10px">
-                    <datalist id="tk-cats">
-                        <option value="Content"><option value="On-Page"><option value="Technical">
-                        <option value="Backlinks"><option value="Digital PR"><option value="Citations">
-                        <option value="GMB"><option value="Local"><option value="Reporting">
-                    </datalist>
-                </div>
-                <div>
-                    <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Month</div>
-                    <input class="six-input" id="tk-month" type="number" min="1" max="24" value="1" style="font-size:12px;padding:7px 10px">
-                </div>
-                <button class="six-btn six-btn-primary six-btn-sm" id="six-add-task" data-client="<?php echo $view_client_id; ?>"
-                        style="font-size:11px;padding:8px 12px">Add</button>
-            </div>
-            <div id="tk-result" style="font-size:11px;margin-top:8px"></div>
-        </div>
-    </div>
-
-    <?php
-    /* ── Work log ────────────────────────────────────────────────────────
-       Moved here from under live metrics. A change belongs next to the task
-       it closes, not next to the number it may eventually move. Claude logs
-       what it changes through the connector; this form is for work a person
-       did by hand, so the customer's optimization proof shows the work rather
-       than whichever tool happened to do it. */
-    $wl_proof  = class_exists('Six_Tracking') ? Six_Tracking::proof($view_client_id) : array();
-    $wl_recent = class_exists('Six_Tracking') ? Six_Tracking::work_log($view_client_id, array('limit'=>25)) : array();
-    $wl_svcs   = array();
-    foreach($c_svcs as $s){ if(isset($svc_def[$s->service_slug])) $wl_svcs[$s->service_slug] = $svc_def[$s->service_slug]['name']; }
-    ?>
-    <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px">
-        <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap">
-            <span style="font-size:13px;font-weight:700">Work log</span>
-            <?php if($wl_proof): ?>
-            <span style="font-size:10.5px;color:var(--text3)">
-                <?php echo number_format(array_sum(array_column($wl_proof,'deployed'))); ?> live across <?php echo count($wl_proof); ?> categor<?php echo count($wl_proof)===1?'y':'ies'; ?>
-            </span>
-            <?php endif; ?>
-        </div>
-        <div style="padding:14px 18px">
-            <div style="font-size:10.5px;color:var(--text3);margin-bottom:10px">Appears on the customer's dashboard under Optimization proof. Anything Claude changed is already logged &mdash; this is for work you or a developer did by hand.</div>
-            <div style="display:grid;grid-template-columns:1fr 1.3fr 2fr 70px auto;gap:8px;align-items:end">
-                <div>
-                    <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Service</div>
-                    <select class="six-input wl-slug" style="font-size:12px;padding:7px 10px">
-                        <?php if(!$wl_svcs): ?><option value="">&mdash;</option><?php endif; ?>
-                        <?php foreach($wl_svcs as $ws => $wn): ?><option value="<?php echo esc_attr($ws); ?>"><?php echo esc_html($wn); ?></option><?php endforeach; ?>
-                    </select>
-                </div>
-                <div>
-                    <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Category</div>
-                    <input class="six-input wl-category" list="wl-cats" placeholder="Title Tags" style="font-size:12px;padding:7px 10px">
-                    <datalist id="wl-cats">
-                        <?php foreach($wl_proof as $wc): ?><option value="<?php echo esc_attr($wc['category']); ?>"><?php endforeach; ?>
-                        <option value="Title Tags"><option value="Meta Descriptions"><option value="Schema Markup">
-                        <option value="Page Content"><option value="Internal Links"><option value="Image Alt Text">
-                        <option value="Technical Fixes"><option value="Ad Copy"><option value="Negative Keywords">
-                        <option value="GBP Posts"><option value="Citations"><option value="Backlinks">
-                    </datalist>
-                </div>
-                <div>
-                    <div style="font-size:10px;color:var(--text3);margin-bottom:4px">What you did</div>
-                    <input class="six-input wl-title" placeholder="Rewrote the bail hearing page title" style="font-size:12px;padding:7px 10px">
-                </div>
-                <div>
-                    <div style="font-size:10px;color:var(--text3);margin-bottom:4px">How many</div>
-                    <input class="six-input wl-count" type="number" min="1" max="500" value="1" style="font-size:12px;padding:7px 10px">
-                </div>
-                <button class="six-btn six-btn-primary six-btn-sm six-log-work" data-client="<?php echo $view_client_id; ?>"
-                        style="font-size:11px;padding:8px 12px">Log</button>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px">
-                <div>
-                    <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Page or thing changed</div>
-                    <input class="six-input wl-entity" placeholder="https://… or campaign name" style="font-size:12px;padding:7px 10px">
-                </div>
-                <div>
-                    <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Before</div>
-                    <input class="six-input wl-before" placeholder="what it was" style="font-size:12px;padding:7px 10px">
-                </div>
-                <div>
-                    <div style="font-size:10px;color:var(--text3);margin-bottom:4px">After</div>
-                    <input class="six-input wl-after" placeholder="what it is now" style="font-size:12px;padding:7px 10px">
-                </div>
-            </div>
-            <div class="wl-result" style="font-size:11px;margin-top:8px"></div>
-        </div>
-
-        <?php if($wl_recent): ?>
-        <div style="border-top:1px solid rgba(255,255,255,0.05);max-height:340px;overflow:auto">
-            <?php foreach($wl_recent as $we): ?>
-            <div style="padding:9px 18px;border-bottom:1px solid rgba(255,255,255,0.03);display:flex;gap:10px;align-items:baseline">
-                <div style="font-size:9.5px;color:var(--text3);white-space:nowrap;width:52px"><?php echo esc_html(date('M j', strtotime($we['performed_at']))); ?></div>
-                <div style="flex:1;min-width:0">
-                    <div style="font-size:11.5px"><?php echo esc_html($we['title']); ?></div>
-                    <div style="font-size:9.5px;color:var(--text3)">
-                        <?php echo esc_html($we['category']); ?>
-                        <?php if(!empty($we['entity'])): ?> &middot; <span style="word-break:break-all"><?php echo esc_html($we['entity']); ?></span><?php endif; ?>
-                        <?php if(!empty($we['before']) || !empty($we['after'])): ?>
-                            &middot; <span style="color:var(--text3)"><?php echo esc_html($we['before'] ?: '—'); ?></span>
-                            &rarr; <span style="color:var(--text2)"><?php echo esc_html($we['after'] ?: '—'); ?></span>
-                        <?php endif; ?>
-                    </div>
-                </div>
-                <div style="font-size:9.5px;color:<?php echo $we['status']==='deployed'?'var(--success)':'var(--text3)'; ?>"><?php echo esc_html($we['status']); ?></div>
-            </div>
-            <?php endforeach; ?>
-        </div>
-        <?php endif; ?>
+    <?php /* The task board and the work log moved into the service tabs.
+             A twelve-month plan for three services arrived here as one
+             undifferentiated list, and an advisor finishing a service's
+             metrics had to change tab to record what they had done — so
+             neither got used. Each service now carries its own To do and
+             Log work panel under its metric boxes. Reports is reports. */ ?>
+    <div style="background:rgba(106,202,253,0.05);border:1px solid rgba(106,202,253,0.18);border-radius:12px;padding:13px 16px;margin-bottom:20px;font-size:11.5px;color:var(--text2);line-height:1.55">
+        Tasks and the work log live under <a href="<?php echo $base_url; ?>&ctab=services" style="color:var(--cyan)">Services</a> now — each service has its own, grouped by category.
     </div>
 
     <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px">
@@ -3263,8 +3292,37 @@ function advCompleteOnboarding(clientId){
             <span style="font-size:13px;font-weight:700">Upload Report</span>
         </div>
         <div style="padding:16px 18px">
-            <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;margin-bottom:10px">
-                <div><div style="font-size:10px;color:var(--text3);margin-bottom:4px">Report Title</div><input class="six-input" id="rpt-title" placeholder="e.g. March 2026 Performance Report" style="font-size:12px"></div>
+            <?php /* The client used to see a filename and a date and nothing
+                     else — not which service it covered, not what period it
+                     measured, not whether it was worth opening before the
+                     call. */ ?>
+            <div style="display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:10px;align-items:end;margin-bottom:10px">
+                <div><div style="font-size:10px;color:var(--text3);margin-bottom:4px">Report title</div><input class="six-input" id="rpt-title" placeholder="e.g. March performance" style="font-size:12px"></div>
+                <div><div style="font-size:10px;color:var(--text3);margin-bottom:4px">What it is</div>
+                    <select class="six-input" id="rpt-kind" style="font-size:12px">
+                        <option value="monthly">Monthly performance</option>
+                        <option value="audit">SEO audit</option>
+                        <option value="strategy">Strategy document</option>
+                        <option value="implementation">Implementation log</option>
+                        <option value="other">Something else</option>
+                    </select>
+                </div>
+                <div><div style="font-size:10px;color:var(--text3);margin-bottom:4px">Service</div>
+                    <select class="six-input" id="rpt-service" style="font-size:12px">
+                        <option value="">All services</option>
+                        <?php foreach($svc_def as $rs => $rsd): ?>
+                        <option value="<?php echo esc_attr($rs); ?>"><?php echo esc_html($rsd['name']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                <div><div style="font-size:10px;color:var(--text3);margin-bottom:4px">Period covered — from</div><input type="date" class="six-input" id="rpt-from" style="font-size:12px"></div>
+                <div><div style="font-size:10px;color:var(--text3);margin-bottom:4px">to</div><input type="date" class="six-input" id="rpt-to" style="font-size:12px"></div>
+            </div>
+            <div style="margin-bottom:10px">
+                <div style="font-size:10px;color:var(--text3);margin-bottom:4px">One line on what is in it</div>
+                <input class="six-input" id="rpt-summary" maxlength="200" placeholder="What the client will find inside, in a sentence." style="font-size:12px">
             </div>
             <div style="margin-bottom:10px">
                 <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Upload File (PDF, PNG, JPG — max 10MB)</div>
@@ -4468,6 +4526,8 @@ function sixServiceWizard(serviceId, clientId, slug, name, activateMode){
     body.querySelectorAll('[data-ck]').forEach(function(el){ W.config[el.dataset.ck]=el.value; });
     var b=body.querySelector('#wiz-budget');
     if(b) W.budget = b.value===''? '' : parseFloat(b.value);
+    var term=body.querySelector('input[name="wiz-term"]:checked');
+    if(term) W.config.plan_term = term.value;
   }
   function collectStep2(){
     // The catalog rows go to the customer's stat cards; the free rows go to
@@ -4539,11 +4599,28 @@ function sixServiceWizard(serviceId, clientId, slug, name, activateMode){
         +'<input class="six-input" id="wiz-budget" type="number" min="0" step="1" value="'+esc(W.budget||'')+'" style="width:140px;font-size:12px;padding:8px 10px">'
         +'<span style="font-size:12px;color:var(--text3,#8a8a99)">per month</span>'
       +'</div>';
+
+    // The engagement length. This is not an admin detail: it decides what the
+    // strategy document commits to. A twelve-month plan and a six-month plan
+    // are different deliverables — fewer pages, fewer links a month, and the
+    // premium extras only on the year — so the plan has to be built for the
+    // one they bought, not trimmed afterwards.
+    h+='<div style="height:14px"></div>'
+      +head('Plan length','Decides what the strategy document commits to. A Claude session reads this before it builds the plan, so the deliverables match what they were sold.')
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+        +'<label style="display:flex;align-items:center;gap:7px;border:1px solid var(--border,#2a2a35);border-radius:9px;padding:9px 13px;cursor:pointer;font-size:12px">'
+          +'<input type="radio" name="wiz-term" value="12" '+((W.config.plan_term||'12')==='12'?'checked':'')+'> 12 months'
+          +'<span style="font-size:10.5px;color:var(--text3,#8a8a99)">full programme</span></label>'
+        +'<label style="display:flex;align-items:center;gap:7px;border:1px solid var(--border,#2a2a35);border-radius:9px;padding:9px 13px;cursor:pointer;font-size:12px">'
+          +'<input type="radio" name="wiz-term" value="6" '+((W.config.plan_term||'')==='6'?'checked':'')+'> 6 months'
+          +'<span style="font-size:10.5px;color:var(--text3,#8a8a99)">reduced scope</span></label>'
+      +'</div>';
+
     body.innerHTML=h;
   }
   function renderStep2(){
     body.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap">'
-      +'<div style="font-size:12px;color:var(--text3,#8a8a99)">The numbers on their dashboard. Leave one blank and they see an industry benchmark instead.</div>'
+      +'<div style="font-size:12px;color:var(--text3,#8a8a99)">The numbers on their dashboard. Leave one blank and the card shows a dash and names the account to connect.</div>'
       +'<button id="wiz-suggest" class="six-btn six-btn-ghost six-btn-sm" style="font-size:11px;color:var(--pink,#ff4d8d)">Read current figures</button></div>'
       +'<div id="wiz-sources" style="display:none;font-size:11px;line-height:1.6;color:var(--text3,#8a8a99);background:var(--dark3,#1c1c24);border:1px solid var(--border,#2a2a35);border-radius:8px;padding:9px 11px;margin-bottom:10px"></div>'
       +'<div id="wiz-kpis"></div>'
@@ -4710,10 +4787,18 @@ function sixServiceWizard(serviceId, clientId, slug, name, activateMode){
         if(bad.length){
           nextBtn.disabled=false; nextBtn.textContent=W.activate?'Activate service':'Save setup';
           msgEl.style.color='var(--danger,#D93B3B)';
-          msgEl.textContent=(d.kpis_failed._table||(bad.length+' dashboard figure(s) could not be saved.'));
+          msgEl.textContent=(d.kpis_failed._removed||d.kpis_failed._table
+                            ||(bad.length+' dashboard figure(s) could not be saved.'));
           return;
         }
         nextBtn.textContent=W.activate?'Activated ✓':'Saved ✓';
+        // Removals are reported, because the × used to look like it worked
+        // and change nothing: the save only ever upserted, so a row the
+        // advisor took off the list stayed on the customer's dashboard.
+        if(d.metrics_removed){
+          msgEl.style.color='var(--text3,#8a8a99)';
+          msgEl.textContent=d.metrics_removed+' metric'+(d.metrics_removed===1?'':'s')+' removed from their dashboard.';
+        }
         // When activating we report what else happened rather than reloading
         // straight past it — the advisor needs the questionnaire link in
         // hand in case the client's copy of the email goes astray.
@@ -4723,7 +4808,7 @@ function sixServiceWizard(serviceId, clientId, slug, name, activateMode){
             h+='<div style="font-size:12px;color:var(--text2,#b5b5c5);margin-bottom:10px">Budget set to $'+esc(String(d.budget_changed.to))+'/mo (they had selected $'+esc(String(d.budget_changed.from))+'/mo). They have been emailed the new amount.</div>';
           }
           if(d.kpis_saved){
-            h+='<div style="font-size:12px;color:var(--text2,#b5b5c5);margin-bottom:10px">'+esc(String(d.kpis_saved))+' dashboard figure'+(d.kpis_saved===1?'':'s')+' saved — their cards now show your numbers instead of benchmarks.</div>';
+            h+='<div style="font-size:12px;color:var(--text2,#b5b5c5);margin-bottom:10px">'+esc(String(d.kpis_saved))+' dashboard figure'+(d.kpis_saved===1?'':'s')+' saved — their cards now show your numbers.</div>';
           }
           if(d.baseline){
             h+='<div style="font-size:12px;color:var(--text2,#b5b5c5);margin-bottom:10px">Baseline snapshot taken ('+esc(String(d.baseline.metrics))+' metrics, '+esc(String(d.baseline.captured_at))+'). Every future check compares against this.</div>';
@@ -4910,6 +4995,12 @@ if(uploadReportBtn) uploadReportBtn.addEventListener('click',function(){
     var fd=new FormData();
     fd.append('action','six_upload_report'); fd.append('nonce',NONCE);
     fd.append('client_id',this.dataset.client); fd.append('title',title);
+    // What it is, which service and which period — so the client's list says
+    // something more than a filename and a date.
+    ['kind','service','from','to','summary'].forEach(function(f){
+        var el=document.getElementById('rpt-'+f);
+        if(el) fd.append({kind:'kind',service:'service_slug',from:'period_start',to:'period_end',summary:'summary'}[f], el.value||'');
+    });
     fd.append('report_file',files[0]);
     var self=this; self.textContent='Uploading…'; self.disabled=true; if(res)res.textContent='';
     fetch(AJAX,{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
@@ -5279,7 +5370,7 @@ document.querySelectorAll('.six-suggest-metrics').forEach(function(btn){
         self.disabled=true; self.textContent='Pulling…';
         if(box) box.innerHTML='<div style="font-size:12px;color:var(--text3);padding:4px 0">Reading the connected accounts…</div>';
         post({action:'six_suggest_metrics',client_id:client,service_slug:slug}).then(function(r){
-            self.disabled=false; self.textContent='↓ Pull metrics';
+            self.disabled=false; self.textContent='Pull Metrics';
             if(!(r&&r.success&&r.data&&r.data.metrics&&r.data.metrics.length)){ if(box) box.innerHTML='<div style="font-size:12px;color:var(--danger)">'+((r&&r.data&&(r.data.message||r.data))||'Nothing came back from the connected accounts.')+'</div>'; return; }
             // Every row names the account it was read from. Nothing is filled
             // in from a typical figure: a number here was measured, or it is
@@ -5327,7 +5418,7 @@ document.querySelectorAll('.six-suggest-metrics').forEach(function(btn){
                 var rows=Array.prototype.slice.call(box.querySelectorAll('.sugg-row')), i=0;
                 (function next(){ if(i>=rows.length){ setTimeout(function(){location.reload();},700); return; } addRow(rows[i++], next); })();
             });
-        }).catch(function(){ self.disabled=false; self.textContent='↓ Pull metrics'; if(box) box.innerHTML='<div style="font-size:12px;color:var(--danger)">Could not reach the connected accounts. Nothing was changed — try again.</div>'; });
+        }).catch(function(){ self.disabled=false; self.textContent='Pull Metrics'; if(box) box.innerHTML='<div style="font-size:12px;color:var(--danger)">Could not reach the connected accounts. Nothing was changed — try again.</div>'; });
     });
 });
 
@@ -5384,10 +5475,10 @@ document.querySelectorAll('.prop-dismiss').forEach(function(btn){
 document.querySelectorAll('.six-log-work').forEach(function(btn){
     btn.addEventListener('click',function(){
         var client = this.dataset.client, self = this;
-        var scope = document;
-        var box = document.querySelector('.wl-result');
+        var slug  = this.dataset.slug;
+        var scope = this.closest('.six-svc-panel') || document;
+        var box   = document.querySelector('.wl-result-'+slug);
         var q = function(c){ var el = scope.querySelector(c); return el ? el.value : ''; };
-        var slug = q('.wl-slug');
         var title = (q('.wl-title')||'').trim();
         if(!title){ if(box) box.innerHTML='<span style="color:var(--danger)">Give it a title — one line somebody reading the dashboard would understand.</span>'; return; }
         self.disabled = true; self.textContent = 'Logging…';
@@ -5410,6 +5501,43 @@ document.querySelectorAll('.six-log-work').forEach(function(btn){
         });
     });
 });
+
+// ── Add / Update metrics · Log work · To do ────────────────────────────
+// One open at a time, per service, remembered per client. All three used to
+// be open at once below the metric boxes, which made the panel several
+// screens long — and the work log and task board lived on a different tab
+// entirely, which is why neither was used.
+(function(){
+  document.querySelectorAll('.six-svc-act').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var slug = btn.dataset.slug, act = btn.dataset.act;
+      var group = document.querySelectorAll('.six-svc-act[data-slug="'+slug+'"]');
+      var panes = document.querySelectorAll('.six-svc-panel[data-slug="'+slug+'"]');
+      var already = btn.getAttribute('aria-expanded') === 'true';
+      group.forEach(function(b){
+        b.setAttribute('aria-expanded','false');
+        b.style.background = 'transparent';
+        b.style.color = 'var(--text2)';
+      });
+      panes.forEach(function(p){ p.style.display = 'none'; });
+      if (already) { try { localStorage.removeItem('six_svc_act_'+slug); } catch(e){} return; }
+      btn.setAttribute('aria-expanded','true');
+      btn.style.background = 'rgba(255,102,153,.12)';
+      btn.style.color = 'var(--text1)';
+      var pane = document.querySelector('.six-svc-panel[data-panel="'+act+'"][data-slug="'+slug+'"]');
+      if (pane) pane.style.display = '';
+      try { localStorage.setItem('six_svc_act_'+slug, act); } catch(e){}
+    });
+  });
+  // Reopen whatever they had open.
+  document.querySelectorAll('.six-svc-actions').forEach(function(bar){
+    var slug = bar.dataset.slug, want = '';
+    try { want = localStorage.getItem('six_svc_act_'+slug) || ''; } catch(e){}
+    if (!want) return;
+    var btn = document.querySelector('.six-svc-act[data-slug="'+slug+'"][data-act="'+want+'"]');
+    if (btn) btn.click();
+  });
+})();
 
 // ── The task board ─────────────────────────────────────────────────────
 // Every handler reports what the server actually did. A status select that
@@ -5473,26 +5601,29 @@ document.querySelectorAll('.six-publish-tasks').forEach(function(btn){
     });
 });
 
-var addTaskBtn = document.getElementById('six-add-task');
-if(addTaskBtn){
-    addTaskBtn.addEventListener('click',function(){
-        var self = this, box = document.getElementById('tk-result');
-        var title = (document.getElementById('tk-title')||{}).value || '';
-        if(!title.trim()){ box.innerHTML = '<span style="color:var(--danger)">Give it a title — one line somebody reading the board would understand.</span>'; return; }
-        self.disabled = true; self.textContent = 'Adding…';
-        post({action:'six_add_task', client_id:self.dataset.client, title:title.trim(),
-              category:(document.getElementById('tk-cat')||{}).value||'',
-              month_no:(document.getElementById('tk-month')||{}).value||1})
+// Per service, so a task is filed against the service it belongs to rather
+// than landing in one undifferentiated list.
+document.querySelectorAll('.six-add-task').forEach(function(btn){
+    btn.addEventListener('click',function(){
+        var slug = btn.dataset.slug;
+        var pane = btn.closest('.six-svc-panel') || document;
+        var box  = document.querySelector('.tk-result-'+slug);
+        var q    = function(c){ var el = pane.querySelector(c); return el ? el.value : ''; };
+        var title = (q('.tk-title')||'').trim();
+        if(!title){ if(box) box.innerHTML = '<span style="color:var(--danger)">Give it a title — one line somebody reading the board would understand.</span>'; return; }
+        btn.disabled = true; btn.textContent = 'Adding…';
+        post({action:'six_add_task', client_id:btn.dataset.client, title:title,
+              service_slug:slug, category:q('.tk-cat'), month_no:q('.tk-month')||1})
         .then(function(r){
-            self.disabled = false; self.textContent = 'Add';
+            btn.disabled = false; btn.textContent = 'Add';
             if(r && r.success){ location.reload(); }
-            else { box.innerHTML = '<span style="color:var(--danger)">'+((r&&r.data)||'The task was not created.')+'</span>'; }
+            else if(box){ box.innerHTML = '<span style="color:var(--danger)">'+((r&&r.data)||'The task was not created.')+'</span>'; }
         }).catch(function(){
-            self.disabled = false; self.textContent = 'Add';
-            box.innerHTML = '<span style="color:var(--danger)">Could not reach the server. Nothing was created.</span>';
+            btn.disabled = false; btn.textContent = 'Add';
+            if(box) box.innerHTML = '<span style="color:var(--danger)">Could not reach the server. Nothing was created.</span>';
         });
     });
-}
+});
 
 // ── Advisor saves client profile ───────────────────────────────────────
 var advSaveProfileBtn = document.getElementById('adv-save-profile-btn');

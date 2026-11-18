@@ -7,7 +7,6 @@
  *
  *   1. live      — a connected external tool (Ahrefs, Google Ads, BrightLocal).
  *   2. advisor   — a value an advisor typed into the KPI editor (overrides estimates).
- *   3. estimate  — an industry benchmark derived from their services + budget.
  *
  * The live tier is deliberately a seam: connectors() declares which external
  * tool owns which service, and live() returns null until that tool's API
@@ -499,53 +498,6 @@ class Six_Dash_Metrics {
 	}
 
 	/**
-	 * Benchmark estimates per service, used only when there's no live
-	 * connector and no advisor-entered value. Grounded in their actual monthly
-	 * budget for that service plus the real market CPC we cached at onboarding
-	 * where we have one.
-	 */
-	protected static function estimates( $slug, $budget, $cpc ) {
-		$budget = max( 0, (int) $budget );
-		$cpc    = $cpc > 0 ? (float) $cpc : 0.0;
-
-		if ( $slug === 'google-ads' ) {
-			// ~65% of the budget reaches the auction as clicks; the rest is
-			// management, creative and tracking.
-			$eff    = $cpc > 0 ? $cpc : 3.0;
-			$clicks = $budget > 0 ? (int) floor( ( $budget * 0.65 ) / max( $eff, 0.5 ) ) : 0;
-			return array(
-				'paid_clicks'     => $clicks,
-				'ads_leads'       => (int) round( $clicks * 0.027 ),   // ~2.7% click→lead
-				'ads_impressions' => (int) round( $clicks * 22 ),      // ~4.5% CTR
-				'ads_cpc'         => $cpc > 0 ? round( $cpc, 2 ) : 0,
-			);
-		}
-
-		if ( $slug === 'seo' ) {
-			$scale = $budget > 0 ? min( 3.0, max( 0.5, $budget / 1500 ) ) : 0.0;
-			return array(
-				'organic_visitors' => (int) round( 800 * $scale ),
-				'keywords_page1'   => (int) round( 18 * $scale ),
-				'keywords_tracked' => (int) round( 120 * $scale ),
-				'seo_avg_position' => $scale > 0 ? 14 : 0,
-			);
-		}
-
-		if ( $slug === 'google-business' ) {
-			// GMB is a flat-rate service, so its benchmarks don't scale with budget.
-			$on = $budget > 0 ? 1 : 0;
-			return array(
-				'gmb_views'      => $on ? 600 : 0,
-				'gmb_calls'      => $on ? 42  : 0,
-				'gmb_directions' => $on ? 70  : 0,
-				'gmb_posts'      => $on ? 8   : 0,   // 2/week
-			);
-		}
-
-		return array();
-	}
-
-	/**
 	 * The raw numeric value of every metric for this client, before any
 	 * formatting — what a snapshot stores and what a comparison does
 	 * arithmetic on. Same resolution order as the cards (live → advisor →
@@ -564,15 +516,17 @@ class Six_Dash_Metrics {
 		$values = array(); $sources = array();
 		foreach ( $slugs as $slug ) {
 			$live = self::live( $slug, $user_id );
-			$est  = self::estimates( $slug, $budgets[ $slug ] ?? 0, $cpc );
 
 			foreach ( array_keys( $catalog[ $slug ]['metrics'] ) as $key ) {
+				// Measured, or entered by a person, or absent. There is no
+				// third source any more: an industry benchmark sitting in the
+				// same field as a measurement is indistinguishable from one.
 				if ( $live !== null && isset( $live[ $key ] ) && $live[ $key ] !== '' ) {
 					$raw = $live[ $key ]; $src = 'live';
 				} elseif ( isset( $kpi[ $key ] ) && $kpi[ $key ]->kpi_value !== '' ) {
 					$raw = preg_replace( '/[^0-9.]/', '', (string) $kpi[ $key ]->kpi_value ); $src = 'advisor';
 				} else {
-					$raw = $est[ $key ] ?? 0; $src = 'estimate';
+					continue;
 				}
 				if ( ! is_numeric( $raw ) ) continue;   // free-form advisor text isn't comparable
 				$values[ $key ]  = (float) $raw;
@@ -593,70 +547,143 @@ class Six_Dash_Metrics {
 	 * }
 	 * @return array[] Each: label, value, sub, source, service, accent, prev.
 	 */
+	/**
+	 * Which four metrics the advisor chose for this client's overview.
+	 *
+	 * Stored as `service:key` so the same key under two services stays
+	 * distinct. An empty list means nobody has chosen, and the first few
+	 * metrics of each active service are used — which is what the dashboard
+	 * always did.
+	 */
+	public static function chosen_cards( $user_id ) {
+		$raw = get_user_meta( (int) $user_id, 'six_overview_cards', true );
+		if ( ! is_array( $raw ) ) $raw = $raw ? (array) maybe_unserialize( $raw ) : array();
+		$out = array();
+		foreach ( $raw as $entry ) {
+			$entry = (string) $entry;
+			if ( strpos( $entry, ':' ) === false ) continue;
+			list( $slug, $key ) = explode( ':', $entry, 2 );
+			$slug = sanitize_key( $slug ); $key = sanitize_key( $key );
+			if ( $slug && $key ) $out[] = array( 'slug' => $slug, 'key' => $key );
+		}
+		return array_slice( $out, 0, 4 );
+	}
+
+	/** Every metric an advisor could put on the overview, for the picker. */
+	public static function card_choices( array $slugs ) {
+		$catalog = self::catalog();
+		$out = array();
+		foreach ( self::card_services( $slugs ) as $slug ) {
+			if ( empty( $catalog[ $slug ] ) ) continue;
+			foreach ( $catalog[ $slug ]['metrics'] as $key => $meta ) {
+				$out[] = array(
+					'id'      => $slug . ':' . $key,
+					'slug'    => $slug,
+					'key'     => $key,
+					'label'   => $meta['label'],
+					'unit'    => $meta['unit'] ?? '',
+					'service' => $catalog[ $slug ]['label'],
+				);
+			}
+		}
+		return $out;
+	}
+
 	public static function cards( $user_id, array $ctx ) {
 		$slugs   = self::card_services( $ctx['slugs'] ?? array() );
-		$budgets = $ctx['budgets'] ?? array();
 		$kpi     = $ctx['kpi']     ?? array();
-		$cpc     = $ctx['cpc']     ?? 0;
 		$catalog = self::catalog();
 
 		if ( ! $slugs ) return array();
 
-		// Split 4 slots across their services — one service fills all four,
-		// two services get two each, three get 2/1/1.
-		$n     = count( $slugs );
-		$base  = intdiv( 4, $n );
-		$extra = 4 % $n;
-		$alloc = array();
-		foreach ( $slugs as $i => $slug ) $alloc[ $slug ] = $base + ( $i < $extra ? 1 : 0 );
-
-		$cards = array();
-		foreach ( $slugs as $slug ) {
-			$svc  = $catalog[ $slug ];
-			$live = self::live( $slug, $user_id );
-			$est  = self::estimates( $slug, $budgets[ $slug ] ?? 0, $cpc );
-			$take = array_slice( array_keys( $svc['metrics'] ), 0, $alloc[ $slug ] );
-
-			foreach ( $take as $key ) {
-				$meta = $svc['metrics'][ $key ];
-
-				if ( $live !== null && isset( $live[ $key ] ) && $live[ $key ] !== '' ) {
-					$raw = $live[ $key ];
-					$src = 'live';
-					$sub = self::connectors()[ $slug ]['label'] . ' · live';
-				} elseif ( isset( $kpi[ $key ] ) && $kpi[ $key ]->kpi_value !== '' ) {
-					$raw = $kpi[ $key ]->kpi_value;
-					$src = 'advisor';
-					$sub = 'Confirmed by your advisor';
-				} else {
-					$raw = $est[ $key ] ?? 0;
-					$src = 'estimate';
-					$sub = 'Industry benchmark';
-				}
-
-				$cards[] = array(
-					'key'     => $key,
-					'service' => $slug,
-					'svc_label' => $svc['label'],
-					'label'   => $meta['label'],
-					'value'   => self::format( $raw, $meta ),
-					'unit'    => $meta['unit'] ?? '',
-					'sub'     => $sub,
-					'source'  => $src,
-					'accent'  => $svc['accent'],
-					'prev'    => isset( $kpi[ $key ] ) ? ( $kpi[ $key ]->kpi_prev ?: '' ) : '',
-				);
+		// What the advisor picked, if they picked. Otherwise the old split:
+		// one service fills all four slots, two get two each, three get 2/1/1.
+		$wanted = array();
+		foreach ( self::chosen_cards( $user_id ) as $c ) {
+			if ( in_array( $c['slug'], $slugs, true ) && isset( $catalog[ $c['slug'] ]['metrics'][ $c['key'] ] ) ) {
+				$wanted[] = $c;
 			}
+		}
+		if ( ! $wanted ) {
+			$n     = count( $slugs );
+			$base  = intdiv( 4, $n );
+			$extra = 4 % $n;
+			foreach ( $slugs as $i => $slug ) {
+				$take = array_slice( array_keys( $catalog[ $slug ]['metrics'] ), 0, $base + ( $i < $extra ? 1 : 0 ) );
+				foreach ( $take as $key ) $wanted[] = array( 'slug' => $slug, 'key' => $key );
+			}
+		}
+
+		$live_cache = array();
+		$cards = array();
+		foreach ( $wanted as $c ) {
+			$slug = $c['slug']; $key = $c['key'];
+			$svc  = $catalog[ $slug ];
+			$meta = $svc['metrics'][ $key ] ?? null;
+			if ( ! $meta ) continue;
+
+			if ( ! array_key_exists( $slug, $live_cache ) ) $live_cache[ $slug ] = self::live( $slug, $user_id );
+			$live = $live_cache[ $slug ];
+
+			/* Two sources, and no third.
+			 *
+			 * There used to be a fallback to an industry benchmark, which is
+			 * how a client with a connected Google Business Profile was shown
+			 * "600 map views per month" — a number from a table, sitting in
+			 * the same card, in the same type, as the figures their own
+			 * accounts report. A client cannot tell those apart, and the one
+			 * they can check is the one that makes the other a lie.
+			 *
+			 * So: their own connected account, or a figure their advisor
+			 * entered, or nothing. Nothing is a card that says it is not
+			 * connected yet, which is true and is also an instruction. */
+			if ( $live !== null && isset( $live[ $key ] ) && $live[ $key ] !== '' ) {
+				$raw = $live[ $key ];
+				$src = 'live';
+				$sub = self::connectors()[ $slug ]['label'] . ' · live';
+			} elseif ( isset( $kpi[ $key ] ) && $kpi[ $key ]->kpi_value !== '' ) {
+				$raw = $kpi[ $key ]->kpi_value;
+				$src = 'advisor';
+				$sub = 'Confirmed by your advisor';
+			} else {
+				$raw = '';
+				$src = 'none';
+				$sub = self::connectors()[ $slug ]['connected'] ?? false
+					? 'Nothing reported for this yet'
+					: 'Connect ' . ( self::connectors()[ $slug ]['label'] ?? $svc['label'] ) . ' to measure this';
+			}
+
+			$cards[] = array(
+				'key'     => $key,
+				'service' => $slug,
+				'svc_label' => $svc['label'],
+				'label'   => $meta['label'],
+				'value'   => self::format( $raw, $meta ),
+				'unit'    => $meta['unit'] ?? '',
+				'sub'     => $sub,
+				'source'  => $src,
+				'accent'  => $svc['accent'],
+				'prev'    => isset( $kpi[ $key ] ) ? ( $kpi[ $key ]->kpi_prev ?: '' ) : '',
+			);
 		}
 
 		return array_slice( $cards, 0, 4 );
 	}
 
-	/** Render a raw metric value with its prefix/suffix, or an em dash when empty. */
+	/**
+	 * Render a raw metric value with its prefix/suffix, or an em dash when
+	 * there is no value at all.
+	 *
+	 * Zero is a value. It used to render as an em dash, which the card then
+	 * captioned "No data yet" — so a client with nought conversions this
+	 * month was told we had not measured, and an advisor who typed 0 watched
+	 * it vanish. Only an empty string and null are missing. A negative figure
+	 * is shown as it is: it is either real, or a data problem somebody needs
+	 * to see rather than one the dashboard quietly hides.
+	 */
 	public static function format( $raw, array $meta ) {
 		if ( $raw === '' || $raw === null ) return '—';
 		if ( is_numeric( $raw ) ) {
-			if ( (float) $raw <= 0 ) return '—';
 			$num = ( floor( (float) $raw ) == (float) $raw )
 				? number_format( (int) $raw )
 				: number_format( (float) $raw, 2 );
@@ -732,17 +759,19 @@ class Six_Dash_Metrics {
 		$kpi     = $ctx['kpi']     ?? array();
 		$cpc     = $ctx['cpc']     ?? 0;
 
-		// Combined monthly visitors across their services, live where possible.
+		// Combined monthly visitors across their services. Measured only —
+		// there is no benchmark fallback, because a modelled figure and a
+		// measured one looked identical on the card and only one of them
+		// could be checked.
 		$current = 0;
 		$is_live = $slugs ? true : false;
 		foreach ( $slugs as $slug ) {
 			$live = self::live( $slug, $user_id );
-			$vals = $live !== null ? $live : self::estimates( $slug, $budgets[ $slug ] ?? 0, $cpc );
-			if ( $live === null ) $is_live = false;
+			if ( $live === null ) { $is_live = false; continue; }
 
 			// Each service contributes the visitor-shaped metric it owns.
 			foreach ( array( 'organic_visitors', 'paid_clicks', 'gmb_views' ) as $vk ) {
-				if ( ! empty( $vals[ $vk ] ) ) $current += (int) $vals[ $vk ];
+				if ( isset( $live[ $vk ] ) && is_numeric( $live[ $vk ] ) ) $current += (int) $live[ $vk ];
 			}
 		}
 
@@ -752,17 +781,23 @@ class Six_Dash_Metrics {
 			if ( $adv > 0 ) { $current = $adv; $is_live = true; }
 		}
 
-		// Baseline = where they were before us. Advisor-entered if we have it,
-		// otherwise assume the pre-existing share of today's traffic that
-		// wasn't coming from work we're doing.
+		// Where they were before us, only where somebody actually recorded
+		// it. It used to default to 35% of today's traffic, which is a number
+		// with no source that every "+N vs before" on the dashboard was then
+		// computed against.
 		$baseline = 0;
 		if ( isset( $kpi['visitors_baseline'] ) && $kpi['visitors_baseline']->kpi_value !== '' ) {
 			$baseline = (int) preg_replace( '/[^0-9]/', '', $kpi['visitors_baseline']->kpi_value );
 		}
-		if ( $baseline <= 0 ) $baseline = (int) round( $current * 0.35 );
 
 		if ( $current <= 0 ) {
-			return array( 'has' => false, 'source' => 'none', 'baseline_mo' => 0, 'current_mo' => 0, 'points' => array() );
+			return array(
+				'has'    => false,
+				'source' => 'none',
+				'baseline_mo' => 0, 'current_mo' => 0, 'points' => array(),
+				'note'   => 'Nothing is reporting visitors yet. Connect Google Analytics or Search Console '
+				          . 'under Data Sources, or your advisor can enter the figure by hand.',
+			);
 		}
 
 		// ── Real captured history, when we have any ──────────────────────
@@ -883,6 +918,9 @@ class Six_Dash_Metrics {
 				'started_on'     => $start,
 				'window_days'    => count( $points ),
 				'projected_from' => $has_proj && $split !== null ? 'fit' : 'none',
+				// Which of the three requirements is missing, so the caption
+				// can name it rather than saying the line is simply absent.
+				'blocker'        => $split === null && $has_proj ? 'no_start' : (string) ( $daily['blocker'] ?? '' ),
 				'metric'         => $metric_label[ $daily['metric'] ] ?? $daily['metric'],
 				'measured_from'  => $daily['source'] ?? '',
 				'fitted_on'      => (int) ( $daily['fitted_on'] ?? 0 ),
@@ -891,47 +929,34 @@ class Six_Dash_Metrics {
 		}
 
 		if ( count( $measured ) >= 2 ) {
-			// What actually happened. The "without us" line stays flat at the
-			// baseline, because that is the claim being made: this is where
-			// they were when we started and they have not moved since on
-			// their own.
+			// Real snapshots on real dates. The "without us" line used to be
+			// drawn flat at the baseline here, which asserted that the client
+			// would not have moved at all on their own — a claim nobody
+			// measured. It is drawn only where an advisor recorded where
+			// they stood before we started.
 			foreach ( $measured as $m ) {
 				$points[] = array(
 					'date'   => $m['date'],
 					'label'  => gmdate( 'j M', strtotime( $m['date'] ) ),
-					'before' => $baseline,
-					'after'  => max( $baseline, $m['value'] ),
+					'before' => $baseline > 0 ? $baseline : null,
+					'after'  => (int) $m['value'],
 				);
 			}
 			$source  = 'measured';
 			$current = (int) end( $measured )['value'];
 		} else {
-			// No history yet. A modelled ramp from the baseline to today's
-			// figure, on real weekly dates ending this week — the axis said
-			// "Wk 1..Wk 12", which told a reader nothing about when any of it
-			// happened.
-			$raw = array();
-			for ( $w = 1; $w <= 12; $w++ ) $raw[ $w ] = 1 / ( 1 + exp( -0.7 * ( $w - 6 ) ) );
-			$lo = min( $raw ); $hi = max( $raw );
-			$start = time() - 11 * $week;
-
-			for ( $w = 1; $w <= 12; $w++ ) {
-				$f      = ( $raw[ $w ] - $lo ) / max( $hi - $lo, 0.0001 );   // 0..1
-				$before = (int) round( $baseline * ( 1 - 0.02 * abs( sin( $w / 2 ) ) ) );
-				// The with-us line can never sit below the without-us line —
-				// the ramp starts at the baseline, and the drift above only
-				// moves downward, so an early-week wobble can't read as us
-				// having made their traffic worse.
-				$after  = (int) round( $baseline + ( $current - $baseline ) * $f );
-				$ts     = $start + ( $w - 1 ) * $week;
-				$points[] = array(
-					'date'   => gmdate( 'Y-m-d', $ts ),
-					'label'  => gmdate( 'j M', $ts ),
-					'before' => $before,
-					'after'  => max( $before, $after ),
-				);
-			}
-			$source = $is_live ? 'live' : 'projected';
+			// Fewer than two readings. There used to be a modelled ramp here:
+			// twelve weeks of a sigmoid curve from an invented baseline up to
+			// today's figure, on real dates, drawn in the same ink as a
+			// measurement. It is gone. A chart with nothing behind it is not
+			// drawn at all, and the panel says what to connect.
+			return array(
+				'has'    => false,
+				'source' => 'none',
+				'baseline_mo' => 0, 'current_mo' => $current, 'points' => array(),
+				'note'   => 'Only one reading so far. The chart appears once there are at least two — '
+				          . 'daily once Google Analytics or Search Console is connected under Data Sources.',
+			);
 		}
 
 		return array(

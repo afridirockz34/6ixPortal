@@ -282,8 +282,21 @@ $GLOBALS['wpdb'] = $wpdb;
 // gives no sign — the exact failure the metric delete shipped with.
 $adv = file_get_contents( dirname( __DIR__, 2 ) . '/portal/templates/advisor-dashboard.php' );
 
-check( 'the board lives under Reports, where the plan is read',
-	strpos( $adv, 'Tasks &amp; timeline' ) !== false );
+check( 'the board lives under the service it belongs to',
+	strpos( $adv, 'To do &mdash; ' ) !== false
+	&& strpos( $adv, 'data-panel="todo"' ) !== false,
+	'one undifferentiated list for a twelve-month plan across three services' );
+check( 'and it is grouped by category, not printed as ninety numbered lines',
+	strpos( $adv, '$svc_bycat' ) !== false );
+check( 'the three things an advisor does to a service are three equal buttons',
+	strpos( $adv, 'grid-template-columns:repeat(3,1fr)' ) !== false
+	&& strpos( $adv, 'data-act="metrics"' ) !== false
+	&& strpos( $adv, 'data-act="work"' ) !== false
+	&& strpos( $adv, 'data-act="todo"' ) !== false );
+check( 'with only one open at a time, so the panel is not several screens long',
+	strpos( $adv, "panes.forEach(function(p){ p.style.display = 'none'; });" ) !== false );
+check( 'and the To do button carries the count of what is open',
+	strpos( $adv, '$svc_open' ) !== false );
 check( 'the status select carries the class its listener looks for',
 	strpos( $adv, 'six-task-status' ) !== false
 	&& preg_match( "/querySelectorAll\(\s*'\.six-task-status'/", $adv ) === 1 );
@@ -299,20 +312,23 @@ check( 'each task row has an id so it can be removed from the page',
 	strpos( $adv, 'id="task-' ) !== false );
 check( 'the publish button and its listener agree',
 	preg_match( "/querySelectorAll\(\s*'\.six-publish-tasks'/", $adv ) === 1 );
-check( 'the four states are shown with what each one means',
-	strpos( $adv, '$tb_means[$sk]' ) !== false );
+check( 'every state is offered on each task row',
+	strpos( $adv, 'foreach($svc_status as $sk => $sl)' ) !== false );
 check( 'a draft is marked as a draft on the row',
 	strpos( $adv, '>draft</span>' ) !== false );
 
-check( 'the work log moved to Reports',
-	strpos( $adv, '<span style="font-size:13px;font-weight:700">Work log</span>' ) !== false );
-check( 'and no longer sits inside the per-service metric panels',
-	strpos( $adv, 'wl-result-' ) === false,
-	'the per-service work-log form is still there' );
-check( 'the services tab points at where it went',
-	strpos( $adv, 'ctab=reports' ) !== false );
-check( 'the single form carries a service picker, since it is no longer per service',
-	strpos( $adv, 'wl-slug' ) !== false );
+/* The work log went to Reports for one release, which was the wrong call:
+   the advisor who just finished a service's metrics is the person who knows
+   what was done to that service, and sending them to another tab meant it
+   was not recorded. It is back beside the metrics, per service. */
+check( 'the work log sits with the service it is about',
+	strpos( $adv, 'data-panel="work"' ) !== false );
+check( 'and files against that service rather than asking which one',
+	strpos( $adv, 'var slug  = this.dataset.slug;' ) !== false );
+check( 'each service has its own result box, so two panels cannot write to one',
+	strpos( $adv, "document.querySelector('.wl-result-'+slug)" ) !== false );
+check( 'Reports says where tasks and the log went',
+	strpos( $adv, 'Tasks and the work log live under' ) !== false );
 
 $cust = file_get_contents( dirname( __DIR__, 2 ) . '/portal/templates/customer-dashboard.php' );
 check( 'the customer sees only published tasks',
@@ -320,6 +336,29 @@ check( 'the customer sees only published tasks',
 	'a draft plan would reach the client' );
 check( 'and the ones waiting on them are called out',
 	strpos( $cust, 'waiting on your approval' ) !== false );
+
+// A year of work is ninety-odd rows. Ninety rows under one heading is a
+// document nobody reads: a client wants to know what is happening to their
+// content, or to their links, not to scroll through both to find either.
+check( 'the plan is grouped into category tabs',
+	strpos( $cust, 'six-plan-tabs' ) !== false );
+check( 'with Everything first, so the whole plan is one click away',
+	strpos( $cust, "data-cat=\"__all\"" ) !== false );
+check( 'an uncategorised task lands under Other rather than vanishing',
+	strpos( $cust, "\$plan_cats[trim(\$pl['category']) ?: 'Other']" ) !== false );
+check( 'and Other sorts last',
+	strpos( $cust, "if(\$x==='Other') return 1;" ) !== false );
+check( 'each category is its own pane, so the month headings stay true',
+	strpos( $cust, 'six-plan-pane' ) !== false,
+	'filtering one list would leave "Month 3 of 12" sitting above nothing' );
+check( 'the months say they are months of twelve',
+	strpos( $cust, 'Month <?php echo (int)$pm; ?> of 12' ) !== false );
+check( 'the tabs are styled in the always-emitted stylesheet',
+	strpos( $cust, '.six-plan-tabs{' ) !== false
+	&& strpos( $cust, '.six-plan-tabs{' ) > strpos( $cust, "elseif(\$active_tab==='profile')" ),
+	'a service page would render them as a row of plain buttons' );
+check( 'and the chosen category is remembered',
+	strpos( $cust, 'six_plan_cat_' ) !== false );
 
 // ── The handlers ─────────────────────────────────────────────────────────
 $ajax = file_get_contents( dirname( __DIR__, 2 ) . '/portal/ajax-handlers.php' );

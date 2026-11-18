@@ -108,6 +108,7 @@ Every title below is the section name. None of them contains a phase number.
 |---|---|
 | Summary and decisions needed | One page. What we found, what we are doing, and the three to five decisions we need from the client, each with a recommendation. Written last |
 | What we will do first | The numbered priorities table — see below. The one page a client who reads nothing else will read |
+| What happens when | The twelve-row month table from `engagement-plans.md`. One row per month, counts rather than names, every column that applies filled in. On a six-month plan it is six rows and says so |
 | How to read the figures | Which numbers are measured (their GA4, Search Console) and which are estimated (Ahrefs), with the period and pull date for each. Two sentences per source |
 
 **Part 1 — Where the business stands**
@@ -193,6 +194,21 @@ Every title below is the section name. None of them contains a phase number.
 | B — Decisions on the previous plan | *Only where a predecessor exists.* Every page or recommendation of theirs, and what we are doing with it |
 | C — Open questions for the client | Everything still marked `[NEEDS CLIENT INPUT]`, as a list they can answer in one sitting |
 | D — Sources and pull dates | Every figure's source and the date it was pulled |
+
+### Saying how long it is
+
+The summary's first paragraph states the term and that the optimizing
+continues through it:
+
+> This plan covers twelve months. The content and every other deliverable
+> below is spread across that year, and we keep optimizing what is already
+> live for the whole of it — the work does not stop once the pages are
+> published.
+
+Without it a client reads a hundred blog topics as a list of what is about to
+happen, is surprised in month two that four posts exist, and surprised again
+in month nine that there is work left. `engagement-plans.md` has the
+six-month wording and the comparison section a six-month document carries.
 
 ### The priorities table
 

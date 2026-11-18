@@ -667,16 +667,74 @@ class Six_Tracking {
 	 * reading we ever took. Never "today": a start date of today makes the
 	 * whole history look like our work.
 	 */
+	const START_META = 'six_engagement_start';
+
+	/**
+	 * The day work began — the day the chart splits on.
+	 *
+	 * Three sources, in this order: a date an advisor set by hand, the
+	 * earliest approval date on an active service, or nothing.
+	 *
+	 * It used to fall back to the first day we had any reading, which could
+	 * never work: if the start is the first reading, there are zero readings
+	 * before the start, so the "without us" line can never be fitted. Worse,
+	 * Backfill made it *less* likely to appear — more history moved the first
+	 * reading earlier and the start date went with it. An advisor pressing
+	 * Backfill repeatedly and seeing no second line was watching a fallback
+	 * defeat the feature it was meant to rescue.
+	 *
+	 * No date is now no date, which the chart says out loud and the advisor
+	 * can fix in one box.
+	 */
 	public static function engagement_start( $client_id ) {
 		global $wpdb;
+		$client_id = (int) $client_id;
+
+		$manual = get_user_meta( $client_id, self::START_META, true );
+		if ( $manual ) {
+			$ts = strtotime( (string) $manual );
+			if ( $ts ) return gmdate( 'Y-m-d', $ts );
+		}
+
 		$approved = $wpdb->get_var( $wpdb->prepare(
 			"SELECT MIN(approved_at) FROM {$wpdb->prefix}six_client_services
 			  WHERE client_id=%d AND status='active' AND approved_at IS NOT NULL",
-			(int) $client_id
+			$client_id
 		) );
 		if ( $approved ) return gmdate( 'Y-m-d', strtotime( $approved ) );
-		$first = self::measurement_started( $client_id );
-		return $first ?: '';
+
+		return '';
+	}
+
+	/** Where that date came from, so the advisor knows what they are editing. */
+	public static function engagement_start_source( $client_id ) {
+		$client_id = (int) $client_id;
+		if ( get_user_meta( $client_id, self::START_META, true ) ) return 'manual';
+		return self::engagement_start( $client_id ) ? 'approval' : 'none';
+	}
+
+	/**
+	 * Set it by hand, or clear it to fall back to the approval date.
+	 *
+	 * @return array{ok:bool,date:string,error:string}
+	 */
+	public static function set_engagement_start( $client_id, $date ) {
+		$client_id = (int) $client_id;
+		$date = trim( (string) $date );
+
+		if ( $date === '' ) {
+			delete_user_meta( $client_id, self::START_META );
+			return array( 'ok' => true, 'date' => self::engagement_start( $client_id ), 'error' => '' );
+		}
+
+		$ts = strtotime( $date );
+		if ( ! $ts ) return array( 'ok' => false, 'date' => '', 'error' => 'That is not a date we can read. Use YYYY-MM-DD.' );
+		if ( $ts > current_time( 'timestamp' ) ) {
+			return array( 'ok' => false, 'date' => '', 'error' => 'The start date cannot be in the future.' );
+		}
+
+		update_user_meta( $client_id, self::START_META, gmdate( 'Y-m-d', $ts ) );
+		return array( 'ok' => true, 'date' => gmdate( 'Y-m-d', $ts ), 'error' => '' );
 	}
 
 	/**
@@ -694,22 +752,83 @@ class Six_Tracking {
 	 * @return array{points:array<string,float>,fitted_on:int,from:string}|array{}
 	 */
 	public static function baseline_projection( $client_id, $metric_key, array $dates ) {
-		$start = self::engagement_start( $client_id );
-		if ( ! $start || ! $dates ) return array();
+		return self::baseline_diagnosis( $client_id, $metric_key, $dates )['projection'];
+	}
 
-		$hist = self::daily( $client_id, $metric_key, 480 );
+	/**
+	 * Why there is, or is not, a "without us" line — in words.
+	 *
+	 * The line needs three things, and when any one is missing the chart used
+	 * to draw a single line and say nothing. An advisor pressed Backfill, saw
+	 * no second line, pressed it again, and had no way to learn that the real
+	 * problem was a service with no approval date on it. A feature gated on
+	 * data that does not exist, with nothing on screen saying which data: the
+	 * exact pattern this codebase keeps repeating.
+	 *
+	 * @return array{projection:array,ok:bool,blocker:string,message:string,
+	 *               readings:int,before:int,start:string}
+	 */
+	public static function baseline_diagnosis( $client_id, $metric_key, array $dates ) {
+		$none = array( 'projection' => array(), 'ok' => false );
+
+		$hist     = self::daily( $client_id, $metric_key, 480 );
+		$readings = count( $hist );
+		$start    = self::engagement_start( $client_id );
+
+		if ( ! $dates ) {
+			return $none + array( 'blocker' => 'no_dates', 'readings' => $readings,
+				'before' => 0, 'start' => $start,
+				'message' => 'There is nothing to plot the comparison against yet.' );
+		}
+
+		if ( ! $start ) {
+			return $none + array( 'blocker' => 'no_start', 'readings' => $readings,
+				'before' => 0, 'start' => '',
+				'message' => 'No start date is recorded for this engagement, so there is no day to '
+				           . 'compare either side of. Set the date work began on the client\'s profile.' );
+		}
+
 		$before = array();
 		foreach ( $hist as $h ) {
 			if ( $h['date'] < $start ) $before[] = $h;
 		}
+
+		if ( ! $readings ) {
+			return $none + array( 'blocker' => 'no_readings', 'readings' => 0, 'before' => 0, 'start' => $start,
+				'message' => 'No daily readings have been recorded. Connect Google Analytics or Search '
+				           . 'Console under Data Sources, then press Backfill all history.' );
+		}
+
+		if ( count( $before ) < self::MIN_FIT_POINTS ) {
+			return $none + array( 'blocker' => 'too_few_before', 'readings' => $readings,
+				'before' => count( $before ), 'start' => $start,
+				'message' => sprintf(
+					'The comparison line is fitted on readings from before %s, and there are %d of them — '
+					. '%d are needed. Backfill will not add any: Search Console only holds about 16 months, '
+					. 'and nothing exists from before the account was connected.',
+					$start, count( $before ), self::MIN_FIT_POINTS ) );
+		}
+
 		$points = self::project( $before, $dates );
-		if ( ! $points ) return array();
+		if ( ! $points ) {
+			return $none + array( 'blocker' => 'fit_failed', 'readings' => $readings,
+				'before' => count( $before ), 'start' => $start,
+				'message' => 'The readings from before the engagement could not be fitted to a trend.' );
+		}
 
 		return array(
-			'points'    => $points,
-			'fitted_on' => count( $before ),
-			'from'      => $before[0]['date'],
-			'start'     => $start,
+			'projection' => array(
+				'points'    => $points,
+				'fitted_on' => count( $before ),
+				'from'      => $before[0]['date'],
+				'start'     => $start,
+			),
+			'ok'       => true,
+			'blocker'  => '',
+			'message'  => '',
+			'readings' => $readings,
+			'before'   => count( $before ),
+			'start'    => $start,
 		);
 	}
 
@@ -782,7 +901,8 @@ class Six_Tracking {
 		}
 
 		$dates = array_column( $series, 'date' );
-		$proj  = self::baseline_projection( $client_id, $used, $dates );
+		$diag  = self::baseline_diagnosis( $client_id, $used, $dates );
+		$proj  = $diag['projection'];
 
 		return array(
 			'has'       => true,
@@ -793,10 +913,12 @@ class Six_Tracking {
 			'start'     => $proj['start'] ?? self::engagement_start( $client_id ),
 			'fitted_on' => $proj['fitted_on'] ?? 0,
 			'source'    => $series[0]['source'] ?? '',
-			'note'      => $proj
-				? ''
-				: 'The "without us" line needs at least 14 daily readings from before the '
-				  . 'engagement started. There are not that many yet, so only the measured line is drawn.',
+			// Which of the three requirements is missing, named. Pressing
+			// Backfill twice and seeing no second line taught nobody anything.
+			'blocker'   => $diag['blocker'],
+			'note'      => $diag['message'],
+			'readings'  => $diag['readings'],
+			'before'    => $diag['before'],
 		);
 	}
 

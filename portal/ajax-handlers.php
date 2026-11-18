@@ -738,6 +738,10 @@ add_action( 'wp_ajax_six_save_service_setup', function() {
     // advisor entered stopped at the advisor's own screen.
     $kpi_failed = array();
     $kpi_saved  = 0;
+    // Labels the catalog rows own. The sweep at the end of this handler
+    // deletes detail rows the advisor removed, and it must not reach these —
+    // they are managed by the loop below, which has its own delete.
+    $kpi_labels = array();
     $kpis = json_decode( wp_unslash( $_POST['kpis'] ?? '{}' ), true );
     if ( is_array( $kpis ) && $kpis ) {
         $ktbl = $wpdb->prefix . 'six_client_kpis';
@@ -752,6 +756,7 @@ add_action( 'wp_ajax_six_save_service_setup', function() {
                 $prev   = sanitize_text_field( $vals['previous'] ?? '' );
                 $target = sanitize_text_field( $vals['target'] ?? '' );
                 $label  = function_exists( 'six_kpi_label' ) ? six_kpi_label( $key ) : $key;
+                $kpi_labels[] = $label;
 
                 // An advisor clearing every box means "stop showing this",
                 // and it used to mean nothing at all: the loop skipped the row
@@ -807,6 +812,7 @@ add_action( 'wp_ajax_six_save_service_setup', function() {
     $metrics = json_decode( wp_unslash( $_POST['metrics'] ?? '[]' ), true );
     if ( ! is_array( $metrics ) ) $metrics = array();
     $saved = 0;
+    $kept  = array();
     foreach ( $metrics as $mm ) {
         $label = sanitize_text_field( $mm['label'] ?? '' );
         if ( $label === '' ) continue;
@@ -826,7 +832,45 @@ add_action( 'wp_ajax_six_save_service_setup', function() {
             $row['client_id'] = $client_id; $row['service_slug'] = $slug; $row['label'] = $label;
             $wpdb->insert( "{$wpdb->prefix}six_metrics", $row );
         }
+        $kept[] = $label;
         $saved++;
+    }
+
+    /* Rows the advisor took off the list.
+     *
+     * This handler only ever upserted. The × beside a metric row removed it
+     * from the page and the row was then simply absent from the payload —
+     * which the handler read as "nothing to say about it" and left exactly
+     * where it was. The advisor watched it disappear, saved, and found it
+     * still on the customer's dashboard.
+     *
+     * So: anything under this service that was neither submitted nor owned by
+     * the catalog loop above has been removed on purpose, and goes.
+     */
+    $removed = 0;
+    $mt = $wpdb->prefix . 'six_metrics';
+    if ( ! function_exists( 'six_table_exists' ) || six_table_exists( $mt ) ) {
+        $keep = array_values( array_unique( array_filter( array_merge( $kept, $kpi_labels ) ) ) );
+        $wpdb->suppress_errors( true );
+        if ( $keep ) {
+            $ph  = implode( ',', array_fill( 0, count( $keep ), '%s' ) );
+            $sql = $wpdb->prepare(
+                "DELETE FROM {$mt} WHERE client_id=%d AND service_slug=%s AND label NOT IN ($ph)",
+                array_merge( array( $client_id, $slug ), $keep )
+            );
+        } else {
+            $sql = $wpdb->prepare(
+                "DELETE FROM {$mt} WHERE client_id=%d AND service_slug=%s", $client_id, $slug );
+        }
+        $gone = $wpdb->query( $sql );
+        $err  = $wpdb->last_error;
+        $wpdb->suppress_errors( false );
+        if ( $gone === false ) {
+            error_log( '6ix setup: could not remove deleted metrics for client ' . $client_id . ' — ' . $err );
+            $kpi_failed['_removed'] = 'Rows you removed could not be deleted: ' . ( $err ?: 'the database refused it' );
+        } else {
+            $removed = (int) $gone;
+        }
     }
 
     // Activate the service if requested.
@@ -923,6 +967,7 @@ add_action( 'wp_ajax_six_save_service_setup', function() {
 
     wp_send_json_success( array(
         'metrics_saved'     => $saved,
+        'metrics_removed'   => $removed,
         'kpis_saved'        => $kpi_saved,
         // Named rather than swallowed: a figure that did not reach the table
         // the customer's cards read must not be reported as saved.
@@ -1330,15 +1375,50 @@ add_action( 'wp_ajax_six_upload_report', function() {
 
     if ( ! $file_url ) wp_send_json_error( 'No file or URL provided' );
 
-    $wpdb->insert( $wpdb->prefix . 'six_reports', array(
+    /* What the report is, not just what it is called.
+     *
+     * A client opening Reports saw a row of filenames and a date. "March 2026
+     * Performance Report" tells them nothing about which service it covers,
+     * what period it measures, or whether it is worth opening before the
+     * call. Four fields fix that, and the kind is a controlled list so the
+     * list can be grouped rather than sorted by whatever got typed.
+     */
+    $kinds = array( 'audit', 'strategy', 'monthly', 'implementation', 'other' );
+    $kind  = sanitize_key( $_POST['kind'] ?? 'monthly' );
+    if ( ! in_array( $kind, $kinds, true ) ) $kind = 'monthly';
+
+    $row = array(
         'client_id'  => $client_id,
         'advisor_id' => get_current_user_id(),
         'title'      => $title,
-        'type'       => 'monthly',
+        'type'       => $kind,
         'file_url'   => $file_url,
         'file_size'  => $file_size,
         'period'     => sanitize_text_field( $_POST['period'] ?? '' ),
-    ) );
+    );
+
+    // Only if the columns are actually there. A write naming a column that
+    // does not exist fails the whole statement under MySQL strict mode, so
+    // the report would be lost rather than filed without its summary.
+    if ( function_exists( 'six_reports_ensure_columns' ) ) six_reports_ensure_columns();
+    $cols = array_map( 'strtolower', (array) $wpdb->get_col( "SHOW COLUMNS FROM {$wpdb->prefix}six_reports", 0 ) );
+    if ( in_array( 'service_slug', $cols, true ) ) $row['service_slug'] = sanitize_key( $_POST['service_slug'] ?? '' );
+    if ( in_array( 'summary', $cols, true ) )      $row['summary']      = sanitize_textarea_field( wp_unslash( $_POST['summary'] ?? '' ) );
+    foreach ( array( 'period_start', 'period_end' ) as $d ) {
+        if ( ! in_array( $d, $cols, true ) ) continue;
+        $raw = sanitize_text_field( $_POST[ $d ] ?? '' );
+        $ts  = $raw ? strtotime( $raw ) : false;
+        if ( $ts ) $row[ $d ] = gmdate( 'Y-m-d', $ts );
+    }
+
+    $wpdb->suppress_errors( true );
+    $ok  = $wpdb->insert( $wpdb->prefix . 'six_reports', $row );
+    $err = $wpdb->last_error;
+    $wpdb->suppress_errors( false );
+    if ( $ok === false ) {
+        error_log( '6ix reports: upload failed for client ' . $client_id . ' — ' . $err );
+        wp_send_json_error( 'The report was uploaded but could not be filed: ' . ( $err ?: 'the database refused it' ) );
+    }
     Six_Notifications::create( array(
         'user_id'    => $client_id, 'type' => 'report_uploaded',
         'title'      => 'New Report Available',
@@ -3740,5 +3820,80 @@ add_action( 'wp_ajax_six_publish_tasks', function () {
 		'message' => $res['count']
 			? sprintf( '%d task%s %s.', $res['count'], $res['count'] === 1 ? '' : 's', $publish ? 'published' : 'unpublished' )
 			: 'Nothing changed — every task was already ' . ( $publish ? 'published' : 'a draft' ) . '.',
+	) );
+} );
+
+/**
+ * The day work began, set by hand.
+ *
+ * This is what the customer's chart splits on, and without it there is no
+ * "without us" line at all. It used to fall back to the first day we had any
+ * reading, which guaranteed zero readings before the start and so guaranteed
+ * no second line — and Backfill made it worse rather than better. One box
+ * fixes it, which is the point: a feature gated on data nobody could create
+ * is the failure this codebase keeps repeating.
+ */
+add_action( 'wp_ajax_six_set_engagement_start', function () {
+	check_ajax_referer( 'six_nonce', 'nonce' );
+	if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+	if ( ! class_exists( 'Six_Tracking' ) ) wp_send_json_error( 'Tracking is not available on this site.' );
+
+	$client_id = intval( $_POST['client_id'] ?? 0 );
+	if ( ! $client_id ) wp_send_json_error( 'Missing client.' );
+
+	$res = Six_Tracking::set_engagement_start( $client_id, sanitize_text_field( wp_unslash( $_POST['date'] ?? '' ) ) );
+	if ( ! $res['ok'] ) wp_send_json_error( $res['error'] );
+
+	// Say immediately whether that was enough, rather than leaving the
+	// advisor to reload the customer's dashboard and guess.
+	$diag = Six_Tracking::baseline_diagnosis( $client_id, 'gsc_clicks', array( gmdate( 'Y-m-d' ) ) );
+	wp_send_json_success( array(
+		'date'    => $res['date'],
+		'source'  => Six_Tracking::engagement_start_source( $client_id ),
+		'ok'      => $diag['ok'],
+		'blocker' => $diag['blocker'],
+		'message' => $res['date']
+			? ( $diag['ok']
+				? 'Set. The comparison line will draw on their dashboard.'
+				: $diag['message'] )
+			: 'Cleared — the date falls back to when the service was approved.',
+	) );
+} );
+
+/**
+ * Which four metrics appear on the customer's overview.
+ *
+ * The dashboard used to take the first N metrics of each active service in
+ * catalog order, so an advisor who cared about calls and a client whose
+ * conversions mattered both got impressions. Four slots, chosen per client.
+ */
+add_action( 'wp_ajax_six_save_overview_cards', function () {
+	check_ajax_referer( 'six_nonce', 'nonce' );
+	if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+
+	$client_id = intval( $_POST['client_id'] ?? 0 );
+	if ( ! $client_id ) wp_send_json_error( 'Missing client.' );
+
+	$raw  = json_decode( wp_unslash( $_POST['cards'] ?? '[]' ), true );
+	$keep = array();
+	foreach ( (array) $raw as $entry ) {
+		$entry = (string) $entry;
+		if ( strpos( $entry, ':' ) === false ) continue;
+		list( $slug, $key ) = explode( ':', $entry, 2 );
+		$slug = sanitize_key( $slug ); $key = sanitize_key( $key );
+		if ( $slug && $key ) $keep[] = $slug . ':' . $key;
+		if ( count( $keep ) >= 4 ) break;
+	}
+
+	// An empty choice is a real choice: it means "go back to the default
+	// order", not "show nothing". Deleting the meta is what does that.
+	if ( $keep ) update_user_meta( $client_id, 'six_overview_cards', $keep );
+	else         delete_user_meta( $client_id, 'six_overview_cards' );
+
+	wp_send_json_success( array(
+		'saved'   => count( $keep ),
+		'message' => $keep
+			? count( $keep ) . ' card' . ( count( $keep ) === 1 ? '' : 's' ) . ' chosen — their overview updates on the next load.'
+			: 'Cleared. Their overview goes back to the first metrics of each service.',
 	) );
 } );

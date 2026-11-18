@@ -4,7 +4,7 @@ Mechanical completeness, fact-check and readability scan for an assembled SEO
 strategy document (Phase 1, 2, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 17, 18, 19,
 or 20 content, or any combination).
 
-Six kinds of thing get checked:
+Seven kinds of thing get checked:
 
 1. Unresolved placeholders — "[NEEDS CLIENT INPUT: ...]" or
    "[NEEDS DATA: ...]" left in the text. These are a normal, honest part of
@@ -41,7 +41,12 @@ Six kinds of thing get checked:
 
 6. With --full, the sections a complete client-facing document has to carry.
    Off-page/backlinks and changes to pages the client already has are the two
-   that go missing, and they are the two clients ask about. Below the threshold they are
+   that go missing, and they are the two clients ask about.
+
+7. Whether the document says how long the plan runs, that the optimizing
+   continues through it, and whether its month-by-month table has a row for
+   every month. A strategy that never states its term reads as a list of
+   what is about to happen, which is what makes month two a surprise. Below the threshold they are
    reported for review.
 
 Usage:
@@ -149,6 +154,35 @@ SPEED_AS_SAVING_PATTERNS = [
 ]
 
 # ---------------------------------------------------------------------------
+# Check 7: the engagement's length, stated.
+#
+# A strategy arrives with a hundred blog topics and sixteen service pages and
+# nowhere says that the whole thing is a year of work. The client reads it as
+# a list of what is about to happen, is surprised in month two that four
+# posts exist, and surprised again in month nine that there is work left.
+#
+# Two things have to be on the page: how long the plan runs, and that we keep
+# optimizing what is already live for the whole of it. The second is the part
+# clients do not assume — they read an SEO engagement as a delivery project
+# that ends when the last page ships.
+
+TERM_PATTERNS = [
+    r"\b(?:twelve|12|six|6)[- ]month(?:s)?\b",
+    r"\bover (?:the )?(?:next )?(?:twelve|12|six|6) months\b",
+    r"\bacross (?:the )?(?:year|twelve|12|six|6)\b",
+]
+ONGOING_PATTERNS = [
+    r"keep(?:s)? optimi[sz]ing",
+    r"continue(?:s)? to optimi[sz]e",
+    r"\bfor the whole of it\b",
+    r"does not stop once",
+    r"ongoing optimi[sz]ation",
+]
+
+# A month table: twelve (or six) rows that start with a month marker.
+MONTH_ROW_RE = re.compile(r"^\s*\|\s*(?:month\s*)?(\d{1,2})\s*\|", re.IGNORECASE | re.MULTILINE)
+
+# ---------------------------------------------------------------------------
 # Check 6: the sections a full client-facing document has to carry.
 #
 # Only run with --full, because most requests are a slice — a keyword
@@ -158,6 +192,8 @@ SPEED_AS_SAVING_PATTERNS = [
 
 REQUIRED_SECTIONS = [
     ("the priorities table", [r"what we will do first", r"\bpriorit(?:y|ies)\b"]),
+    ("the month-by-month table", [r"what happens when", r"month by month", r"month-by-month",
+                                  r"\bthe (?:twelve|12|six|6)[- ]month plan\b", r"\btimeline\b"]),
     ("voice and tone", [r"\bvoice\b", r"\btone\b", r"how it will sound"]),
     ("the keyword set", [r"\bkeywords?\b"]),
     ("the page plan", [r"page plan", r"page architecture", r"what gets built"]),
@@ -401,6 +437,14 @@ def find_missing_sections(text: str) -> list:
     return missing
 
 
+def find_term_statement(text: str) -> dict:
+    """Does the document say how long it runs, and that the work continues?"""
+    said_term = any(re.search(p, text, re.IGNORECASE) for p in TERM_PATTERNS)
+    said_ongoing = any(re.search(p, text, re.IGNORECASE) for p in ONGOING_PATTERNS)
+    months = sorted({int(m) for m in MONTH_ROW_RE.findall(text) if 1 <= int(m) <= 24})
+    return {"term": said_term, "ongoing": said_ongoing, "month_rows": months}
+
+
 def find_phase_headings(text: str) -> set:
     phases = set()
     for line in HEADING_LINE_PATTERN.findall(text):
@@ -574,6 +618,32 @@ def main():
         failures += 1
     else:
         print("[OK] Page speed is not offered as a saving or an upsell")
+
+    # ── How long it runs, and that it keeps running ──────────────────────
+    term = find_term_statement(text)
+    if not term["term"]:
+        print("\n[REVIEW] The document never says how long the plan is. A client reads a "
+              "hundred topics as a list of what is about to happen unless the term is stated "
+              "on page one.")
+    elif not term["ongoing"]:
+        print("\n[REVIEW] The term is stated, but nothing says the optimizing continues "
+              "through it. Clients read an SEO engagement as a delivery project that ends "
+              "when the last page ships — say that it does not.")
+    else:
+        print("\n[OK] The plan's length is stated, and that the work continues through it")
+
+    rows = term["month_rows"]
+    if rows:
+        expected = list(range(1, max(rows) + 1))
+        missing = [m for m in expected if m not in rows]
+        if missing:
+            print(f"[REVIEW] The month table skips month(s) {missing} — a month with nothing "
+                  f"in it is a month the client will ask about.")
+        else:
+            print(f"[OK] A month-by-month table covering months 1-{max(rows)}")
+    elif check_sections:
+        print("[REVIEW] No month-by-month table found. Every strategy carries one row per "
+              "month with counts rather than names — see references/engagement-plans.md.")
 
     # ── The sections a full document carries ─────────────────────────────
     if check_sections:

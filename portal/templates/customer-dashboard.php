@@ -273,8 +273,17 @@ $svc_svg_icons = array(
         // reason to be answering strategy questions.
         $q_issued = function_exists('six_strategy_questionnaire_issued')
             && six_strategy_questionnaire_issued($user_id);
-        $q_prog = $q_issued && function_exists('six_seo_questionnaire_progress')
-            ? six_seo_questionnaire_progress($user_id, $active_svc_slugs, 'strategy') : null;
+        /* The questions they were actually given, not whatever services are
+           active right now — activating a second service used to add its
+           questions to a form the client had already finished. And a
+           questionnaire that is done clears itself three days later rather
+           than sitting at the top of their dashboard for ever. */
+        $q_scope = function_exists('six_questionnaire_client_slugs')
+            ? six_questionnaire_client_slugs($user_id) : $active_svc_slugs;
+        $q_vis   = function_exists('six_questionnaire_visible')
+            ? six_questionnaire_visible($user_id) : array('show'=>true);
+        $q_prog = $q_issued && $q_vis['show'] && function_exists('six_seo_questionnaire_progress')
+            ? six_seo_questionnaire_progress($user_id, $q_scope, 'strategy') : null;
         if ( $q_prog && $q_prog['total'] > 0 ): ?>
         <a href="?tab=questionnaire" class="six-nav-item <?php echo $active_tab==='questionnaire'?'active':''; ?>">
             <span class="six-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/></svg></span> Strategy Questionnaire
@@ -400,20 +409,11 @@ $six_visits = class_exists('Six_Dash_Metrics') ? Six_Dash_Metrics::visitor_serie
 // benchmarks gets the "estimate" notice; a row with any live or
 // advisor-confirmed number does not.
 $metrics_are_real = !empty($active_svcs) && !empty($kpi_data);
-$metrics_from_onb = $est_from_onb ?? (!empty($est_platforms) && empty($active_svcs));
 $has_any_data     = !empty($dash_cards);
-$all_estimated    = $has_any_data;
-foreach ( $dash_cards as $_c ) { if ( $_c['source'] !== 'estimate' ) { $all_estimated = false; break; } }
+/* The "benchmark estimate" banner is gone with the benchmarks themselves.
+   Every card now carries a measured figure, a figure a person entered, or an
+   em dash saying what to connect — there is no third kind to caption. */
 ?>
-<?php if ($all_estimated): ?>
-<div style="display:flex;align-items:flex-start;gap:12px;background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.2);border-radius:12px;padding:14px 18px;margin-bottom:16px">
-    <svg viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-    <div>
-        <div style="font-size:12.5px;font-weight:600;color:var(--text1);margin-bottom:2px">Benchmark estimate based on your onboarding information</div>
-        <div style="font-size:11.5px;color:var(--text3);line-height:1.5">These numbers are estimates calculated from the services you selected, your budget, and industry benchmarks. Your advisor is reviewing your profile and will update these with verified data shortly.</div>
-    </div>
-</div>
-<?php endif; ?>
 <?php if (!$has_any_data && empty($active_svcs)): ?>
 <div style="display:flex;align-items:flex-start;gap:12px;background:var(--dark2);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:16px">
     <svg viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" width="18" height="18" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
@@ -615,39 +615,6 @@ if ( $web_proj && $web_proj['total'] > 0 ):
 [data-theme="dark"] .six-kc-trend.up{background:rgba(86,211,100,.12);color:#56D364}
 [data-theme="dark"] .six-kc-trend.dn{background:rgba(255,107,107,.12);color:#FF6B6B}
 [data-theme="dark"] .six-roi-val{color:#FF7DA8}
-
-/* ── Target graphs ───────────────────────────────────────────────────
-   Two to a row on a desktop, one on a phone. Everything inside is drawn
-   from CSS variables so the same markup reads correctly in both themes;
-   the one hard-coded colour is the target's glow, which is built from the
-   service's own accent at a fixed opacity. */
-.six-target-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:16px 20px 18px}
-@media(max-width:620px){.six-target-grid{grid-template-columns:1fr}}
-.six-target-card{background:var(--dark3,rgba(127,127,127,.05));border:1px solid var(--border);
-  border-radius:12px;padding:14px 14px 10px;min-width:0}
-.six-target-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px}
-.six-target-name{font-size:12px;font-weight:700;color:var(--text1);line-height:1.3}
-.six-target-unit{font-size:10px;color:var(--text3);margin-top:2px}
-.six-target-now{font-size:19px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
-.six-target-pct{font-size:10px;color:var(--text3);margin-top:3px;white-space:nowrap}
-.six-target-plot{height:112px;margin:2px -2px 0}
-.six-target-plot svg{display:block;width:100%;height:100%;overflow:visible}
-.six-target-foot{display:flex;align-items:baseline;justify-content:space-between;gap:8px;
-  flex-wrap:wrap;font-size:10px;color:var(--text3);margin-top:6px;line-height:1.4}
-.six-target-goal{white-space:nowrap;font-weight:600;color:var(--text2)}
-.six-target-empty{height:112px;display:flex;align-items:center;justify-content:center;
-  font-size:11px;color:var(--text3)}
-
-/* Performance / Reporting switch — the two halves of a service page */
-.six-svc-switch{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0 0 20px;
-  border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--dark2)}
-.six-svc-switch button{appearance:none;border:0;background:transparent;cursor:pointer;
-  padding:13px 10px;font-size:13px;font-weight:700;color:var(--text3);font-family:inherit;
-  transition:background .15s,color .15s;border-right:1px solid var(--border)}
-.six-svc-switch button:last-child{border-right:0}
-.six-svc-switch button:hover{color:var(--text2)}
-.six-svc-switch button[aria-selected="true"]{color:#fff;background:linear-gradient(135deg,#FF6699,#8781BA)}
-.six-svc-switch button .six-switch-sub{display:block;font-size:10px;font-weight:500;opacity:.8;margin-top:2px}
 
 /* Hero row */
 .six-hero-row{display:grid;grid-template-columns:1fr 320px;gap:16px;margin-bottom:20px;align-items:stretch}
@@ -993,13 +960,16 @@ if ( $web_proj && $web_proj['total'] > 0 ):
     '  </div>',
     '  <div style="font-size:10.5px;line-height:1.5;color:'+(isDark?'rgba(255,255,255,.34)':'rgba(15,20,40,.45)')+';margin-top:6px">'
        + (!live
-          ? 'Projected from your services and budget using industry benchmarks. Switches to measured traffic once your advisor connects your reporting tools.'
+          ? 'Entered by your advisor. It becomes a daily measured line once Google Analytics or Search Console is connected under Data Sources.'
           : hasFit
             ? ('The last ' + (VIS.window_days || 30) + ' days, smoothed over seven so a weekend does not read as a drop. '
                + 'Solid line: your ' + unit + ', measured daily by ' + (VIS.measured_from === 'ga4' ? 'Google Analytics' : 'Google Search Console') + '. '
                + 'Dashed line, from the day we started' + (VIS.split_on ? ' (' + VIS.split_on + ')' : '') + ': your own trend over the '
                + VIS.fitted_on + ' days before that, carried forward from where you stood on the day.')
-            : (VIS.daily
+            : (VIS.blocker === 'no_start'
+               ? ('Your ' + unit + ', measured daily by ' + (VIS.measured_from === 'ga4' ? 'Google Analytics' : 'Google Search Console') + '. '
+                  + 'The "without us" comparison needs the date the work began, which has not been recorded yet — your advisor can add it.')
+               : VIS.daily
                ? ('Your ' + unit + ', measured daily by ' + (VIS.measured_from === 'ga4' ? 'Google Analytics' : 'Google Search Console') + '. '
                   + (VIS.note || 'There is not yet enough history from before we started to draw a "without us" comparison.'))
                : 'Measured across the services you\'re running with us.'))
@@ -1511,8 +1481,13 @@ ob_start();
    dates move while it is being edited, and a client who watched them move
    would reasonably conclude the schedule means nothing.
 
+   Grouped into category tabs rather than printed as one list. A year of work
+   is ninety-odd rows, and ninety rows under one heading is a document nobody
+   reads — a client wants to know what is happening to their content, or to
+   their links, not to scroll through both to find either.
+
    Four states, and the client-review one is the reason this block earns its
-   place — it names the things that are waiting on them, which no chart can. */
+   place: it names the things that are waiting on them, which no chart can. */
 $plan_rows = class_exists('Six_Tasks')
     ? Six_Tasks::all($user_id, array('service_slug'=>$svc_slug, 'published'=>true))
     : array();
@@ -1522,6 +1497,18 @@ if ( $plan_rows ):
     $plan_count  = array('todo'=>0,'client_review'=>0,'implementation'=>0,'complete'=>0);
     foreach($plan_rows as $pl){ if(isset($plan_count[$pl['status']])) $plan_count[$pl['status']]++; }
     $plan_waiting = $plan_count['client_review'];
+
+    /* By category, with "Everything" first so the full plan is still one
+       click away. A task the plan left uncategorised lands under Other
+       rather than vanishing from every tab. */
+    $plan_cats = array();
+    foreach($plan_rows as $pl){ $plan_cats[trim($pl['category']) ?: 'Other'][] = $pl; }
+    uksort($plan_cats, function($x,$y){
+        if($x==='Other') return 1;
+        if($y==='Other') return -1;
+        return strcasecmp($x,$y);
+    });
+    $plan_uid = 'plan-'.substr(md5($svc_slug),0,6);
 ?>
 <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px">
     <div style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.05)">
@@ -1531,23 +1518,38 @@ if ( $plan_rows ):
             if($plan_waiting): ?> &middot; <span style="color:var(--warning)"><?php echo $plan_waiting; ?> waiting on your approval</span><?php endif; ?>
         </div>
     </div>
-    <?php
-    $plan_by_month = array();
-    foreach($plan_rows as $pl){ $plan_by_month[(int)$pl['month_no']][] = $pl; }
-    ksort($plan_by_month);
-    foreach($plan_by_month as $pm => $pms): ?>
-    <div style="padding:9px 20px;border-top:1px solid rgba(255,255,255,0.05);background:var(--dark3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3)">Month <?php echo (int)$pm; ?></div>
-        <?php foreach($pms as $pl): ?>
-        <div style="display:flex;align-items:baseline;gap:12px;padding:9px 20px;border-top:1px solid rgba(255,255,255,0.03)">
-            <div style="flex:1;min-width:0">
-                <div style="font-size:12px;color:var(--text1);line-height:1.35"><?php echo esc_html($pl['title']); ?></div>
-                <?php if($pl['deliverable']): ?><div style="font-size:10px;color:var(--text3);margin-top:1px"><?php echo esc_html($pl['deliverable']); ?></div><?php endif; ?>
-            </div>
-            <div style="flex-shrink:0;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;color:<?php echo $plan_colors[$pl['status']]; ?>;background:<?php echo $plan_colors[$pl['status']]; ?>18">
-                <?php echo esc_html($plan_labels[$pl['status']] ?? $pl['status']); ?>
-            </div>
-        </div>
+
+    <div class="six-plan-tabs" data-plan="<?php echo esc_attr($plan_uid); ?>">
+        <button type="button" class="six-plan-tab" data-cat="__all" aria-selected="true">Everything
+            <span class="six-plan-n"><?php echo count($plan_rows); ?></span></button>
+        <?php foreach($plan_cats as $cat => $rows): ?>
+        <button type="button" class="six-plan-tab" data-cat="<?php echo esc_attr($cat); ?>" aria-selected="false"><?php echo esc_html($cat); ?>
+            <span class="six-plan-n"><?php echo count($rows); ?></span></button>
         <?php endforeach; ?>
+    </div>
+
+    <?php foreach(array_merge(array('__all'=>$plan_rows), $plan_cats) as $cat => $rows): ?>
+    <div class="six-plan-pane" data-plan="<?php echo esc_attr($plan_uid); ?>" data-cat="<?php echo esc_attr($cat); ?>"
+         <?php echo $cat==='__all' ? '' : 'hidden'; ?>>
+        <?php
+        $by_month = array();
+        foreach($rows as $pl){ $by_month[(int)$pl['month_no']][] = $pl; }
+        ksort($by_month);
+        foreach($by_month as $pm => $pms): ?>
+        <div style="padding:9px 20px;border-top:1px solid rgba(255,255,255,0.05);background:var(--dark3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3)">Month <?php echo (int)$pm; ?> of 12</div>
+            <?php foreach($pms as $pl): ?>
+            <div style="display:flex;align-items:baseline;gap:12px;padding:9px 20px;border-top:1px solid rgba(255,255,255,0.03)">
+                <div style="flex:1;min-width:0">
+                    <div style="font-size:12px;color:var(--text1);line-height:1.35"><?php echo esc_html($pl['title']); ?></div>
+                    <?php if($pl['deliverable']): ?><div style="font-size:10px;color:var(--text3);margin-top:1px"><?php echo esc_html($pl['deliverable']); ?></div><?php endif; ?>
+                </div>
+                <div style="flex-shrink:0;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;color:<?php echo $plan_colors[$pl['status']]; ?>;background:<?php echo $plan_colors[$pl['status']]; ?>18">
+                    <?php echo esc_html($plan_labels[$pl['status']] ?? $pl['status']); ?>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        <?php endforeach; ?>
+    </div>
     <?php endforeach; ?>
 </div>
 <?php endif; ?>
@@ -1603,11 +1605,9 @@ if ( $plan_rows ):
          below the fold on every service page a client opened. */ ?>
 <div class="six-svc-switch" role="tablist" data-slug="<?php echo esc_attr($svc_slug); ?>">
     <button type="button" role="tab" data-pane="performance" aria-selected="true"
-            aria-controls="six-pane-performance">Performance
-        <span class="six-switch-sub">The numbers and the graphs</span></button>
+            aria-controls="six-pane-performance">Performance</button>
     <button type="button" role="tab" data-pane="reporting" aria-selected="false"
-            aria-controls="six-pane-reporting">Reporting
-        <span class="six-switch-sub">What we did, and what is next</span></button>
+            aria-controls="six-pane-reporting">Reporting</button>
 </div>
 
 <div id="six-pane-performance" role="tabpanel">
@@ -1972,9 +1972,14 @@ $conv = class_exists('Six_Messaging') ? Six_Messaging::get_conversation($user_id
 <?php else: ?><div class="six-card"><div class="six-card-body" style="text-align:center;padding:60px;color:var(--text3)"><div style="margin-bottom:12px;color:var(--text3)"><?php echo class_exists('Six_Icon')?Six_Icon::get('advisor','','40px'):''; ?></div><div style="font-size:14px;font-weight:600">No advisor assigned yet</div><div style="font-size:13px;margin-top:8px">Contact us at hello@6ixdevelopers.com to get started.</div></div></div><?php endif; ?>
 
 <?php elseif($active_tab==='questionnaire'):
-$q_schema  = six_seo_questionnaire_for_client( $active_svc_slugs, 'strategy' );
-$q_answers = six_seo_questionnaire_answers( $user_id, $active_svc_slugs, 'strategy' );
-$q_prog    = six_seo_questionnaire_progress( $user_id, $active_svc_slugs, 'strategy' );
+/* Same frozen scope the nav item used. Reading the live service list here
+   and the frozen one there would show a badge for questions the form never
+   rendered. */
+$q_scope   = function_exists('six_questionnaire_client_slugs')
+    ? six_questionnaire_client_slugs( $user_id ) : $active_svc_slugs;
+$q_schema  = six_seo_questionnaire_for_client( $q_scope, 'strategy' );
+$q_answers = six_seo_questionnaire_answers( $user_id, $q_scope, 'strategy' );
+$q_prog    = six_seo_questionnaire_progress( $user_id, $q_scope, 'strategy' );
 $q_done    = function_exists('six_strategy_questionnaire_submitted') && six_strategy_questionnaire_submitted( $user_id );
 $q_done_at = $q_done ? six_strategy_questionnaire_submitted_at( $user_id ) : '';
 ?>
@@ -2222,15 +2227,48 @@ $q_done_at = $q_done ? six_strategy_questionnaire_submitted_at( $user_id ) : '';
 <?php elseif($active_tab==='reports'): ?>
 <div class="six-page-header"><div><h1 class="six-page-title">Reports</h1></div></div>
 <div class="six-card"><div class="six-card-body">
+<?php
+/* A row used to be a filename and a date. Nothing said which service the
+   report covered, what period it measured, or what was in it — so a client
+   opening this page before a call could not tell which of five files to
+   read. Everything below is a field the advisor filled in on upload; a
+   report filed before those fields existed simply shows fewer of them. */
+$rep_kinds = array(
+    'audit'          => array('SEO audit', 'What is wrong with the site today, and what it is costing.'),
+    'strategy'       => array('Strategy', 'The plan: what gets built, in what order, and the targets it commits to.'),
+    'monthly'        => array('Monthly performance', 'What moved last month, and what we changed to move it.'),
+    'implementation' => array('Implementation log', 'Every change made on the site, with what it was before.'),
+    'other'          => array('Report', ''),
+);
+$rep_svc = array('seo'=>'SEO','google-ads'=>'Google Ads','google-business'=>'Google Business Profile','website'=>'Website');
+?>
 <?php if(empty($reports)): ?>
 <div style="text-align:center;padding:40px;color:var(--text3)"><div style="margin-bottom:12px;color:var(--text3)"><?php echo class_exists('Six_Icon')?Six_Icon::get('reports','','36px'):''; ?></div>Your advisor will upload monthly reports here once campaigns are running.</div>
-<?php else: foreach($reports as $rep): ?>
-<div class="six-report-row" style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)">
-    <div style="display:flex;align-items:center;gap:12px">
-        <div style="font-size:24px"></div>
-        <div><div style="font-weight:600;font-size:13px"><?php echo esc_html($rep->title); ?></div><div style="font-size:11px;color:var(--text3)"><?php echo date('M j, Y',strtotime($rep->created_at)); ?></div></div>
+<?php else: foreach($reports as $rep):
+    $rk = $rep_kinds[$rep->type ?? 'other'] ?? $rep_kinds['other'];
+    $rs = !empty($rep->service_slug) ? ($rep_svc[$rep->service_slug] ?? $rep->service_slug) : '';
+    $rp = '';
+    if (!empty($rep->period_start) && !empty($rep->period_end)) {
+        $rp = date_i18n('j M', strtotime($rep->period_start)) . ' – ' . date_i18n('j M Y', strtotime($rep->period_end));
+    } elseif (!empty($rep->period)) { $rp = $rep->period; }
+?>
+<div class="six-report-row" style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:14px 0;border-bottom:1px solid var(--border)">
+    <div style="min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px">
+            <span style="font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--pink);background:rgba(255,102,153,.1);padding:2.5px 8px;border-radius:20px"><?php echo esc_html($rk[0]); ?></span>
+            <?php if($rs): ?><span style="font-size:10.5px;color:var(--text3)"><?php echo esc_html($rs); ?></span><?php endif; ?>
+        </div>
+        <div style="font-weight:600;font-size:13px"><?php echo esc_html($rep->title); ?></div>
+        <div style="font-size:11.5px;color:var(--text2);margin-top:2px;line-height:1.5">
+            <?php echo esc_html(!empty($rep->summary) ? $rep->summary : $rk[1]); ?>
+        </div>
+        <div style="font-size:10.5px;color:var(--text3);margin-top:3px">
+            <?php if($rp): ?>Covers <?php echo esc_html($rp); ?> &middot; <?php endif; ?>
+            Added <?php echo esc_html(date_i18n('j M Y', strtotime($rep->created_at))); ?>
+            <?php if(!empty($rep->file_size)): ?> &middot; <?php echo esc_html($rep->file_size); ?><?php endif; ?>
+        </div>
     </div>
-    <?php if($rep->file_url): ?><a href="<?php echo esc_url($rep->file_url); ?>" class="six-btn six-btn-secondary six-btn-sm" target="_blank">↓ Download</a><?php endif; ?>
+    <?php if($rep->file_url): ?><a href="<?php echo esc_url($rep->file_url); ?>" class="six-btn six-btn-secondary six-btn-sm" target="_blank" style="flex-shrink:0">↓ Download</a><?php endif; ?>
 </div>
 <?php endforeach; endif; ?>
 </div></div>
@@ -2434,6 +2472,59 @@ $next_billing=date('M 1, Y',strtotime('first day of next month'));
 </div>
 
 <style>
+/* ── Target graphs and the service-page switch ───────────────────────────
+   These live in the always-emitted stylesheet, not in the Overview tab's
+   own <style> block, which is where they were first written. That block is
+   inside `if($active_tab==='overview')`, so on a service page — the only
+   page that uses any of this — none of it loaded: the graphs stacked one
+   per row and the switch rendered as two lines of unstyled text. Anything
+   a non-Overview tab needs belongs here. */
+/* ── Target graphs ───────────────────────────────────────────────────
+   Two to a row on a desktop, one on a phone. Everything inside is drawn
+   from CSS variables so the same markup reads correctly in both themes;
+   the one hard-coded colour is the target's glow, which is built from the
+   service's own accent at a fixed opacity. */
+.six-target-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:16px 20px 18px}
+@media(max-width:620px){.six-target-grid{grid-template-columns:1fr}}
+.six-target-card{background:var(--dark3,rgba(127,127,127,.05));border:1px solid var(--border);
+  border-radius:12px;padding:14px 14px 10px;min-width:0}
+.six-target-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px}
+.six-target-name{font-size:12px;font-weight:700;color:var(--text1);line-height:1.3}
+.six-target-unit{font-size:10px;color:var(--text3);margin-top:2px}
+.six-target-now{font-size:19px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.six-target-pct{font-size:10px;color:var(--text3);margin-top:3px;white-space:nowrap}
+.six-target-plot{height:112px;margin:2px -2px 0}
+.six-target-plot svg{display:block;width:100%;height:100%;overflow:visible}
+.six-target-foot{display:flex;align-items:baseline;justify-content:space-between;gap:8px;
+  flex-wrap:wrap;font-size:10px;color:var(--text3);margin-top:6px;line-height:1.4}
+.six-target-goal{white-space:nowrap;font-weight:600;color:var(--text2)}
+.six-target-empty{height:112px;display:flex;align-items:center;justify-content:center;
+  font-size:11px;color:var(--text3)}
+
+/* The plan's category tabs. A year of work is ninety-odd rows, and ninety
+   rows under one heading is a document nobody reads. */
+.six-plan-tabs{display:flex;gap:4px;padding:10px 20px 0;flex-wrap:wrap;
+  border-bottom:1px solid rgba(127,127,127,.12)}
+.six-plan-tab{appearance:none;background:transparent;border:0;border-bottom:2px solid transparent;
+  font-family:inherit;font-size:12px;font-weight:700;color:var(--text3);cursor:pointer;
+  padding:8px 10px;display:flex;align-items:center;gap:6px;transition:color .15s,border-color .15s}
+.six-plan-tab:hover{color:var(--text2)}
+.six-plan-tab[aria-selected="true"]{color:var(--text1);border-bottom-color:#FF6699}
+.six-plan-n{font-size:10px;font-weight:600;color:var(--text3);background:rgba(127,127,127,.14);
+  padding:1px 7px;border-radius:20px}
+.six-plan-tab[aria-selected="true"] .six-plan-n{color:#FF6699;background:rgba(255,102,153,.14)}
+
+/* Performance / Reporting switch — the two halves of a service page */
+.six-svc-switch{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0 0 20px;
+  border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--dark2)}
+.six-svc-switch button{appearance:none;border:0;background:transparent;cursor:pointer;
+  padding:13px 10px;font-size:13px;font-weight:700;color:var(--text3);font-family:inherit;
+  transition:background .15s,color .15s;border-right:1px solid var(--border)}
+.six-svc-switch button:last-child{border-right:0}
+.six-svc-switch button:hover{color:var(--text2)}
+.six-svc-switch button[aria-selected="true"]{color:#fff;background:linear-gradient(135deg,#FF6699,#8781BA)}
+
+
 .six-ai-badge{font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;background:linear-gradient(135deg,var(--pink),#8781BA);color:white;padding:3px 8px;border-radius:100px}
 .six-ai-body{font-size:13px;color:var(--text2);line-height:1.8;min-height:60px}
 .six-ai-loading{display:flex;align-items:center;gap:10px;color:var(--text3);font-size:12px;padding:8px 0}
@@ -3419,5 +3510,33 @@ function setBnavActive(el) {
   var saved = 'performance';
   try { saved = localStorage.getItem('six_svc_pane_' + slug) || 'performance'; } catch (e) {}
   show(panes[saved] ? saved : 'performance', false);
+})();
+</script>
+
+<script>
+/* The plan's category tabs. Server-rendered panes rather than a filter over
+ * one list, so the month headings stay correct inside each category — a
+ * filter would leave "Month 3 of 12" sitting above nothing. */
+(function(){
+  document.querySelectorAll('.six-plan-tabs').forEach(function(bar){
+    var id = bar.getAttribute('data-plan');
+    bar.querySelectorAll('.six-plan-tab').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var cat = btn.getAttribute('data-cat');
+        bar.querySelectorAll('.six-plan-tab').forEach(function(b){
+          b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
+        });
+        document.querySelectorAll('.six-plan-pane[data-plan="' + id + '"]').forEach(function(p){
+          p.hidden = p.getAttribute('data-cat') !== cat;
+        });
+        try { localStorage.setItem('six_plan_cat_' + id, cat); } catch (e) {}
+      });
+    });
+    var want = '';
+    try { want = localStorage.getItem('six_plan_cat_' + id) || ''; } catch (e) {}
+    if (!want) return;
+    var btn = bar.querySelector('.six-plan-tab[data-cat="' + want.replace(/"/g, '\\"') + '"]');
+    if (btn) btn.click();
+  });
 })();
 </script>

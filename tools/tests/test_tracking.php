@@ -152,5 +152,65 @@ check( 'reading the log with no table returns nothing', Six_Tracking::work_log( 
 check( 'the proof rollup with no table returns nothing', Six_Tracking::proof( 7 ) === array() );
 check( 'the daily series with no table returns nothing', Six_Tracking::daily( 7, 'sessions' ) === array() );
 
+/* ─────────────────────────────────────────────────────────────────────────
+ * Why the "without us" line is missing, in words
+ *
+ * Reported from live use: "Visitors, with or without us, graph is still not
+ * showing 2 different lines. I have tried clicking backfill all history and
+ * sync recent only." Both buttons were the wrong lever, and nothing on screen
+ * said so.
+ *
+ * The start date used to fall back to the first day we held any reading.
+ * That can never work — if the start IS the first reading, there are zero
+ * readings before it, so the line can never be fitted. Backfill made it
+ * worse: more history moved the first reading earlier and took the start
+ * date with it.
+ * ───────────────────────────────────────────────────────────────────────── */
+$trk = file_get_contents( dirname( __DIR__, 2 ) . '/portal/class-tracking.php' );
+
+check( 'the start date no longer falls back to the first reading',
+	strpos( $trk, '$first = self::measurement_started( $client_id );
+		return $first ?: \'\';' ) === false,
+	'a start equal to the first reading guarantees nothing sits before it' );
+check( 'an advisor can set it by hand',
+	strpos( $trk, 'function set_engagement_start(' ) !== false );
+check( 'clearing it falls back to the approval date rather than to nothing',
+	strpos( $trk, "if ( \$date === '' ) {" ) !== false
+	&& strpos( $trk, 'delete_user_meta( $client_id, self::START_META )' ) !== false );
+check( 'a future start date is refused',
+	strpos( $trk, 'cannot be in the future' ) !== false,
+	'a start after today would put every reading before it' );
+check( 'and the advisor can see where the current date came from',
+	strpos( $trk, 'function engagement_start_source(' ) !== false );
+
+check( 'the missing requirement is named rather than left blank',
+	strpos( $trk, 'function baseline_diagnosis(' ) !== false );
+foreach ( array( 'no_start', 'no_readings', 'too_few_before', 'fit_failed' ) as $b ) {
+	check( "the diagnosis distinguishes $b", strpos( $trk, "'blocker' => '$b'" ) !== false );
+}
+check( 'and says plainly that backfilling will not help when the history is simply not there',
+	strpos( $trk, 'Backfill will not add any' ) !== false,
+	'an advisor pressed it twice and learned nothing' );
+check( 'the old projection entry point still works, through the diagnosis',
+	strpos( $trk, "return self::baseline_diagnosis( \$client_id, \$metric_key, \$dates )['projection'];" ) !== false );
+
+$adv2 = file_get_contents( dirname( __DIR__, 2 ) . '/portal/templates/advisor-dashboard.php' );
+check( 'the advisor has a box for the date', strpos( $adv2, 'six-start-date' ) !== false );
+check( 'next to the backfill buttons, which is where they went looking',
+	strpos( $adv2, 'Day work began' ) !== false
+	&& strpos( $adv2, 'six-start-date' ) < strpos( $adv2, 'Backfill all history' ) );
+check( 'and it says when nothing is set at all',
+	strpos( $adv2, "cannot draw the comparison line without it" ) !== false );
+
+$ajax2 = file_get_contents( dirname( __DIR__, 2 ) . '/portal/ajax-handlers.php' );
+check( 'the handler is registered', strpos( $ajax2, 'wp_ajax_six_set_engagement_start' ) !== false );
+check( 'and reports straight away whether that was enough',
+	strpos( $ajax2, 'The comparison line will draw on their dashboard' ) !== false,
+	'otherwise the advisor reloads the customer dashboard and guesses' );
+
+$cust2 = file_get_contents( dirname( __DIR__, 2 ) . '/portal/templates/customer-dashboard.php' );
+check( 'the customer chart names the missing date rather than silently drawing one line',
+	strpos( $cust2, "VIS.blocker === 'no_start'" ) !== false );
+
 echo "\nPassed: $pass  Failed: $fail\n";
 exit( $fail ? 1 : 0 );

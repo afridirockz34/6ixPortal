@@ -68,6 +68,40 @@ they are what the first month's work is drawn from.
 
 ---
 
+## How much of it, on which plan
+
+The page set is sized by the engagement, not by the keyword list. Read
+`commercial.plan_terms` from `get_client_profile` before deciding how many of
+anything to produce; `seo-strategy-builder/references/engagement-plans.md`
+has the table.
+
+The short version: a six-month engagement gets the **whole** foundation —
+every technical fix, the titles and meta on existing pages, the URL changes,
+the off-page artifacts — and roughly a third of the content. It does not get
+the quarterly refresh, because there is nothing old enough to refresh.
+
+| | 12-month | 6-month |
+|---|---|---|
+| Blog posts written | ~40 of the 100 planned | ~15 |
+| Service pages | Full set | The highest-priority half |
+| Location pages | Full set | Top catchment only |
+| Resource guides | 3–4 | 1 |
+| Off-page artifacts | All five | All five |
+| Existing-page changes | All of them | All of them |
+
+**The hundred blog topics stay a hundred on both plans.** The topic set is
+the research; how many get written is the engagement. A six-month client
+still gets the full topic list in their strategy, because it is what tells
+them what the site could cover and what a renewal would buy — writing fifteen
+of them is a separate fact, stated in the calendar.
+
+**Phase one is the same on both.** Where production splits into four-month
+phases, the first phase is the foundation plus the highest-priority content,
+and it does not change with the plan length. A six-month engagement is phase
+one and a smaller phase two.
+
+---
+
 ## The index document
 
 `00-INDEX.md`, maintained as the set is produced. One row per page:

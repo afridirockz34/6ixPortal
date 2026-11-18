@@ -269,6 +269,10 @@ FULL = """# SEO strategy — Example Firm
 ## What we will do first
 One table.
 
+## What happens when
+This plan covers twelve months, and we keep optimizing what is already live
+for the whole of it.
+
 ## How it will sound — voice and tone
 We write the way the partners speak.
 
@@ -315,6 +319,55 @@ r = subprocess.run([sys.executable, str(SCRIPT), "--help"],
                    capture_output=True, text=True)
 check("--help explains that --full is for a complete document only",
       "--full" in r.stdout and "partial build" in r.stdout, r.stdout[:2000])
+
+# ── How long the plan runs, and that it keeps running ───────────────────
+# A strategy arrives with a hundred blog topics and nowhere says the whole
+# thing is a year of work. The client reads it as a list of what is about to
+# happen, is surprised in month two that four posts exist, and surprised
+# again in month nine that there is work left.
+MONTHS = "\n".join(f"| {m} | Focus | 2 posts | Tier 1 | Titles |" for m in range(1, 13))
+YEAR = f"""# SEO strategy
+
+## Summary
+
+This plan covers twelve months. Everything below is spread across that year,
+and we keep optimizing what is already live for the whole of it.
+
+## What happens when
+
+| Month | Focus | Content | Off-page | Technical |
+|---|---|---|---|---|
+{MONTHS}
+"""
+code, out = run(YEAR)
+check("a plan that states its term and its ongoing work reports clean",
+      "[OK] The plan's length is stated" in out, out[-700:])
+check("and its month table is recognised",
+      "months 1-12" in out, out[-700:])
+
+code, out = run(YEAR.replace("and we keep optimizing what is already live for the whole of it.", "."))
+check("stating the term without the ongoing work is flagged",
+      "optimizing continues" in out, out[-700:])
+check("but it does not fail the document",
+      code == 0, "a review item became a hard failure")
+
+code, out = run(GOOD)
+check("a document that never says how long the plan is, is flagged",
+      "never says how long the plan is" in out, out[-700:])
+
+# A month missing from the table is a month the client will ask about.
+gap = YEAR.replace("| 7 | Focus | 2 posts | Tier 1 | Titles |\n", "")
+code, out = run(gap)
+check("a month missing from the table is named",
+      "skips month(s) [7]" in out, out[-700:])
+
+# Six months is a plan too — the check must not demand twelve.
+SIX = YEAR.replace("twelve months", "six months").replace("that year", "those six months")
+for m in range(7, 13):
+    SIX = SIX.replace(f"| {m} | Focus | 2 posts | Tier 1 | Titles |\n", "")
+code, out = run(SIX)
+check("a six-month plan is a plan, not a twelve-month one with gaps",
+      "months 1-6" in out and "skips month" not in out, out[-700:])
 
 print()
 print(f"Passed: {passed}  Failed: {failed}")
