@@ -330,6 +330,85 @@ check( 'and their measured figure is shown separately, named as measured',
 check( 'the empty-state colspan matches the new column count',
 	strpos( $cust, 'colspan="6"' ) !== false );
 
+// ── The CSS a service page needs is actually on a service page ───────────
+//
+// The target graphs and the Performance/Reporting switch were first written
+// into the Overview tab's own <style> block, which is inside
+// `if($active_tab==='overview')`. On a service page — the only page that uses
+// any of it — none of it loaded: the graphs stacked one per row and the
+// switch rendered as two lines of unstyled text. Nothing failed; it just
+// looked broken.
+$style_blocks = array();
+$off = 0;
+while ( ( $s = strpos( $cust, '<style', $off ) ) !== false ) {
+	$e = strpos( $cust, '</style>', $s );
+	$style_blocks[] = array( 'start' => $s, 'end' => $e );
+	$off = $e === false ? strlen( $cust ) : $e;
+}
+function six_in_tab_branch( $hay, $pos ) {
+	$head = substr( $hay, 0, $pos );
+	return preg_match_all( "/<\?php\s*if\s*\(\s*\\$active_tab/", $head ) > 0;
+}
+foreach ( array( '.six-target-grid{', '.six-svc-switch{', '.six-target-card{' ) as $rule ) {
+	$at = strpos( $cust, $rule );
+	check( "the rule $rule exists", $at !== false );
+	if ( $at === false ) continue;
+	$inside = null;
+	foreach ( $style_blocks as $b ) {
+		if ( $at > $b['start'] && $b['end'] !== false && $at < $b['end'] ) { $inside = $b; break; }
+	}
+	check( "$rule is in a <style> block", $inside !== null );
+	if ( $inside === null ) continue;
+	check( "and that block is not inside one tab's branch",
+		! six_in_tab_branch( $cust, $inside['start'] ),
+		'a service page would render this unstyled' );
+}
+
+// ── Zero is a measurement ────────────────────────────────────────────────
+check( 'a measured zero renders as zero, not as an em dash',
+	Six_Dash_Metrics::format( 0, array() ) === '0',
+	'got ' . var_export( Six_Dash_Metrics::format( 0, array() ), true )
+	. ' — a client with no conversions this month was told we had not measured' );
+check( 'and an advisor who types 0 sees it stay',
+	Six_Dash_Metrics::format( '0', array() ) === '0' );
+check( 'zero with a unit keeps its prefix and suffix',
+	Six_Dash_Metrics::format( 0, array( 'prefix' => '$' ) ) === '$0' );
+check( 'an empty value is still an em dash', Six_Dash_Metrics::format( '', array() ) === '—' );
+check( 'and so is null', Six_Dash_Metrics::format( null, array() ) === '—' );
+check( 'a negative figure is shown rather than hidden',
+	Six_Dash_Metrics::format( -4, array() ) === '-4',
+	'it is either real or a data problem somebody needs to see' );
+
+// ── No benchmarks anywhere a client reads a number ───────────────────────
+$dm = file_get_contents( dirname( __DIR__, 2 ) . '/portal/class-dashboard-metrics.php' );
+check( 'the benchmark estimator is gone from the dashboard metrics',
+	strpos( $dm, 'function estimates(' ) === false,
+	'a modelled figure and a measured one looked identical on the card' );
+check( 'and nothing calls it', strpos( $dm, 'self::estimates(' ) === false );
+check( 'a card with no measurement and no advisor figure has no value',
+	strpos( $dm, "\$src = 'none';" ) !== false );
+check( 'and says what to connect instead of showing a benchmark',
+	strpos( $dm, "'Connect ' . ( self::connectors()" ) !== false );
+check( 'the invented 35% baseline is gone',
+	strpos( $dm, '$current * 0.35' ) === false,
+	'every "+N vs before" on the dashboard was computed against it' );
+check( 'the modelled twelve-week ramp is gone',
+	strpos( $dm, 'exp( -0.7 * ( $w - 6 ) )' ) === false,
+	'a sigmoid curve was drawn in the same ink as a measurement' );
+check( 'and a client with one reading is told so rather than shown a curve',
+	strpos( $dm, 'Only one reading so far' ) !== false );
+check( 'the customer dashboard no longer captions anything a benchmark estimate',
+	strpos( $cust, 'Benchmark estimate based on your onboarding' ) === false );
+
+// ── The advisor picks the overview cards ─────────────────────────────────
+check( 'the advisor\'s chosen cards are read per client',
+	strpos( $dm, "function chosen_cards(" ) !== false );
+check( 'the picker has a list of every metric to choose from',
+	strpos( $dm, "function card_choices(" ) !== false );
+check( 'a choice is stored as service:key, so the same key under two services stays distinct',
+	strpos( $dm, "\$slug . ':' . \$key" ) !== false );
+check( 'at most four are honoured', strpos( $dm, 'array_slice( $out, 0, 4 )' ) !== false );
+
 // ── Website maintenance stays out of the service nav ─────────────────────
 check( 'maintenance still has no Services nav item',
 	strpos( $cust, '>Website Maintenance</span>' ) === false );

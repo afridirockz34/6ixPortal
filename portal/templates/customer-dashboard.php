@@ -400,20 +400,11 @@ $six_visits = class_exists('Six_Dash_Metrics') ? Six_Dash_Metrics::visitor_serie
 // benchmarks gets the "estimate" notice; a row with any live or
 // advisor-confirmed number does not.
 $metrics_are_real = !empty($active_svcs) && !empty($kpi_data);
-$metrics_from_onb = $est_from_onb ?? (!empty($est_platforms) && empty($active_svcs));
 $has_any_data     = !empty($dash_cards);
-$all_estimated    = $has_any_data;
-foreach ( $dash_cards as $_c ) { if ( $_c['source'] !== 'estimate' ) { $all_estimated = false; break; } }
+/* The "benchmark estimate" banner is gone with the benchmarks themselves.
+   Every card now carries a measured figure, a figure a person entered, or an
+   em dash saying what to connect — there is no third kind to caption. */
 ?>
-<?php if ($all_estimated): ?>
-<div style="display:flex;align-items:flex-start;gap:12px;background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.2);border-radius:12px;padding:14px 18px;margin-bottom:16px">
-    <svg viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-    <div>
-        <div style="font-size:12.5px;font-weight:600;color:var(--text1);margin-bottom:2px">Benchmark estimate based on your onboarding information</div>
-        <div style="font-size:11.5px;color:var(--text3);line-height:1.5">These numbers are estimates calculated from the services you selected, your budget, and industry benchmarks. Your advisor is reviewing your profile and will update these with verified data shortly.</div>
-    </div>
-</div>
-<?php endif; ?>
 <?php if (!$has_any_data && empty($active_svcs)): ?>
 <div style="display:flex;align-items:flex-start;gap:12px;background:var(--dark2);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:16px">
     <svg viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" width="18" height="18" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
@@ -615,39 +606,6 @@ if ( $web_proj && $web_proj['total'] > 0 ):
 [data-theme="dark"] .six-kc-trend.up{background:rgba(86,211,100,.12);color:#56D364}
 [data-theme="dark"] .six-kc-trend.dn{background:rgba(255,107,107,.12);color:#FF6B6B}
 [data-theme="dark"] .six-roi-val{color:#FF7DA8}
-
-/* ── Target graphs ───────────────────────────────────────────────────
-   Two to a row on a desktop, one on a phone. Everything inside is drawn
-   from CSS variables so the same markup reads correctly in both themes;
-   the one hard-coded colour is the target's glow, which is built from the
-   service's own accent at a fixed opacity. */
-.six-target-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:16px 20px 18px}
-@media(max-width:620px){.six-target-grid{grid-template-columns:1fr}}
-.six-target-card{background:var(--dark3,rgba(127,127,127,.05));border:1px solid var(--border);
-  border-radius:12px;padding:14px 14px 10px;min-width:0}
-.six-target-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px}
-.six-target-name{font-size:12px;font-weight:700;color:var(--text1);line-height:1.3}
-.six-target-unit{font-size:10px;color:var(--text3);margin-top:2px}
-.six-target-now{font-size:19px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
-.six-target-pct{font-size:10px;color:var(--text3);margin-top:3px;white-space:nowrap}
-.six-target-plot{height:112px;margin:2px -2px 0}
-.six-target-plot svg{display:block;width:100%;height:100%;overflow:visible}
-.six-target-foot{display:flex;align-items:baseline;justify-content:space-between;gap:8px;
-  flex-wrap:wrap;font-size:10px;color:var(--text3);margin-top:6px;line-height:1.4}
-.six-target-goal{white-space:nowrap;font-weight:600;color:var(--text2)}
-.six-target-empty{height:112px;display:flex;align-items:center;justify-content:center;
-  font-size:11px;color:var(--text3)}
-
-/* Performance / Reporting switch — the two halves of a service page */
-.six-svc-switch{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0 0 20px;
-  border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--dark2)}
-.six-svc-switch button{appearance:none;border:0;background:transparent;cursor:pointer;
-  padding:13px 10px;font-size:13px;font-weight:700;color:var(--text3);font-family:inherit;
-  transition:background .15s,color .15s;border-right:1px solid var(--border)}
-.six-svc-switch button:last-child{border-right:0}
-.six-svc-switch button:hover{color:var(--text2)}
-.six-svc-switch button[aria-selected="true"]{color:#fff;background:linear-gradient(135deg,#FF6699,#8781BA)}
-.six-svc-switch button .six-switch-sub{display:block;font-size:10px;font-weight:500;opacity:.8;margin-top:2px}
 
 /* Hero row */
 .six-hero-row{display:grid;grid-template-columns:1fr 320px;gap:16px;margin-bottom:20px;align-items:stretch}
@@ -993,7 +951,7 @@ if ( $web_proj && $web_proj['total'] > 0 ):
     '  </div>',
     '  <div style="font-size:10.5px;line-height:1.5;color:'+(isDark?'rgba(255,255,255,.34)':'rgba(15,20,40,.45)')+';margin-top:6px">'
        + (!live
-          ? 'Projected from your services and budget using industry benchmarks. Switches to measured traffic once your advisor connects your reporting tools.'
+          ? 'Entered by your advisor. It becomes a daily measured line once Google Analytics or Search Console is connected under Data Sources.'
           : hasFit
             ? ('The last ' + (VIS.window_days || 30) + ' days, smoothed over seven so a weekend does not read as a drop. '
                + 'Solid line: your ' + unit + ', measured daily by ' + (VIS.measured_from === 'ga4' ? 'Google Analytics' : 'Google Search Console') + '. '
@@ -1603,11 +1561,9 @@ if ( $plan_rows ):
          below the fold on every service page a client opened. */ ?>
 <div class="six-svc-switch" role="tablist" data-slug="<?php echo esc_attr($svc_slug); ?>">
     <button type="button" role="tab" data-pane="performance" aria-selected="true"
-            aria-controls="six-pane-performance">Performance
-        <span class="six-switch-sub">The numbers and the graphs</span></button>
+            aria-controls="six-pane-performance">Performance</button>
     <button type="button" role="tab" data-pane="reporting" aria-selected="false"
-            aria-controls="six-pane-reporting">Reporting
-        <span class="six-switch-sub">What we did, and what is next</span></button>
+            aria-controls="six-pane-reporting">Reporting</button>
 </div>
 
 <div id="six-pane-performance" role="tabpanel">
@@ -2434,6 +2390,46 @@ $next_billing=date('M 1, Y',strtotime('first day of next month'));
 </div>
 
 <style>
+/* ── Target graphs and the service-page switch ───────────────────────────
+   These live in the always-emitted stylesheet, not in the Overview tab's
+   own <style> block, which is where they were first written. That block is
+   inside `if($active_tab==='overview')`, so on a service page — the only
+   page that uses any of this — none of it loaded: the graphs stacked one
+   per row and the switch rendered as two lines of unstyled text. Anything
+   a non-Overview tab needs belongs here. */
+/* ── Target graphs ───────────────────────────────────────────────────
+   Two to a row on a desktop, one on a phone. Everything inside is drawn
+   from CSS variables so the same markup reads correctly in both themes;
+   the one hard-coded colour is the target's glow, which is built from the
+   service's own accent at a fixed opacity. */
+.six-target-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:16px 20px 18px}
+@media(max-width:620px){.six-target-grid{grid-template-columns:1fr}}
+.six-target-card{background:var(--dark3,rgba(127,127,127,.05));border:1px solid var(--border);
+  border-radius:12px;padding:14px 14px 10px;min-width:0}
+.six-target-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px}
+.six-target-name{font-size:12px;font-weight:700;color:var(--text1);line-height:1.3}
+.six-target-unit{font-size:10px;color:var(--text3);margin-top:2px}
+.six-target-now{font-size:19px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.six-target-pct{font-size:10px;color:var(--text3);margin-top:3px;white-space:nowrap}
+.six-target-plot{height:112px;margin:2px -2px 0}
+.six-target-plot svg{display:block;width:100%;height:100%;overflow:visible}
+.six-target-foot{display:flex;align-items:baseline;justify-content:space-between;gap:8px;
+  flex-wrap:wrap;font-size:10px;color:var(--text3);margin-top:6px;line-height:1.4}
+.six-target-goal{white-space:nowrap;font-weight:600;color:var(--text2)}
+.six-target-empty{height:112px;display:flex;align-items:center;justify-content:center;
+  font-size:11px;color:var(--text3)}
+
+/* Performance / Reporting switch — the two halves of a service page */
+.six-svc-switch{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0 0 20px;
+  border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--dark2)}
+.six-svc-switch button{appearance:none;border:0;background:transparent;cursor:pointer;
+  padding:13px 10px;font-size:13px;font-weight:700;color:var(--text3);font-family:inherit;
+  transition:background .15s,color .15s;border-right:1px solid var(--border)}
+.six-svc-switch button:last-child{border-right:0}
+.six-svc-switch button:hover{color:var(--text2)}
+.six-svc-switch button[aria-selected="true"]{color:#fff;background:linear-gradient(135deg,#FF6699,#8781BA)}
+
+
 .six-ai-badge{font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;background:linear-gradient(135deg,var(--pink),#8781BA);color:white;padding:3px 8px;border-radius:100px}
 .six-ai-body{font-size:13px;color:var(--text2);line-height:1.8;min-height:60px}
 .six-ai-loading{display:flex;align-items:center;gap:10px;color:var(--text3);font-size:12px;padding:8px 0}
