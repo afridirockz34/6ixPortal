@@ -738,6 +738,10 @@ add_action( 'wp_ajax_six_save_service_setup', function() {
     // advisor entered stopped at the advisor's own screen.
     $kpi_failed = array();
     $kpi_saved  = 0;
+    // Labels the catalog rows own. The sweep at the end of this handler
+    // deletes detail rows the advisor removed, and it must not reach these —
+    // they are managed by the loop below, which has its own delete.
+    $kpi_labels = array();
     $kpis = json_decode( wp_unslash( $_POST['kpis'] ?? '{}' ), true );
     if ( is_array( $kpis ) && $kpis ) {
         $ktbl = $wpdb->prefix . 'six_client_kpis';
@@ -752,6 +756,7 @@ add_action( 'wp_ajax_six_save_service_setup', function() {
                 $prev   = sanitize_text_field( $vals['previous'] ?? '' );
                 $target = sanitize_text_field( $vals['target'] ?? '' );
                 $label  = function_exists( 'six_kpi_label' ) ? six_kpi_label( $key ) : $key;
+                $kpi_labels[] = $label;
 
                 // An advisor clearing every box means "stop showing this",
                 // and it used to mean nothing at all: the loop skipped the row
@@ -807,6 +812,7 @@ add_action( 'wp_ajax_six_save_service_setup', function() {
     $metrics = json_decode( wp_unslash( $_POST['metrics'] ?? '[]' ), true );
     if ( ! is_array( $metrics ) ) $metrics = array();
     $saved = 0;
+    $kept  = array();
     foreach ( $metrics as $mm ) {
         $label = sanitize_text_field( $mm['label'] ?? '' );
         if ( $label === '' ) continue;
@@ -826,7 +832,45 @@ add_action( 'wp_ajax_six_save_service_setup', function() {
             $row['client_id'] = $client_id; $row['service_slug'] = $slug; $row['label'] = $label;
             $wpdb->insert( "{$wpdb->prefix}six_metrics", $row );
         }
+        $kept[] = $label;
         $saved++;
+    }
+
+    /* Rows the advisor took off the list.
+     *
+     * This handler only ever upserted. The × beside a metric row removed it
+     * from the page and the row was then simply absent from the payload —
+     * which the handler read as "nothing to say about it" and left exactly
+     * where it was. The advisor watched it disappear, saved, and found it
+     * still on the customer's dashboard.
+     *
+     * So: anything under this service that was neither submitted nor owned by
+     * the catalog loop above has been removed on purpose, and goes.
+     */
+    $removed = 0;
+    $mt = $wpdb->prefix . 'six_metrics';
+    if ( ! function_exists( 'six_table_exists' ) || six_table_exists( $mt ) ) {
+        $keep = array_values( array_unique( array_filter( array_merge( $kept, $kpi_labels ) ) ) );
+        $wpdb->suppress_errors( true );
+        if ( $keep ) {
+            $ph  = implode( ',', array_fill( 0, count( $keep ), '%s' ) );
+            $sql = $wpdb->prepare(
+                "DELETE FROM {$mt} WHERE client_id=%d AND service_slug=%s AND label NOT IN ($ph)",
+                array_merge( array( $client_id, $slug ), $keep )
+            );
+        } else {
+            $sql = $wpdb->prepare(
+                "DELETE FROM {$mt} WHERE client_id=%d AND service_slug=%s", $client_id, $slug );
+        }
+        $gone = $wpdb->query( $sql );
+        $err  = $wpdb->last_error;
+        $wpdb->suppress_errors( false );
+        if ( $gone === false ) {
+            error_log( '6ix setup: could not remove deleted metrics for client ' . $client_id . ' — ' . $err );
+            $kpi_failed['_removed'] = 'Rows you removed could not be deleted: ' . ( $err ?: 'the database refused it' );
+        } else {
+            $removed = (int) $gone;
+        }
     }
 
     // Activate the service if requested.
@@ -923,6 +967,7 @@ add_action( 'wp_ajax_six_save_service_setup', function() {
 
     wp_send_json_success( array(
         'metrics_saved'     => $saved,
+        'metrics_removed'   => $removed,
         'kpis_saved'        => $kpi_saved,
         // Named rather than swallowed: a figure that did not reach the table
         // the customer's cards read must not be reported as saved.

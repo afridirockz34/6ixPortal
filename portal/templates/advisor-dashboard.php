@@ -4710,10 +4710,18 @@ function sixServiceWizard(serviceId, clientId, slug, name, activateMode){
         if(bad.length){
           nextBtn.disabled=false; nextBtn.textContent=W.activate?'Activate service':'Save setup';
           msgEl.style.color='var(--danger,#D93B3B)';
-          msgEl.textContent=(d.kpis_failed._table||(bad.length+' dashboard figure(s) could not be saved.'));
+          msgEl.textContent=(d.kpis_failed._removed||d.kpis_failed._table
+                            ||(bad.length+' dashboard figure(s) could not be saved.'));
           return;
         }
         nextBtn.textContent=W.activate?'Activated ✓':'Saved ✓';
+        // Removals are reported, because the × used to look like it worked
+        // and change nothing: the save only ever upserted, so a row the
+        // advisor took off the list stayed on the customer's dashboard.
+        if(d.metrics_removed){
+          msgEl.style.color='var(--text3,#8a8a99)';
+          msgEl.textContent=d.metrics_removed+' metric'+(d.metrics_removed===1?'':'s')+' removed from their dashboard.';
+        }
         // When activating we report what else happened rather than reloading
         // straight past it — the advisor needs the questionnaire link in
         // hand in case the client's copy of the email goes astray.
@@ -4723,7 +4731,7 @@ function sixServiceWizard(serviceId, clientId, slug, name, activateMode){
             h+='<div style="font-size:12px;color:var(--text2,#b5b5c5);margin-bottom:10px">Budget set to $'+esc(String(d.budget_changed.to))+'/mo (they had selected $'+esc(String(d.budget_changed.from))+'/mo). They have been emailed the new amount.</div>';
           }
           if(d.kpis_saved){
-            h+='<div style="font-size:12px;color:var(--text2,#b5b5c5);margin-bottom:10px">'+esc(String(d.kpis_saved))+' dashboard figure'+(d.kpis_saved===1?'':'s')+' saved — their cards now show your numbers instead of benchmarks.</div>';
+            h+='<div style="font-size:12px;color:var(--text2,#b5b5c5);margin-bottom:10px">'+esc(String(d.kpis_saved))+' dashboard figure'+(d.kpis_saved===1?'':'s')+' saved — their cards now show your numbers.</div>';
           }
           if(d.baseline){
             h+='<div style="font-size:12px;color:var(--text2,#b5b5c5);margin-bottom:10px">Baseline snapshot taken ('+esc(String(d.baseline.metrics))+' metrics, '+esc(String(d.baseline.captured_at))+'). Every future check compares against this.</div>';

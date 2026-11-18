@@ -273,8 +273,17 @@ $svc_svg_icons = array(
         // reason to be answering strategy questions.
         $q_issued = function_exists('six_strategy_questionnaire_issued')
             && six_strategy_questionnaire_issued($user_id);
-        $q_prog = $q_issued && function_exists('six_seo_questionnaire_progress')
-            ? six_seo_questionnaire_progress($user_id, $active_svc_slugs, 'strategy') : null;
+        /* The questions they were actually given, not whatever services are
+           active right now — activating a second service used to add its
+           questions to a form the client had already finished. And a
+           questionnaire that is done clears itself three days later rather
+           than sitting at the top of their dashboard for ever. */
+        $q_scope = function_exists('six_questionnaire_client_slugs')
+            ? six_questionnaire_client_slugs($user_id) : $active_svc_slugs;
+        $q_vis   = function_exists('six_questionnaire_visible')
+            ? six_questionnaire_visible($user_id) : array('show'=>true);
+        $q_prog = $q_issued && $q_vis['show'] && function_exists('six_seo_questionnaire_progress')
+            ? six_seo_questionnaire_progress($user_id, $q_scope, 'strategy') : null;
         if ( $q_prog && $q_prog['total'] > 0 ): ?>
         <a href="?tab=questionnaire" class="six-nav-item <?php echo $active_tab==='questionnaire'?'active':''; ?>">
             <span class="six-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/></svg></span> Strategy Questionnaire
@@ -1928,9 +1937,14 @@ $conv = class_exists('Six_Messaging') ? Six_Messaging::get_conversation($user_id
 <?php else: ?><div class="six-card"><div class="six-card-body" style="text-align:center;padding:60px;color:var(--text3)"><div style="margin-bottom:12px;color:var(--text3)"><?php echo class_exists('Six_Icon')?Six_Icon::get('advisor','','40px'):''; ?></div><div style="font-size:14px;font-weight:600">No advisor assigned yet</div><div style="font-size:13px;margin-top:8px">Contact us at hello@6ixdevelopers.com to get started.</div></div></div><?php endif; ?>
 
 <?php elseif($active_tab==='questionnaire'):
-$q_schema  = six_seo_questionnaire_for_client( $active_svc_slugs, 'strategy' );
-$q_answers = six_seo_questionnaire_answers( $user_id, $active_svc_slugs, 'strategy' );
-$q_prog    = six_seo_questionnaire_progress( $user_id, $active_svc_slugs, 'strategy' );
+/* Same frozen scope the nav item used. Reading the live service list here
+   and the frozen one there would show a badge for questions the form never
+   rendered. */
+$q_scope   = function_exists('six_questionnaire_client_slugs')
+    ? six_questionnaire_client_slugs( $user_id ) : $active_svc_slugs;
+$q_schema  = six_seo_questionnaire_for_client( $q_scope, 'strategy' );
+$q_answers = six_seo_questionnaire_answers( $user_id, $q_scope, 'strategy' );
+$q_prog    = six_seo_questionnaire_progress( $user_id, $q_scope, 'strategy' );
 $q_done    = function_exists('six_strategy_questionnaire_submitted') && six_strategy_questionnaire_submitted( $user_id );
 $q_done_at = $q_done ? six_strategy_questionnaire_submitted_at( $user_id ) : '';
 ?>

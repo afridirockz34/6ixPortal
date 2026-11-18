@@ -711,6 +711,11 @@ function six_issue_strategy_questionnaire( $client_id, $send_email = true ) {
 	if ( ! $client_id ) return false;
 
 	$first_time = ! six_strategy_questionnaire_issued( $client_id );
+	// Freeze what they are being asked, every time it is issued. Re-issuing
+	// after a new service is activated is how that service's questions get
+	// added — deliberately, with the client told there is more to do, rather
+	// than appearing under them mid-form.
+	update_user_meta( $client_id, SIX_Q_SCOPE_META, array_values( six_questionnaire_live_slugs( $client_id ) ) );
 	if ( $first_time ) {
 		update_user_meta( $client_id, SIX_Q_ISSUED_META, current_time( 'mysql' ) );
 		if ( class_exists( 'Six_Odoo' ) ) {
@@ -741,6 +746,7 @@ function six_issue_strategy_questionnaire( $client_id, $send_email = true ) {
 function six_withdraw_strategy_questionnaire( $client_id ) {
 	delete_user_meta( (int) $client_id, SIX_Q_ISSUED_META );
 	delete_user_meta( (int) $client_id, SIX_Q_SUBMITTED_META );
+	delete_user_meta( (int) $client_id, SIX_Q_SCOPE_META );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -754,13 +760,86 @@ function six_withdraw_strategy_questionnaire( $client_id ) {
 
 const SIX_Q_SUBMITTED_META = 'six_strategy_questionnaire_submitted';
 
-/** The services this client actually has, which decide what they're asked. */
+const SIX_Q_SCOPE_META = 'six_strategy_questionnaire_scope';
+
+/**
+ * The services that decide what this client is asked.
+ *
+ * Frozen at the moment the questionnaire was issued, not read live.
+ *
+ * Read live, the set of questions moved under the client: an advisor
+ * activating a second service three weeks later silently added that service's
+ * questions to a form the client had already finished, so a questionnaire
+ * that read 100% on Monday was asking four new questions on Friday. Worse,
+ * `only_if_svc` could introduce a question whose answer had never been stored
+ * under that key, so it showed up blank next to questions the client was sure
+ * they had answered — which is exactly what was reported.
+ *
+ * A questionnaire is a thing you hand somebody. Its contents do not change
+ * while they are filling it in. If a new service genuinely needs new
+ * questions, an advisor re-issues it, which re-freezes the scope and tells
+ * the client there is more to do.
+ */
 function six_questionnaire_client_slugs( $client_id ) {
+	$client_id = (int) $client_id;
+
+	$frozen = get_user_meta( $client_id, SIX_Q_SCOPE_META, true );
+	if ( is_array( $frozen ) && $frozen ) {
+		return array_values( array_filter( array_map( 'sanitize_key', $frozen ) ) );
+	}
+	return six_questionnaire_live_slugs( $client_id );
+}
+
+/** What they have active right now — the scope a fresh issue freezes. */
+function six_questionnaire_live_slugs( $client_id ) {
 	global $wpdb;
 	return (array) $wpdb->get_col( $wpdb->prepare(
 		"SELECT service_slug FROM {$wpdb->prefix}six_client_services WHERE client_id=%d AND status='active'",
 		(int) $client_id
 	) );
+}
+
+/**
+ * Services active now that the issued questionnaire never asked about.
+ *
+ * The advisor needs to see this: it is the one case where re-issuing is the
+ * right call rather than an annoyance.
+ */
+function six_questionnaire_scope_gap( $client_id ) {
+	$frozen = get_user_meta( (int) $client_id, SIX_Q_SCOPE_META, true );
+	if ( ! is_array( $frozen ) || ! $frozen ) return array();
+	return array_values( array_diff( six_questionnaire_live_slugs( $client_id ), $frozen ) );
+}
+
+/**
+ * How long a completed questionnaire stays on screen before it clears itself.
+ *
+ * Three days: long enough that a client who submits can still open it and
+ * check what they said, short enough that a finished form stops being the
+ * first thing on their dashboard for ever.
+ */
+const SIX_Q_CLEAR_DAYS = 3;
+
+/**
+ * Should the questionnaire still be shown to this client?
+ *
+ * @return array{show:bool,reason:string,clears_on:string}
+ */
+function six_questionnaire_visible( $client_id ) {
+	$client_id = (int) $client_id;
+	$submitted = six_strategy_questionnaire_submitted_at( $client_id );
+	if ( ! $submitted ) {
+		return array( 'show' => true, 'reason' => 'not submitted', 'clears_on' => '' );
+	}
+	$ts = strtotime( $submitted );
+	if ( ! $ts ) {
+		return array( 'show' => true, 'reason' => 'submission date unreadable', 'clears_on' => '' );
+	}
+	$clears = $ts + SIX_Q_CLEAR_DAYS * DAY_IN_SECONDS;
+	if ( current_time( 'timestamp' ) >= $clears ) {
+		return array( 'show' => false, 'reason' => 'completed', 'clears_on' => gmdate( 'Y-m-d', $clears ) );
+	}
+	return array( 'show' => true, 'reason' => 'completed, clearing soon', 'clears_on' => gmdate( 'Y-m-d', $clears ) );
 }
 
 /** Has this client handed the strategy questionnaire in? */
