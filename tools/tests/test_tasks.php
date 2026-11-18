@@ -337,6 +337,29 @@ check( 'the customer sees only published tasks',
 check( 'and the ones waiting on them are called out',
 	strpos( $cust, 'waiting on your approval' ) !== false );
 
+// A year of work is ninety-odd rows. Ninety rows under one heading is a
+// document nobody reads: a client wants to know what is happening to their
+// content, or to their links, not to scroll through both to find either.
+check( 'the plan is grouped into category tabs',
+	strpos( $cust, 'six-plan-tabs' ) !== false );
+check( 'with Everything first, so the whole plan is one click away',
+	strpos( $cust, "data-cat=\"__all\"" ) !== false );
+check( 'an uncategorised task lands under Other rather than vanishing',
+	strpos( $cust, "\$plan_cats[trim(\$pl['category']) ?: 'Other']" ) !== false );
+check( 'and Other sorts last',
+	strpos( $cust, "if(\$x==='Other') return 1;" ) !== false );
+check( 'each category is its own pane, so the month headings stay true',
+	strpos( $cust, 'six-plan-pane' ) !== false,
+	'filtering one list would leave "Month 3 of 12" sitting above nothing' );
+check( 'the months say they are months of twelve',
+	strpos( $cust, 'Month <?php echo (int)$pm; ?> of 12' ) !== false );
+check( 'the tabs are styled in the always-emitted stylesheet',
+	strpos( $cust, '.six-plan-tabs{' ) !== false
+	&& strpos( $cust, '.six-plan-tabs{' ) > strpos( $cust, "elseif(\$active_tab==='profile')" ),
+	'a service page would render them as a row of plain buttons' );
+check( 'and the chosen category is remembered',
+	strpos( $cust, 'six_plan_cat_' ) !== false );
+
 // ── The handlers ─────────────────────────────────────────────────────────
 $ajax = file_get_contents( dirname( __DIR__, 2 ) . '/portal/ajax-handlers.php' );
 foreach ( array( 'six_list_tasks', 'six_update_task', 'six_add_task', 'six_delete_task', 'six_publish_tasks' ) as $h ) {

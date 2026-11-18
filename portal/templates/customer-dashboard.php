@@ -1481,8 +1481,13 @@ ob_start();
    dates move while it is being edited, and a client who watched them move
    would reasonably conclude the schedule means nothing.
 
+   Grouped into category tabs rather than printed as one list. A year of work
+   is ninety-odd rows, and ninety rows under one heading is a document nobody
+   reads — a client wants to know what is happening to their content, or to
+   their links, not to scroll through both to find either.
+
    Four states, and the client-review one is the reason this block earns its
-   place — it names the things that are waiting on them, which no chart can. */
+   place: it names the things that are waiting on them, which no chart can. */
 $plan_rows = class_exists('Six_Tasks')
     ? Six_Tasks::all($user_id, array('service_slug'=>$svc_slug, 'published'=>true))
     : array();
@@ -1492,6 +1497,18 @@ if ( $plan_rows ):
     $plan_count  = array('todo'=>0,'client_review'=>0,'implementation'=>0,'complete'=>0);
     foreach($plan_rows as $pl){ if(isset($plan_count[$pl['status']])) $plan_count[$pl['status']]++; }
     $plan_waiting = $plan_count['client_review'];
+
+    /* By category, with "Everything" first so the full plan is still one
+       click away. A task the plan left uncategorised lands under Other
+       rather than vanishing from every tab. */
+    $plan_cats = array();
+    foreach($plan_rows as $pl){ $plan_cats[trim($pl['category']) ?: 'Other'][] = $pl; }
+    uksort($plan_cats, function($x,$y){
+        if($x==='Other') return 1;
+        if($y==='Other') return -1;
+        return strcasecmp($x,$y);
+    });
+    $plan_uid = 'plan-'.substr(md5($svc_slug),0,6);
 ?>
 <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px">
     <div style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.05)">
@@ -1501,23 +1518,38 @@ if ( $plan_rows ):
             if($plan_waiting): ?> &middot; <span style="color:var(--warning)"><?php echo $plan_waiting; ?> waiting on your approval</span><?php endif; ?>
         </div>
     </div>
-    <?php
-    $plan_by_month = array();
-    foreach($plan_rows as $pl){ $plan_by_month[(int)$pl['month_no']][] = $pl; }
-    ksort($plan_by_month);
-    foreach($plan_by_month as $pm => $pms): ?>
-    <div style="padding:9px 20px;border-top:1px solid rgba(255,255,255,0.05);background:var(--dark3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3)">Month <?php echo (int)$pm; ?></div>
-        <?php foreach($pms as $pl): ?>
-        <div style="display:flex;align-items:baseline;gap:12px;padding:9px 20px;border-top:1px solid rgba(255,255,255,0.03)">
-            <div style="flex:1;min-width:0">
-                <div style="font-size:12px;color:var(--text1);line-height:1.35"><?php echo esc_html($pl['title']); ?></div>
-                <?php if($pl['deliverable']): ?><div style="font-size:10px;color:var(--text3);margin-top:1px"><?php echo esc_html($pl['deliverable']); ?></div><?php endif; ?>
-            </div>
-            <div style="flex-shrink:0;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;color:<?php echo $plan_colors[$pl['status']]; ?>;background:<?php echo $plan_colors[$pl['status']]; ?>18">
-                <?php echo esc_html($plan_labels[$pl['status']] ?? $pl['status']); ?>
-            </div>
-        </div>
+
+    <div class="six-plan-tabs" data-plan="<?php echo esc_attr($plan_uid); ?>">
+        <button type="button" class="six-plan-tab" data-cat="__all" aria-selected="true">Everything
+            <span class="six-plan-n"><?php echo count($plan_rows); ?></span></button>
+        <?php foreach($plan_cats as $cat => $rows): ?>
+        <button type="button" class="six-plan-tab" data-cat="<?php echo esc_attr($cat); ?>" aria-selected="false"><?php echo esc_html($cat); ?>
+            <span class="six-plan-n"><?php echo count($rows); ?></span></button>
         <?php endforeach; ?>
+    </div>
+
+    <?php foreach(array_merge(array('__all'=>$plan_rows), $plan_cats) as $cat => $rows): ?>
+    <div class="six-plan-pane" data-plan="<?php echo esc_attr($plan_uid); ?>" data-cat="<?php echo esc_attr($cat); ?>"
+         <?php echo $cat==='__all' ? '' : 'hidden'; ?>>
+        <?php
+        $by_month = array();
+        foreach($rows as $pl){ $by_month[(int)$pl['month_no']][] = $pl; }
+        ksort($by_month);
+        foreach($by_month as $pm => $pms): ?>
+        <div style="padding:9px 20px;border-top:1px solid rgba(255,255,255,0.05);background:var(--dark3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3)">Month <?php echo (int)$pm; ?> of 12</div>
+            <?php foreach($pms as $pl): ?>
+            <div style="display:flex;align-items:baseline;gap:12px;padding:9px 20px;border-top:1px solid rgba(255,255,255,0.03)">
+                <div style="flex:1;min-width:0">
+                    <div style="font-size:12px;color:var(--text1);line-height:1.35"><?php echo esc_html($pl['title']); ?></div>
+                    <?php if($pl['deliverable']): ?><div style="font-size:10px;color:var(--text3);margin-top:1px"><?php echo esc_html($pl['deliverable']); ?></div><?php endif; ?>
+                </div>
+                <div style="flex-shrink:0;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;color:<?php echo $plan_colors[$pl['status']]; ?>;background:<?php echo $plan_colors[$pl['status']]; ?>18">
+                    <?php echo esc_html($plan_labels[$pl['status']] ?? $pl['status']); ?>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        <?php endforeach; ?>
+    </div>
     <?php endforeach; ?>
 </div>
 <?php endif; ?>
@@ -2468,6 +2500,19 @@ $next_billing=date('M 1, Y',strtotime('first day of next month'));
 .six-target-goal{white-space:nowrap;font-weight:600;color:var(--text2)}
 .six-target-empty{height:112px;display:flex;align-items:center;justify-content:center;
   font-size:11px;color:var(--text3)}
+
+/* The plan's category tabs. A year of work is ninety-odd rows, and ninety
+   rows under one heading is a document nobody reads. */
+.six-plan-tabs{display:flex;gap:4px;padding:10px 20px 0;flex-wrap:wrap;
+  border-bottom:1px solid rgba(127,127,127,.12)}
+.six-plan-tab{appearance:none;background:transparent;border:0;border-bottom:2px solid transparent;
+  font-family:inherit;font-size:12px;font-weight:700;color:var(--text3);cursor:pointer;
+  padding:8px 10px;display:flex;align-items:center;gap:6px;transition:color .15s,border-color .15s}
+.six-plan-tab:hover{color:var(--text2)}
+.six-plan-tab[aria-selected="true"]{color:var(--text1);border-bottom-color:#FF6699}
+.six-plan-n{font-size:10px;font-weight:600;color:var(--text3);background:rgba(127,127,127,.14);
+  padding:1px 7px;border-radius:20px}
+.six-plan-tab[aria-selected="true"] .six-plan-n{color:#FF6699;background:rgba(255,102,153,.14)}
 
 /* Performance / Reporting switch — the two halves of a service page */
 .six-svc-switch{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0 0 20px;
@@ -3465,5 +3510,33 @@ function setBnavActive(el) {
   var saved = 'performance';
   try { saved = localStorage.getItem('six_svc_pane_' + slug) || 'performance'; } catch (e) {}
   show(panes[saved] ? saved : 'performance', false);
+})();
+</script>
+
+<script>
+/* The plan's category tabs. Server-rendered panes rather than a filter over
+ * one list, so the month headings stay correct inside each category — a
+ * filter would leave "Month 3 of 12" sitting above nothing. */
+(function(){
+  document.querySelectorAll('.six-plan-tabs').forEach(function(bar){
+    var id = bar.getAttribute('data-plan');
+    bar.querySelectorAll('.six-plan-tab').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var cat = btn.getAttribute('data-cat');
+        bar.querySelectorAll('.six-plan-tab').forEach(function(b){
+          b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
+        });
+        document.querySelectorAll('.six-plan-pane[data-plan="' + id + '"]').forEach(function(p){
+          p.hidden = p.getAttribute('data-cat') !== cat;
+        });
+        try { localStorage.setItem('six_plan_cat_' + id, cat); } catch (e) {}
+      });
+    });
+    var want = '';
+    try { want = localStorage.getItem('six_plan_cat_' + id) || ''; } catch (e) {}
+    if (!want) return;
+    var btn = bar.querySelector('.six-plan-tab[data-cat="' + want.replace(/"/g, '\\"') + '"]');
+    if (btn) btn.click();
+  });
 })();
 </script>
