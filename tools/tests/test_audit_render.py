@@ -370,6 +370,37 @@ ok("the section appears in a rendered report", "What is on the pages" in full)
 ok("an audit with no onpage block still renders",
    "What is on the pages" not in render.build(EXAMPLE))
 
+print("── The two plans ────────────────────────────────────────────────────")
+
+PLANS = {
+    "lede": "Two ways to do this work. Both start with the same foundation.",
+    "rows": [
+        {"item": "Length", "twelve": "12 months", "six": "6 months"},
+        {"item": "Blog posts written", "twelve": "~40", "six": "~15"},
+        {"item": "Quarterly content refresh", "twelve": "Included", "six": ""},
+    ],
+    "note": "The technical fixes are the same on both.",
+}
+html = render.render_plans(PLANS)
+ok("both columns are drawn", "12 months" in html and "6 months" in html, html[:200])
+ok("every row appears", all(r["item"] in html for r in PLANS["rows"]))
+ok("an empty cell reads as a dash, not as a blank somebody might fill in",
+   ">—<" in html, html)
+ok("the note is kept", "same on both" in html)
+
+ok("no plans block renders nothing", render.render_plans(None) == "")
+ok("and a block with no rows renders nothing, rather than an empty table",
+   render.render_plans({"lede": "x"}) == "")
+
+# A price in an audit is a figure somebody has to honour a year later.
+ok("the template forbids a price in the block",
+   "No price in this block, ever" in (SKILL / "references" / "report-template.md").read_text())
+
+full = render.build(dict(EXAMPLE, plans=PLANS))
+ok("the section appears in a rendered report", "Two ways to do this work" in full)
+ok("an audit with no plans block still renders",
+   "Two ways to do this work" not in render.build(EXAMPLE))
+
 print("\n" + "\n".join(LOG))
 print(f"\nPassed: {PASS}  Failed: {FAIL}")
 sys.exit(1 if FAIL else 0)

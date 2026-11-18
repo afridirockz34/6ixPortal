@@ -262,6 +262,25 @@ class Six_Profile_API {
 		return $row ?: (object) array();
 	}
 
+	/**
+	 * Engagement length per service, in months.
+	 *
+	 * Stored in the service's own config, which is where the activation
+	 * wizard writes it. Anything other than 6 reads as 12: a stray value
+	 * must not silently halve what a client was promised.
+	 *
+	 * @return array<string,int> slug => 6|12
+	 */
+	protected static function plan_terms( $client_id, array $slugs ) {
+		$out = array();
+		foreach ( $slugs as $slug ) {
+			$cfg  = get_user_meta( (int) $client_id, 'six_svc_config_' . $slug, true );
+			$term = is_array( $cfg ) ? (string) ( $cfg['plan_term'] ?? '' ) : '';
+			$out[ $slug ] = $term === '6' ? 6 : 12;
+		}
+		return $out;
+	}
+
 	protected static function service_slugs( $client_id ) {
 		global $wpdb;
 		return (array) $wpdb->get_col( $wpdb->prepare(
@@ -367,6 +386,16 @@ class Six_Profile_API {
 			'commercial' => array(
 				'services'          => $slugs,
 				'budgets'           => $budgets,
+				/* How long the engagement is, per service — 12 or 6 months,
+				 * chosen by the advisor when they set the service up.
+				 *
+				 * A session building a strategy has to know this before it
+				 * writes anything: a six-month plan is not a twelve-month
+				 * plan with the last half deleted, it is a different set of
+				 * deliverables at a different monthly rate. Defaults to 12
+				 * where nobody chose, because that is the full programme and
+				 * over-delivering is the safer error. */
+				'plan_terms'        => self::plan_terms( $id, $slugs ),
 				'monthly_recurring' => array_sum( array_map(
 					fn( $slug ) => $slug === 'website' ? 0 : ( $budgets[ $slug ] ?? 0 ),
 					array_keys( $budgets )

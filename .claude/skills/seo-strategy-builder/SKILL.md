@@ -13,6 +13,26 @@ This skill packages that chain: what each phase needs, where the input comes fro
 
 This skill covers the **research and strategy** phases. It does not draft blog posts, service pages, or other client-facing content — that's `seo-content-production`, its companion skill. Used together, the two reproduce a complete multi-phase agency SEO strategy document: this skill for everything data-driven and structural, that one for everything voice-and-copy. A third companion, `seo-audit-report`, sits upstream of both — it's for a prospect who hasn't signed on yet, producing the evidence-backed weakness report that's meant to get them to. This skill and `seo-content-production` assume the engagement already exists. A fourth, `seo-client-pipeline`, sits above all three — it orchestrates the whole client lifecycle in one session, from intake through this skill's phases, into implementing the approved strategy on the live site, and the recurring performance checks that can send work back through this skill's Phase 20.
 
+## How long the engagement is, before anything else
+
+`get_client_profile` returns `commercial.plan_terms` — months per service,
+set by the advisor when they activated it. Read it first. **A six-month plan
+is not a twelve-month plan with the second half deleted**: the monthly rate
+is lower too, so the per-month volumes drop as well as the total, and the two
+premium extras are twelve-month only. `references/engagement-plans.md` has
+both plans side by side and the rule for an absent value (treat it as 12 —
+over-delivering is the safer error).
+
+Every strategy, on either plan, says in its summary that the plan covers a
+year (or six months) and that we keep optimizing what is already live for the
+whole of it. Clients read an SEO engagement as a delivery project that ends
+when the last page ships, and the part that compounds is the revision of what
+is already there.
+
+And every strategy carries the twelve-row month table: one row per month,
+with counts rather than names. Not the task list — the task board holds the
+individual rows, and a client reading ninety of them learns nothing.
+
 ## Who the document is for
 
 **The client, and whoever they forward it to.** That is the test for every
@@ -212,6 +232,7 @@ Every reference file here — especially `phase11-12-geo-schema.md` and `fact-ch
 - `references/client-context.md` — how to get the client's answers from the portal, from a document they filled in, or from neither
 - `references/performance-tracking.md` — snapshots and projections: the tracked metric keys, how to read a `check_performance` result, and the rules for saving a target you can stand behind
 - `references/off-page.md` — the disavow audit, anchor text, and where links actually come from for a local professional service
+- `references/engagement-plans.md` — the twelve-month plan and the six-month one, the twelve-row month table every strategy carries, and the two extras only the year gets. **Read this before writing any strategy**: `get_client_profile` returns `commercial.plan_terms`, and a six-month plan is a different set of deliverables rather than a trimmed year
 - `references/backlink-plan.md` — the five off-page artifacts that actually ship: current profile, disavow shortlist, named prospect list, anchor plan per page, twelve-month schedule. Read this when the strategy includes links at all, because off-page is the part that keeps surviving as a paragraph instead of a plan
 - `references/local-and-gmb.md` — what to assess from the client's active services, and the BrightLocal data behind Phase 6: rank grids, competitors on the same grid, reviews, citations, and the credit discipline a 200–400-credit run demands
 - `references/ai-visibility.md` — Ahrefs Brand Radar and BrightLocal AI Visibility, which answers which question, and the honesty rules for the least settled area in this skill set

@@ -1015,6 +1015,45 @@ def render_onpage(onpage):
     return "".join(out)
 
 
+def render_plans(plans):
+    """
+    The two engagements, side by side.
+
+    Identical in every audit, and deliberately so: the prospect sees what
+    they are choosing between before anybody quotes them, and the strategy
+    document is then built for whichever they bought. No price goes in here
+    — a figure written into an audit is one somebody has to honour a year
+    later, and what a plan costs is a conversation.
+    """
+    if not plans:
+        return ""
+    rows = plans.get("rows") or []
+    if not rows:
+        return ""
+
+    out = ['<section class="block"><h2>', esc(plans.get("heading") or "Two ways to do this work"), "</h2>"]
+    if plans.get("lede"):
+        out.append(f'<p class="lede">{esc(plans["lede"])}</p>')
+
+    out.append('<table class="scorecard"><thead><tr>'
+               '<th scope="col"></th>'
+               '<th scope="col">12 months</th>'
+               '<th scope="col">6 months</th></tr></thead><tbody>')
+    for r in rows:
+        twelve = r.get("twelve", "")
+        six = r.get("six", "")
+        out.append(
+            f'<tr><th scope="row">{esc(r.get("item", ""))}</th>'
+            f"<td>{esc(twelve) if twelve else '—'}</td>"
+            f"<td>{esc(six) if six else '—'}</td></tr>")
+    out.append("</tbody></table>")
+
+    if plans.get("note"):
+        out.append(f'<p class="verdict">{esc(" ".join(str(plans["note"]).split()))}</p>')
+    out.append("</section>")
+    return "".join(out)
+
+
 def render_search_presence(data):
     """
     How this site actually turns up in a search result — the snippet a person
@@ -1402,6 +1441,7 @@ def build(data):
     parts.append(render_local(data.get("local")))
     parts.append(render_speed(data.get("speed")))
     parts.append(render_onpage(data.get("onpage")))
+    parts.append(render_plans(data.get("plans")))
     parts.append(render_anchors(data))
     parts.append(render_sections(data.get("sections")))
 

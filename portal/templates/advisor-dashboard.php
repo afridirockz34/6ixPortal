@@ -4526,6 +4526,8 @@ function sixServiceWizard(serviceId, clientId, slug, name, activateMode){
     body.querySelectorAll('[data-ck]').forEach(function(el){ W.config[el.dataset.ck]=el.value; });
     var b=body.querySelector('#wiz-budget');
     if(b) W.budget = b.value===''? '' : parseFloat(b.value);
+    var term=body.querySelector('input[name="wiz-term"]:checked');
+    if(term) W.config.plan_term = term.value;
   }
   function collectStep2(){
     // The catalog rows go to the customer's stat cards; the free rows go to
@@ -4597,11 +4599,28 @@ function sixServiceWizard(serviceId, clientId, slug, name, activateMode){
         +'<input class="six-input" id="wiz-budget" type="number" min="0" step="1" value="'+esc(W.budget||'')+'" style="width:140px;font-size:12px;padding:8px 10px">'
         +'<span style="font-size:12px;color:var(--text3,#8a8a99)">per month</span>'
       +'</div>';
+
+    // The engagement length. This is not an admin detail: it decides what the
+    // strategy document commits to. A twelve-month plan and a six-month plan
+    // are different deliverables — fewer pages, fewer links a month, and the
+    // premium extras only on the year — so the plan has to be built for the
+    // one they bought, not trimmed afterwards.
+    h+='<div style="height:14px"></div>'
+      +head('Plan length','Decides what the strategy document commits to. A Claude session reads this before it builds the plan, so the deliverables match what they were sold.')
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+        +'<label style="display:flex;align-items:center;gap:7px;border:1px solid var(--border,#2a2a35);border-radius:9px;padding:9px 13px;cursor:pointer;font-size:12px">'
+          +'<input type="radio" name="wiz-term" value="12" '+((W.config.plan_term||'12')==='12'?'checked':'')+'> 12 months'
+          +'<span style="font-size:10.5px;color:var(--text3,#8a8a99)">full programme</span></label>'
+        +'<label style="display:flex;align-items:center;gap:7px;border:1px solid var(--border,#2a2a35);border-radius:9px;padding:9px 13px;cursor:pointer;font-size:12px">'
+          +'<input type="radio" name="wiz-term" value="6" '+((W.config.plan_term||'')==='6'?'checked':'')+'> 6 months'
+          +'<span style="font-size:10.5px;color:var(--text3,#8a8a99)">reduced scope</span></label>'
+      +'</div>';
+
     body.innerHTML=h;
   }
   function renderStep2(){
     body.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap">'
-      +'<div style="font-size:12px;color:var(--text3,#8a8a99)">The numbers on their dashboard. Leave one blank and they see an industry benchmark instead.</div>'
+      +'<div style="font-size:12px;color:var(--text3,#8a8a99)">The numbers on their dashboard. Leave one blank and the card shows a dash and names the account to connect.</div>'
       +'<button id="wiz-suggest" class="six-btn six-btn-ghost six-btn-sm" style="font-size:11px;color:var(--pink,#ff4d8d)">Read current figures</button></div>'
       +'<div id="wiz-sources" style="display:none;font-size:11px;line-height:1.6;color:var(--text3,#8a8a99);background:var(--dark3,#1c1c24);border:1px solid var(--border,#2a2a35);border-radius:8px;padding:9px 11px;margin-bottom:10px"></div>'
       +'<div id="wiz-kpis"></div>'
