@@ -1535,6 +1535,14 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
     })();
     </script>
 
+    <?php
+    /* One place for the task row's markup. The board is rendered twice —
+       by month and by category — and two copies would drift, with the half
+       nobody was looking at drifting furthest. */
+    if ( ! function_exists( 'six_task_row_path' ) ) {
+        function six_task_row_path() { return dirname( __DIR__ ) . '/partials/task-row.php'; }
+    }
+    ?>
     <!-- Services list with per-service metric management -->
     <?php foreach($svc_live as $slug => $sd_item):
         $svc_row = null;
@@ -1718,24 +1726,29 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">+ Add / Update Metric</div>
                 <div style="font-size:10.5px;color:var(--text3);margin-bottom:10px">Both periods must be the same length, or the comparison flatters. For a metric where lower is better — average position, page load, on-page issues — the target is the number you want to get <em>down</em> to.</div>
                 <input type="hidden" class="metric-svc-slug" value="<?php echo esc_attr($slug); ?>">
+                <?php /* Every cell carries the same two-line caption under its
+                         input, so the four inputs sit on one baseline. Label
+                         had no caption, so align-items:end pushed it a line
+                         above the others. */ ?>
                 <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:8px;align-items:end">
                     <div>
                         <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Label</div>
-                        <input class="six-input metric-label-<?php echo esc_attr($slug); ?>" placeholder="e.g. Monthly Traffic" style="font-size:12px;padding:7px 10px">
+                        <input class="six-input metric-label-<?php echo esc_attr($slug); ?>" placeholder="e.g. Monthly Traffic" style="font-size:12px;padding:7px 10px;width:100%;box-sizing:border-box">
+                        <div style="font-size:9.5px;color:var(--text3);margin-top:3px">what the customer sees</div>
                     </div>
                     <div>
                         <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Before</div>
-                        <input class="six-input metric-prev-<?php echo esc_attr($slug); ?>" placeholder="310" style="font-size:12px;padding:7px 10px">
+                        <input class="six-input metric-prev-<?php echo esc_attr($slug); ?>" placeholder="310" style="font-size:12px;padding:7px 10px;width:100%;box-sizing:border-box">
                         <div style="font-size:9.5px;color:var(--text3);margin-top:3px">the previous period</div>
                     </div>
                     <div>
                         <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Now</div>
-                        <input class="six-input metric-current-<?php echo esc_attr($slug); ?>" placeholder="420" style="font-size:12px;padding:7px 10px">
+                        <input class="six-input metric-current-<?php echo esc_attr($slug); ?>" placeholder="420" style="font-size:12px;padding:7px 10px;width:100%;box-sizing:border-box">
                         <div style="font-size:9.5px;color:var(--text3);margin-top:3px">what it is today</div>
                     </div>
                     <div>
                         <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Target</div>
-                        <input class="six-input metric-target-<?php echo esc_attr($slug); ?>" placeholder="600" style="font-size:12px;padding:7px 10px">
+                        <input class="six-input metric-target-<?php echo esc_attr($slug); ?>" placeholder="600" style="font-size:12px;padding:7px 10px;width:100%;box-sizing:border-box">
                         <div style="font-size:9.5px;color:var(--text3);margin-top:3px">from the strategy</div>
                     </div>
                     <button class="six-btn six-btn-primary six-btn-sm six-add-metric-svc"
@@ -1829,12 +1842,29 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             $svc_means  = class_exists('Six_Tasks') ? Six_Tasks::STATUS_MEANS : array();
             $svc_tcol   = array('todo'=>'var(--text3)','client_review'=>'var(--warning)','implementation'=>'var(--cyan)','complete'=>'var(--success)');
             $svc_draft  = 0; foreach($svc_tasks as $st2){ if(empty($st2['published'])) $svc_draft++; }
-            // Grouped by the category the plan gave each row, so a year of
-            // work reads as Content / Technical / Backlinks rather than as
-            // ninety numbered lines.
+            /* Two ways through the same rows, because an advisor asks two
+               different questions of them: "what is due this month" and
+               "where are we on backlinks". A year of work is ninety-odd
+               rows; under one heading it is a list nobody reads. */
+            $svc_bymonth = array();
+            foreach($svc_tasks as $st3){ $svc_bymonth[(int)$st3['month_no']][] = $st3; }
+            ksort($svc_bymonth);
             $svc_bycat = array();
-            foreach($svc_tasks as $st3){ $svc_bycat[$st3['category'] ?: 'Other'][] = $st3; }
-            ksort($svc_bycat);
+            foreach($svc_tasks as $st4){ $svc_bycat[trim($st4['category']) ?: 'Other'][] = $st4; }
+            uksort($svc_bycat, function($x,$y){
+                if($x==='Other') return 1;
+                if($y==='Other') return -1;
+                return strcasecmp($x,$y);
+            });
+
+            /* What is open in the month we are actually in. This is the
+               to-do half of the board: proof of work for the client, a list
+               to work from for the advisor. */
+            $svc_term = 12;
+            $svc_cfg  = get_user_meta($view_client_id, 'six_svc_config_'.$slug, true);
+            if (is_array($svc_cfg) && ($svc_cfg['plan_term'] ?? '') === '6') $svc_term = 6;
+            $svc_due  = class_exists('Six_Tasks') ? Six_Tasks::month_due($view_client_id, $svc_term) : array('month'=>0,'open'=>array(),'days_left'=>0,'counts'=>array());
+            $svc_due_here = array_values(array_filter($svc_due['open'], function($o) use ($slug){ return $o['service_slug'] === $slug; }));
             ?>
             <div class="six-svc-panel" data-panel="todo" data-slug="<?php echo esc_attr($slug); ?>" style="display:none;background:var(--dark4);border-radius:10px;padding:14px">
                 <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px">
@@ -1843,34 +1873,69 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                     <button class="six-btn six-btn-primary six-btn-sm six-publish-tasks" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Publish <?php echo $svc_draft; ?> draft<?php echo $svc_draft===1?'':'s'; ?></button>
                     <?php endif; ?>
                 </div>
+                <?php
+                /* Due this month, and how long is left. A reminder appears
+                   three days out — not because three days is special, but
+                   because a month-end with four open rows and no warning is
+                   how a plan slips a month at a time. */
+                if($svc_due_here && $svc_due['days_left'] <= 3):
+                    $due_cats = array();
+                    foreach($svc_due_here as $o){ $c = trim($o['category']) ?: 'Other'; $due_cats[$c] = ($due_cats[$c] ?? 0) + 1; }
+                ?>
+                <div style="background:rgba(227,179,65,0.08);border:1px solid rgba(227,179,65,0.35);border-radius:9px;padding:11px 13px;margin-bottom:12px">
+                    <div style="font-size:12px;font-weight:700;color:var(--warning);margin-bottom:3px">
+                        <?php echo count($svc_due_here); ?> task<?php echo count($svc_due_here)===1?'':'s'; ?> still open in month <?php echo (int)$svc_due['month']; ?><?php
+                        echo $svc_due['days_left']===0 ? ', and the month ends today' : ' — '.(int)$svc_due['days_left'].' day'.($svc_due['days_left']===1?'':'s').' left'; ?>
+                    </div>
+                    <div style="font-size:11px;color:var(--text2);line-height:1.5">
+                        <?php
+                        $bits = array();
+                        foreach($due_cats as $c => $n) $bits[] = esc_html($c).' ('.$n.')';
+                        echo implode(' · ', $bits);
+                        ?>
+                    </div>
+                </div>
+                <?php elseif($svc_due_here): ?>
+                <div style="font-size:11px;color:var(--text3);margin-bottom:10px">
+                    <?php echo count($svc_due_here); ?> open in month <?php echo (int)$svc_due['month']; ?> &middot; <?php echo (int)$svc_due['days_left']; ?> days left
+                </div>
+                <?php endif; ?>
+
                 <?php if(!$svc_tasks): ?>
                 <div style="font-size:11.5px;color:var(--text3);line-height:1.6">
                     No plan for this service yet. Tasks appear here once the client approves the strategy and it is turned into a plan — they arrive as a draft so you can fix the dates before anything is published.
                 </div>
-                <?php else: foreach($svc_bycat as $cat => $rows): ?>
-                <div style="font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text2);margin:10px 0 4px"><?php echo esc_html($cat); ?> <span style="color:var(--text3);font-weight:500"><?php echo count($rows); ?></span></div>
-                <?php foreach($rows as $tk): ?>
-                <div id="task-<?php echo (int)$tk['id']; ?>" style="display:grid;grid-template-columns:30px 1fr 140px auto;gap:8px;align-items:center;padding:7px 0;border-top:1px solid rgba(255,255,255,0.04)">
-                    <div style="font-size:9.5px;color:var(--text3);text-align:center">M<?php echo (int)$tk['month_no']; ?></div>
-                    <div style="min-width:0">
-                        <div style="font-size:11.5px;line-height:1.35"><?php echo esc_html($tk['title']); ?></div>
-                        <?php if($tk['entity'] || empty($tk['published'])): ?>
-                        <div style="font-size:9.5px;color:var(--text3)">
-                            <?php if($tk['entity']): ?><span style="word-break:break-all"><?php echo esc_html($tk['entity']); ?></span><?php endif; ?>
-                            <?php if(empty($tk['published'])): ?> &middot; <span style="color:var(--warning)">draft</span><?php endif; ?>
-                        </div>
-                        <?php endif; ?>
-                    </div>
-                    <select class="six-input six-task-status" data-id="<?php echo (int)$tk['id']; ?>" data-client="<?php echo $view_client_id; ?>"
-                            style="font-size:11px;padding:5px 7px;border-color:<?php echo $svc_tcol[$tk['status']] ?? 'var(--border)'; ?>44">
-                        <?php foreach($svc_status as $sk => $sl): ?>
-                        <option value="<?php echo esc_attr($sk); ?>" <?php selected($tk['status'],$sk); ?>><?php echo esc_html($sl); ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                    <button class="six-btn six-btn-ghost six-btn-sm six-delete-task" data-id="<?php echo (int)$tk['id']; ?>"
-                            data-client="<?php echo $view_client_id; ?>" style="font-size:10px;padding:4px 8px">Remove</button>
+                <?php else: ?>
+                <?php /* Month or category, remembered per service. */ ?>
+                <div class="six-tgroup" data-slug="<?php echo esc_attr($slug); ?>" style="display:flex;gap:4px;margin-bottom:8px">
+                    <button type="button" class="six-tgroup-btn" data-slug="<?php echo esc_attr($slug); ?>" data-by="month" aria-selected="true">By month</button>
+                    <button type="button" class="six-tgroup-btn" data-slug="<?php echo esc_attr($slug); ?>" data-by="category" aria-selected="false">By category</button>
                 </div>
-                <?php endforeach; endforeach; endif; ?>
+
+                <div class="six-tview" data-slug="<?php echo esc_attr($slug); ?>" data-by="month">
+                <?php foreach($svc_bymonth as $mn => $rows):
+                    $m_done = 0; foreach($rows as $r2){ if($r2['status']==='complete') $m_done++; }
+                    $is_now = ((int)$mn === (int)$svc_due['month']); ?>
+                <div style="display:flex;align-items:baseline;gap:8px;margin:10px 0 4px">
+                    <span style="font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:<?php echo $is_now?'var(--warning)':'var(--text2)'; ?>">Month <?php echo (int)$mn; ?><?php echo $is_now?' · now':''; ?></span>
+                    <span style="font-size:10px;color:var(--text3)"><?php echo $m_done; ?> of <?php echo count($rows); ?> done</span>
+                </div>
+                <?php foreach($rows as $tk): include six_task_row_path(); endforeach; ?>
+                <?php endforeach; ?>
+                </div>
+
+                <div class="six-tview" data-slug="<?php echo esc_attr($slug); ?>" data-by="category" hidden>
+                <?php foreach($svc_bycat as $cat => $rows):
+                    $c_done = 0; foreach($rows as $r3){ if($r3['status']==='complete') $c_done++; } ?>
+                <div style="display:flex;align-items:baseline;gap:8px;margin:10px 0 4px">
+                    <span style="font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text2)"><?php echo esc_html($cat); ?></span>
+                    <span style="font-size:10px;color:var(--text3)"><?php echo $c_done; ?> of <?php echo count($rows); ?> done</span>
+                </div>
+                <?php foreach($rows as $tk): include six_task_row_path(); endforeach; ?>
+                <?php endforeach; ?>
+                </div>
+                <?php endif; ?>
+
 
                 <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:10px">
                     <div style="display:grid;grid-template-columns:2.4fr 1fr 64px auto;gap:8px;align-items:end">
@@ -4290,6 +4355,21 @@ function post(data){ return fetch(AJAX,{method:'POST',headers:{'Content-Type':'a
 function populateMetricForm(id, label, current, previous, target, slug){
     var form=document.getElementById('metric-form-'+slug);
     if(!form) return;
+
+    // Edit has to open the panel the fields are in. The three panels under a
+    // service are collapsed by default, so clicking Edit filled boxes nobody
+    // could see, scrolled to a closed panel, and focused a hidden input —
+    // which reads as a button that does nothing.
+    var act=document.querySelector('.six-svc-act[data-slug="'+slug+'"][data-act="metrics"]');
+    if(act && act.getAttribute('aria-expanded')!=='true') act.click();
+
+    // And the service's own tab, if the advisor is looking at another one.
+    var tab=document.querySelector('.six-svctab[data-svc="'+slug+'"]');
+    if(tab){
+        var pane=document.querySelector('[data-svcpane="'+slug+'"]');
+        if(pane && pane.style.display==='none') tab.click();
+    }
+
     var set=function(sel,val){ var el=document.querySelector(sel); if(el) el.value=(val==null?'':String(val)); };
     set('.metric-label-'+slug, label);
     set('.metric-current-'+slug, current);
@@ -5536,6 +5616,36 @@ document.querySelectorAll('.six-log-work').forEach(function(btn){
     if (!want) return;
     var btn = document.querySelector('.six-svc-act[data-slug="'+slug+'"][data-act="'+want+'"]');
     if (btn) btn.click();
+  });
+})();
+
+// ── By month, or by category ───────────────────────────────────────────
+// The same rows seen from two angles, because an advisor asks two different
+// questions of a board: what is due this month, and where are we on
+// backlinks. Remembered per service.
+(function(){
+  function show(slug, by){
+    document.querySelectorAll('.six-tgroup-btn[data-slug="'+slug+'"]').forEach(function(b){
+      var on = b.dataset.by === by;
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+      b.style.background = on ? 'rgba(255,102,153,.12)' : 'transparent';
+      b.style.color = on ? 'var(--text1)' : 'var(--text3)';
+    });
+    document.querySelectorAll('.six-tview[data-slug="'+slug+'"]').forEach(function(v){
+      v.hidden = v.dataset.by !== by;
+    });
+    try { localStorage.setItem('six_tgroup_'+slug, by); } catch(e){}
+  }
+  document.querySelectorAll('.six-tgroup-btn').forEach(function(b){
+    b.style.cssText = 'appearance:none;border:1px solid var(--border);border-radius:7px;'
+      + 'font-family:inherit;font-size:11px;font-weight:700;padding:5px 11px;cursor:pointer;'
+      + 'background:transparent;color:var(--text3)';
+    b.addEventListener('click', function(){ show(b.dataset.slug, b.dataset.by); });
+  });
+  document.querySelectorAll('.six-tgroup').forEach(function(bar){
+    var slug = bar.dataset.slug, want = 'month';
+    try { want = localStorage.getItem('six_tgroup_'+slug) || 'month'; } catch(e){}
+    show(slug, want);
   });
 })();
 

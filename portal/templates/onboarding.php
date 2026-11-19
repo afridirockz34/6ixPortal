@@ -1562,6 +1562,9 @@ window.OB={
   _syncPasswordField:function(){
     var wrap=$i('s1-pw-wrap');
     var creating = !S.userId && S.isNew && !S.isGoogle;
+    // A session WordPress already has is a session, whatever this script
+    // thinks: nobody who is signed in is asked to choose a password.
+    if(typeof LOGGED_IN!=='undefined' && LOGGED_IN) creating = false;
     if(wrap) wrap.style.display = creating ? '' : 'none';
     if(!creating){ var pw=$i('s1-pw'); if(pw) pw.value=''; }
     return creating;
@@ -2321,12 +2324,25 @@ window.OB={
   useDifferentEmail:function(){
     if(!window.confirm('Start again with a different email address? The details you entered on this step will not be carried over.')) return;
     // Signed in: the WordPress session has to go too, or the page just
-    // resumes the same account on the next load. The round trip also clears
-    // the nonce and saved state cleanly, which an in-page reset cannot do.
-    if(typeof LOGGED_IN!=='undefined' && LOGGED_IN && typeof SWITCH_ACCOUNT_URL==='string' && SWITCH_ACCOUNT_URL){
+    // resumes the same account on the next load.
+    //
+    // Done through our own endpoint rather than wp_logout_url(). That URL
+    // carries a nonce minted when the page was rendered, so a page served
+    // from a cache — or simply left open a while — arrived with a nonce that
+    // no longer validated, and WordPress answered with its own "Do you
+    // really want to log out of 6ix Developers LTD?" page. A customer should
+    // never see a WordPress screen, least of all one that asks them to
+    // confirm something they already confirmed.
+    if(typeof LOGGED_IN!=='undefined' && LOGGED_IN){
       try{ OB._clearLocal&&OB._clearLocal(); }catch(e){}
       if(typeof GE!=='undefined') GE.leaveOnPurpose();
-      window.location.href=SWITCH_ACCOUNT_URL;
+      post({action:'six_switch_account'}).then(function(r){
+        window.location.replace((r&&r.success&&r.data&&r.data.redirect) || SWITCH_ACCOUNT_URL);
+      }).catch(function(){
+        // The endpoint is the clean path; the old URL is the fallback, and
+        // the confirmation page is still better than being stuck.
+        window.location.href=SWITCH_ACCOUNT_URL;
+      });
       return;
     }
     OB.backToEmail();
@@ -2674,25 +2690,10 @@ window.OB={
 };
 
 /* ── Google Social Login — redirect-loop fix ── */
+// Where the plugin does fire the event, it takes the same path as the load-
+// time check — one adoption routine, so the two can never behave differently.
 window.addEventListener('NSLAfterFormLogin',function(){
-  post({action:'six_google_login_complete'}).then(function(res){
-    if(!res.success)return;
-    // Advisors / sales / admins: server tells us where they belong
-    if(res.data.redirect_url){GE.leaveOnPurpose();window.location.replace(res.data.redirect_url);return;}
-    S.userId=res.data.user_id;S.email=res.data.email;S.advisor=res.data.advisor;
-    S.isGoogle=true;S.isNew=false;if(res.data.nonce)S.nonce=res.data.nonce;
-    S.q.first=res.data.first||'';S.q.last=res.data.last||'';S.q.phone=res.data.phone||'';
-    // Completed customers go straight to their dashboard
-    if(res.data.completed){GE.leaveOnPurpose();window.location.replace('<?php echo esc_js(home_url('/portal/'));?>');return;}
-    var f=$i('s1-first'),l=$i('s1-last'),e=$i('s1-email'),p=$i('s1-phone'),pw=$i('s1-pw-wrap');
-    if(f)f.value=S.q.first;if(l)l.value=S.q.last;if(e)e.value=S.email;if(p)p.value=S.q.phone;
-    if(pw)pw.style.display='none';
-    var ttl=$i('s1-ttl'),dsc=$i('s1-dsc');
-    if(ttl)ttl.textContent='One last thing.';
-    if(dsc)dsc.textContent='Please confirm your phone number so your advisor can reach you.';
-    // Skip to step 2 if phone already on file, else stop at step 1 for phone
-    OB.goStep(S.q.phone&&S.q.phone.length>=7?(res.data.resume_step||2):1);
-  });
+  post({action:'six_google_login_complete'}).then(sixAdoptSession).catch(function(){});
 });
 
 /* ── Service card clicks ── */
@@ -2807,8 +2808,61 @@ var GE = {
   },
 };
 
+/* ── Adopt an existing session, however it was created ────────────────────
+ *
+ * Signing in with Google reloads the page. The state this script keeps —
+ * who the user is, whether they already have an account, whether they need
+ * to choose a password — was only ever filled in by the NSLAfterFormLogin
+ * event, which the social-login plugin fires on some flows and not on
+ * others. When it did not fire, the page came back with the visitor logged
+ * in and the script believing nobody was: so it treated them as a brand-new
+ * signup, asked for a password, and refused to continue without one — while
+ * the password field itself stayed hidden, because the markup knew they were
+ * logged in even though the script did not.
+ *
+ * "It says the password needs to be 8 characters and there is no password
+ * field" is exactly that disagreement.
+ *
+ * So the session is read from the server on every load, not from an event.
+ * The same handler the event used, called unconditionally when WordPress
+ * says somebody is signed in.
+ */
+function sixAdoptSession(res){
+  if(!res || !res.success || !res.data) return false;
+  var d = res.data;
+  if(d.redirect_url){ GE.leaveOnPurpose(); window.location.replace(d.redirect_url); return true; }
+
+  S.userId = d.user_id; S.email = d.email || S.email; S.advisor = d.advisor;
+  S.isGoogle = true; S.isNew = false;
+  if(d.nonce) S.nonce = d.nonce;
+  S.q.first = d.first || S.q.first || '';
+  S.q.last  = d.last  || S.q.last  || '';
+  S.q.phone = d.phone || S.q.phone || '';
+
+  if(d.completed){ GE.leaveOnPurpose(); window.location.replace('<?php echo esc_js(home_url('/portal/')); ?>'); return true; }
+
+  var f=$i('s1-first'), l=$i('s1-last'), e=$i('s1-email'), p=$i('s1-phone');
+  if(f) f.value=S.q.first; if(l) l.value=S.q.last;
+  if(e) e.value=S.email;   if(p) p.value=S.q.phone;
+  // The field and the rule that guards it are driven from one place, so they
+  // cannot disagree again.
+  if(OB._syncPasswordField) OB._syncPasswordField();
+
+  var ttl=$i('s1-ttl'), dsc=$i('s1-dsc');
+  if(ttl) ttl.textContent='One last thing.';
+  if(dsc) dsc.textContent='Please confirm your phone number so your advisor can reach you.';
+
+  OB.goStep(S.q.phone && S.q.phone.length>=7 ? (d.resume_step||2) : 1);
+  return true;
+}
+
 document.addEventListener('DOMContentLoaded',function(){
   GE._pageStart = Date.now();
+
+  // A session WordPress knows about but this script does not.
+  if(typeof LOGGED_IN!=='undefined' && LOGGED_IN && !S.userId){
+    post({action:'six_google_login_complete'}).then(sixAdoptSession).catch(function(){});
+  }
 
   // Email handed over from the marketing "Client Login" for an unknown address:
   // prefill it and run the same check the login box does, so the visitor lands

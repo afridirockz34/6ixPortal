@@ -35,17 +35,27 @@ add_action( 'after_setup_theme', function () {
 // whatever wp_head() emits — has ever had a browser-tab icon. Emit explicit
 // <link rel="icon"> tags site-wide instead of depending on that admin
 // setting, using the theme's own real favicon files.
-add_action( 'wp_head', function () {
+/**
+ * The favicon tags, as a function rather than only as a hook.
+ *
+ * Get Started builds its own <head> and never calls wp_head(), so the hook
+ * below could not reach it — which is why that one page, the first page a
+ * new customer ever sees, was the one without a tab icon. Any page that
+ * writes its own head calls this directly.
+ */
+function six_favicon_tags() {
     $dir = get_stylesheet_directory() . '/marketing/assets/img/favicons/';
     $url = get_stylesheet_directory_uri() . '/marketing/assets/img/favicons/';
-    if ( ! file_exists( $dir . '192.png' ) ) return;
+    if ( ! file_exists( $dir . '192.png' ) ) return '';
     $v = filemtime( $dir . '192.png' );
-    echo '<link rel="icon" type="image/png" sizes="16x16" href="' . esc_url( $url . '16.png?v=' . $v ) . '">' . "\n";
-    echo '<link rel="icon" type="image/png" sizes="96x96" href="' . esc_url( $url . '96.png?v=' . $v ) . '">' . "\n";
-    echo '<link rel="icon" type="image/png" sizes="192x192" href="' . esc_url( $url . '192.png?v=' . $v ) . '">' . "\n";
-    echo '<link rel="shortcut icon" href="' . esc_url( $url . '192.png?v=' . $v ) . '">' . "\n";
-    echo '<link rel="apple-touch-icon" sizes="180x180" href="' . esc_url( $url . '180.png?v=' . $v ) . '">' . "\n";
-}, 2 );
+    $out  = '<link rel="icon" type="image/png" sizes="16x16" href="' . esc_url( $url . '16.png?v=' . $v ) . '">' . "\n";
+    $out .= '<link rel="icon" type="image/png" sizes="96x96" href="' . esc_url( $url . '96.png?v=' . $v ) . '">' . "\n";
+    $out .= '<link rel="icon" type="image/png" sizes="192x192" href="' . esc_url( $url . '192.png?v=' . $v ) . '">' . "\n";
+    $out .= '<link rel="shortcut icon" href="' . esc_url( $url . '192.png?v=' . $v ) . '">' . "\n";
+    $out .= '<link rel="apple-touch-icon" sizes="180x180" href="' . esc_url( $url . '180.png?v=' . $v ) . '">' . "\n";
+    return $out;
+}
+add_action( 'wp_head', function () { echo six_favicon_tags(); }, 2 );
 
 // ── CONSTANTS ───────────────────────────────────────────────────────────────
 define( 'SIX_PORTAL_VERSION', '1.0.0' );
@@ -900,6 +910,94 @@ add_action( 'after_setup_theme', function() {
     }
 } );
 
+/* ── CUSTOMERS NEVER SEE WORDPRESS ───────────────────────────────────────────
+ *
+ * Three doors led out of the portal and into raw WordPress, and a customer
+ * found all of them:
+ *
+ *   - wp-login.php?action=logout showed "You are attempting to log out of
+ *     6ix Developers LTD. Do you really want to log out?" — WordPress's own
+ *     confirmation page, which appears whenever the logout nonce does not
+ *     validate. A page served from cache has a stale nonce, so this was not
+ *     an edge case.
+ *   - /wp-admin/ showed the WordPress dashboard, or its "you do not have
+ *     permission" screen, to somebody who has an account with us.
+ *   - The login form itself is WordPress-branded and says nothing about 6ix.
+ *
+ * None of those is a page we would ever design, and all three are reachable
+ * by typing a URL. A customer or an advisor goes to their portal instead.
+ * Administrators are untouched: wp-admin is where the site is run from.
+ */
+function six_portal_home_for( $user_id = 0 ) {
+    $role = class_exists( 'Six_Roles' ) ? Six_Roles::get_portal_role( $user_id ) : '';
+    if ( $role === 'six_advisor' ) return home_url( '/advisor-portal/' );
+    if ( $role === 'six_sales' )   return home_url( '/sales-portal/' );
+    if ( $role === 'six_customer' ) {
+        $uid = $user_id ?: get_current_user_id();
+        return get_user_meta( $uid, 'six_checkout_completed', true )
+            ? home_url( '/portal/' ) : home_url( '/get-started/' );
+    }
+    return '';
+}
+
+/** Is this somebody whose home is a 6ix portal rather than wp-admin? */
+function six_is_portal_user( $user_id = 0 ) {
+    if ( current_user_can( 'manage_options' ) ) return false;
+    $role = class_exists( 'Six_Roles' ) ? Six_Roles::get_portal_role( $user_id ) : '';
+    return in_array( $role, array( 'six_customer', 'six_advisor', 'six_sales' ), true );
+}
+
+add_action( 'admin_init', function () {
+    // AJAX is not a page; blocking it would break every panel in the portal.
+    if ( wp_doing_ajax() || ! is_user_logged_in() ) return;
+    if ( ! six_is_portal_user() ) return;
+
+    $home = six_portal_home_for();
+    if ( $home ) { wp_safe_redirect( $home ); exit; }
+}, 1 );
+
+add_action( 'login_form_logout', function () {
+    /* WordPress asks "do you really want to log out?" when the nonce fails.
+     * For our own people the answer is always yes and the question is
+     * WordPress-branded, so log them out and send them to the marketing site
+     * rather than showing it. */
+    if ( ! is_user_logged_in() || ! six_is_portal_user() ) return;
+    $to = isset( $_REQUEST['redirect_to'] ) ? wp_unslash( $_REQUEST['redirect_to'] ) : home_url( '/' );
+    wp_logout();
+    wp_safe_redirect( wp_validate_redirect( $to, home_url( '/' ) ) );
+    exit;
+}, 1 );
+
+add_action( 'login_init', function () {
+    /* A signed-in customer who lands on the login form — from a bookmark, or
+     * a link in an old email — gets their portal, not a second login box. */
+    $action = isset( $_REQUEST['action'] ) ? sanitize_key( $_REQUEST['action'] ) : '';
+    if ( in_array( $action, array( 'logout', 'postpass', 'rp', 'resetpass', 'lostpassword' ), true ) ) return;
+    if ( ! is_user_logged_in() || ! six_is_portal_user() ) return;
+    $home = six_portal_home_for();
+    if ( $home ) { wp_safe_redirect( $home ); exit; }
+}, 1 );
+
+/**
+ * Sign out from inside the portal, without touching wp-login.php.
+ *
+ * The onboarding page's "Use a different email" used wp_logout_url(), whose
+ * nonce is generated when the page is rendered — so a page sitting in a
+ * cache, or open in a tab for a while, carried a nonce that no longer
+ * validated and WordPress answered with its own confirmation screen. Doing
+ * it here means there is no nonce to go stale and no WordPress page to land
+ * on.
+ */
+add_action( 'wp_ajax_six_switch_account', 'six_ajax_switch_account' );
+add_action( 'wp_ajax_nopriv_six_switch_account', 'six_ajax_switch_account' );
+function six_ajax_switch_account() {
+    check_ajax_referer( 'six_nonce', 'nonce' );
+    if ( is_user_logged_in() ) wp_logout();
+    wp_send_json_success( array(
+        'redirect' => add_query_arg( 'switch', '1', home_url( '/get-started/' ) ),
+    ) );
+}
+
 // ── LOGIN REDIRECTS ───────────────────────────────────────────────────────────
 add_action( 'template_redirect', 'six_serve_onboarding_page', 0 );
 function six_serve_onboarding_page() {
@@ -962,6 +1060,7 @@ function six_serve_onboarding_page() {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Get Started — <?php bloginfo('name'); ?></title>
+<?php echo six_favicon_tags(); // this page writes its own head, so wp_head() never runs here ?>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Onest:wght@400;500;600;700;800&display=swap" rel="stylesheet">

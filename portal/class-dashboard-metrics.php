@@ -254,6 +254,11 @@ class Six_Dash_Metrics {
 					'gmb_calls'      => array( 'label' => 'Calls from Maps',    'suffix' => '/mo', 'unit' => 'calls per month' ),
 					'gmb_directions' => array( 'label' => 'Direction Requests', 'suffix' => '/mo', 'unit' => 'requests per month' ),
 					'gmb_posts'      => array( 'label' => 'Posts This Month',   'unit' => 'posts per month' ),
+					// What BrightLocal can actually measure. Average map rank
+					// improves by falling, which lower_is_better() has to know
+					// or the card paints progress backwards.
+					'gmb_avg_rank'     => array( 'label' => 'Average Map Rank', 'unit' => 'across the local grid', 'lower_better' => true ),
+					'gmb_grid_coverage'=> array( 'label' => 'Map Coverage',     'suffix' => '%', 'unit' => 'of the grid where they appear' ),
 				),
 			),
 		);
@@ -790,35 +795,18 @@ class Six_Dash_Metrics {
 			$baseline = (int) preg_replace( '/[^0-9]/', '', $kpi['visitors_baseline']->kpi_value );
 		}
 
-		if ( $current <= 0 ) {
-			return array(
-				'has'    => false,
-				'source' => 'none',
-				'baseline_mo' => 0, 'current_mo' => 0, 'points' => array(),
-				'note'   => 'Nothing is reporting visitors yet. Connect Google Analytics or Search Console '
-				          . 'under Data Sources, or your advisor can enter the figure by hand.',
-			);
-		}
-
-		// ── Real captured history, when we have any ──────────────────────
-		// Snapshots are the actual measured figure on an actual date. Where
-		// two or more exist they are plotted directly, because a real series
-		// beats a modelled one and the dates on the axis are then true.
-		$measured = array();
-		if ( class_exists( 'Six_Performance' ) ) {
-			$hist = Six_Performance::history( $user_id, 26 );
-			foreach ( array_reverse( $hist ) as $h ) {     // oldest first
-				$v = 0;
-				foreach ( array( 'organic_visitors', 'paid_clicks', 'gmb_views' ) as $vk ) {
-					if ( ! empty( $h['values'][ $vk ] ) ) $v += (int) $h['values'][ $vk ];
-				}
-				if ( $v > 0 ) $measured[] = array( 'date' => substr( $h['captured_at'], 0, 10 ), 'value' => $v );
-			}
-		}
-
 		$points = array();
-		$week   = 7 * DAY_IN_SECONDS;
 
+		/* The daily series first, before anything is given up on.
+		 *
+		 * This used to sit *after* an early return that fired when no
+		 * connector reported a visitor count — so a client whose history had
+		 * been backfilled, whose start date was set and whose numbers were
+		 * synced still got no chart at all, because `live()` returned null
+		 * and the function gave up three lines before reading the table that
+		 * had the answer in it. Backfilled readings are the best data we
+		 * have; nothing should be decided before they are looked at.
+		 */
 		// ── Day by day, where the daily sync has readings ────────────────
 		//
 		// This is the honest version of the claim the card makes, and the
@@ -927,6 +915,36 @@ class Six_Dash_Metrics {
 				'note'           => (string) ( $daily['note'] ?? '' ),
 			);
 		}
+
+
+		if ( $current <= 0 ) {
+			return array(
+				'has'    => false,
+				'source' => 'none',
+				'baseline_mo' => 0, 'current_mo' => 0, 'points' => array(),
+				'note'   => 'Nothing is reporting visitors yet. Connect Google Analytics or Search Console '
+				          . 'under Data Sources, or your advisor can enter the figure by hand.',
+			);
+		}
+
+		// ── Real captured history, when we have any ──────────────────────
+		// Snapshots are the actual measured figure on an actual date. Where
+		// two or more exist they are plotted directly, because a real series
+		// beats a modelled one and the dates on the axis are then true.
+		$measured = array();
+		if ( class_exists( 'Six_Performance' ) ) {
+			$hist = Six_Performance::history( $user_id, 26 );
+			foreach ( array_reverse( $hist ) as $h ) {     // oldest first
+				$v = 0;
+				foreach ( array( 'organic_visitors', 'paid_clicks', 'gmb_views' ) as $vk ) {
+					if ( ! empty( $h['values'][ $vk ] ) ) $v += (int) $h['values'][ $vk ];
+				}
+				if ( $v > 0 ) $measured[] = array( 'date' => substr( $h['captured_at'], 0, 10 ), 'value' => $v );
+			}
+		}
+
+		$points = array();
+		$week   = 7 * DAY_IN_SECONDS;
 
 		if ( count( $measured ) >= 2 ) {
 			// Real snapshots on real dates. The "without us" line used to be

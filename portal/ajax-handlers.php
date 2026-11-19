@@ -154,6 +154,10 @@ function six_data_source_meta_map() {
         'meta'  => array( 'meta' => 'six_meta_ad_account_id',  'label' => 'Meta Ads' ),
         'gbp'   => array( 'meta' => 'six_gbp_location_id',     'label' => 'Google Business Profile' ),
         'gsc'   => array( 'meta' => 'six_gsc_site',            'label' => 'Google Search Console' ),
+        // Which BrightLocal location is this client's. Without it there is
+        // no way to pull their local rank grid, which is the only part of a
+        // Google Business Profile that BrightLocal can actually report.
+        'bl'    => array( 'meta' => 'six_bl_location_id',      'label' => 'BrightLocal location' ),
     );
 }
 
@@ -1138,6 +1142,74 @@ add_action( 'wp_ajax_six_suggest_metrics', function() {
         } else {
             $sources[] = 'Google Ads is not returning data for this client yet.';
         }
+    }
+
+    /* ── Google Business Profile: what BrightLocal can actually report ────
+     *
+     * This service had no branch at all, so "Read current figures" on a GMB
+     * setup returned nothing and said nothing — which reads as broken.
+     *
+     * The honest division matters here. BrightLocal tracks where the profile
+     * ranks across a geographic grid, and it tracks reviews. It does not
+     * report map views, calls from Maps or direction requests: those come
+     * from the Google Business Profile itself, and we do not hold an
+     * authenticated connection to it. So this returns what we can measure
+     * and names what we cannot, rather than leaving an advisor to guess
+     * whether the silence means zero or means broken.
+     *
+     * summary.avg_rank is quoted, never recomputed. A grid's `rank: 0` means
+     * "did not appear", so averaging the raw values scores the invisible
+     * points as the best ones — BrightLocal has already accounted for that.
+     */
+    if ( $slug === 'google-business' ) {
+        $bl_loc = trim( (string) get_user_meta( $client_id, 'six_bl_location_id', true ) );
+
+        if ( ! class_exists( 'Six_BrightLocal' ) || ! Six_BrightLocal::configured() ) {
+            $sources[] = 'BrightLocal is not configured — add the API key under 6ix Portal → Integrations.';
+        } elseif ( ! $bl_loc ) {
+            $sources[] = 'No BrightLocal location is linked to this client, so their local rankings cannot be read. '
+                       . 'Add it under Data Sources.';
+        } else {
+            $run = Six_BrightLocal::get( '/local-search-grid/v1/reports/latest-run', array( 'location-id' => $bl_loc ) );
+            if ( ! empty( $run['error'] ) ) {
+                $sources[] = 'BrightLocal unavailable: ' . $run['error'];
+            } else {
+                $sum = $run['summary'] ?? ( $run['data']['summary'] ?? array() );
+                $ran = $run['ran_at'] ?? ( $run['data']['ran_at'] ?? '' );
+                $when = $ran ? ' — grid run ' . gmdate( 'j M Y', strtotime( $ran ) ) : '';
+
+                if ( isset( $sum['avg_rank'] ) && is_numeric( $sum['avg_rank'] ) ) {
+                    $live      = true;
+                    $sources[] = 'BrightLocal local search grid' . $when;
+                    $rows[] = array(
+                        'key' => 'gmb_avg_rank', 'label' => 'Average Map Rank',
+                        'previous' => '', 'current' => (string) round( (float) $sum['avg_rank'], 1 ),
+                        'target' => '', 'source' => 'BrightLocal grid' . $when,
+                    );
+                }
+                // How much of the catchment sees them at all. Found and total
+                // are counts BrightLocal reports; neither is derived here.
+                $found = $sum['found_in'] ?? ( $sum['found'] ?? null );
+                $total = $sum['total_points'] ?? ( $sum['points'] ?? null );
+                if ( is_numeric( $found ) && is_numeric( $total ) && (int) $total > 0 ) {
+                    $live      = true;
+                    $rows[] = array(
+                        'key' => 'gmb_grid_coverage', 'label' => 'Map Coverage',
+                        'previous' => '', 'current' => (string) (int) round( ( (int) $found / (int) $total ) * 100 ),
+                        'target' => '', 'source' => 'BrightLocal grid: appears at ' . (int) $found . ' of ' . (int) $total . ' points' . $when,
+                    );
+                }
+                if ( ! $rows ) {
+                    $sources[] = 'BrightLocal answered, but this location has no finished grid run yet. '
+                               . 'Run one in BrightLocal, then read again.';
+                }
+            }
+        }
+
+        // Said once, whatever happened above: these three are on the client's
+        // own profile and nothing we hold can read them.
+        $sources[] = 'Map views, calls from Maps and direction requests come from the Google Business Profile itself, '
+                   . 'which BrightLocal does not report — enter those by hand from the client\'s profile insights.';
     }
 
     // ── Anything with a site: the page itself, measured directly ──────────
