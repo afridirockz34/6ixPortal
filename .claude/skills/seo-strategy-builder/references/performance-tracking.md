@@ -121,6 +121,17 @@ one only where the strategy argues for it; the advisor can always set their own.
 | `gmb_calls` | Calls from maps per month | higher |
 | `gmb_directions` | Direction requests per month | higher |
 | `gmb_posts` | Posts this month | higher |
+| `gmb_avg_rank` | Average map rank across the local grid | **lower** |
+| `gmb_grid_coverage` | Share of grid points they appear on | higher |
+
+`gmb_avg_rank` is BrightLocal's `summary.avg_rank` from the rank grid. Quote
+it; never recompute it from the point values, because a point with `rank: 0`
+means *did not appear*, and averaging raw values scores the invisible points as
+the best ones. `gmb_grid_coverage` is the share of grid points where they
+appear at all — the two together say "where they show up, and how high".
+
+Neither covers map views, calls from Maps or direction requests: those come
+from the Google Business Profile itself, which BrightLocal does not report.
 
 Each metric in the result carries `better_when` so you never have to remember
 which way round it goes, and each change carries a `trend` of `better`,

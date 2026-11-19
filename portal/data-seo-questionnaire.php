@@ -821,6 +821,30 @@ function six_questionnaire_scope_gap( $client_id ) {
 const SIX_Q_CLEAR_DAYS = 3;
 
 /**
+ * When the "Still to answer" list starts being useful.
+ *
+ * At the top of a fresh questionnaire that list is every question in the form,
+ * printed twice — once as the list and once as the form below it — and the
+ * effect on a client who has just opened it is to make a form they were about
+ * to fill in look like a backlog. It earns its place near the end, where a
+ * percentage alone cannot say which few are blank.
+ *
+ * Ten is the line: under ten remaining the list is a short, scannable set of
+ * jump links; at twenty-five it is the form again.
+ */
+const SIX_Q_OUTSTANDING_MAX = 10;
+
+/**
+ * Should the "Still to answer" list be shown for this many outstanding?
+ *
+ * Nothing to list, or too many to be worth listing, both mean no.
+ */
+function six_questionnaire_outstanding_shown( $count ) {
+	$count = (int) $count;
+	return $count > 0 && $count < SIX_Q_OUTSTANDING_MAX;
+}
+
+/**
  * Should the questionnaire still be shown to this client?
  *
  * @return array{show:bool,reason:string,clears_on:string}

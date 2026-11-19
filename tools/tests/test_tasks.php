@@ -280,7 +280,12 @@ $GLOBALS['wpdb'] = $wpdb;
 // ── The UI and the handlers agree ────────────────────────────────────────
 // A class rename on either side silently disables a button and the screen
 // gives no sign — the exact failure the metric delete shipped with.
-$adv = file_get_contents( dirname( __DIR__, 2 ) . '/portal/templates/advisor-dashboard.php' );
+/* The advisor template plus the task-row partial. The row's markup lives in
+   its own file because the board is rendered twice — by month and by
+   category — and two copies would drift. These checks are about the row and
+   its listener agreeing, so they have to see both halves. */
+$adv = file_get_contents( dirname( __DIR__, 2 ) . '/portal/templates/advisor-dashboard.php' )
+     . file_get_contents( dirname( __DIR__, 2 ) . '/portal/partials/task-row.php' );
 
 check( 'the board lives under the service it belongs to',
 	strpos( $adv, 'To do &mdash; ' ) !== false
@@ -327,6 +332,49 @@ check( 'and files against that service rather than asking which one',
 	strpos( $adv, 'var slug  = this.dataset.slug;' ) !== false );
 check( 'each service has its own result box, so two panels cannot write to one',
 	strpos( $adv, "document.querySelector('.wl-result-'+slug)" ) !== false );
+// ── The same rows, two ways through them ─────────────────────────────────
+// An advisor asks two different questions of a board: what is due this
+// month, and where are we on backlinks. A year of work under one heading is
+// a list nobody reads.
+check( 'the board can be grouped by month',
+	strpos( $adv, 'data-by="month"' ) !== false );
+check( 'or by category',
+	strpos( $adv, 'data-by="category"' ) !== false );
+check( 'the row markup is a partial, so the two views cannot drift',
+	file_exists( dirname( __DIR__, 2 ) . '/portal/partials/task-row.php' ) );
+check( 'and both views include it rather than repeating it',
+	substr_count( $adv, 'include six_task_row_path()' ) === 2,
+	'two copies would drift, and the half nobody looks at would drift furthest' );
+check( 'the month the client is actually in is marked',
+	strpos( $adv, "echo \$is_now?' · now':''" ) !== false );
+check( 'and the choice of view is remembered per service',
+	strpos( $adv, 'six_tgroup_' ) !== false );
+
+// ── The month-end reminder ───────────────────────────────────────────────
+// A to-do list nobody is reminded of is a list. Three days out, not because
+// three is special, but because a month-end with four open rows and no
+// warning is how a plan slips a month at a time.
+check( 'open tasks in the current month are counted',
+	strpos( $adv, '$svc_due_here' ) !== false );
+check( 'the reminder fires three days before the month ends',
+	strpos( $adv, "\$svc_due['days_left'] <= 3" ) !== false );
+check( 'it names the categories rather than only a number',
+	strpos( $adv, '$due_cats' ) !== false,
+	'"4 tasks open" does not tell an advisor what to pick up' );
+check( 'and the last day of the month reads as today, not as zero days',
+	strpos( $adv, 'the month ends today' ) !== false );
+
+$tasks_src = file_get_contents( dirname( __DIR__, 2 ) . '/portal/class-tasks.php' );
+check( 'the current month is derived from the day work began',
+	strpos( $tasks_src, 'function current_month(' ) !== false );
+check( 'and is clamped to the plan length',
+	strpos( $tasks_src, 'min( (int) $months, $n + 1 )' ) !== false,
+	'month 14 of a twelve-month plan is not a month the plan ever had' );
+check( 'with no start date there is no "current month" to remind about',
+	strpos( $tasks_src, "if ( ! \$start ) return 0;" ) !== false );
+check( 'completed rows are not counted as open',
+	strpos( $tasks_src, "if ( \$row['status'] === 'complete' ) continue;" ) !== false );
+
 check( 'Reports says where tasks and the log went',
 	strpos( $adv, 'Tasks and the work log live under' ) !== false );
 

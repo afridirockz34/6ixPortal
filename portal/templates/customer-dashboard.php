@@ -241,7 +241,6 @@ $svc_def = array(
     <div class="six-nav-section">
         <div class="six-nav-label">Dashboard</div>
         <a href="?tab=overview"     class="six-nav-item <?php echo $active_tab==='overview'    ?'active':''; ?>"><span class="six-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></span> Overview</a>
-        <a href="?tab=intelligence" class="six-nav-item <?php echo $active_tab==='intelligence'?'active':''; ?>"><span class="six-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><path d="M12 2a7 7 0 0 1 7 7c0 3.87-3.13 7-7 7s-7-3.13-7-7a7 7 0 0 1 7-7z"/><path d="M9 9h6m-6 3h4"/><line x1="12" y1="16" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/></svg></span> AI Insights</a>
         <a href="?tab=competitor"   class="six-nav-item <?php echo $active_tab==='competitor'  ?'active':''; ?>"><span class="six-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span> Competitors</a>
     </div>
     <div class="six-nav-section">
@@ -402,6 +401,45 @@ $six_visits = class_exists('Six_Dash_Metrics') ? Six_Dash_Metrics::visitor_serie
     </div>
     <a href="?tab=services" class="six-btn six-btn-primary">+ Add Service</a>
 </div>
+
+<?php
+/* ── The audit is under way ───────────────────────────────────────────────
+ *
+ * Every service except a website build opens with an audit, and until it
+ * lands there is nothing on this page for the client to look at: no metrics,
+ * no tasks, no report. The page they were sent to after onboarding read as an
+ * empty dashboard rather than as work in progress, so this says plainly what
+ * is happening and what arrives next.
+ *
+ * It goes away by itself the moment an audit report is filed for them — no
+ * advisor has to remember to switch it off, which is the only reason a banner
+ * like this survives contact with a real account. */
+$audited_slugs = array_intersect( $dash_slugs, array( 'seo', 'google-ads', 'google-business' ) );
+$audit_filed   = false;
+foreach ( (array) $reports as $r ) {
+    if ( ( $r->type ?? '' ) === 'audit' ) { $audit_filed = true; break; }
+}
+if ( $audited_slugs && ! $audit_filed ) :
+    $svc_names = array( 'seo' => 'SEO', 'google-ads' => 'Google Ads', 'google-business' => 'Google Business Profile' );
+    $named     = array_values( array_map( function ( $s ) use ( $svc_names ) { return $svc_names[ $s ]; }, $audited_slugs ) );
+    $named_txt = count( $named ) === 1 ? $named[0]
+               : implode( ', ', array_slice( $named, 0, -1 ) ) . ' and ' . end( $named );
+?>
+<div style="display:flex;align-items:flex-start;gap:14px;background:rgba(255,102,153,.06);
+            border:1px solid rgba(255,102,153,.28);border-radius:14px;padding:16px 18px;margin-bottom:18px">
+    <div style="width:34px;height:34px;border-radius:10px;background:var(--dark2);
+                border:1px solid rgba(255,102,153,.3);display:flex;align-items:center;
+                justify-content:center;flex-shrink:0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#FF6699" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </div>
+    <div>
+        <div style="font-size:13.5px;font-weight:700;color:var(--text1);margin-bottom:3px">Your <?php echo esc_html($named_txt); ?> audit is under way</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.6">
+            Your account manager is going through your site, your rankings and your market in full. You will get the audit in writing here, with the plan we would run from it — and the work starts as soon as you have read it.
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 
 <!-- ── 4 KPI CARDS ───────────────────────────────────────────────────────── -->
 <?php
@@ -1057,86 +1095,9 @@ if(!empty($all_show)): ?>
 </div>
 <?php endif; ?>
 
-<?php elseif($active_tab==='intelligence'):
-$pending_opps  = $wpdb->get_results($wpdb->prepare("SELECT * FROM {$wpdb->prefix}six_recommendations WHERE client_id=%d AND status='active' AND source LIKE 'ai_%' ORDER BY created_at DESC",$user_id));
-$approved_opps = $wpdb->get_results($wpdb->prepare("SELECT * FROM {$wpdb->prefix}six_recommendations WHERE client_id=%d AND status='approved' AND source LIKE 'ai_%' ORDER BY created_at DESC LIMIT 6",$user_id));
-$opp_types=array(
-    array('id'=>'perf',    'icon'=>'traffic',    'title'=>'Missing Traffic Source',   'color'=>'#4285F4','key'=>'performance',
-        'prompt'=>"You are a senior marketing analyst at 6ix Developers. In exactly 2 concise sentences, identify the single most impactful missing traffic channel for this business and quantify the opportunity. Business: {$ai_business}, Industry: {$ai_industry}, Active: {$ai_svc_names}. Missing: {$missing_svcs}. End: 'Our [service] directly addresses this.' No filler."),
-    array('id'=>'action',  'icon'=>'target',     'title'=>'Highest ROI Opportunity',  'color'=>'var(--pink)','key'=>'action',
-        'prompt'=>"You are a marketing ROI strategist at 6ix Developers. In 2 sentences, identify the highest-ROI service to add and give a realistic return range. Business: {$ai_business}, Industry: {$ai_industry}, Goal: {$ai_goal}, Current: {$ai_svc_names}. Missing: {$missing_svcs}. Be specific with numbers. End: 'This is available as part of our [service] package.'"),
-    array('id'=>'channel', 'icon'=>'gap',        'title'=>'Competitor Gap',           'color'=>'var(--cyan)','key'=>'channel',
-        'prompt'=>"You are a competitive intelligence analyst at 6ix Developers. In 2 sentences, describe the most significant channel gap vs competitors and what business is being lost. Business: {$ai_business}, Industry: {$ai_industry}, Current: {$ai_svc_names}. Competitors: ".($comp_str?:'typical industry players').". End: '6ix Developers can close this with our [service].'"),
-    array('id'=>'roi',     'icon'=>'revenue',    'title'=>'Revenue Gap Analysis',     'color'=>'#E3B341','key'=>'roi',
-        'prompt'=>"You are a revenue strategist at 6ix Developers. In 2 sentences, identify the biggest revenue opportunity being left on the table. Business: {$ai_business}, Industry: {$ai_industry}, Services: {$ai_svc_names}. Use realistic benchmark numbers. End: 'Our [service] typically delivers [result] within [timeframe].'"),
-    array('id'=>'content', 'icon'=>'brand',      'title'=>'Brand Authority Gap',      'color'=>'#8781BA','key'=>'content',
-        'prompt'=>"You are a brand strategist at 6ix Developers. In 2 sentences, assess this business's brand authority gap and the competitive risk. Business: {$ai_business}, Industry: {$ai_industry}, Services: {$ai_svc_names}. Make it specific to their industry. End: 'Our brand and content services address this directly.'"),
-    array('id'=>'quickwin','icon'=>'trending-up','title'=>'30-Day Revenue Projection','color'=>'var(--success)','key'=>'quickwin',
-        'prompt'=>"You are a growth advisor at 6ix Developers. In 2 sentences, project what adding the most impactful missing service delivers in 30 days. Business: {$ai_business}, Industry: {$ai_industry}, Challenge: {$ai_challenge}, Services: {$ai_svc_names}. Missing: {$missing_svcs}. Use compelling realistic numbers. End: 'Book a strategy call — your advisor is ready.'"),
-);
-?>
-<div class="six-page-header">
-    <div><h1 class="six-page-title">AI Marketing Insights</h1><p class="six-page-sub">Personalised intelligence for <strong><?php echo esc_html($ai_business); ?></strong></p></div>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <?php if(count($pending_opps)>0): ?><span style="font-size:12px;background:rgba(255,102,153,0.1);color:var(--pink);padding:6px 14px;border-radius:20px;border:1px solid rgba(255,102,153,0.3)"><?php echo count($pending_opps); ?> awaiting advisor</span><?php endif; ?>
-    </div>
-</div>
-<?php if(!empty($approved_opps)): ?>
-<div class="six-card" style="margin-bottom:20px;border-color:rgba(86,211,100,0.25);background:rgba(86,211,100,0.03)">
-    <div class="six-card-body" style="padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-        <span style="font-size:12px;color:var(--success);font-weight:600">✓ <?php echo count($approved_opps); ?> strateg<?php echo count($approved_opps)===1?'y':'ies'; ?> active with your advisor</span>
-        <div style="display:flex;flex-wrap:wrap;gap:6px"><?php foreach($approved_opps as $ap): ?><span style="font-size:11px;background:rgba(86,211,100,0.08);color:var(--success);padding:3px 10px;border-radius:20px;border:1px solid rgba(86,211,100,0.2)">✓ <?php echo esc_html($ap->title); ?></span><?php endforeach; ?></div>
-    </div>
-</div>
-<?php endif; ?>
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">
-<?php foreach($opp_types as $opp):
-    $existing   =$wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}six_recommendations WHERE client_id=%d AND source=%s ORDER BY created_at DESC LIMIT 1",$user_id,'ai_'.$opp['key']));
-    $is_pending =$existing&&$existing->status==='active';
-    $is_approved=$existing&&$existing->status==='approved';
-    $has_content=$existing&&!empty($existing->description)&&$existing->status!=='dismissed';
-    if($has_content){$clean=preg_replace('/[→#\*`_]+/','',trim($existing->description));$clean=preg_replace('/\s+/',' ',$clean);}
-?>
-<div class="six-card" id="opp-card-<?php echo $opp['id']; ?>" style="border-top:3px solid <?php echo $opp['color']; ?>;transition:transform 0.2s,box-shadow 0.2s">
-    <div class="six-card-body" style="padding:18px 20px">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-            <div style="width:36px;height:36px;border-radius:9px;background:<?php echo $opp['color']; ?>18;color:<?php echo $opp['color']; ?>;display:flex;align-items:center;justify-content:center;flex-shrink:0"><?php echo class_exists('Six_Icon')?Six_Icon::get($opp['icon'],'','18px'):''; ?></div>
-            <div style="flex:1">
-                <div style="font-size:13px;font-weight:700"><?php echo esc_html($opp['title']); ?></div>
-                <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px"><?php echo esc_html($ai_industry?:'Your Industry'); ?></div>
-            </div>
-            <?php if($is_approved): ?><span style="font-size:10px;background:rgba(86,211,100,0.12);color:var(--success);padding:3px 9px;border-radius:10px;font-weight:700">✓ Active</span>
-            <?php elseif($is_pending): ?><span class="six-opp-badge" style="font-size:10px;background:rgba(227,179,65,0.12);color:var(--warning);padding:3px 9px;border-radius:10px;font-weight:700"> Sent</span><?php endif; ?>
-        </div>
-        <div id="opp-content-<?php echo $opp['id']; ?>" data-prompt="<?php echo esc_attr($opp['prompt']); ?>" data-type="<?php echo esc_attr($opp['key']); ?>" style="margin-bottom:14px;min-height:60px">
-            <?php if($has_content): ?>
-            <div style="font-size:13px;color:var(--text1);line-height:1.75;padding:12px 14px;background:var(--dark4);border-radius:10px"><?php echo esc_html($clean); ?></div>
-            <?php else: ?>
-            <div class="six-opp-teaser" style="font-size:12px;color:var(--text3);line-height:1.7;padding:4px 0">Select <strong>See Insight</strong> to generate your personalized analysis.</div>
-            <div class="six-ai-loading" style="display:none;margin-top:8px"><span class="six-ai-spinner"></span> <span style="font-size:12px;color:var(--text3)">Analysing…</span></div>
-            <?php endif; ?>
-        </div>
-        <div class="six-opp-actions" id="opp-actions-<?php echo $opp['id']; ?>">
-            <?php if($is_approved): ?>
-            <div style="font-size:12px;color:var(--success);font-weight:600">✓ Your advisor is working on this</div>
-            <?php elseif($is_pending): ?>
-            <div style="display:flex;align-items:center;justify-content:space-between">
-                <span style="font-size:12px;color:var(--warning)"> Advisor reviewing</span>
-                <button class="six-btn six-btn-ghost six-btn-sm six-dismiss-opp" data-rec-id="<?php echo $existing->id; ?>" data-card="<?php echo $opp['id']; ?>" style="font-size:11px;color:var(--text3)">Remove</button>
-            </div>
-            <?php else: ?>
-            <?php if($has_content): ?>
-            <button class="six-btn six-btn-primary six-btn-sm six-request-opp" data-type="<?php echo esc_attr($opp['key']); ?>" data-title="<?php echo esc_attr($opp['title']); ?>" data-card="<?php echo $opp['id']; ?>" style="font-size:12px">+ Add to Action Plan</button>
-            <?php else: ?>
-            <button class="six-btn six-btn-ghost six-btn-sm six-preview-opp" data-card="<?php echo $opp['id']; ?>" style="font-size:11px;border-color:<?php echo $opp['color']; ?>;color:<?php echo $opp['color']; ?>">See Insight</button>
-            <?php endif; ?>
-            <?php endif; ?>
-        </div>
-    </div>
-</div>
-<?php endforeach; ?>
-</div>
-
+<?php /* The AI Insights tab is gone. It generated commentary about the
+         client's own business from a model rather than from their numbers,
+         which is the one thing this dashboard must not do. */ ?>
 <?php elseif($active_tab==='competitor'):
 $domain  = $website_url ? preg_replace('/^www\./','',(parse_url($website_url,PHP_URL_HOST)??'')) : '';
 $has_data = $domain || $ai_industry || ($checkout->competitors ?? '');
@@ -2004,10 +1965,15 @@ $q_done_at = $q_done ? six_strategy_questionnaire_submitted_at( $user_id ) : '';
 
         <?php /* A percentage on its own is a dead end: at 95% there is no way
                  to tell which two of sixty questions are blank. Name them, and
-                 make each one a link to its own field. */ ?>
-        <div id="q-outstanding" style="margin-top:14px;<?php echo empty($q_prog['outstanding']) ? 'display:none' : ''; ?>">
+                 make each one a link to its own field.
+                 Only near the end, though — see SIX_Q_OUTSTANDING_MAX. With
+                 forty left this list is the form printed twice, and it turns a
+                 questionnaire the client was about to start into a backlog. */
+        $out_n    = count( (array) $q_prog['outstanding'] );
+        $out_show = six_questionnaire_outstanding_shown( $out_n ); ?>
+        <div id="q-outstanding" data-max="<?php echo (int) SIX_Q_OUTSTANDING_MAX; ?>" style="margin-top:14px;<?php echo $out_show ? '' : 'display:none'; ?>">
             <div style="font-size:12px;font-weight:700;color:var(--text1);margin-bottom:6px" id="q-outstanding-head">
-                Still to answer<?php echo empty($q_prog['outstanding']) ? '' : ' (' . count($q_prog['outstanding']) . ')'; ?>
+                Still to answer<?php echo $out_show ? ' (' . $out_n . ')' : ''; ?>
             </div>
             <div id="q-outstanding-list" style="display:flex;flex-direction:column;gap:4px">
                 <?php foreach ( (array) $q_prog['outstanding'] as $o ): ?>
@@ -2115,9 +2081,15 @@ $q_done_at = $q_done ? six_strategy_questionnaire_submitted_at( $user_id ) : '';
     document.getElementById('q-status').textContent=p.done+' of '+p.total+' answered';
     if(!outWrap) return;
     var items=p.outstanding||[];
-    outWrap.style.display=items.length?'':'none';
-    outHead.textContent='Still to answer'+(items.length?' ('+items.length+')':'');
+    // Same rule as the server, with SIX_Q_OUTSTANDING_MAX carried on the
+    // wrapper so the two cannot drift: the list appears only once the number
+    // left is small enough to read at a glance.
+    var max=parseInt(outWrap.getAttribute('data-max'),10)||10;
+    var show=items.length>0&&items.length<max;
+    outWrap.style.display=show?'':'none';
+    outHead.textContent='Still to answer'+(show?' ('+items.length+')':'');
     outList.textContent='';
+    if(!show) return;
     items.forEach(function(o){
       var a=document.createElement('a');
       a.href='#q_'+o.key; a.setAttribute('data-jump',o.key);
@@ -2234,7 +2206,7 @@ $q_done_at = $q_done ? six_strategy_questionnaire_submitted_at( $user_id ) : '';
    read. Everything below is a field the advisor filled in on upload; a
    report filed before those fields existed simply shows fewer of them. */
 $rep_kinds = array(
-    'audit'          => array('SEO audit', 'What is wrong with the site today, and what it is costing.'),
+    'audit'          => array('SEO audit', 'Where your site stands today, and the opportunities we found.'),
     'strategy'       => array('Strategy', 'The plan: what gets built, in what order, and the targets it commits to.'),
     'monthly'        => array('Monthly performance', 'What moved last month, and what we changed to move it.'),
     'implementation' => array('Implementation log', 'Every change made on the site, with what it was before.'),

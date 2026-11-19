@@ -313,6 +313,54 @@ class Six_Tasks {
 	}
 
 	/**
+	 * Which month of the engagement a client is in right now.
+	 *
+	 * Month 1 is the month work began. Anything past the plan's length is
+	 * clamped to the last month, so a client in month 14 of a twelve-month
+	 * plan still reads as month 12 rather than as a month the plan never had.
+	 */
+	public static function current_month( $client_id, $months = 12 ) {
+		$start = class_exists( 'Six_Tracking' ) ? Six_Tracking::engagement_start( $client_id ) : '';
+		if ( ! $start ) return 0;
+		$from = strtotime( $start );
+		if ( ! $from ) return 0;
+
+		$a = new DateTime( gmdate( 'Y-m-01', $from ) );
+		$b = new DateTime( current_time( 'Y-m-01' ) );
+		$n = (int) $a->diff( $b )->format( '%r%a' ) > 0 ? ( ( (int) $b->format( 'Y' ) - (int) $a->format( 'Y' ) ) * 12
+			+ ( (int) $b->format( 'n' ) - (int) $a->format( 'n' ) ) ) : 0;
+		return max( 1, min( (int) $months, $n + 1 ) );
+	}
+
+	/**
+	 * Tasks due this month that are not finished, and how long is left.
+	 *
+	 * The board is a to-do list for the advisor as well as proof for the
+	 * client, and a to-do list nobody is reminded of is a list. This is what
+	 * the reminder is built from: the open rows in the month we are actually
+	 * in, counted, with the days remaining in that month.
+	 *
+	 * @return array{month:int,days_left:int,open:array,counts:array}
+	 */
+	public static function month_due( $client_id, $months = 12 ) {
+		$month = self::current_month( $client_id, $months );
+		$out   = array( 'month' => $month, 'days_left' => 0, 'open' => array(), 'counts' => array() );
+		if ( ! $month ) return $out;
+
+		$now  = current_time( 'timestamp' );
+		$last = (int) gmdate( 't', $now );
+		$out['days_left'] = max( 0, $last - (int) gmdate( 'j', $now ) );
+
+		foreach ( self::all( $client_id, array( 'month_no' => $month ) ) as $row ) {
+			if ( $row['status'] === 'complete' ) continue;
+			$out['open'][] = $row;
+			$cat = trim( (string) $row['category'] ) ?: 'Other';
+			$out['counts'][ $cat ] = ( $out['counts'][ $cat ] ?? 0 ) + 1;
+		}
+		return $out;
+	}
+
+	/**
 	 * Remove one task.
 	 *
 	 * Returns what the database did, not what we hoped. A delete that removed

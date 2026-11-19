@@ -83,9 +83,11 @@ lower too, so the per-month volumes drop as well as the total.
 | | 12-month | 6-month |
 |---|---|---|
 | Months | 12 | 6 |
-| Blog posts | 100 topics planned, ~40 written | ~15 written |
+| Blog topics planned | 100 | 50 |
+| Blog posts written | ~40 | ~15 |
 | Service pages | Full set | The highest-priority half |
-| Location pages | Full set | Top catchment only |
+| City location pages | Full set | Top catchment only |
+| Micro geo-location pages | 12–16 neighbourhoods | Not included |
 | Resource guides | 3–4 | 1 |
 | Backlinks | Tiers 1–3 cleared, then ongoing digital PR | Tiers 1–3 only |
 | Content refresh | Quarterly | Not included |
@@ -99,7 +101,16 @@ Those are finite, they are what everything else is built on, and halving them
 would be selling a worse version of the same thing rather than less of it.
 
 What it does not get is the compounding half — the long tail of content, the
-digital PR that takes months to land, and the two premium extras below.
+digital PR that takes months to land, and the three extras below.
+
+**The topic set is halved too, not just the writing.** A six-month plan is
+built on fifty topics, not a hundred with thirty-five of them greyed out. The
+clustering, the scoring and the target-page map all run over fifty. A
+hundred-topic list handed to a six-month client is mostly a list of things
+that will not happen, and it makes the plan read as a brochure for the
+upgrade rather than as their plan. What they do get is a short, honest
+section saying the year's plan runs to a hundred — see the comparison
+section above.
 
 **Say this in the document.** A six-month client reading their plan should be
 able to see what the twelve-month plan adds, in one short section, written
@@ -108,11 +119,11 @@ what the year does differently and let them decide at renewal.
 
 ---
 
-## The two twelve-month extras
+## The three twelve-month extras
 
-Both are real work, neither decides whether the client ranks. That is the
-point: a premium feature that is load-bearing for results is not a premium
-feature, it is something the six-month client is being denied.
+All three are real work, none of them decides whether the client ranks. That
+is the point: a premium feature that is load-bearing for results is not a
+premium feature, it is something the six-month client is being denied.
 
 ### Competitor watch
 
@@ -146,6 +157,47 @@ six-month engagements.
 
 Not a date change. A page whose only edit is its timestamp is one of the
 oldest tricks in the field and a client's developer can see it in the diff.
+
+### Micro geo-location pages
+
+Twelve to sixteen pages at **neighbourhood** level rather than city level:
+*Criminal Defence Lawyer Casa Loma*, *Criminal Lawyer Wychwood*, *Criminal
+Lawyer Oakwood Village* — the areas inside a city that people actually name
+when they say where they are.
+
+Why it earns its place: they catch the searches a city page cannot, because
+somebody typing their own neighbourhood is further down the funnel than
+somebody typing the city. They also compound — a neighbourhood page that
+ranks keeps ranking, and there is no ongoing cost once it is live. And they
+are genuinely a year's work: at one or two a month they fit a twelve-month
+calendar and do not fit a six-month one.
+
+**They are the easiest deliverable in this file to do badly**, so the rules
+are tighter than for anything else:
+
+- **Pick places the client actually serves, from their own catchment.** The
+  rank grid (`local-and-gmb.md`) shows where visibility already falls off;
+  those neighbourhoods are the candidates. A page for an area nobody travels
+  from is a page nobody reads.
+- **Twelve to sixteen, not forty.** The ceiling is how many genuinely
+  distinct pages can be written, and that is set by how much real local
+  detail exists — not by how many names are on a map. A client whose city
+  has eight neighbourhoods worth writing about gets eight.
+- **Every page needs the `About {Place}` section filled with verified local
+  fact**: the courthouse, division, station or hospital that serves it *by
+  name*, the arterial road or transit stop, what the area is actually like.
+  `seo-content-production/references/content-templates.md` Template 3 marks
+  that section as the one that makes the page not a doorway page. If you
+  cannot write it without inventing, the neighbourhood does not get a page.
+- **Never a find-and-replace of the city page.** Two pages whose only
+  difference is a place name are a doorway-page pattern, Google has said so
+  for years, and the client's own developer can diff them.
+- **They link up to the service page and sideways to two or three genuinely
+  adjacent areas**, which is what makes them a network rather than a pile.
+
+Word count is Template 3's: 1,500 words, floor 1,200. A 2,000-word
+neighbourhood page is padding, and padding is exactly what makes this page
+type look like what it must not be.
 
 ---
 

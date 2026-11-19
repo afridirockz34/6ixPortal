@@ -1,4 +1,4 @@
-# Report Template and the "Show the Wound, Not the Stitches" Pattern
+# Report Template and the "Name It, Don't Fix It" Pattern
 
 ## How the report is produced
 
@@ -296,8 +296,10 @@ later session reads out of `commercial.plan_terms`.
   "lede": "Two ways to do this work. Both start with the same foundation.",
   "rows": [
     {"item": "Length", "twelve": "12 months", "six": "6 months"},
+    {"item": "Blog topics planned", "twelve": "100", "six": "50"},
     {"item": "Blog posts written", "twelve": "~40", "six": "~15"},
     {"item": "Service pages", "twelve": "Full set", "six": "The highest-priority half"},
+    {"item": "Neighbourhood pages", "twelve": "12–16", "six": "—"},
     {"item": "Backlinks", "twelve": "Tiers 1–3, then ongoing digital PR", "six": "Tiers 1–3"},
     {"item": "Quarterly content refresh", "twelve": "Included", "six": "—"},
     {"item": "Competitor watch", "twelve": "Included", "six": "—"}
@@ -343,7 +345,7 @@ Two rules the renderer enforces and the audit must not fight:
   chart.** Two of the four series colours sit below 3:1 contrast on white; that
   is permitted only because nothing in the chart is readable by colour alone.
 
-## The pattern: show the wound, not the stitches
+## The pattern: name it, don't fix it
 
 Every weakness section follows the same shape. `finding` and `why` are written
 with full rigour and specificity — that is what makes the report credible.
@@ -389,13 +391,59 @@ halfway house between the other two:
 `scripts/check_audit_report.py` flags anything that slips. Run it on the audit
 JSON before rendering — that is where the prose actually lives.
 
-## A note on tone
+## How we talk to a client
 
 Specific and evidence-backed does not mean alarmist. A report that oversells
 every finding as catastrophic reads as a sales trick, not an audit, and
 undermines the credible findings along with the weak ones. Calibrate severity
 honestly using the rubric in `audit-methodology.md` — a Medium finding stated
 plainly is more persuasive than a Medium finding inflated to sound Critical.
+
+There is a second half to this, and it is the one that keeps going wrong.
+
+**Write as the expert about to take the work on, not as an auditor marking
+somebody's homework.** Every finding in this report can be written two ways
+without changing a single number. One of them opens by telling a business
+owner they are losing; the other says where the demand is and what we would do
+about it. The second is not softer — it is the one that sounds like it comes
+from somebody who has done this before.
+
+| Don't | Do |
+|---|---|
+| Three named competitors already outrank you for the criminal defence searches Toronto is typing today. | Your three named competitors rank above you today for "criminal defence" searches in Toronto — those positions are the target. |
+| On the searches we can track, tps.ca pulls 67,181 visits a month, and almost none of it is reaching you. | Toronto Police Service draws about 67,181 visits a month from these searches. That is live demand in your market, and it is what this plan goes after. |
+| Your site is invisible for the terms that matter. | 3 of your priority searches are on page two — the shortest route to page one we have. |
+| This is costing you roughly 65,000 visits a month. | About 65,000 visits a month are on the table in your market. |
+
+Concretely:
+
+- **State the opportunity, not the shortfall.** Never "losing", "missing out",
+  "falling behind", "invisible", "bleeding", or "costing you" a figure.
+- **Never "problem", "weakness", "failure" or "wrong" about their business or
+  their site.** Severity ratings carry that weight already, in a place the
+  reader expects it.
+- **Name organizations, never domains.** "Toronto Police Service", not
+  "tps.ca". A client who cannot identify a rival cannot judge the figure
+  printed beside it. Where only the domain is known and the organization
+  cannot be named with confidence, write "a competing site" — the checker
+  flags acronym domains for exactly this reason.
+- **Quote their search terms.** `ranking higher for "criminal defence"
+  searches` — otherwise the reader has to work out where the term ends and the
+  sentence resumes.
+- **Read every stat line left to right, once.** Figure first, then the words
+  that finish the sentence: "**111** search terms where you are already in the
+  top three", not "Terms you reach the top three for … 111 of the 498 we can
+  see you ranking for". A line that has to be read twice was written for the
+  person who already knows the answer.
+
+`scripts/check_audit_report.py` flags the first three as REVIEW items. They
+are review rather than failure because each has a legitimate use — a quoted
+client complaint, a finding about a competitor — and a gate that fails good
+work gets switched off.
+
+**The same tone applies everywhere a client reads us**: the onboarding growth
+plan, the monthly report, the portal, the site. It is one voice, and the
+onboarding plan is where a prospect meets it first.
 
 
 ---

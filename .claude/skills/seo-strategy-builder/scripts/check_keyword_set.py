@@ -11,6 +11,11 @@ Those failures are mechanical and this catches them.
     python check_keyword_set.py topics.csv   --kind topics
     python check_keyword_set.py gmb.csv      --kind gmb
 
+Add `--plan 6` for a six-month engagement, which is built on half the keyword
+and topic set — fifty topics, not a hundred with thirty-five greyed out. The
+Google Business Profile set does not halve: a business has the local phrases
+it has however long we work for them.
+
 Input is CSV or JSON. A `Cluster` column names the group each row belongs to;
 alternatively, the CSV may use the spreadsheet convention of a bare cluster
 name on its own line followed by a header row, which is how these sets are
@@ -47,14 +52,29 @@ ANGLE_KEY = {"myth-busting": "myth", "case study": "case stud",
 TARGET_PAGES = {"homepage", "service page", "location page", "blog post",
                 "resource guide", "bio / about page", "faq page"}
 
+# `ideal` is the twelve-month figure. A six-month engagement is built on a
+# smaller set — fifty topics, not a hundred with thirty-five greyed out — so
+# --plan 6 halves the two sets that scale with the engagement. Without it the
+# checker told the author their correct fifty-topic set was short against a
+# hundred, which is how a gate that nags about good work gets switched off.
 SPEC = {
     "website": {"cols": ["Keyword", "Intent", "Est. MSV", "Difficulty",
-                         "Priority", "Target Page"], "ideal": 100},
+                         "Priority", "Target Page"], "ideal": 100, "halves": True},
     "topics":  {"cols": ["Blog Title", "Target Keyword", "Funnel Stage",
-                         "Angle", "Priority"], "ideal": 100},
+                         "Angle", "Priority"], "ideal": 100, "halves": True},
+    # The Google Business Profile set does not scale with the engagement: a
+    # business has the local phrases it has whether we work for six months
+    # or twelve.
     "gmb":     {"cols": ["Keyword", "Est. MSV", "Local Priority",
-                         "GMB Placement"], "ideal": 40},
+                         "GMB Placement"], "ideal": 40, "halves": False},
 }
+
+
+def ideal_for(kind, plan_months=12):
+    spec = SPEC[kind]
+    if plan_months == 6 and spec.get("halves"):
+        return spec["ideal"] // 2
+    return spec["ideal"]
 
 problems, warnings, notes = [], [], []
 
@@ -128,9 +148,9 @@ def get(row, *names):
     return ""
 
 
-def check_common(rows, kind):
+def check_common(rows, kind, plan_months=12):
     spec = SPEC[kind]
-    ideal = spec["ideal"]
+    ideal = ideal_for(kind, plan_months)
 
     if not rows:
         fail("No data rows found. Is this the right file?")
@@ -292,6 +312,9 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("path", nargs="?", help="CSV or JSON keyword/topic set.")
     ap.add_argument("--kind", choices=sorted(SPEC), default="website")
+    ap.add_argument("--plan", type=int, choices=(6, 12), default=12,
+                    help="Engagement length in months. A six-month plan is built on "
+                         "half the keyword and topic set; the GMB set is unchanged.")
     args = ap.parse_args()
     if not args.path:
         print(__doc__.strip())
@@ -303,10 +326,12 @@ def main():
         return 2
 
     rows = read_rows(p)
-    print(f"Checking {p.name} as a '{args.kind}' set — {len(rows)} rows, "
+    target = ideal_for(args.kind, args.plan)
+    print(f"Checking {p.name} as a '{args.kind}' set on the {args.plan}-month plan — "
+          f"{len(rows)} rows against about {target}, "
           f"{len({r.get('Cluster', '') for r in rows})} clusters\n")
 
-    check_common(rows, args.kind)
+    check_common(rows, args.kind, args.plan)
     if rows:
         check_vocab(rows, args.kind)
 

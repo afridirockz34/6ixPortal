@@ -240,13 +240,30 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .ob-slider::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--pk);border:none;}
 .ob-slval{font-family:var(--fn);font-size:15px;font-weight:700;color:var(--t1);margin-top:6px;}
 .ob-sllbls{display:flex;justify-content:space-between;font-size:10px;color:var(--t3);margin-top:4px;}
-/* Hours grid */
-.ob-hrs{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
-.ob-hr-day{text-align:center;}
-.ob-hr-lbl{font-size:10px;font-weight:600;color:var(--t3);margin-bottom:4px;text-transform:uppercase;}
-.ob-hr-btn{width:100%;aspect-ratio:1;border:1px solid var(--bdr);border-radius:6px;background:var(--d3);
-  font-size:10px;color:var(--t3);cursor:pointer;transition:var(--tr);}
-.ob-hr-btn.on{background:rgba(232,84,122,.1);border-color:var(--pk);color:var(--pk);}
+/* Hours — one row per day, the way Google Business Profile asks for them.
+   The old version was two AM/PM squares per day, which could not say "we
+   close at 5" and could not say "open 24 hours" at all. */
+.ob-hrs{display:flex;flex-direction:column;gap:6px;}
+.ob-hr-day{display:grid;grid-template-columns:46px 74px minmax(0,1fr) auto;align-items:center;gap:8px;
+  background:var(--d3);border:1px solid var(--bdr);border-radius:10px;padding:8px 10px;}
+.ob-hr-lbl{font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.04em;}
+.ob-hr-state{padding:5px 0;border-radius:20px;border:1px solid var(--pk);background:rgba(232,84,122,.12);
+  color:var(--pk);font-size:11px;font-weight:700;text-align:center;cursor:pointer;transition:var(--tr);
+  user-select:none;}
+.ob-hr-day.closed .ob-hr-state{border-color:var(--bdr);background:transparent;color:var(--t3);}
+.ob-hr-times{display:flex;align-items:center;gap:6px;min-width:0;}
+.ob-hr-sel{flex:1;min-width:0;padding:6px 8px;border-radius:8px;border:1px solid var(--bdr);
+  background:var(--d2);color:var(--t1);font-size:12px;font-family:inherit;}
+.ob-hr-dash{font-size:12px;color:var(--t3);}
+.ob-hr-24{padding:5px 10px;border-radius:20px;border:1px solid var(--bdr);background:transparent;
+  color:var(--t3);font-size:11px;font-weight:600;cursor:pointer;transition:var(--tr);white-space:nowrap;
+  user-select:none;}
+.ob-hr-24.on{border-color:var(--cy);background:rgba(60,143,181,.12);color:var(--cy);}
+.ob-hr-day.closed .ob-hr-times,.ob-hr-day.closed .ob-hr-24,
+.ob-hr-day.allday .ob-hr-times{opacity:.35;pointer-events:none;}
+.ob-hr-note{font-size:12px;color:var(--t3);}
+.ob-hr-copy{margin-top:8px;font-size:11px;font-weight:600;color:var(--cy);background:none;border:none;
+  padding:0;cursor:pointer;text-decoration:underline;}
 /* Loc type */
 .ob-loc-type{display:flex;gap:8px;margin-bottom:8px;}
 .ob-loc-btn{padding:5px 12px;border-radius:20px;border:1px solid var(--bdr);background:var(--d3);
@@ -315,6 +332,17 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .ob-trust-ico svg{width:14px;height:14px;stroke:var(--t3);fill:none;stroke-width:2;stroke-linecap:round;}
 .ob-trust-txt{font-size:12px;color:var(--t2);line-height:1.6;}
 .ob-trust-txt strong{color:var(--t1);font-weight:600;}
+/* Audit note — the same shape as the trust note, in the brand pink, because
+   it is the one thing on this step the client has not been told yet. */
+.ob-audit-n{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;
+  background:rgba(255,102,153,.06);border:1px solid rgba(255,102,153,.28);
+  border-radius:10px;margin-bottom:20px;}
+.ob-audit-ico{width:30px;height:30px;border-radius:8px;background:var(--d2);
+  border:1px solid rgba(255,102,153,.3);display:flex;align-items:center;
+  justify-content:center;flex-shrink:0;}
+.ob-audit-ico svg{width:14px;height:14px;stroke:var(--pk);}
+.ob-audit-txt{font-size:12px;color:var(--t2);line-height:1.6;}
+.ob-audit-txt strong{color:var(--t1);font-weight:700;display:block;margin-bottom:3px;}
 /* Contract */
 .ob-contract{background:var(--d3);border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden;margin-bottom:18px;}
 .ob-contract-hdr{padding:13px 18px;border-bottom:1px solid var(--bdr);background:var(--d4);display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;}
@@ -341,12 +369,15 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .ob-kpi-stat{background:rgba(255,255,255,.13);backdrop-filter:blur(4px);border-radius:12px;padding:10px 8px;text-align:center;border:1px solid rgba(255,255,255,.1)}
 .ob-kpi-val{font-size:15px;font-weight:700;display:block;letter-spacing:-.3px;line-height:1.15}
 .ob-kpi-lbl{font-size:9px;opacity:.65;margin-top:3px;letter-spacing:.3px;line-height:1.3}
+/* Figure first, then the words that finish the sentence. Split across the row
+   with the number on the right, each line had to be read twice. */
 .ob-hero-rows{position:relative;z-index:1;margin-top:14px;border-top:1px solid rgba(255,255,255,.18);padding-top:4px}
-.ob-hero-row{display:flex;justify-content:space-between;align-items:baseline;gap:14px;
+.ob-hero-row{display:flex;align-items:baseline;gap:10px;
   padding:9px 0;border-bottom:1px solid rgba(255,255,255,.1);font-size:12.5px}
 .ob-hero-row:last-child{border-bottom:none}
-.ob-hero-row span{opacity:.75}
-.ob-hero-row strong{font-weight:700;text-align:right}
+.ob-hero-row span{opacity:.85}
+.ob-hero-row strong{font-weight:800;font-size:16px;letter-spacing:-.3px;
+  flex:0 0 auto;min-width:58px;text-align:left}
 /* Data badge */
 .ob-data-badge{font-size:8.5px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;padding:2px 7px;border-radius:20px;background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.25)}
 .ob-data-est{background:rgba(255,200,60,.2);color:#ffe082;border-color:rgba(255,200,60,.3)}
@@ -409,7 +440,13 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   .ob-svc-grid{grid-template-columns:1fr !important;gap:10px !important;}
   .ob-perf{grid-template-columns:1fr 1fr !important;}
   .ob-score-cols{grid-template-columns:1fr !important;}
-  .ob-hrs{grid-template-columns:repeat(4,1fr);}
+  /* The day row stops fitting on one line around 420px. Two lines, not three:
+     the day, its Open/Closed pill and the 24-hour switch stay together on the
+     first, and only the times drop below. Seven days of three-line rows is a
+     screen and a half of scrolling for one field. */
+  .ob-hr-day{grid-template-columns:46px 74px 1fr;row-gap:8px;}
+  .ob-hr-24{grid-column:3;grid-row:1;justify-self:end;}
+  .ob-hr-times{grid-column:1 / -1;grid-row:2;}
   .ob-btnrow{position:fixed !important;bottom:0;left:0;right:0;background:var(--d1);
     padding:14px 20px;padding-bottom:max(14px,env(safe-area-inset-bottom));
     border-top:1px solid var(--bdr);z-index:100;box-shadow:0 -4px 20px rgba(15,25,35,.08);}
@@ -826,7 +863,12 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
     </div>
     <div class="ob-g2">
       <div class="ob-fg"><label class="ob-lbl">CRM / Tools Used</label><input class="ob-inp" id="q-crm" placeholder="e.g. HubSpot, Salesforce…"></div>
-      <div class="ob-fg"><label class="ob-lbl">Reviews / Awards</label><input class="ob-inp" id="q-awards" placeholder="e.g. Google 4.8★, BBB A+"></div>
+      <!-- Awards and accreditations only. The star rating and review count are
+           asked once, on the Google Business step ("Current rating"); asking
+           for them again here was the same question in different words. -->
+      <div class="ob-fg"><label class="ob-lbl">Awards &amp; accreditations</label><input class="ob-inp" id="q-awards" placeholder="e.g. BBB A+, Best of Toronto 2025, ISO 9001">
+        <div style="font-size:11px;color:var(--t3);margin-top:6px">Memberships, certifications and awards we can cite. We pick up your star rating from your Google profile.</div>
+      </div>
     </div>
     <div class="ob-fg"><label class="ob-lbl">Anything else we should know?</label>
       <textarea class="ob-inp" id="q-notes" rows="3" placeholder="Any context about your business, past marketing, or goals…" style="resize:vertical"></textarea>
@@ -894,6 +936,23 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
     <div class="ob-trust-n">
       <div class="ob-trust-ico"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
       <div class="ob-trust-txt"><strong>Free consultation &mdash; no charge today.</strong> Your card is securely verified via Stripe but will not be charged until you and your advisor confirm the engagement.</div>
+    </div>
+
+    <?php /* What happens between signing here and being charged. Every service
+             except website development starts with an audit, and a client who
+             does not know that reads the gap between signing and the first
+             deliverable as nothing happening. Shown by _initStep5() only when
+             an audited service is in the basket. */ ?>
+    <div class="ob-audit-n" id="ob-audit-note" style="display:none">
+      <div class="ob-audit-ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </div>
+      <div class="ob-audit-txt">
+        <strong>What happens next: your audit.</strong>
+        <span id="ob-audit-svcs">Your account manager runs a comprehensive audit</span> as soon as you finish onboarding &mdash; your site, your rankings and your market, in full. You get it in writing with the plan we would run.
+        <br><br>
+        If you want to go ahead after reading it, we start the work and charge the card on file. You can cancel at any time after that.
+      </div>
     </div>
 
     <!-- ── Dual path selection ────────────────────────────────────────── -->
@@ -1200,28 +1259,91 @@ function qTags(id){
   return'<div class="ob-tag-wrap" id="'+id+'-wrap" onclick="this.querySelector(\'input\').focus()">'
     +'<input class="ob-tag-inp" id="'+id+'-inp" placeholder="Type and press Enter…"></div>';
 }
+/* ── Business hours ──────────────────────────────────────────────────────────
+ * One row per day with a real opening and closing time, the way Google
+ * Business Profile asks for them, plus an "Open 24 h" switch.
+ *
+ * The widget this replaced offered two squares per day, AM and PM. It could
+ * not say what time anyone opened, could not say "closed at 5", and had no way
+ * at all to say "open 24 hours" — so for the clients who most need the hours
+ * right (locksmiths, towing, clinics, anyone on call) the answer we collected
+ * was not usable on a profile. `setHours` still reads the old Mon:AM form back,
+ * because answers in that shape are already saved.
+ */
+var OB_DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+// Half-hour steps, stored and displayed the same way so nothing has to parse
+// a 24-hour clock back into words for the profile.
+function obTimes(){
+  var out=[],h,m,hh,ap;
+  for(h=0;h<24;h++) for(m=0;m<60;m+=30){
+    hh=h%12; if(hh===0) hh=12; ap=h<12?'AM':'PM';
+    out.push(hh+':'+(m<10?'0':'')+m+' '+ap);
+  }
+  return out;
+}
+function obTimeSel(cls,sel){
+  var o=obTimes().map(function(t){
+    return '<option'+(t===sel?' selected':'')+'>'+t+'</option>';
+  }).join('');
+  return '<select class="ob-hr-sel '+cls+'">'+o+'</select>';
+}
 function qHours(pfx){
-  var days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   var h='<div class="ob-hrs" id="q-'+pfx+'-hrs">';
-  days.forEach(function(d,i){
-    h+='<div class="ob-hr-day"><div class="ob-hr-lbl">'+d+'</div>'
-      +'<div class="ob-hr-btn'+(i<5?' on':'')+'" onclick="this.classList.toggle(\'on\')">AM</div>'
-      +'<div class="ob-hr-btn'+(i<5?' on':'')+'" onclick="this.classList.toggle(\'on\')">PM</div>'
+  OB_DAYS.forEach(function(d,i){
+    var open=i<5;   // Mon–Fri 9–5 is the common case; weekends start closed
+    h+='<div class="ob-hr-day'+(open?'':' closed')+'">'
+      +'<div class="ob-hr-lbl">'+d+'</div>'
+      +'<div class="ob-hr-state" onclick="obHrState(this)">'+(open?'Open':'Closed')+'</div>'
+      +'<div class="ob-hr-times">'+obTimeSel('ob-hr-from','9:00 AM')
+        +'<span class="ob-hr-dash">–</span>'+obTimeSel('ob-hr-to','5:00 PM')+'</div>'
+      +'<div class="ob-hr-24" onclick="obHr24(this)">Open 24 h</div>'
       +'</div>';
   });
-  return h+'</div>';
+  h+='</div><button type="button" class="ob-hr-copy" onclick="obHrCopy(this)">'
+    +'Copy Monday’s hours to the rest of the week</button>';
+  return h;
 }
-// Read selected days/slots from qHours widget → comma-separated string
+function obHrState(el){
+  var row=el.closest('.ob-hr-day'), closed=row.classList.toggle('closed');
+  el.textContent=closed?'Closed':'Open';
+  if(closed) row.classList.remove('allday');
+}
+function obHr24(el){
+  var row=el.closest('.ob-hr-day');
+  el.classList.toggle('on');
+  row.classList.toggle('allday',el.classList.contains('on'));
+}
+function obHrCopy(btn){
+  var wrap=btn.previousElementSibling, rows=wrap.querySelectorAll('.ob-hr-day');
+  if(rows.length<2) return;
+  var src=rows[0],
+      from=src.querySelector('.ob-hr-from').value,
+      to=src.querySelector('.ob-hr-to').value,
+      closed=src.classList.contains('closed'),
+      all=src.classList.contains('allday');
+  for(var i=1;i<rows.length;i++){
+    var r=rows[i];
+    r.querySelector('.ob-hr-from').value=from;
+    r.querySelector('.ob-hr-to').value=to;
+    r.classList.toggle('closed',closed);
+    r.classList.toggle('allday',all);
+    r.querySelector('.ob-hr-state').textContent=closed?'Closed':'Open';
+    r.querySelector('.ob-hr-24').classList.toggle('on',all);
+  }
+}
+// Read the widget → "Mon: 9:00 AM – 5:00 PM, Sat: Open 24 hours, Sun: Closed".
+// Every day is named, closed ones included: a profile needs to state the days
+// a business is shut, and an omitted day reads as an answer nobody gave.
 function getHoursVal(pfx){
   var wrap=document.getElementById('q-'+pfx+'-hrs');
   if(!wrap) return '';
-  var days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   var parts=[];
   wrap.querySelectorAll('.ob-hr-day').forEach(function(day,i){
-    var btns=day.querySelectorAll('.ob-hr-btn');
-    var am=btns[0]&&btns[0].classList.contains('on');
-    var pm=btns[1]&&btns[1].classList.contains('on');
-    if(am||pm) parts.push(days[i]+':'+(am&&pm?'All day':am?'AM':'PM'));
+    var label=OB_DAYS[i]+': ';
+    if(day.classList.contains('closed'))      parts.push(label+'Closed');
+    else if(day.classList.contains('allday')) parts.push(label+'Open 24 hours');
+    else parts.push(label+day.querySelector('.ob-hr-from').value
+                   +' – '+day.querySelector('.ob-hr-to').value);
   });
   return parts.join(', ');
 }
@@ -1562,6 +1684,9 @@ window.OB={
   _syncPasswordField:function(){
     var wrap=$i('s1-pw-wrap');
     var creating = !S.userId && S.isNew && !S.isGoogle;
+    // A session WordPress already has is a session, whatever this script
+    // thinks: nobody who is signed in is asked to choose a password.
+    if(typeof LOGGED_IN!=='undefined' && LOGGED_IN) creating = false;
     if(wrap) wrap.style.display = creating ? '' : 'none';
     if(!creating){ var pw=$i('s1-pw'); if(pw) pw.value=''; }
     return creating;
@@ -1755,16 +1880,47 @@ window.OB={
       document.querySelectorAll('#'+cid+' .ob-chip').forEach(function(c){ if(set.indexOf(c.dataset.v)>-1)c.classList.add('sel'); });
     };
     var setTog=function(id,val){ if(val!=='yes'&&val!=='no')return; var b=document.querySelector('[data-tog="'+id+'"][data-val="'+val+'"]'); if(b)OB.tog(b,val); };
+    /* Put a saved answer back into the hours widget.
+     *
+     * Two shapes arrive here. The current one is "Mon: 9:00 AM – 5:00 PM"
+     * per day; the old one is "Mon:AM", from the two-square widget this
+     * replaced, and those answers are already in the database. Split on the
+     * FIRST colon only — the time itself contains colons. */
     var setHours=function(pfx,csv){
       var wrap=$i('q-'+pfx+'-hrs');if(!wrap||!csv)return;
       var days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],map={};
-      csv.split(',').forEach(function(p){var kv=p.split(':');if(kv.length===2)map[kv[0].trim()]=kv[1].trim();});
+      csv.split(',').forEach(function(p){
+        var i=p.indexOf(':'); if(i<0) return;
+        map[p.slice(0,i).trim()]=p.slice(i+1).trim();
+      });
       wrap.querySelectorAll('.ob-hr-day').forEach(function(day,i){
-        var slot=map[days[i]],btns=day.querySelectorAll('.ob-hr-btn');
-        btns.forEach(function(b){b.classList.remove('on');});
-        if(slot==='All day'){if(btns[0])btns[0].classList.add('on');if(btns[1])btns[1].classList.add('on');}
-        else if(slot==='AM'){if(btns[0])btns[0].classList.add('on');}
-        else if(slot==='PM'){if(btns[1])btns[1].classList.add('on');}
+        var slot=map[days[i]];
+        if(slot===undefined) return;           // day not in the answer — leave the default
+        var from=day.querySelector('.ob-hr-from'),to=day.querySelector('.ob-hr-to'),
+            st=day.querySelector('.ob-hr-state'),b24=day.querySelector('.ob-hr-24');
+        // Only set a select to a time it actually offers, or it goes blank.
+        var put=function(sel,v){
+          v=(v||'').trim();
+          for(var k=0;k<sel.options.length;k++) if(sel.options[k].text===v){ sel.value=v; return true; }
+          return false;
+        };
+        var closed=false,all=false;
+        if(/^closed$/i.test(slot)) closed=true;
+        else if(/24/.test(slot)) all=true;
+        else {
+          var m=slot.split(/\s*[–—-]\s*/);   // en dash, em dash or hyphen
+          if(m.length===2){ put(from,m[0]); put(to,m[1]); }
+          // The old widget's three words. "All day" meant both AM and PM
+          // squares were lit, which is not a claim to be open overnight, so it
+          // becomes an ordinary open day rather than 24 hours.
+          else if(/^AM$/i.test(slot)){ put(from,'9:00 AM'); put(to,'12:00 PM'); }
+          else if(/^PM$/i.test(slot)){ put(from,'12:00 PM'); put(to,'5:00 PM'); }
+          else if(/^all day$/i.test(slot)){ put(from,'9:00 AM'); put(to,'5:00 PM'); }
+        }
+        day.classList.toggle('closed',closed);
+        day.classList.toggle('allday',all);
+        st.textContent=closed?'Closed':'Open';
+        b24.classList.toggle('on',all);
       });
     };
     if(slug==='google-ads'){
@@ -2062,18 +2218,24 @@ window.OB={
       heroLabel = 'What we found in your market';
       showBadge = true;
 
+      // Name the competitor the way a person would say it out loud. The
+      // snapshot resolves each domain to the name the site publishes for
+      // itself; "tps.ca pulls 67,181 visits a month" is a true sentence about
+      // an organization the reader cannot identify.
+      var compName = topComp.name || topComp.domain;
+
       heroBody += '<div class="ob-plan-hero-sub" style="font-size:14px;opacity:.95;max-width:100%">'
-        + 'On the searches we can track in ' + (mkt || 'your market') + ', <strong>' + topComp.domain
+        + 'On the searches we can track in ' + (mkt || 'your market') + ', <strong>' + compName
         + '</strong> pulls around <strong>' + nf(topComp.visitors) + ' visits a month</strong>. '
-        + 'That is the demand already in play, and almost none of it is reaching ' + biz + ' today.'
+        + 'That is live demand in your market, and it is the demand this plan goes after.'
         + '</div>';
 
       var stats = [];
-      stats.push({ v: nf(topComp.visitors), l: 'Monthly visits ' + topComp.domain + ' takes from these searches' });
+      stats.push({ v: nf(topComp.visitors), l: 'Monthly visits ' + compName + ' gets from these searches' });
       if ((snap.competitors || []).length > 1) {
         var others = 0;
         snap.competitors.slice(1).forEach(function(c){ others += c.visitors; });
-        if (others > 0) stats.push({ v: nf(others), l: 'And what the next competitors take between them' });
+        if (others > 0) stats.push({ v: nf(others), l: 'And what the next competitors get between them' });
       }
       if (snap.quick_wins && snap.quick_wins.volume) {
         // "below the fold" is the same jargon problem as "page-2 opportunities":
@@ -2089,18 +2251,24 @@ window.OB={
              + '<div class="ob-kpi-lbl">' + st.l + '</div></div>';
       }).join('') + '</div>';
 
+      /* These rows used to read label-first — "Terms you reach the top three
+       * for … 111 of the 498 we can see you ranking for". You had to hold a
+       * clause in your head, cross the row, and then find the number that
+       * finished it, three times over. Lead with the figure and let the words
+       * after it finish the sentence; then it reads straight through in one
+       * pass, which is the whole job of this block. */
       var rows = '';
       if (snap.ranking) {
-        rows += '<div class="ob-hero-row"><span>Terms you reach the top three for</span><strong>'
-             +  nf(snap.ranking.top3) + ' of the ' + nf(snap.ranking.total) + ' we can see you ranking for</strong></div>';
+        rows += '<div class="ob-hero-row"><strong>' + nf(snap.ranking.top3) + '</strong>'
+             +  '<span>search terms where you are already in the top three</span></div>';
       }
       if (snap.quick_wins && snap.quick_wins.count) {
-        rows += '<div class="ob-hero-row"><span>Sitting on page two, one step from page one</span><strong>'
-             +  nf(snap.quick_wins.count) + ' search terms</strong></div>';
+        rows += '<div class="ob-hero-row"><strong>' + nf(snap.quick_wins.count) + '</strong>'
+             +  '<span>more are on page two — the shortest route to page one</span></div>';
       }
       if (snap.gap) {
-        rows += '<div class="ob-hero-row"><span>The monthly visits that gap is worth</span><strong>+'
-             +  nf(snap.gap.behind_by) + '</strong></div>';
+        rows += '<div class="ob-hero-row"><strong>' + nf(snap.gap.behind_by) + '</strong>'
+             +  '<span>visits a month are on the table in your market</span></div>';
       }
       if (rows) heroBody += '<div class="ob-hero-rows">' + rows + '</div>';
 
@@ -2111,14 +2279,14 @@ window.OB={
       heroLabel = 'What we found on your site';
       heroBody += '<div class="ob-plan-hero-sub" style="font-size:14px;opacity:.95;max-width:100%">'
         + 'You already rank in the top three for <strong>' + nf(snap.ranking.top3)
-        + ' of the ' + nf(snap.ranking.total) + ' terms</strong> we can see ' + biz + ' showing up for. '
-        + 'The problem is not your rankings — it is that almost nobody searches those exact phrases. '
-        + 'The work is finding the terms your customers actually type.'
+        + ' of the ' + nf(snap.ranking.total) + ' terms</strong> we can see ' + biz + ' showing up for, '
+        + 'so your site can hold a first-page position. The terms themselves are the gap: very few people '
+        + 'search those exact phrases. Our first job is finding the ones your customers actually type.'
         + '</div>';
       heroBody += '<div class="ob-hero-rows">'
-        + '<div class="ob-hero-row"><span>Terms you rank top three for</span><strong>' + nf(snap.ranking.top3) + '</strong></div>'
-        + '<div class="ob-hero-row"><span>Terms you appear for at all</span><strong>' + nf(snap.ranking.total) + '</strong></div>'
-        + '<div class="ob-hero-row"><span>What that is worth in visits today</span><strong>Almost nothing</strong></div>'
+        + '<div class="ob-hero-row"><strong>' + nf(snap.ranking.top3) + '</strong><span>search terms where you are already in the top three</span></div>'
+        + '<div class="ob-hero-row"><strong>' + nf(snap.ranking.total) + '</strong><span>search terms you appear for in total</span></div>'
+        + '<div class="ob-hero-row"><strong>Few</strong><span>people search those exact phrases — that is what we change first</span></div>'
         + '</div>';
 
     } else {
@@ -2321,12 +2489,25 @@ window.OB={
   useDifferentEmail:function(){
     if(!window.confirm('Start again with a different email address? The details you entered on this step will not be carried over.')) return;
     // Signed in: the WordPress session has to go too, or the page just
-    // resumes the same account on the next load. The round trip also clears
-    // the nonce and saved state cleanly, which an in-page reset cannot do.
-    if(typeof LOGGED_IN!=='undefined' && LOGGED_IN && typeof SWITCH_ACCOUNT_URL==='string' && SWITCH_ACCOUNT_URL){
+    // resumes the same account on the next load.
+    //
+    // Done through our own endpoint rather than wp_logout_url(). That URL
+    // carries a nonce minted when the page was rendered, so a page served
+    // from a cache — or simply left open a while — arrived with a nonce that
+    // no longer validated, and WordPress answered with its own "Do you
+    // really want to log out of 6ix Developers LTD?" page. A customer should
+    // never see a WordPress screen, least of all one that asks them to
+    // confirm something they already confirmed.
+    if(typeof LOGGED_IN!=='undefined' && LOGGED_IN){
       try{ OB._clearLocal&&OB._clearLocal(); }catch(e){}
       if(typeof GE!=='undefined') GE.leaveOnPurpose();
-      window.location.href=SWITCH_ACCOUNT_URL;
+      post({action:'six_switch_account'}).then(function(r){
+        window.location.replace((r&&r.success&&r.data&&r.data.redirect) || SWITCH_ACCOUNT_URL);
+      }).catch(function(){
+        // The endpoint is the clean path; the old URL is the fallback, and
+        // the confirmation page is still better than being stuck.
+        window.location.href=SWITCH_ACCOUNT_URL;
+      });
       return;
     }
     OB.backToEmail();
@@ -2432,6 +2613,7 @@ window.OB={
   // on "Loading…" and the call-time chips unclickable → call path unusable).
   _initStep5:function(){
     OB.loadAdvisor();
+    OB._auditNote();
     if(OB.__step5bound) return;
     OB.__step5bound=true;
     setTimeout(function(){
@@ -2442,6 +2624,29 @@ window.OB={
         });
       });
     },120);
+  },
+
+  /* The audit note on step 5.
+   *
+   * Every service but website development opens with an audit, so a client
+   * who buys SEO, Ads or a Google Business Profile has weeks between signing
+   * and the first visible change. Saying so here is the difference between
+   * "nothing is happening" and "they are reading my site". A website-only
+   * client gets no note, because they are not getting an audit and promising
+   * one would be a promise we do not keep.
+   */
+  _auditNote:function(){
+    var box=$i('ob-audit-note'); if(!box) return;
+    // Written so each reads correctly inside "a comprehensive ___ audit".
+    var names={'seo':'SEO','google-ads':'Google Ads','google-business':'Google Business Profile'};
+    var audited=(S.svcs||[]).filter(function(s){ return names.hasOwnProperty(s); });
+    if(!audited.length){ box.style.display='none'; return; }
+    var list=audited.map(function(s){ return names[s]; });
+    var txt=list.length===1 ? list[0]
+          : list.slice(0,-1).join(', ')+' and '+list[list.length-1];
+    var line=$i('ob-audit-svcs');
+    if(line) line.textContent='Your account manager runs a comprehensive '+txt+' audit';
+    box.style.display='flex';
   },
 
   // ── Login: show back button after email entered ──────────────────────────
@@ -2674,25 +2879,10 @@ window.OB={
 };
 
 /* ── Google Social Login — redirect-loop fix ── */
+// Where the plugin does fire the event, it takes the same path as the load-
+// time check — one adoption routine, so the two can never behave differently.
 window.addEventListener('NSLAfterFormLogin',function(){
-  post({action:'six_google_login_complete'}).then(function(res){
-    if(!res.success)return;
-    // Advisors / sales / admins: server tells us where they belong
-    if(res.data.redirect_url){GE.leaveOnPurpose();window.location.replace(res.data.redirect_url);return;}
-    S.userId=res.data.user_id;S.email=res.data.email;S.advisor=res.data.advisor;
-    S.isGoogle=true;S.isNew=false;if(res.data.nonce)S.nonce=res.data.nonce;
-    S.q.first=res.data.first||'';S.q.last=res.data.last||'';S.q.phone=res.data.phone||'';
-    // Completed customers go straight to their dashboard
-    if(res.data.completed){GE.leaveOnPurpose();window.location.replace('<?php echo esc_js(home_url('/portal/'));?>');return;}
-    var f=$i('s1-first'),l=$i('s1-last'),e=$i('s1-email'),p=$i('s1-phone'),pw=$i('s1-pw-wrap');
-    if(f)f.value=S.q.first;if(l)l.value=S.q.last;if(e)e.value=S.email;if(p)p.value=S.q.phone;
-    if(pw)pw.style.display='none';
-    var ttl=$i('s1-ttl'),dsc=$i('s1-dsc');
-    if(ttl)ttl.textContent='One last thing.';
-    if(dsc)dsc.textContent='Please confirm your phone number so your advisor can reach you.';
-    // Skip to step 2 if phone already on file, else stop at step 1 for phone
-    OB.goStep(S.q.phone&&S.q.phone.length>=7?(res.data.resume_step||2):1);
-  });
+  post({action:'six_google_login_complete'}).then(sixAdoptSession).catch(function(){});
 });
 
 /* ── Service card clicks ── */
@@ -2807,8 +2997,61 @@ var GE = {
   },
 };
 
+/* ── Adopt an existing session, however it was created ────────────────────
+ *
+ * Signing in with Google reloads the page. The state this script keeps —
+ * who the user is, whether they already have an account, whether they need
+ * to choose a password — was only ever filled in by the NSLAfterFormLogin
+ * event, which the social-login plugin fires on some flows and not on
+ * others. When it did not fire, the page came back with the visitor logged
+ * in and the script believing nobody was: so it treated them as a brand-new
+ * signup, asked for a password, and refused to continue without one — while
+ * the password field itself stayed hidden, because the markup knew they were
+ * logged in even though the script did not.
+ *
+ * "It says the password needs to be 8 characters and there is no password
+ * field" is exactly that disagreement.
+ *
+ * So the session is read from the server on every load, not from an event.
+ * The same handler the event used, called unconditionally when WordPress
+ * says somebody is signed in.
+ */
+function sixAdoptSession(res){
+  if(!res || !res.success || !res.data) return false;
+  var d = res.data;
+  if(d.redirect_url){ GE.leaveOnPurpose(); window.location.replace(d.redirect_url); return true; }
+
+  S.userId = d.user_id; S.email = d.email || S.email; S.advisor = d.advisor;
+  S.isGoogle = true; S.isNew = false;
+  if(d.nonce) S.nonce = d.nonce;
+  S.q.first = d.first || S.q.first || '';
+  S.q.last  = d.last  || S.q.last  || '';
+  S.q.phone = d.phone || S.q.phone || '';
+
+  if(d.completed){ GE.leaveOnPurpose(); window.location.replace('<?php echo esc_js(home_url('/portal/')); ?>'); return true; }
+
+  var f=$i('s1-first'), l=$i('s1-last'), e=$i('s1-email'), p=$i('s1-phone');
+  if(f) f.value=S.q.first; if(l) l.value=S.q.last;
+  if(e) e.value=S.email;   if(p) p.value=S.q.phone;
+  // The field and the rule that guards it are driven from one place, so they
+  // cannot disagree again.
+  if(OB._syncPasswordField) OB._syncPasswordField();
+
+  var ttl=$i('s1-ttl'), dsc=$i('s1-dsc');
+  if(ttl) ttl.textContent='One last thing.';
+  if(dsc) dsc.textContent='Please confirm your phone number so your advisor can reach you.';
+
+  OB.goStep(S.q.phone && S.q.phone.length>=7 ? (d.resume_step||2) : 1);
+  return true;
+}
+
 document.addEventListener('DOMContentLoaded',function(){
   GE._pageStart = Date.now();
+
+  // A session WordPress knows about but this script does not.
+  if(typeof LOGGED_IN!=='undefined' && LOGGED_IN && !S.userId){
+    post({action:'six_google_login_complete'}).then(sixAdoptSession).catch(function(){});
+  }
 
   // Email handed over from the marketing "Client Login" for an unknown address:
   // prefill it and run the same check the login box does, so the visitor lands

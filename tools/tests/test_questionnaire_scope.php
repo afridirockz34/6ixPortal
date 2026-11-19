@@ -186,5 +186,34 @@ check( 'and the form itself from the same scope',
 check( 'the sidebar link honours the three-day clear',
 	strpos( $cust, 'six_questionnaire_visible' ) !== false );
 
+// ── "Still to answer" only once the list is short enough to be useful ────
+// On a fresh questionnaire the list is every question in the form, printed
+// above the form that already holds them. That is not help; it reads as a
+// backlog, and the client has not been given a chance to start yet.
+check( 'nothing outstanding — no list',       six_questionnaire_outstanding_shown( 0 )  === false );
+check( 'one left — list it',                  six_questionnaire_outstanding_shown( 1 )  === true );
+check( 'nine left — list it',                 six_questionnaire_outstanding_shown( 9 )  === true );
+check( 'ten left — not yet',                  six_questionnaire_outstanding_shown( 10 ) === false,
+	'ten is the boundary: fewer than ten shows, ten does not' );
+check( 'the whole form outstanding — no list', six_questionnaire_outstanding_shown( 58 ) === false );
+check( 'the threshold is stated once, as a constant', SIX_Q_OUTSTANDING_MAX === 10 );
+
+// Both renderers have to apply it, and their JavaScript re-renders the same
+// list after every autosave — so the rule has to survive into the browser.
+// It travels as data-max on the wrapper rather than as a second literal 10.
+foreach ( array(
+	'customer-dashboard.php' => $cust,
+	'questionnaire-page.php' => file_get_contents( dirname( __DIR__, 2 ) . '/portal/questionnaire-page.php' ),
+) as $name => $src ) {
+	check( "$name: the server applies the threshold",
+		strpos( $src, 'six_questionnaire_outstanding_shown' ) !== false );
+	check( "$name: the threshold reaches the browser as data-max",
+		strpos( $src, 'data-max="<?php echo (int) SIX_Q_OUTSTANDING_MAX; ?>"' ) !== false,
+		'a hard-coded 10 in the JS drifts the moment the constant changes' );
+	check( "$name: the live re-render honours it too",
+		strpos( $src, "getAttribute('data-max')" ) !== false,
+		'showProgress() runs after every autosave and would otherwise put the long list straight back' );
+}
+
 echo "\nPassed: $pass  Failed: $fail\n";
 exit( $fail ? 1 : 0 );
