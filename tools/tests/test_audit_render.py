@@ -401,6 +401,56 @@ ok("the section appears in a rendered report", "Two ways to do this work" in ful
 ok("an audit with no plans block still renders",
    "Two ways to do this work" not in render.build(EXAMPLE))
 
+print("\n── Tone: the opportunity, not the client's shortfall ────────────────")
+# A report can be entirely accurate and still open by telling a business owner
+# they are losing. The facts do not change; what the sentence points at does.
+def tone(s):
+    return [a for _snip, a in check.find_defeatist_phrases(s)]
+
+ok("'three competitors already outrank you' is caught",
+   tone("Three named competitors already outrank you for criminal defence searches.") != [])
+ok("  → but the same fact without the verdict passes",
+   tone('Your three named competitors rank above you today for "criminal defence" searches '
+        "in Toronto — those positions are the target.") == [],
+   "it is the 'already' that makes it a mark, not the comparison")
+ok("'you are losing' is caught",      tone("You are losing the searches that matter.") != [])
+ok("'you're falling behind' is caught", tone("You're falling behind on local search.") != [])
+ok("'costing you' is caught",         tone("That gap is costing you about 65,000 visits.") != [])
+ok("'you are invisible' is caught",   tone("You are invisible for the terms that matter.") != [])
+ok("'bleeding' is caught",            tone("The site is bleeding authority.") != [])
+ok("'your site is failing' is caught", tone("Your site is failing for these searches.") != [])
+ok("'almost none of it is reaching you' is caught",
+   tone("Almost none of it is reaching the firm today.") != [])
+ok("each finding carries the reframe, not just the flag",
+   all(isinstance(a, str) and a for a in tone("You are losing ground.")))
+
+ok("the rewritten versions pass clean", tone(
+   'Your three named competitors rank above you today for "criminal defence" searches in '
+   "Toronto — those positions are the target. Toronto Police Service draws about 67,181 "
+   "visits a month from these searches. That is live demand in your market, and it is what "
+   "this plan goes after. About 65,000 visits a month are on the table.") == [])
+ok("ordinary audit prose is not flagged", tone(
+   "47 referring domains link to pages that return a 404. Three priority searches sit on "
+   "page two, at positions 12, 14 and 19.") == [])
+
+print("\n── A domain is not a name ───────────────────────────────────────────")
+bare = check.find_bare_acronym_domains
+ok("tps.ca is flagged",  "tps.ca" in bare("On these searches tps.ca pulls 67,181 visits."))
+ok("cbc.ca is flagged",  "cbc.ca" in bare("cbc.ca ranks first."))
+ok("it is reported once however often it appears",
+   bare("tps.ca and tps.ca again").count("tps.ca") == 1)
+ok("a domain that spells words is left alone",
+   bare("neubergerlaw.com ranks above them.") == [],
+   "the complaint is about acronyms nobody can decode, not about domains as such")
+ok("a URL is not a bare domain", bare("See https://tps.ca/reports for the source.") == [])
+ok("an email address is not a bare domain", bare("Write to ops@tps.ca about it.") == [])
+ok("the named form passes",
+   bare("Toronto Police Service draws 67,181 visits a month.") == [])
+
+ok("the worked example stays clean under both new checks",
+   tone((SKILL / "assets" / "sample-weakness-section.md").read_text()) == [],
+   "a gate that fails our own calibrated example is a gate that gets switched off")
+
 print("\n" + "\n".join(LOG))
 print(f"\nPassed: {PASS}  Failed: {FAIL}")
 sys.exit(1 if FAIL else 0)

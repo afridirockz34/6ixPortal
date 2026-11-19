@@ -96,9 +96,14 @@ function six_render_questionnaire_page( $client_id ) {
 			</div>
 
 			<?php /* A bare percentage is a dead end — at 95% there is no way to
-			         tell which questions are blank. Name them. */ ?>
-			<div id="q-outstanding" style="margin-top:14px;<?php echo empty( $progress['outstanding'] ) ? 'display:none' : ''; ?>">
-				<div style="font-size:12.5px;font-weight:700;color:#101826;margin-bottom:6px" id="q-outstanding-head">Still to answer<?php echo empty( $progress['outstanding'] ) ? '' : ' (' . count( $progress['outstanding'] ) . ')'; ?></div>
+			         tell which questions are blank. Name them.
+			         But only near the end: see SIX_Q_OUTSTANDING_MAX. On a form
+			         nobody has started yet this list is the whole form again,
+			         and it reads as a backlog rather than as help. */
+			$out_n    = count( (array) $progress['outstanding'] );
+			$out_show = six_questionnaire_outstanding_shown( $out_n ); ?>
+			<div id="q-outstanding" data-max="<?php echo (int) SIX_Q_OUTSTANDING_MAX; ?>" style="margin-top:14px;<?php echo $out_show ? '' : 'display:none'; ?>">
+				<div style="font-size:12.5px;font-weight:700;color:#101826;margin-bottom:6px" id="q-outstanding-head">Still to answer<?php echo $out_show ? ' (' . $out_n . ')' : ''; ?></div>
 				<div id="q-outstanding-list" style="display:flex;flex-direction:column;gap:4px">
 					<?php foreach ( (array) $progress['outstanding'] as $o ) : ?>
 					<a href="#q_<?php echo esc_attr( $o['key'] ); ?>" data-jump="<?php echo esc_attr( $o['key'] ); ?>" style="font-size:12.5px;color:#3D4757;text-decoration:none;display:flex;gap:6px">
@@ -195,8 +200,14 @@ function six_render_questionnaire_page( $client_id ) {
 		    document.getElementById('q-status').textContent=p.done+' of '+p.total+' answered';
 		    if(!outWrap) return;
 		    var items=p.outstanding||[];
-		    outWrap.style.display=items.length?'':'none';
-		    outHead.textContent='Still to answer'+(items.length?' ('+items.length+')':'');
+		    // Same rule as the server: the list appears only once the number
+		    // left is small enough to scan. SIX_Q_OUTSTANDING_MAX travels here
+		    // on the wrapper so the two cannot drift apart.
+		    var max=parseInt(outWrap.getAttribute('data-max'),10)||10;
+		    var show=items.length>0&&items.length<max;
+		    outWrap.style.display=show?'':'none';
+		    outHead.textContent='Still to answer'+(show?' ('+items.length+')':'');
+		    if(!show){ outList.textContent=''; return; }
 		    outList.textContent='';
 		    items.forEach(function(o){
 		      var a=document.createElement('a');

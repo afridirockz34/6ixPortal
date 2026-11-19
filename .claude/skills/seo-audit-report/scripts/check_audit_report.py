@@ -9,7 +9,7 @@ and seo-content-production/scripts/check_draft.py):
 2. REVIEW     — a weakness-category section with no severity rating attached.
 3. REVIEW     — no closing / call-to-action section found.
 4. REVIEW     — a section that reads like a full step-by-step fix rather than a
-                one-line teaser ("show the wound, not the stitches").
+                one-line teaser ("name it, don't fix it").
 5. REVIEW     — no "SEO Health Score" (a 0-100 number) found in the executive
                 summary (see references/audit-methodology.md's scoring section).
 
@@ -77,6 +77,43 @@ FULL_FIX_SIGNALS = [
     re.compile(r"\bfirst,.*then,.*(?:finally|then)\b", re.IGNORECASE | re.DOTALL),
 ]
 FULL_FIX_TEASER_SENTENCE_LIMIT = 2  # a teaser should be ~1 sentence, allow a little slack
+
+# ── Tone: the client is the expert's client, not the auditor's subject ──────
+# A report can be entirely accurate and still open by telling somebody their
+# business is losing. The facts do not change; what the sentence points at
+# does. "Three competitors already outrank you" and "those three positions are
+# what this engagement goes after" are the same finding.
+#
+# REVIEW, never a hard fail. Some of these phrasings are right in context — a
+# quoted client complaint, a finding about a competitor — and a gate that
+# fails good work gets switched off.
+DEFEATIST_PHRASES = [
+    (re.compile(r"\byou(?:'re| are) (?:losing|missing out|falling behind|behind|invisible)\b", re.I),
+     "say where the opportunity is, not where they stand"),
+    (re.compile(r"\b(?:costing|losing) (?:you|them|the (?:client|business))\b", re.I),
+     "state the demand that exists rather than a loss"),
+    (re.compile(r"\byou(?:'re| are) (?:not|nowhere)\b[^.]{0,40}\b(?:ranking|visible|showing up)\b", re.I),
+     "name the terms worth winning instead"),
+    (re.compile(r"\b(?:bleeding|haemorrhaging|hemorrhaging)\b", re.I),
+     "no injury metaphors about a client's business"),
+    (re.compile(r"\byour (?:site|website|profile|business) (?:is )?fail(?:s|ing)?\b", re.I),
+     "describe what it does not yet cover, as work we would do"),
+    (re.compile(r"\balmost none of (?:it|that|this) (?:is )?reach", re.I),
+     "that traffic is demand in their market — say so that way"),
+    # "Your competitors rank above you today — those positions are the target"
+    # is the finding stated well. "Three competitors ALREADY outrank you" is
+    # the same fact with a verdict attached, so it is the "already" that is
+    # flagged, not the comparison.
+    (re.compile(r"\balready (?:outranks?|outranking|beats?|beating|ahead of|winning)\b", re.I),
+     "drop 'already' — state the position and that it is the target"),
+]
+
+# A domain whose label is an acronym — tps.ca, cbc.ca, bmo.com — tells the
+# reader nothing. A client who cannot identify a rival cannot judge the number
+# printed next to it, which is the whole point of naming one. Domains that
+# spell words (neubergerlaw.com) at least read, so they are left alone.
+BARE_ACRONYM_DOMAIN = re.compile(
+    r"(?<![\w./@-])([a-z]{2,4})\.(?:ca|com|net|org|co)\b(?![\w/])", re.IGNORECASE)
 
 # Matches both the written form ("SEO Health Score: 41/100") and the one the
 # rendered report produces, where the number lives in the gauge's accessible
@@ -288,6 +325,29 @@ def find_full_fix_sections(sections):
     return flagged
 
 
+def find_defeatist_phrases(text: str):
+    """Lines that tell the client they are doing badly rather than what we would do."""
+    out = []
+    for pattern, advice in DEFEATIST_PHRASES:
+        for m in pattern.finditer(text):
+            start = max(0, m.start() - 40)
+            snippet = " ".join(text[start:m.end() + 40].split())
+            out.append((snippet, advice))
+    return out
+
+
+def find_bare_acronym_domains(text: str):
+    """Acronym domains printed as if they were an organization's name."""
+    seen, out = set(), []
+    for m in BARE_ACRONYM_DOMAIN.finditer(text):
+        d = m.group(0).lower()
+        if d in seen:
+            continue
+        seen.add(d)
+        out.append(d)
+    return out
+
+
 def main():
     # --help is the first thing anyone tries on an unfamiliar script. Without
     # this it is read as a filename and answered with "file not found".
@@ -352,9 +412,26 @@ def main():
     full_fix = find_full_fix_sections(sections)
     if full_fix:
         print("REVIEW — section(s) that may have drifted from a teaser into a full fix")
-        print("  ('show the wound, not the stitches' — see references/report-template.md):")
+        print("  ('name it, don\u2019t fix it' \u2014 see references/report-template.md):")
         for h, why in full_fix:
             print(f"  ## {h}  —  {why}")
+        print()
+
+    defeatist = find_defeatist_phrases(text)
+    if defeatist:
+        print("REVIEW — written as a verdict on the client rather than as the opportunity")
+        print("  (see references/report-template.md, 'How we talk to a client'):")
+        for snippet, advice in defeatist:
+            print(f"  …{snippet}…")
+            print(f"      → {advice}")
+        print()
+
+    bare_domains = find_bare_acronym_domains(text)
+    if bare_domains:
+        print("REVIEW — domain(s) printed where a name belongs. Nobody knows who")
+        print("  'tps.ca' is; write 'Toronto Police Service (tps.ca)' or drop the domain:")
+        for d in bare_domains:
+            print(f"  {d}")
         print()
 
     slips = find_spelling_slips(text)
@@ -375,13 +452,16 @@ def main():
         and not missing_severity
         and not full_fix
         and not slips
+        and not defeatist
+        and not bare_domains
         and has_cta_section(sections)
         and score_present
     ):
         print("PASS — no unresolved placeholders, every weakness section has a severity")
         print("  rating, a closing/CTA section is present, an SEO Health Score is reported,")
-        print("  the spelling is Canadian, and no section reads like a full fix instead of")
-        print("  a teaser.")
+        print("  the spelling is Canadian, every competitor is named rather than left as a")
+        print("  domain, the tone states the opportunity rather than the client's shortfall,")
+        print("  and no section reads like a full fix instead of a teaser.")
 
     sys.exit(1 if hard_fail else 0)
 

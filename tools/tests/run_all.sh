@@ -31,6 +31,7 @@ run "Advisor accepts a figure"      php     tools/tests/test_proposal_accept.php
 run "Deleting + clearing metrics"   php     tools/tests/test_metric_editing.php
 run "Task board + Reports"          php     tools/tests/test_tasks.php
 run "Questionnaire scope + clear"   php     tools/tests/test_questionnaire_scope.php
+run "Onboarding fields + tone"      php     tools/tests/test_onboarding_ui.php
 run "Reports say what they are"     php     tools/tests/test_reports_meta.php
 run "Advisor client layout"         php     tools/tests/test_advisor_layout.php
 run "Engagement plans: 12 vs 6"     php     tools/tests/test_engagement_plans.php

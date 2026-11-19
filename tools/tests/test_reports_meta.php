@@ -71,9 +71,32 @@ check( 'the insert is error-suppressed so the JSON body stays JSON',
 // ── The client can tell what it is ───────────────────────────────────────
 check( 'each row is labelled with what kind of report it is',
 	strpos( $cust, '$rep_kinds' ) !== false );
-check( 'with a plain-words line for every kind',
-	strpos( $cust, 'What is wrong with the site today' ) !== false
-	&& strpos( $cust, 'What moved last month' ) !== false );
+/* Every kind carries a plain-words line saying what that report is.
+ *
+ * This used to assert the exact sentences, which meant a wording change broke
+ * a test about structure. Read the array instead: each kind but the catch-all
+ * needs a description, and none of them may describe the client's business as
+ * wrong — that is the tone rule in
+ * seo-audit-report/references/report-template.md, and the audit's own line was
+ * the thing breaking it. */
+preg_match( "/\\\$rep_kinds = array\\((.*?)\\n\\);/s", $cust, $rk_m );
+$rk_src = $rk_m[1] ?? '';
+preg_match_all( "/'([a-z_]+)'\s*=>\s*array\('([^']*)',\s*'([^']*)'\)/", $rk_src, $rk, PREG_SET_ORDER );
+$kinds_found = array();
+foreach ( $rk as $row ) $kinds_found[ $row[1] ] = array( $row[2], $row[3] );
+
+check( 'every report kind the uploader offers is labelled here',
+	count( array_diff( array( 'audit', 'strategy', 'monthly', 'implementation', 'other' ),
+	                   array_keys( $kinds_found ) ) ) === 0,
+	'found: ' . implode( ', ', array_keys( $kinds_found ) ) );
+foreach ( $kinds_found as $k => $pair ) {
+	if ( $k === 'other' ) continue;   // the catch-all has nothing specific to say
+	check( "$k: has a plain-words line saying what it is", trim( $pair[1] ) !== '' );
+}
+$all_desc = implode( ' ', array_map( function ( $p ) { return $p[1]; }, array_values( $kinds_found ) ) );
+check( 'and none of them opens by telling the client something is wrong',
+	! preg_match( '/\b(what is wrong|costing (you|them)|failing|losing)\b/i', $all_desc ),
+	$all_desc );
 check( 'the service it covers is named',
 	strpos( $cust, '$rep_svc' ) !== false );
 check( 'the period it covers is shown',

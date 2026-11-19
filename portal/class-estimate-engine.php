@@ -182,6 +182,9 @@ class Six_EstimateEngine {
                     if ( empty( $c['organic_traffic'] ) ) continue;
                     $out['competitors'][] = array(
                         'domain'   => $c['domain'],
+                        // What the page calls them. The domain stays alongside
+                        // so the client can go and look.
+                        'name'     => self::site_name( $c['domain'] ) ?: $c['domain'],
                         'visitors' => (int) $c['organic_traffic'],
                         'keywords' => (int) $c['organic_keywords'],
                     );
@@ -270,6 +273,77 @@ class Six_EstimateEngine {
     }
 
     /**
+     * What to call a competitor on a page a client reads.
+     *
+     * We hold domains, because that is what the ranking data is keyed on. A
+     * domain is not a name: "tps.ca pulls around 67,181 visits a month" is a
+     * true sentence that tells the reader nothing, and they cannot judge a
+     * rival they cannot identify.
+     *
+     * So ask the site what it calls itself — `og:site_name`, else the `<title>`
+     * — and use that. It is the organization's own published description of
+     * itself, which is checkable in one click, rather than a name we inferred.
+     * Everything else falls back to the domain, because a wrong name is worse
+     * than an unreadable one: a client who spots us calling a rival by the
+     * wrong name stops trusting the numbers beside it.
+     *
+     * Cached for thirty days per domain. The page generating this plan is one
+     * a prospect is waiting on, so the request gets four seconds and failure
+     * is silent.
+     */
+    private static function site_name( string $domain ): string {
+        $domain = self::normalize_domain( $domain );
+        if ( ! $domain ) return '';
+
+        $key    = 'six_site_name_' . md5( $domain );
+        $cached = get_transient( $key );
+        if ( is_string( $cached ) && $cached !== '' ) return $cached;
+
+        $name = '';
+        $resp = wp_remote_get( 'https://' . $domain . '/', array(
+            'timeout'     => 4,
+            'redirection' => 3,
+            // No client detail in the User-Agent — this request goes to a
+            // third party we have no relationship with.
+            'user-agent'  => 'Mozilla/5.0 (compatible; 6ixPortal/1.0)',
+        ) );
+        if ( ! is_wp_error( $resp ) ) {
+            $body = (string) wp_remote_retrieve_body( $resp );
+            if ( preg_match( '#<meta[^>]+property=["\']og:site_name["\'][^>]+content=["\']([^"\']{2,80})["\']#i', $body, $m )
+              || preg_match( '#<meta[^>]+content=["\']([^"\']{2,80})["\'][^>]+property=["\']og:site_name["\']#i', $body, $m )
+              || preg_match( '#<title[^>]*>(.{2,160}?)</title>#is', $body, $m ) ) {
+                $name = self::clean_site_name( $m[1] );
+            }
+        }
+
+        if ( $name === '' ) $name = $domain;
+        set_transient( $key, $name, 30 * DAY_IN_SECONDS );
+        return $name;
+    }
+
+    /**
+     * A `<title>` is written for search results, not for us: "Toronto Police
+     * Service | Home", "Smith Law — Criminal Defence Lawyers in Toronto". Take
+     * the first segment, which is where the organization's name almost always
+     * sits, and reject anything that came back as a sentence rather than a name.
+     */
+    private static function clean_site_name( string $raw ): string {
+        $s = html_entity_decode( strip_tags( $raw ), ENT_QUOTES, 'UTF-8' );
+        $s = trim( preg_replace( '/\s+/', ' ', $s ) );
+        $parts = preg_split( '/\s[\|\x{2013}\x{2014}\x{00B7}\x{2022}]\s|\s-\s/u', $s );
+        if ( $parts && trim( $parts[0] ) !== '' ) $s = trim( $parts[0] );
+        $s = trim( preg_replace( '/^(home|welcome)\b[\s:,-]*/i', '', $s ) );
+        $s = trim( $s, " \t\n\r\0\x0B-|:," );
+
+        // Guards. Too long, or punctuated like prose, and it is a tagline we
+        // would be printing as somebody's name.
+        if ( $s === '' || mb_strlen( $s ) > 48 ) return '';
+        if ( substr_count( $s, ' ' ) > 6 )       return '';
+        if ( preg_match( '/[.!?]\s/', $s ) )     return '';
+        return $s;
+    }
+
+    /**
      * Deep, real market intelligence for the plan — the stuff that makes a
      * prospect feel "they already researched me". Pulls the client's actual
      * organic rankings, real competitors, and true keyword demand from the
@@ -309,8 +383,15 @@ class Six_EstimateEngine {
                 $cp = $seo::competitors( $domain, $location, 5 );
                 if ( empty( $cp['error'] ) && ! empty( $cp['competitors'] ) ) {
                     $c  = array_slice( $cp['competitors'], 0, 3 );
-                    $cs = array_map( function ( $x ) { return "{$x['domain']} (~" . number_format( $x['organic_traffic'] ) . " monthly organic visits, " . number_format( $x['common_keywords'] ) . " keywords overlapping yours)"; }, $c );
-                    $lines[] = 'Competitors already winning the organic traffic you want: ' . implode( '; ', $cs ) . '.';
+                    // Hand the model the readable name as well as the domain,
+                    // or it writes the domain — which is what put "tps.ca" in
+                    // front of a client who had no idea who that was.
+                    $cs = array_map( function ( $x ) {
+                        $nm = self::site_name( $x['domain'] );
+                        $who = ( $nm && $nm !== $x['domain'] ) ? "{$nm} ({$x['domain']})" : $x['domain'];
+                        return "{$who} — ~" . number_format( $x['organic_traffic'] ) . " monthly organic visits, " . number_format( $x['common_keywords'] ) . " keywords overlapping theirs";
+                    }, $c );
+                    $lines[] = 'Competitors ranking for the searches this plan targets (call them by the NAME, not the domain): ' . implode( '; ', $cs ) . '.';
                 }
             } catch ( \Throwable $e ) {}
         }
@@ -767,9 +848,11 @@ class Six_EstimateEngine {
         // invented average deal sizes has nothing left to be right about.
 
         $kw_detail = '';
+        $kw_first  = 'your main service';   // used in the headline example below
         if (!empty($kw['keywords'])) {
             $top3 = array_slice($kw['keywords'], 0, 3);
             $kw_detail = implode(', ', array_map(fn($k)=>"\"{$k['kw']}\" (\${$k['cpc']} CPC, ".number_format($k['vol'])." searches/mo)", $top3));
+            if (!empty($top3[0]['kw'])) $kw_first = $top3[0]['kw'];
         }
 
         $comp_raw    = $co->competitors ?? '';
@@ -858,14 +941,26 @@ class Six_EstimateEngine {
         if ( ! empty( $intel['has'] ) ) {
             $L[] = '=== LIVE MARKET INTELLIGENCE (real data pulled for THIS client — your biggest weapon) ===';
             $L[] = '- ' . $intel['text'];
-            $L[] = 'Weave these EXACT numbers, keyword names and competitor domains into your headline, insight and roadmap. Naming their real page-2 keywords, real competitors and real search volumes is what makes this feel personally researched — lead with the most striking fact. Never contradict or round these figures.';
+            $L[] = 'Weave these EXACT numbers, keyword names and competitor names into your headline, insight and roadmap. Naming their real page-2 keywords, real competitors and real search volumes is what makes this feel personally researched — lead with the most striking fact, framed as the opportunity it is. Never contradict or round these figures, and never print a bare domain where a name is given beside it.';
             $L[] = '';
         }
         $L[] = '';
         $L[] = '=== WHAT THIS PAGE IS ===';
-        $L[] = 'This is the last thing a prospect reads before deciding whether to work with us, and it is a teaser of the audit we would do for them — not the audit itself. Show them what is wrong and what it is costing them, specifically and with real numbers. Name the fix only as something the engagement delivers; do not write the step-by-step fix itself. Show the wound, not the stitches.';
+        $L[] = 'This is the last thing a prospect reads before deciding whether to work with us, and it is a preview of the audit we would do for them — not the audit itself. Show them the opportunity in their market, specifically and with real numbers, and show that we already understand their market well enough to name it. Name the fix only as something the engagement delivers; do not write the step-by-step fix itself.';
         $L[] = 'Tone: direct and specific, never breathless. No "unlock", "supercharge", "dominate", "game-changing", "leverage". A sentence a competent consultant would say out loud to a client\'s face.';
-        $L[] = 'Do not promise or imply a guaranteed result, a revenue figure or a return. State what is measurable now and what the gap is.';
+        // The tone rule that this page kept getting wrong. An earlier version
+        // of this prompt asked for the wound, and it produced lines like
+        // "Three named competitors already outrank you for the searches your
+        // city is typing today" — true, and an opening insult to somebody who
+        // has not hired us yet. The facts do not change; what we are pointing
+        // at does. The competitor's traffic is demand that exists, the page-2
+        // terms are the shortest route to page one, and both are reasons this
+        // is worth doing rather than evidence the client has been failing.
+        $L[] = 'CONFIDENCE RULE — this matters more than any other instruction on this page. Write as the expert who is about to take this on, not as an auditor marking their work. State the opportunity, never the shortfall. Describe where the demand is and what the engagement goes after; do NOT tell the client they are behind, losing, missing out, invisible, bleeding, or that anything is "costing them" a figure. Never use the word "problem", "weakness", "failure" or "wrong" about their business or their site.';
+        $L[] = 'Same fact, right framing: not "three competitors already outrank you" but "your three named competitors rank above you today for <term> in <city> — those positions are the target". Not "almost none of that traffic reaches you" but "that is live demand in your market, and it is what this plan goes after". Keep every number exactly as given; only the framing changes.';
+        $L[] = 'NAME RULE: never print a bare domain as if it were a company name. Say "Toronto Police Service", not "tps.ca". Where you have only a domain and cannot name the organization with confidence, write "a competing site" rather than guessing a name.';
+        $L[] = 'QUOTE RULE: put the client\'s search terms in quotation marks — ranking higher for "criminal defence" searches — so the reader can see where the term ends and the sentence resumes.';
+        $L[] = 'Do not promise or imply a guaranteed result, a revenue figure or a return. State what is measurable now and what the opportunity is.';
         $L[] = '';
         $L[] = '=== REQUIRED JSON OUTPUT ===';
         $L[] = 'Return ONLY valid JSON. No markdown fences, no text outside the JSON object.';
@@ -945,7 +1040,7 @@ class Six_EstimateEngine {
         }
         $L[] = '';
         $L[] = '{';
-        $L[] = '  "headline": "Max 15 words, ONE complete idea, naming ' . $biz . '. State what is happening in their search market \u2014 e.g. \'Three competitors are taking the searches your best service should win\'. Do NOT promise leads, do NOT give a lead range, and do NOT bolt two unrelated clauses together with \'while\'.",';
+        $L[] = '  "headline": "Max 15 words, ONE complete idea, naming ' . $biz . '. State the opportunity in their search market in the second person \u2014 e.g. \'Your three named competitors rank above you today for \"' . $kw_first . '\" in ' . $loc . '\'. Follow the CONFIDENCE RULE: an opening that tells them they are behind is wrong even when it is true. Do NOT promise leads, do NOT give a lead range, and do NOT bolt two unrelated clauses together with \'while\'.",';
         $L[] = '  "sub": "Max 18 words. State avg CPC $' . $avg_cpc . ' or monthly search volume. Be specific.",';
         $L[] = '  "kpis": [';
         if ( $total_vol ) {

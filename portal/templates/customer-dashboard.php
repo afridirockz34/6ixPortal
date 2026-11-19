@@ -402,6 +402,45 @@ $six_visits = class_exists('Six_Dash_Metrics') ? Six_Dash_Metrics::visitor_serie
     <a href="?tab=services" class="six-btn six-btn-primary">+ Add Service</a>
 </div>
 
+<?php
+/* ── The audit is under way ───────────────────────────────────────────────
+ *
+ * Every service except a website build opens with an audit, and until it
+ * lands there is nothing on this page for the client to look at: no metrics,
+ * no tasks, no report. The page they were sent to after onboarding read as an
+ * empty dashboard rather than as work in progress, so this says plainly what
+ * is happening and what arrives next.
+ *
+ * It goes away by itself the moment an audit report is filed for them — no
+ * advisor has to remember to switch it off, which is the only reason a banner
+ * like this survives contact with a real account. */
+$audited_slugs = array_intersect( $dash_slugs, array( 'seo', 'google-ads', 'google-business' ) );
+$audit_filed   = false;
+foreach ( (array) $reports as $r ) {
+    if ( ( $r->type ?? '' ) === 'audit' ) { $audit_filed = true; break; }
+}
+if ( $audited_slugs && ! $audit_filed ) :
+    $svc_names = array( 'seo' => 'SEO', 'google-ads' => 'Google Ads', 'google-business' => 'Google Business Profile' );
+    $named     = array_values( array_map( function ( $s ) use ( $svc_names ) { return $svc_names[ $s ]; }, $audited_slugs ) );
+    $named_txt = count( $named ) === 1 ? $named[0]
+               : implode( ', ', array_slice( $named, 0, -1 ) ) . ' and ' . end( $named );
+?>
+<div style="display:flex;align-items:flex-start;gap:14px;background:rgba(255,102,153,.06);
+            border:1px solid rgba(255,102,153,.28);border-radius:14px;padding:16px 18px;margin-bottom:18px">
+    <div style="width:34px;height:34px;border-radius:10px;background:var(--dark2);
+                border:1px solid rgba(255,102,153,.3);display:flex;align-items:center;
+                justify-content:center;flex-shrink:0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#FF6699" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </div>
+    <div>
+        <div style="font-size:13.5px;font-weight:700;color:var(--text1);margin-bottom:3px">Your <?php echo esc_html($named_txt); ?> audit is under way</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.6">
+            Your account manager is going through your site, your rankings and your market in full. You will get the audit in writing here, with the plan we would run from it — and the work starts as soon as you have read it.
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
 <!-- ── 4 KPI CARDS ───────────────────────────────────────────────────────── -->
 <?php
 // Determine metrics source for the disclaimer. A card row built purely from
@@ -1926,10 +1965,15 @@ $q_done_at = $q_done ? six_strategy_questionnaire_submitted_at( $user_id ) : '';
 
         <?php /* A percentage on its own is a dead end: at 95% there is no way
                  to tell which two of sixty questions are blank. Name them, and
-                 make each one a link to its own field. */ ?>
-        <div id="q-outstanding" style="margin-top:14px;<?php echo empty($q_prog['outstanding']) ? 'display:none' : ''; ?>">
+                 make each one a link to its own field.
+                 Only near the end, though — see SIX_Q_OUTSTANDING_MAX. With
+                 forty left this list is the form printed twice, and it turns a
+                 questionnaire the client was about to start into a backlog. */
+        $out_n    = count( (array) $q_prog['outstanding'] );
+        $out_show = six_questionnaire_outstanding_shown( $out_n ); ?>
+        <div id="q-outstanding" data-max="<?php echo (int) SIX_Q_OUTSTANDING_MAX; ?>" style="margin-top:14px;<?php echo $out_show ? '' : 'display:none'; ?>">
             <div style="font-size:12px;font-weight:700;color:var(--text1);margin-bottom:6px" id="q-outstanding-head">
-                Still to answer<?php echo empty($q_prog['outstanding']) ? '' : ' (' . count($q_prog['outstanding']) . ')'; ?>
+                Still to answer<?php echo $out_show ? ' (' . $out_n . ')' : ''; ?>
             </div>
             <div id="q-outstanding-list" style="display:flex;flex-direction:column;gap:4px">
                 <?php foreach ( (array) $q_prog['outstanding'] as $o ): ?>
@@ -2037,9 +2081,15 @@ $q_done_at = $q_done ? six_strategy_questionnaire_submitted_at( $user_id ) : '';
     document.getElementById('q-status').textContent=p.done+' of '+p.total+' answered';
     if(!outWrap) return;
     var items=p.outstanding||[];
-    outWrap.style.display=items.length?'':'none';
-    outHead.textContent='Still to answer'+(items.length?' ('+items.length+')':'');
+    // Same rule as the server, with SIX_Q_OUTSTANDING_MAX carried on the
+    // wrapper so the two cannot drift: the list appears only once the number
+    // left is small enough to read at a glance.
+    var max=parseInt(outWrap.getAttribute('data-max'),10)||10;
+    var show=items.length>0&&items.length<max;
+    outWrap.style.display=show?'':'none';
+    outHead.textContent='Still to answer'+(show?' ('+items.length+')':'');
     outList.textContent='';
+    if(!show) return;
     items.forEach(function(o){
       var a=document.createElement('a');
       a.href='#q_'+o.key; a.setAttribute('data-jump',o.key);
@@ -2156,7 +2206,7 @@ $q_done_at = $q_done ? six_strategy_questionnaire_submitted_at( $user_id ) : '';
    read. Everything below is a field the advisor filled in on upload; a
    report filed before those fields existed simply shows fewer of them. */
 $rep_kinds = array(
-    'audit'          => array('SEO audit', 'What is wrong with the site today, and what it is costing.'),
+    'audit'          => array('SEO audit', 'Where your site stands today, and the opportunities we found.'),
     'strategy'       => array('Strategy', 'The plan: what gets built, in what order, and the targets it commits to.'),
     'monthly'        => array('Monthly performance', 'What moved last month, and what we changed to move it.'),
     'implementation' => array('Implementation log', 'Every change made on the site, with what it was before.'),
