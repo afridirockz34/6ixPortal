@@ -298,7 +298,7 @@ next to what happened, and a merged revision destroys exactly that.
 
 ```bash
 python scripts/check_strategy_doc.py <assembled_document> --full
-python scripts/check_keyword_set.py <keywords.csv> --kind website
+python scripts/check_keyword_set.py <keywords.csv> --kind website --plan 12
 ```
 
 The first checks unresolved placeholders, dead-advice language from
@@ -307,7 +307,8 @@ audit content that has leaked in, page speed written up as a saving, and —
 with `--full` — that every section above has a heading. Drop `--full` when
 the request was a slice rather than the whole document; a keyword refresh is
 not missing an off-page section, it was never asked for one.
-The second checks the keyword tables' shape. Neither replaces a human read for
+The second checks the keyword tables' shape — pass `--plan 6` on a six-month
+engagement, whose set is fifty rather than a hundred. Neither replaces a human read for
 voice, accuracy and — for a regulated client — compliance sign-off.
 
 The last check is not mechanical: **hand the document to somebody who was not

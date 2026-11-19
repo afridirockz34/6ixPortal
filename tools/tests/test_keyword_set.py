@@ -34,11 +34,13 @@ def check(name, ok, detail=""):
         print(f"FAIL  {name}" + (f"\n        {detail}" if detail else ""))
 
 
-def run(text, kind="website", name="set.csv"):
+def run(text, kind="website", name="set.csv", plan=None):
     p = TMP / name
     p.write_text(text, encoding="utf-8")
-    r = subprocess.run([sys.executable, str(SCRIPT), str(p), "--kind", kind],
-                       capture_output=True, text=True)
+    argv = [sys.executable, str(SCRIPT), str(p), "--kind", kind]
+    if plan:
+        argv += ["--plan", str(plan)]
+    r = subprocess.run(argv, capture_output=True, text=True)
     return r.returncode, r.stdout + r.stderr
 
 
@@ -242,6 +244,51 @@ json_set = ('{"Core Criminal Defence": [' + ",".join(
 code, out = run(json_set, name="set.json")
 check("a JSON set keyed by cluster is read and passes",
       code == 0 and "3 clusters" in out, out[-500:])
+
+# ── A six-month set is a smaller set, not an unfinished one ─────────────
+#
+# The six-month engagement is built on fifty topics, not a hundred with
+# thirty-five greyed out. Judged against the twelve-month figure, a correct
+# fifty-topic set was told it was short — which is how a gate that nags about
+# good work gets switched off.
+half = topic_set(clusters=CLUSTERS[:5], per=10)      # 50 rows, 5 clusters
+
+code, out = run(half, kind="topics")
+check("fifty topics against the twelve-month plan is noted as short",
+      "50 rows against about 100" in out, out[-600:])
+
+code, out = run(half, kind="topics", plan=6)
+check("but on the six-month plan fifty is the whole set",
+      code == 0 and "against about 100" not in out, out[-700:])
+check("and the header says which plan it was judged against",
+      "6-month plan" in out and "50 rows against about 50" in out, out[:300])
+
+# Half of fifty is still an unfinished list, on either plan.
+quarter = topic_set(clusters=CLUSTERS[:2], per=8)    # 16 rows
+code, out = run(quarter, kind="topics", plan=6)
+check("sixteen topics fails even on the six-month plan",
+      code == 1 and "unfinished one" in out, out[-600:])
+
+# The website keyword set halves the same way.
+code, out = run(website_set(clusters=CLUSTERS[:5], per=10), kind="website", plan=6)
+check("the website keyword set halves too",
+      "50 rows against about 50" in out, out[:300])
+
+# The local set does not: a business has the phrases it has.
+code, out = run(gmb_set(per=10), kind="gmb", plan=6)
+check("the Google Business Profile set is not halved",
+      "against about 40" in out, out[:300],)
+check("because the local phrases do not depend on how long we work for them",
+      "halves" in SCRIPT.read_text(encoding="utf-8"))
+
+# Twelve is the default, so an existing command line is unchanged.
+code, out = run(topic_set(), kind="topics")
+check("the default is still the twelve-month plan",
+      "12-month plan" in out and code == 0, out[:300])
+
+r = subprocess.run([sys.executable, str(SCRIPT), "--help"], capture_output=True, text=True)
+check("--plan is documented, including which set does not halve",
+      "--plan" in r.stdout and "does not halve" in r.stdout, r.stdout[:600])
 
 print()
 print(f"Passed: {passed}  Failed: {failed}")

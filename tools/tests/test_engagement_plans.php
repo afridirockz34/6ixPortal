@@ -65,7 +65,16 @@ check( 'and the extras are named',
 	strpos( $plans, 'Competitor watch' ) !== false
 	&& strpos( $plans, 'Quarterly content refresh' ) !== false );
 check( 'with the rule that an extra must not decide whether they rank',
-	strpos( $plans, 'load-bearing for results is not a premium' ) !== false );
+	strpos( $plans, 'load-bearing for results is not a' ) !== false );
+check( 'and neighbourhood pages are the third of them',
+	strpos( $plans, '### Micro geo-location pages' ) !== false );
+check( 'at a count set by how much real local detail exists, not by the map',
+	strpos( $plans, 'Twelve to sixteen, not forty' ) !== false );
+check( 'with the one condition that stops a doorway page being written',
+	strpos( $plans, 'the neighbourhood does not get a page' ) !== false,
+	'a page whose About section was invented is the thing this must not produce' );
+check( 'and the find-and-replace version is named as what it is',
+	strpos( $plans, 'doorway-page pattern' ) !== false );
 check( 'the twelve-row table is specified',
 	strpos( $plans, 'Twelve rows, one per month' ) !== false );
 check( 'counts rather than names, because twelve rows answer how much and when',
@@ -75,10 +84,18 @@ check( 'and the last three months are called out as real work',
 	'a plan that front-loads its deliverables is noticed in month ten' );
 check( 'no price appears in any plan document',
 	strpos( $plans, '**A price.**' ) !== false );
-check( 'the hundred topics stay a hundred on both plans',
-	strpos( file_get_contents( $skl . 'seo-content-production/references/producing-a-page-set.md' ),
-	        'stay a hundred on both plans' ) !== false,
-	'the topic set is the research; how many get written is the engagement' );
+$pset = file_get_contents( $skl . 'seo-content-production/references/producing-a-page-set.md' );
+check( 'the six-month plan is built on fifty topics, not a hundred with thirty-five greyed out',
+	strpos( $plans, '| Blog topics planned | 100 | 50 |' ) !== false
+	&& strpos( $pset, '| Blog topics planned | 100 | 50 |' ) !== false,
+	'a hundred-topic list for a six-month client is mostly a list of things that will not happen' );
+check( 'and the clustering runs over the fifty, rather than being trimmed after',
+	strpos( $plans, 'The topic set is halved too' ) !== false );
+check( 'the page set knows neighbourhood pages are twelve-month only',
+	strpos( $pset, 'Micro geo-location pages are twelve-month only' ) !== false );
+check( 'and that a neighbourhood page is written after its city page',
+	strpos( $pset, 'city level first and the micro geo-location' ) !== false,
+	'a neighbourhood page links up to its city page, so writing it first points at nothing' );
 
 // ── The audit ends with both ─────────────────────────────────────────────
 $tpl = file_get_contents( $skl . 'seo-audit-report/references/report-template.md' );

@@ -22,7 +22,9 @@ nr-lawyers/content/
   service-hub/sex-crimes-domestic-offences.md
   service/sexual-assault-lawyer-toronto.md
   service/domestic-assault-lawyer-toronto.md
-  location/criminal-lawyer-casa-loma.md
+  location/criminal-lawyer-toronto.md
+  location/micro/criminal-lawyer-casa-loma.md
+  location/micro/criminal-lawyer-wychwood.md
   blog/bail-hearing-process-ontario.md
   off-page/prospect-list.md
   off-page/anchor-text-plan.md
@@ -82,18 +84,41 @@ the quarterly refresh, because there is nothing old enough to refresh.
 
 | | 12-month | 6-month |
 |---|---|---|
-| Blog posts written | ~40 of the 100 planned | ~15 |
+| Blog topics planned | 100 | 50 |
+| Blog posts written | ~40 | ~15 |
 | Service pages | Full set | The highest-priority half |
-| Location pages | Full set | Top catchment only |
+| City location pages | Full set | Top catchment only |
+| Micro geo-location pages | 12–16 neighbourhoods | Not included |
 | Resource guides | 3–4 | 1 |
 | Off-page artifacts | All five | All five |
 | Existing-page changes | All of them | All of them |
 
-**The hundred blog topics stay a hundred on both plans.** The topic set is
-the research; how many get written is the engagement. A six-month client
-still gets the full topic list in their strategy, because it is what tells
-them what the site could cover and what a renewal would buy — writing fifteen
-of them is a separate fact, stated in the calendar.
+**The topic set is halved too.** Fifty topics on the six-month plan, not a
+hundred with thirty-five greyed out — the clustering and the target-page map
+run over fifty. A hundred-topic list handed to a six-month client is mostly
+a list of things that will not happen, and it makes their plan read as a
+brochure for the upgrade.
+
+**Micro geo-location pages are twelve-month only.** Neighbourhood-level
+pages — *Criminal Defence Lawyer Casa Loma*, *Criminal Lawyer Wychwood* —
+written to Template 3 like any other location page, at one or two a month
+across the year. They catch searches a city page cannot, because somebody
+naming their own neighbourhood is further down the funnel than somebody
+naming the city.
+
+They are also the easiest page in this file to do badly. The full rules are
+in `seo-strategy-builder/references/engagement-plans.md`; the three that
+decide whether a page gets written at all:
+
+- The neighbourhood is somewhere the client genuinely serves, taken from the
+  rank grid rather than from a map.
+- `About {Place}` can be filled with verified local fact — the courthouse,
+  division, station or hospital serving it *by name*, the arterial road or
+  transit stop. **If that section cannot be written without inventing, the
+  neighbourhood does not get a page.**
+- It is not a find-and-replace of the city page. Two pages whose only
+  difference is a place name are a doorway-page pattern, and the client's own
+  developer can diff them.
 
 **Phase one is the same on both.** Where production splits into four-month
 phases, the first phase is the foundation plus the highest-priority content,
@@ -127,7 +152,10 @@ other and a page written before its parent has nothing to link up to.
    and the children have already competed with each other.
 2. **Then the service pages under each hub**, highest-volume first, so the
    pages that matter get written while attention is freshest.
-3. **Then the location pages.** They link up to service pages, which now exist.
+3. **Then the location pages**, city level first and the micro geo-location
+   pages after. They link up to service pages, which now exist, and a
+   neighbourhood page links up to its city page — so writing the
+   neighbourhood first leaves it pointing at nothing.
 4. **Then the blog posts**, in content-calendar order. Each one links to a
    service page that exists, with anchor text matching that page's keyword.
 5. **Retitle and rewrite existing pages where the plan says so** — before the

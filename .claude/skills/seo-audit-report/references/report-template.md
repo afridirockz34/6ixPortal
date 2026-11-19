@@ -296,8 +296,10 @@ later session reads out of `commercial.plan_terms`.
   "lede": "Two ways to do this work. Both start with the same foundation.",
   "rows": [
     {"item": "Length", "twelve": "12 months", "six": "6 months"},
+    {"item": "Blog topics planned", "twelve": "100", "six": "50"},
     {"item": "Blog posts written", "twelve": "~40", "six": "~15"},
     {"item": "Service pages", "twelve": "Full set", "six": "The highest-priority half"},
+    {"item": "Neighbourhood pages", "twelve": "12–16", "six": "—"},
     {"item": "Backlinks", "twelve": "Tiers 1–3, then ongoing digital PR", "six": "Tiers 1–3"},
     {"item": "Quarterly content refresh", "twelve": "Included", "six": "—"},
     {"item": "Competitor watch", "twelve": "Included", "six": "—"}
