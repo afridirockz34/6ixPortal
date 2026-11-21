@@ -22,6 +22,7 @@ else prints as REVIEW — a human reads those, the script doesn't block on them.
 
 import json
 import re
+from collections import Counter
 import sys
 from pathlib import Path
 
@@ -112,6 +113,34 @@ DEFEATIST_PHRASES = [
 # reader nothing. A client who cannot identify a rival cannot judge the number
 # printed next to it, which is the whole point of naming one. Domains that
 # spell words (neubergerlaw.com) at least read, so they are left alone.
+# ── Voice: the same two rules every client-facing document follows ─────────
+# The long version is seo-strategy-builder/references/plain-language.md, Rules
+# 1 and 2. They are repeated here rather than imported, because these skills
+# have to work in a client session with no sight of each other.
+#
+# An audit is allowed its findings — that is the whole document. It is not
+# allowed to argue with its own reviewer, and it is not allowed to jab "you"
+# at the reader 23 times per 1,000 words while never naming the firm.
+META_COMMENTARY = [
+    (r"\b(?:worth (?:your knowing|being plain about|noting)|needs explaining"
+     r"|one thing (?:we checked|to be straight about)|to be (?:straight|clear) about"
+     r"|the honest answer|this (?:appendix|section|table) is here)\b",
+     "the document announcing its own work — state the finding, not that you looked"),
+    (r"\bread (?:the|that|those)\s+[\w ]{0,24}?(?:again|together)\b"
+     r"|\bwhat (?:those|these)\s+[\w ]{0,24}?add up to\b",
+     "telling the reader how to read our own table"),
+    (r"\b(?:we would rather|we state it as|anyone quoting|rather than overlooked"
+     r"|not a gap in it|looks like a strength and is not|is not decoration)\b",
+     "defending the draft against an objection the client never raised"),
+]
+SECOND_PERSON = re.compile(r"\b(?:you|your|you're|yours)\b", re.IGNORECASE)
+SECOND_PERSON_LIMIT = 8.0     # per 1,000 words; the benchmark document runs 5.3
+# Two "you"s in a short section is 29 per 1,000 words. Draw a rate only from a
+# sample worth drawing one from.
+SECOND_PERSON_MIN_COUNT = 8
+YOUR_BUSINESS = re.compile(
+    r"\byour (?:company|business|firm|practice|organisation|organization)\b", re.IGNORECASE)
+
 BARE_ACRONYM_DOMAIN = re.compile(
     r"(?<![\w./@-])([a-z]{2,4})\.(?:ca|com|net|org|co)\b(?![\w/])", re.IGNORECASE)
 
@@ -336,6 +365,25 @@ def find_defeatist_phrases(text: str):
     return out
 
 
+def find_meta_commentary(text: str):
+    """Sentences aimed at the reviewer instead of the client."""
+    out = []
+    for pattern, why in META_COMMENTARY:
+        for m in re.finditer(pattern, text, re.I):
+            start = max(0, m.start() - 35)
+            out.append((" ".join(text[start:m.end() + 35].split()), why))
+    return out
+
+
+def pronoun_balance(text: str):
+    """How often we address the reader, against how often we name their firm."""
+    n_words = max(1, len(text.split()))
+    you = len(SECOND_PERSON.findall(text))
+    caps = re.findall(r"\b[A-Z][a-z]+ (?:[A-Z][a-z]+|LLP|Law)\b", text)
+    named = max(Counter(caps).values()) if caps else 0
+    return you * 1000 / n_words, named * 1000 / n_words, you, len(YOUR_BUSINESS.findall(text))
+
+
 def find_bare_acronym_domains(text: str):
     """Acronym domains printed as if they were an organization's name."""
     seen, out = set(), []
@@ -434,6 +482,27 @@ def main():
             print(f"  {d}")
         print()
 
+    meta = find_meta_commentary(text)
+    if meta:
+        print("REVIEW \u2014 written for the reviewer rather than the client")
+        print("  (see seo-strategy-builder/references/plain-language.md, Rule 1):")
+        for snippet, why in meta:
+            print(f"  \u2026{snippet}\u2026")
+            print(f"      \u2192 {why}")
+        print()
+
+    you_k, named_k, you_n, your_biz = pronoun_balance(text)
+    many = you_n >= SECOND_PERSON_MIN_COUNT
+    pronoun_bad = your_biz > 0 or (many and you_k > SECOND_PERSON_LIMIT)
+    if your_biz:
+        print(f"REVIEW \u2014 \"your company\" / \"your business\" \u00d7 {your_biz}. Use the firm's name.")
+        print()
+    if many and you_k > SECOND_PERSON_LIMIT:
+        print(f"REVIEW \u2014 \"you\" / \"your\" {you_k:.1f} per 1k words ({you_n} uses, "
+              f"limit {SECOND_PERSON_LIMIT}; the benchmark document runs 5.3).")
+        print("  \"We\" for the work. The firm's name for facts. \"You\" only for what is theirs.")
+        print()
+
     slips = find_spelling_slips(text)
     if slips:
         print("REVIEW — spellings that are not Canadian English:")
@@ -452,6 +521,8 @@ def main():
         and not missing_severity
         and not full_fix
         and not slips
+        and not meta
+        and not pronoun_bad
         and not defeatist
         and not bare_domains
         and has_cta_section(sections)
@@ -459,7 +530,8 @@ def main():
     ):
         print("PASS — no unresolved placeholders, every weakness section has a severity")
         print("  rating, a closing/CTA section is present, an SEO Health Score is reported,")
-        print("  the spelling is Canadian, every competitor is named rather than left as a")
+        print("  the spelling is Canadian, the voice is the client\'s not the reviewer\'s,")
+        print("  every competitor is named rather than left as a")
         print("  domain, the tone states the opportunity rather than the client's shortfall,")
         print("  and no section reads like a full fix instead of a teaser.")
 

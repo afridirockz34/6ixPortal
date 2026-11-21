@@ -21,14 +21,14 @@
     "note": "Six categories scored; AI-visibility was not run and its weight was redistributed."
   },
   "summary": [
-    "Northside Plumbing ranks for 87 search terms in Canada, but only four of them sit in the top three results — and none of those four are the emergency-callout terms that bring in the work you told us is most profitable.",
+    "Northside Plumbing ranks for 87 search terms in Canada, but only four of them sit in the top three results — and none of those four are the emergency-callout terms that bring in the work Northside Plumbing told us is most profitable.",
     "The site itself is the bottleneck before anything else: on a mobile connection the first thing a visitor sees takes 3.2 seconds to appear, and Google scores the page 34 out of 100 for speed. Three competitors in the same postcodes are ahead of you on the same searches."
   ],
   "headlines": [
     {
       "value": "4",
-      "label": "Search terms where you reach the top three",
-      "note": "Of 87 you rank for at all · Ahrefs, Canada",
+      "label": "Search terms in the top three",
+      "note": "Of 87 ranked for at all · Ahrefs, Canada",
       "direction": "",
       "good": false
     },
@@ -53,7 +53,7 @@
       "score": 30,
       "weight": 20,
       "status": "critical",
-      "verdict": "You rank for the terms that describe what you do, and not for the terms people type when their basement is flooding."
+      "verdict": "Northside Plumbing ranks for the terms that describe the trade, and not for the terms people type when a basement is flooding."
     },
     {
       "category": "Technical / on-page",
@@ -81,14 +81,14 @@
       "score": 28,
       "weight": 15,
       "status": "critical",
-      "verdict": "Three local firms take an estimated 9,700 visits a month on searches you also appear for."
+      "verdict": "Three local firms take an estimated 9,700 visits a month on searches Northside Plumbing also appears for."
     },
     {
       "category": "Content gaps",
       "score": 55,
       "weight": 10,
       "status": "warning",
-      "verdict": "No page at all for two of your four stated services."
+      "verdict": "No page at all for two of the four stated services."
     },
     {
       "category": "AI-visibility",
@@ -749,7 +749,7 @@
         "note": "How long the page ignores taps while it finishes loading. Good is under 200 ms."
       }
     ],
-    "bounce_rate_unavailable": "Bounce rate — how many visitors leave without going any further — is measured in your own Google Analytics, which we do not have access to. It is one of the three answers that would most sharpen this audit.",
+    "bounce_rate_unavailable": "Bounce rate — how many visitors leave without going any further — is measured in Northside Plumbing's own Google Analytics, which we do not have access to. It is one of the three answers that would most sharpen this audit.",
     "verdict": "A visitor on a phone waits over three seconds before anything appears. The industry pattern is that a large share of them do not wait."
   },
   "sections": [
@@ -757,8 +757,8 @@
       "category": "Organic keyword visibility",
       "title": "The emergency terms go to competitors",
       "severity": "Critical",
-      "finding": "You rank 14th for \"emergency plumber toronto\" (1,900 searches a month) and do not appear in the first five pages for \"burst pipe repair toronto\" (590 a month). Both are terms firstrankplumbing.ca holds in the top three.",
-      "why": "You told us emergency callouts are your most profitable work and that most inquiries arrive by phone. These are the searches made by someone who will call the first number they find, and they are not finding yours.",
+      "finding": "Northside Plumbing ranks 14th for \"emergency plumber toronto\" (1,900 searches a month) and do not appear in the first five pages for \"burst pipe repair toronto\" (590 a month). Both are terms firstrankplumbing.ca holds in the top three.",
+      "why": "Northside Plumbing told us emergency callouts are the most profitable work, and that most inquiries arrive by phone. These are the searches made by someone who will call the first number they find, and they are not finding yours.",
       "teaser": "Closing this is a service-page and local-signal problem rather than a content-volume one — it is the first thing the SEO engagement would address, because it is the shortest path to calls."
     },
     {
@@ -766,13 +766,13 @@
       "title": "Twenty-three pages have no meta description",
       "severity": "High",
       "finding": "23 of 41 indexed pages have no meta description, including the service pages for drain cleaning and water-heater installation.",
-      "why": "Google writes its own snippet when there is nothing to use, and the sentence it picks is the one that decides whether somebody clicks you or the result above you.",
+      "why": "Google writes its own snippet when there is nothing to use, and the sentence it picks is the one that decides whether somebody clicks this result or the one above it.",
       "teaser": "A pass over the indexed pages is part of the technical SEO work and does not depend on anything else being fixed first."
     }
   ],
   "closing": {
     "heading": "What we would do about it",
-    "body": "The findings above fall into three pieces of work: the technical and speed problems holding every page back, the service pages that do not exist for two of your four services, and the local signals that decide who appears for an emergency search in your postcodes.",
+    "body": "The findings above fall into three pieces of work: the technical and speed problems holding every page back, the service pages that do not exist for two of the four services, and the local signals that decide who appears for an emergency search in your postcodes.",
     "service": "This is the scope of our SEO engagement for local service businesses.",
     "next_step": "The next step is a 30-minute call to go through these findings and agree which of the three to start with."
   },
@@ -780,7 +780,7 @@
     "site": "Northside Plumbing",
     "url": "https://northsideplumbing.ca",
     "title": "Northside Plumbing | Plumber in Toronto",
-    "description": "Northside Plumbing provides plumbing services in Toronto and the GTA. Call us today for a quote on your next job.",
+    "description": "Northside Plumbing provides plumbing services in Toronto and the GTA. Call us today for a quote on the next job.",
     "note": "Nothing in that snippet says emergency, 24-hour or same-day — the words somebody types when their basement is flooding."
   },
   "positions": {
@@ -814,7 +814,7 @@
     ],
     "verdict": "Four keywords in the top three out of 87. The twelve on page two are the shortest route to traffic, because they already rank."
   },
-  "anchors_lede": "The words other sites use when they link to you. Google reads these as a description of what you do.",
+  "anchors_lede": "The words other sites use when they link to Northside Plumbing. Google reads these as a description of what you do.",
   "anchors": [
     {
       "anchor": "northsideplumbing.ca",
@@ -842,5 +842,5 @@
       "kind": "keyword"
     }
   ],
-  "anchors_verdict": "Two links in eighty-seven describe the service. The rest say your address or nothing at all, which tells Google nothing about what you do."
+  "anchors_verdict": "Two links in eighty-seven describe the service. The rest give the address or nothing at all, which tells Google nothing about the trade."
 }
