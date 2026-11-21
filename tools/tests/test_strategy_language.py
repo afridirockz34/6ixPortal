@@ -122,8 +122,31 @@ LONG = "# Phase 5\n\n" + "\n\n".join(
      "performance continues past every reasonable point and keeps adding "
      "clauses until the reader has lost the subject entirely and gives up."] * 6)
 code, out = run(LONG)
-check("a document of 45-word sentences fails",
-      code == 1 and "[FAIL] Sentences over 45 words" in out, out[-700:])
+check("a document of overlong sentences fails",
+      code == 1 and "[FAIL] Sentences over 25 words" in out, out[-700:])
+
+# The threshold moved from 45 words to 25 in November 2026. 45 was the reason
+# this check never fired on the strategy a client needed four hours to read:
+# that document's median sentence was 13 words and its longest was 46. The
+# number now matches what plain-language.md asks for, and what the agency we
+# are measured against states in its own style guide.
+MID = "# Phase 5\n\n" + "\n\n".join(
+    ["We rewrite the nine service pages in month one and then build the twelve "
+     "location pages across months two to five, starting with the two cities "
+     "you named as most profitable for the firm."] * 8)
+code, out = run(MID)
+check("a 30-word sentence is now caught, where 45 was the old bar",
+      code == 1 and "[FAIL] Sentences over 25 words" in out, out[-700:])
+
+# Share, not count: a long document legitimately carries more than five.
+OCCASIONAL = "# Phase 5\n\n" + "\n\n".join(
+    ["We rewrite the nine service pages in month one and then build the twelve "
+     "location pages across months two to five, starting with the two cities "
+     "you named."]
+    + ["We add schema to all 14 pages. Your developer gives us access first."] * 20)
+code, out = run(OCCASIONAL)
+check("one long sentence among twenty short ones does not fail the document",
+      "[FAIL] Sentences over 25 words" not in out, out[-700:])
 
 JARGON = """# Phase 5
 
@@ -368,6 +391,183 @@ for m in range(7, 13):
 code, out = run(SIX)
 check("a six-month plan is a plan, not a twelve-month one with gaps",
       "months 1-6" in out and "skips month" not in out, out[-700:])
+
+# ── Sentence shape ───────────────────────────────────────────────────────
+# The checks above look for bad words. The November 2026 strategy had almost
+# none of them: no hedges, no nominalizations, median sentence 13 words,
+# Flesch-Kincaid grade 8.5 — better than the 11.4 of the agency document it was
+# measured against. The client needed four hours to read it and said he could
+# not present it to his team.
+#
+# What was wrong was how the sentences were built. Every string below is
+# verbatim from that document. Each one is grammatical, and each one makes the
+# reader hold the first half open until the second half arrives.
+print("\n-- Sentence shape --")
+
+SHIPPED = [
+    "The useful part is not that they are ahead. It is how.",
+    "The route through is the one your competitors already took.",
+    "A hub that links to its children using each child's own search term is "
+    "what tells Google which page owns which search.",
+    "Naming the actual courthouse is what makes a location page a real page.",
+    "Each one is a stream of work rather than a single job.",
+    "We have tiered the nine cities by what the searches are worth, so the "
+    "sequence is commercial rather than geographic.",
+    "A page nobody reads is a cost rather than an asset.",
+    "Where a larger search sits in work you did not name, it waits behind a "
+    "smaller search in work you did.",
+    "When the second pass lands in month ten, the pages that moved are the "
+    "ones we keep.",
+    "Once the base is holding, the next thing we take on is the resource guide.",
+]
+code, out = run("# Phase 5\n\n" + "\n\n".join(SHIPPED))
+check("the prose the client could not read now fails",
+      code == 1 and "[FAIL] Sentence shape" in out, out[-900:])
+for want in ("rather than", "fronted subordinate"):
+    check(f"  and it names the construction: {want}", want in out, out[-900:])
+
+# The cleft gets its own fixture. In the shipped document it appears twice,
+# against 28 "rather than" and 10 "is what" — it is the construction that hurts
+# most per instance and fires least often, so a mixed sample will not show it.
+CLEFTS = [
+    "The useful part is not that they are ahead.",
+    "The table above is what gets built.",
+    "What matters here is not the volume. It is the intent behind it.",
+    "The thing that moves first is what sits closest to page one.",
+]
+code, out = run("# Phase 5\n\n" + "\n\n".join(CLEFTS))
+check("  and a run of clefts is caught on its own",
+      "[FAIL] Sentence shape" in out and "cleft" in out, out[-900:])
+
+# The same facts, written the way plain-language.md now asks. Nothing here is
+# softer or shorter — it is the same content with the subject in front.
+REWRITTEN = """# Phase 5 — SEO strategy
+
+Why they are ahead: They built a page for each offence in each city. You have
+not built those pages. That is the whole difference.
+
+Location pages: Name the actual courthouse on every one. Without it the page
+is a template with the city swapped, and Google treats it as one.
+
+Internal links: Link each hub to its children using the child's own search
+term. That tells Google which page owns which search.
+
+Order of work: You named sexual assault and impaired driving as your most
+profitable work. We build those pages first. A bigger search in an area you
+did not name waits.
+
+What runs all year: Four things. 100 articles, a weekly Google Business post,
+monthly reporting, and the quarterly review.
+
+Month ten: We run a second pass over everything published. Keep the pages that
+moved. Rewrite the pages that did not.
+"""
+code, out = run(REWRITTEN)
+check("the same facts, rewritten, pass clean",
+      "[FAIL] Sentence shape" not in out, out[-900:])
+check("  and the rewrite is recognised as scannable",
+      "paragraphs lead with a label" in out, out[-900:])
+check("  and its actions are recognised as instructions",
+      "[OK] Actions are written as instructions" in out, out[-900:])
+
+# A density on its own cannot judge a short section: one cleft in a 140-word
+# excerpt is 7 per 1,000 words. A construction has to be repeated before it is
+# a pattern rather than a sentence.
+code, out = run("# Phase 5\n\n" + "\n\n".join([
+    "The useful part is not that they are ahead. It is how.",
+    "We rewrite the nine service pages in month one.",
+    "Add LocalBusiness schema to all 14 pages.",
+    "You have 11 Google reviews. The three firms you named have 47, 112 and 139.",
+]))
+check("one such sentence in otherwise good prose does not fail the document",
+      "[FAIL] Sentence shape" not in out, out[-900:])
+
+# Two phrasings that read perfectly well and were in the first draft of the
+# banned list. Both came straight back out.
+code, out = run("# Phase 5\n\n" + "\n\n".join([
+    "That gap is why a search for any part of a bail hearing reaches them.",
+    "Your developer gives us editor access. That is the one thing we need from you.",
+    "That gap is why the six pages come first.",
+    "Access is the one thing we need. That is why it is in week one.",
+] * 2))
+check("'is why' and 'is the one' are clear English and are not flagged",
+      "[FAIL] Sentence shape" not in out,
+      "a gate that fails clear writing gets switched off")
+
+print("\n-- Scannability --")
+# The largest single structural difference between the two documents: 32% of
+# the agency's paragraphs open with a scannable label, against 6% of ours.
+WALL = "# Phase 5\n\n" + "\n\n".join([
+    "We rewrite the nine service pages in month one. You have one page about "
+    "bail hearings today and your competitors have between four and nine each."
+] * 6)
+code, out = run(WALL)
+check("a document of unlabelled paragraphs is flagged as unscannable",
+      "open with a scannable" in out, out[-900:])
+check("  and it is a review, not a failure — some sections are narrative",
+      "[REVIEW] Only" in out, out[-900:])
+
+code, out = run(WALL)
+check("prose with no imperative verbs is flagged",
+      "Actions written as instructions" in out, out[-900:])
+
+# Two label forms are in use and both are scannable: the agency's "Label: ..."
+# and this repo's "**Label.** ...". The bold form has to be matched before the
+# markdown is stripped, or it looks like an ordinary opening sentence. It was,
+# and the check silently reported "no paragraphs" on a correctly written
+# section — a check that skips is worse than one that fails.
+BOLD = "# Phase 5\n\n" + "\n\n".join([
+    "**What we build.** Build 17 city-and-offence pages across months 2-9. "
+    "Start with Brampton and Oshawa, the two largest markets on your list.",
+    "**What you do.** Confirm the two cities before 1 December. Send us the "
+    "courthouse details for each one.",
+    "**How they got there.** They built a page for each offence in each city. "
+    "You have not built those pages. That is the whole difference.",
+])
+code, out = run(BOLD)
+check("a bold **Label.** counts as a scannable opener",
+      "% of paragraphs lead with a label" in out, out[-900:])
+check("  and the paragraphs are counted, not skipped",
+      "0 of 0" not in out and "Only 0%" not in out, out[-900:])
+
+# ── The worked example ───────────────────────────────────────────────────
+# The skill had no sample of a finished client-facing section in the house
+# voice. Without one the model infers the voice from the tone of the
+# instructions, and the instructions are not written in the voice of a
+# deliverable. That is how a 10,000-word strategy came out in essay register.
+print("\n-- The worked example --")
+VOICE = REPO / ".claude/skills/seo-strategy-builder/assets/worked-section-house-voice.md"
+check("the skill ships a worked section in the house voice", VOICE.exists())
+if VOICE.exists():
+    whole = VOICE.read_text(encoding="utf-8")
+    check("  it shows the same findings written both ways",
+          "# As it shipped" in whole and "# The same findings, in the house voice" in whole)
+    rewritten = whole.split("# The same findings, in the house voice")[1].split("## What changed")[0]
+    code, out = run("# Phase 2\n" + rewritten, name="voice.md")
+    check("  the house-voice half passes the shape check",
+          "[FAIL] Sentence shape" not in out, out[-900:])
+    check("  and is scannable",
+          "% of paragraphs lead with a label" in out and "[REVIEW] Only" not in out, out[-900:])
+    check("  and its actions are instructions",
+          "[OK] Actions are written as instructions" in out, out[-900:])
+    shipped = whole.split("# As it shipped")[1].split("**What is wrong with it.**")[0]
+    code, out = run("# Phase 2\n" + shipped, name="shipped.md")
+    check("  the shipped half is flagged as unscannable",
+          "open with a scannable" in out, out[-900:])
+    check("  and the file is honest that one section is too short for the shape check",
+          "too short for the sentence-shape check" in " ".join(whole.split()),
+          "claiming a fail the reader cannot reproduce is how a gate loses trust")
+    check("  and it records that our document scored an EASIER reading grade",
+          "7.6" in whole and "10.9" in whole,
+          "the whole point: simpler words did not make it readable")
+
+# The skill has to point at it, or nothing reads it.
+SKILL_MD = (REPO / ".claude/skills/seo-strategy-builder/SKILL.md").read_text(encoding="utf-8")
+check("the skill tells a session to read the worked example before drafting",
+      "worked-section-house-voice.md" in SKILL_MD)
+check("  and says not to infer the voice from the instructions themselves",
+      "not the voice of a client deliverable" in SKILL_MD,
+      "this is the actual root cause: the model mirrors the register it is reading")
 
 print()
 print(f"Passed: {passed}  Failed: {failed}")

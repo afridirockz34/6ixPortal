@@ -2,15 +2,134 @@
 
 A strategy nobody can follow is not a strategy. It is a document.
 
-The failure this file exists to prevent is specific, and it is not bad writing in
-the usual sense — no typos, no grammar errors, every sentence defensible. It is a
-document a client reads three times and still cannot say what we are going to do.
-That document is worse than a short one, because it took their money and their
-attention and left them unable to act or to approve.
+The failure this file prevents is specific. It is not bad writing in the usual
+sense. No typos, no grammar errors, every sentence defensible — and a client who
+reads it three times still cannot say what we are going to do.
 
-The test is one question, asked of every section: **after reading this, could the
-client say out loud what we are doing, and could someone on our team start it on
-Monday?** If the answer is no, the section is not finished, however accurate it is.
+The test is one question, asked of every section: **after reading this, could
+the client say out loud what we are doing, and could someone on our team start
+it on Monday?** If the answer is no, the section is not finished, however
+accurate it is.
+
+---
+
+## Read this part first: the shape of a sentence, not the size of its words
+
+We got this wrong for a year, so it is worth stating plainly.
+
+A 10,000-word strategy we shipped in November scored **Grade 8.5** on
+Flesch-Kincaid. The competitor document it was measured against scored **Grade
+11.4**. Ours used shorter words and shorter sentences by every standard metric.
+The client needed four hours to read it and said he could not present it to his
+team.
+
+So the problem was never vocabulary and it was never sentence length. **It was
+sentence shape and page shape.** Those are what this file now specifies, and
+what `scripts/check_strategy_doc.py` now measures.
+
+| Measured | Theirs | Ours | What we target |
+|---|---|---|---|
+| Paragraphs opening with a `Label:` | 32% | 6% | **30%+** |
+| Sentences opening with an imperative verb | 5.8 per 1k words | 0.6 per 1k | **4+ per 1k** |
+| Cleft sentences ("The useful part is not that they are ahead. It is how.") | 0.00 | 1.03 per 1k | **0** |
+| "rather than" / "not X but Y" | 0.00 | 4.27 per 1k | **under 1 per 1k** |
+| "is what" / "is why" / "is the one" | 0.00 | 1.77 per 1k | **0** |
+| Sentences over 25 words | 8% | 16% | **under 10%** |
+
+The right column is not a style preference. It is the difference between a
+document a partner can read on a phone and a document he has to study.
+
+---
+
+## The five constructions that are banned
+
+Each one is grammatical. Each one makes the reader hold the first half of the
+sentence in their head until the second half arrives. Each one is in the
+November document and in none of the competitor's 117 pages.
+
+### 1. The cleft — the subject arrives late, or not at all
+
+> **Don't:** The useful part is not that they are ahead. It is how.
+> **Do:** They are ahead because they built a page for each offence in each city. We have not built those pages.
+
+> **Don't:** A hub that links to its children using each child's own search term is what tells Google which page owns which search.
+> **Do:** Link each hub to its children using the child's own search term. That tells Google which page owns which search.
+
+### 2. The fronted subordinate clause
+
+> **Don't:** Where a larger search sits in work you did not name, it waits behind a smaller search in work you did.
+> **Do:** You named sexual assault and impaired driving as your most profitable work. We build those pages first, even where another area has more searches.
+
+Start the sentence with its subject. If a condition has to come first, make it
+its own sentence.
+
+### 3. "Rather than" and "not X but Y"
+
+These were the single most common marker in the November document — 29 of them
+in 6,794 words, against zero in the competitor's. They turn one fact into a
+comparison the reader has to resolve.
+
+> **Don't:** Each one is a stream of work rather than a single job.
+> **Do:** Each one runs for several months. It is not a single job.
+
+> **Don't:** The sequence is commercial rather than geographic.
+> **Do:** We ordered the cities by what their searches are worth.
+
+### 4. "is what", "is why", "is the one"
+
+> **Don't:** Naming the actual courthouse is what makes a location page a real page.
+> **Do:** Name the actual courthouse on every location page. Without it the page is a template with the city swapped.
+
+### 5. The verb that never arrives
+
+> **Don't:** Alongside these run the work that has no single milestone.
+> **Do:** Four things run all year: 100 articles, a weekly Google Business post, monthly reporting, and the quarterly review.
+
+---
+
+## The shape of a paragraph
+
+**Lead with a label wherever the paragraph carries instructions.** A client
+scanning for the answer to one question finds it from the label. A client
+reading straight through loses nothing. This is 32% of the competitor's
+paragraphs and the largest single difference between the two documents.
+
+> **Title Tags:** Format: `[Primary Keyword] [Location] | NR Lawyers`. Under 60
+> characters. Unique on every page. Include the location modifier on all service
+> and location pages.
+
+> **Review Strategy:** You have 12 Google reviews. The ten firms on your map
+> hold 72 to 216. We set up a request that goes out after every closed matter,
+> and we draft the response template. Ask every client. Never offer anything in
+> exchange — that breaks Google's policy and can remove the whole review set.
+
+Three rules for the body after the label:
+
+- **Imperative verbs for anything we or they will do.** "Build", "Add",
+  "Rewrite", "Claim", "Publish", "Replace". Not "we will be building", not "the
+  page will be rewritten".
+- **Fragments are allowed and often better.** "Under 60 characters." "No
+  multilingual content." "Zero E-E-A-T signals." A fragment that carries one
+  fact beats a sentence that carries it plus connective tissue.
+- **Two to four sentences, then stop.** One idea per paragraph.
+
+---
+
+## Sentence discipline
+
+- **12–18 words on average. Nothing over 25.** Break any sentence over 25 words
+  into two. Follow a long sentence with a short one.
+- **Subject, verb, object.** In that order, in almost every sentence.
+- **One em-dash per section, at most.** The November document used 49 in 6,794
+  words. Each one is a clause the reader has to hold open.
+- **Target Grade 9–10 on Flesch-Kincaid**, which is the standard for a
+  frightened non-specialist reading on a phone. Note that this is a floor on
+  *clarity*, not a ceiling — scoring 8.5 did not make the November document
+  readable, because the metric cannot see sentence shape.
+- **Tables for anything with more than three parallel items.** 41% of the
+  competitor's document is tabular. A paragraph listing eight keywords is
+  unreadable; the same eight in a table are scannable and can go straight to a
+  developer.
 
 ---
 
@@ -18,161 +137,95 @@ Monday?** If the answer is no, the section is not finished, however accurate it 
 
 1. **What is true right now.** The measurement, with its number, its period and
    its source.
-2. **What we are going to do about it.** A named, countable action.
+2. **What we are going to do about it.** A named, countable action, in the
+   imperative.
 3. **What changes if we do it.** The mechanism — *why* the action moves the
    number. Not a promised figure.
 
 A section missing (1) is an opinion. Missing (2) is an observation. Missing (3)
-is a task list the client cannot evaluate or argue with — and the one they are
-most likely to cut, because nothing told them what it was for.
-
-Write them in that order even when it feels repetitive across twenty sections.
-The repetition is the structure; it is what lets somebody open the document at
-page 40 and understand page 40.
+is a task list the client cannot evaluate or argue with.
 
 ---
 
-## The six ways our documents actually go wrong
+## The six ways our prose goes wrong
 
-Each of these is real, each has shipped, and each is invisible to a spell-check.
+These are older than the shape rules above and still apply. Each is invisible to
+a spell-check.
 
 ### 1. Abstraction stacking
-
-Three abstract nouns in a row, none of which names a thing anybody does.
 
 > **Don't:** Implementation of a topical authority framework will establish
 > semantic relevance signals across the practice-area taxonomy.
 
-> **Do:** Right now you have one page about bail hearings. Your three main
-> competitors have between four and nine each. We are writing six more — one per
-> stage of a bail hearing — so that when somebody searches any part of that
-> process, the page that answers it is yours.
-
-The second is longer. Length is not the problem; **density of abstraction** is.
-A client will read four sentences they understand before one they don't.
+> **Do:** You have one page about bail hearings. Your three main competitors
+> have between four and nine each. We write six more, one per stage of a bail
+> hearing.
 
 ### 2. Nouns doing a verb's job
 
-"Implementation", "optimization", "utilization", "the creation of", "the
-development of". Each one hides who does what, and by when.
-
 | Don't | Do |
 |---|---|
-| Implementation of schema markup | We add LocalBusiness schema to all 14 pages |
-| Optimization of the GMB listing | We rewrite the 750-character description and add all 9 services |
-| Content development across priority clusters | We publish 12 pages, 3 per month, starting with bail hearings |
-| Utilization of internal linking opportunities | Every new page links to the service page above it and two siblings |
+| Implementation of schema markup | Add LocalBusiness schema to all 14 pages |
+| Optimization of the GMB listing | Rewrite the 750-character description. Add all 9 services |
+| Content development across priority clusters | Publish 12 pages, 3 a month, starting with bail hearings |
+| Utilization of internal linking opportunities | Link every new page to the service page above it and two siblings |
 
-If a sentence's main verb is "is", "will be", or "involves", look for the real
-verb trapped in a noun and let it out.
+If a sentence's main verb is "is", "will be", or "involves", the real verb is
+trapped in a noun. Let it out.
 
 ### 3. No subject — nobody is doing it
 
 > **Don't:** Pages will be optimized and schema will be deployed in month two.
-
-Who? Us, them, their web developer? This is the sentence that produces a
-three-week stall at kickoff, and it is produced by the passive voice.
-
-> **Do:** We optimize the pages in month two. Your developer needs to give us
-> WordPress editor access before we can start — that is the one thing we need
-> from you.
+> **Do:** We optimize the pages in month two. You need to give us WordPress
+> editor access first. That is the one thing we need from you.
 
 **Say "we" for what 6ix Developers does and "you" for what the client does.**
-Every task in the document belongs to one or the other, by name.
 
 ### 4. Jargon with no gloss
 
-Some terms have to appear — they are the real names of real things, and the
-client will meet them again in their analytics. The rule is not to avoid them. It
-is that **each one gets defined once, in plain words, in the sentence where it
-first appears**, and is then used freely.
+Some terms have to appear. The rule is not to avoid them. **Each one is defined
+once, in plain words, in the sentence where it first appears.**
 
-> Your **Domain Rating** — Ahrefs' 0–100 estimate of how much other sites link
-> to you — is 4. The three firms you named are at 22, 31 and 38.
+> **Domain Rating** — Ahrefs' 0–100 estimate of how much other sites link to
+> you — is 4. The three firms you named are at 22, 31 and 38.
 
-> **Impressions** — the number of times you appeared in Google results, whether
-> or not anybody clicked — were 31,400 over the last 28 days.
-
-A glossary at the back does not count. Nobody flips to the back; they skim past
-the word and lose the sentence.
+A glossary at the back does not count. Nobody flips to the back.
 
 ### 5. A number with no period, no unit, and no source
 
-Every figure in a strategy document carries three things or it does not go in:
-
-- **what it measures** (organic sessions, not "traffic")
-- **over what period** ("the 28 days to 4 November", not "recently")
-- **where it came from** (Search Console, GA4, Ahrefs *estimate*)
-
-The source matters most, and `seo-audit-report/references/measured-vs-estimated.md` is
-the long version: a figure from the client's own GA4 or Search Console is a
-measurement and may be stated as fact. An Ahrefs figure about the client's own
-site is an estimate and must say so, because they can check it against a tab
-they already have open. Getting caught once costs the engagement.
+Every figure carries three things or it does not go in: what it measures, over
+what period, and where it came from. `seo-audit-report/references/measured-vs-estimated.md`
+is the long version. A figure from the client's own GA4 or Search Console is a
+measurement. An Ahrefs figure about the client's own site is an estimate and
+must say so.
 
 ### 6. Recommendations that are not instructions
 
 > **Don't:** Consider improving page speed where possible.
-> **Don't:** It is recommended that review velocity be increased.
-
-"Consider", "where possible", "it is recommended", "should be explored",
-"look at opportunities to" — these are how a document avoids committing to
-anything. They read as padding because they are padding.
-
 > **Do:** Your homepage takes 4.8 seconds to become usable on mobile, measured
-> by PageSpeed Insights on 4 November. Most of that is three uncompressed hero
-> images. We compress them and move to WebP in week one. Target is under 2.5
+> by PageSpeed Insights on 4 November. Three uncompressed hero images cause most
+> of it. We compress them and move to WebP in week one. Target: under 2.5
 > seconds.
-
-> **Do:** You have 11 Google reviews; the three firms you named have 47, 112 and
-> 139. We set up a review request that goes out after every closed matter. Ask
-> every client. Do not offer anything in exchange for one — that breaks Google's
-> policy and can get the whole review set removed.
-
----
-
-## Sentence and paragraph discipline
-
-- **One idea per sentence.** If it has two clauses joined by "and" or a
-  semicolon, it is probably two sentences.
-- **Around 20 words.** Not a rule to count against — a signal. A 45-word
-  sentence is almost always two or three ideas that have not been separated yet.
-- **Three to five sentences per paragraph.** A nine-sentence paragraph is where
-  the one actionable sentence goes to hide.
-- **The point goes first.** Not after the context, the caveat and the method.
-  The client stops reading at the end of the first sentence of each paragraph
-  far more often than at the end of the paragraph.
-- **Tables for anything with more than three parallel items.** A paragraph
-  listing eight keywords is unreadable; the same eight in a table with intent
-  and target page is scannable, and they can take it to their developer.
 
 ---
 
 ## What confidence sounds like
 
-The client is paying for a decision, not a survey of possibilities. There is a
-real difference between **confident** and **overclaiming**, and the honest
-constraints in this skill set (no ROI figures, no invented measurements, no
-Ahrefs-as-fact) do not require hedged prose — they require being specific about
-the *mechanism* instead of the *outcome*.
+The client is paying for a decision, not a survey of possibilities.
 
 | Overclaiming — never | Hedging — reads as weak | Confident and true |
 |---|---|---|
-| This will generate 40 new leads a month | This may help improve visibility over time | These 6 pages target 2,900 monthly searches that currently send you nothing |
-| You will rank #1 within 90 days | Rankings could potentially improve | 31 of your target keywords sit on page 2; those are the ones that move first |
-| Guaranteed 3× return | Results vary by market | The three firms ahead of you have 4–9 pages per practice area. You have 1. That gap is the whole plan |
+| This will generate 40 new leads a month | This may help improve visibility over time | These 6 pages target 2,900 monthly searches that send you nothing today |
+| You will rank #1 within 90 days | Rankings could potentially improve | 31 of your target keywords sit on page 2. Those move first |
+| Guaranteed 3× return | Results vary by market | The three firms ahead of you have 4–9 pages per practice area. You have 1 |
 
-The pattern in the right column: **state the gap, in numbers, and name what
-closes it.** That is a strong claim about something we can actually see. "You
-will make $X" is a weak claim about something nobody can see, and we do not make
-it — not softened, not qualified, not at all.
+**State the gap, in numbers, and name what closes it.**
 
 ---
 
 ## Section titles that say something
 
-A title is read by everybody; the body is read by some. So the title has to
-carry the finding, not label the topic.
+A title is read by everybody; the body is read by some.
 
 | Don't | Do |
 |---|---|
@@ -182,27 +235,25 @@ carry the finding, not label the topic.
 | Content Strategy | 12 pages, in the order they should be built |
 | Local SEO | You appear in 4 of 25 map searches across the GTA |
 
-Keep them accurate. A title is a claim, and if the body does not support it, cut
-the title rather than the evidence. Where a client-facing contents page or a
-standing section name is needed, pair them — `Competitor Analysis — three firms
-own the searches you are not on` — rather than falling back to the bare label.
+Keep them accurate. A title is a claim. If the body does not support it, cut the
+title rather than the evidence.
 
 ---
 
 ## Before it goes out
 
-Read it out loud. Not metaphorically — actually read a page aloud. Every
-sentence you stumble on is a sentence the client will read twice and then skip.
+Read a page out loud. Not metaphorically. Every sentence you stumble on is a
+sentence the client will read twice and then skip.
 
-Then the mechanical pass, which catches the patterns above that can be caught:
+Then the mechanical pass:
 
 ```bash
 python scripts/check_strategy_doc.py <document.md>
 ```
 
-It flags hedge words, nominalizations, undefined jargon on first use, very long
-sentences, and the numbers-without-a-period pattern. It cannot tell you the
-document is clear. It can tell you where it is definitely not.
+It measures sentence shape, label density, imperative density, sentence length
+and reading grade against the targets at the top of this file. It cannot tell
+you the document is clear. It can tell you where it is definitely not.
 
 The thing it cannot check, and the one that matters most: **hand the document to
 somebody who was not in the research and ask them what we are going to do.** If

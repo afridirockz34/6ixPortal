@@ -217,7 +217,8 @@ REQUIRED_SECTIONS = [
 LANGUAGE_LIMITS = {
     "hedges": 5,
     "vague_action": 8,
-    "long_sentences": 5,
+    # A share of all sentences, not a count: see the note on LONG_SENTENCE_WORDS.
+    "long_sentence_pct": 10,
     "undefined_jargon": 3,
 }
 
@@ -288,7 +289,85 @@ GLOSS_MARKERS = re.compile(
     re.IGNORECASE,
 )
 
-LONG_SENTENCE_WORDS = 45
+# 45 was the old threshold, and it was the reason this check never fired on the
+# document that caused this rewrite: that document's median sentence was 13
+# words and its longest was 46. It scored Grade 8.5 on Flesch-Kincaid, against
+# 11.4 for the competitor document it was measured against, and the client still
+# could not read it. Short words and short sentences were never the problem.
+#
+# 25 is the number from references/plain-language.md, which is the number the
+# competitor's own style guide states: "12-18 words average. Break any sentence
+# over 25 words into two."
+LONG_SENTENCE_WORDS = 25
+
+# ---------------------------------------------------------------------------
+# Check 8: sentence shape.
+#
+# The checks above look for bad words. This one looks at how a sentence is
+# built, which is what actually made the November 2026 strategy unreadable.
+# Every pattern here is grammatical, and every one makes the reader hold the
+# first half of a sentence open until the second half arrives.
+#
+# The densities are measured per 1,000 words rather than counted, so a long
+# document is not punished for being long. They are calibrated against two real
+# documents: a competitor's 117-page strategy, which scores zero on the first
+# three patterns, and our own, which scored 1.03, 4.27 and 1.77.
+
+SHAPE_PATTERNS = [
+    # "not", "what", "how" and "that" after the verb are the cleft. "why" and
+    # "the" are not: "That gap is why the six pages come first" and "That figure
+    # is the scale of the market" both read straight through, and including them
+    # made this fire on clear sentences.
+    (r"\b(?:The|That|What|It)\s+\w+(?:\s+\w+)?\s+is\s+(?:not|what|how|that)\b",
+     "cleft — the subject arrives late. Say who does what, in that order"),
+    (r"\brather than\b|\bnot\s+\w+(?:\s+\w+){0,3},?\s+but\b",
+     "\"rather than\" / \"not X but Y\" — state the fact, then the contrast as its own sentence"),
+    # "is what" only. "is why" and "is the one" were in the first draft of this
+    # list and came straight back out: "That gap is why a search reaches them
+    # and not you" and "that is the one thing we need from you" are both clear,
+    # and a gate that fails clear writing gets switched off in a week.
+    (r"\bis what\b",
+     "\"X is what does Y\" — turn it round into an instruction"),
+    (r"(?:^|(?<=[.!?]\s))(?:Where|When|Because|If|Once|While|Though|Although)\s+[^,.]{10,70},",
+     "fronted subordinate clause — start the sentence with its subject"),
+]
+
+# Per 1,000 words of prose. The competitor's document sits at 0.00, 0.00, 0.00
+# and 0.70. These allow some slack, because one of each in a long document is
+# not what made anything unreadable.
+SHAPE_LIMITS = [0.4, 1.0, 0.4, 1.0]
+
+# A density alone cannot judge a short section: one cleft in a 140-word excerpt
+# is 7 per 1,000 words, and failing that would make this script unusable on
+# anything but a finished document. A construction has to be both dense AND
+# repeated before it is a pattern rather than a sentence.
+SHAPE_MIN_COUNT = 3
+
+# A paragraph that opens "Label: ..." — the single biggest structural difference
+# between the two documents (32% of theirs, 6% of ours). A client scanning for
+# one answer finds it from the label.
+#
+# Two forms count, because both are scannable and both are in use:
+#   "Title Tags: Format: [Primary Keyword] ..."   (the agency's form)
+#   "**What we build.** 17 city-and-offence pages ..."  (bold, this repo's form)
+# The bold form has to be matched BEFORE markdown stripping, or it is
+# indistinguishable from an ordinary opening sentence.
+LABEL_OPENER = re.compile(
+    r"^(?:\*\*[A-Z][^*\n]{2,60}[.:]\*\*\s+\S"      # **Label.** or **Label:**
+    r"|[A-Z][A-Za-z0-9 /&'()–-]{2,45}:\s+\S)")  # Label: ...
+LABEL_TARGET_PCT = 25          # theirs is 32%; 25 leaves room for narrative sections
+
+# Actions written as instructions. Theirs: 5.8 per 1,000 words. Ours: 0.6.
+IMPERATIVE_OPENER = re.compile(
+    r"(?:^|(?<=[.!?]\s))(?:Build|Add|Create|Target|Publish|Use|Write|Rewrite|Expand|"
+    r"Launch|Set|Run|Match|Claim|Fix|Replace|Submit|Monitor|Track|Optimize|Link|"
+    r"Name|List|Keep|Start|Send|Draft|Remove|Correct|Confirm|Ask|Check|Report)\b")
+IMPERATIVE_TARGET = 3.0        # per 1,000 words; theirs is 5.8
+
+# Flesch-Kincaid. Not a pass/fail gate on its own — the document that caused
+# this rewrite scored 8.5 and was unreadable — but a document above 13 is hard
+# for a reason the shape checks will not catch.
+FK_CEILING = 13.0
 
 # A figure with no period attached. "31,400 sessions" is not a fact until it
 # says over what. Reported, never failed — too many legitimate phrasings.
@@ -310,7 +389,7 @@ HEADING_ONLY = re.compile(r"^#{1,6}\s+.*$", re.MULTILINE)
 PLACEHOLDER_FOR_PROSE = re.compile(r"\[NEEDS[^\]]*\]", re.IGNORECASE)
 
 
-def prose_only(text: str) -> str:
+def prose_only(text: str, keep_markdown: bool = False) -> str:
     """Body prose, with the parts these checks would misread removed.
 
     Code blocks are not prose. Table rows are deliberately terse and would
@@ -321,6 +400,8 @@ def prose_only(text: str) -> str:
     t = TABLE_LINE.sub("", t)
     t = HEADING_ONLY.sub("", t)
     t = PLACEHOLDER_FOR_PROSE.sub("", t)
+    if keep_markdown:
+        return t
     return MARKDOWN_NOISE_PATTERN.sub("", t)
 
 
@@ -361,6 +442,70 @@ def find_long_sentences(text: str) -> list:
             out.append((n, snip(s)))
     out.sort(key=lambda x: -x[0])
     return out
+
+
+def _syllables(word: str) -> int:
+    w = re.sub(r"[^a-z]", "", word.lower())
+    if not w:
+        return 0
+    w = re.sub(r"e$", "", w)
+    return max(1, len(re.findall(r"[aeiouy]+", w)))
+
+
+def reading_grade(text: str):
+    """Flesch-Kincaid grade level.
+
+    Kept deliberately modest in this script's output. It is a useful sanity
+    bound and a terrible gate on its own: the strategy that caused the sentence
+    shape checks to exist scored 8.5 here, better than the competitor document
+    it was losing to, because the formula sees only syllables and sentence
+    length. It cannot see a cleft.
+    """
+    sents = [s for s in sentences(text) if len(s.split()) >= 3]
+    words = [w for s in sents for w in s.split()]
+    if not sents or not words:
+        return None
+    syl = sum(_syllables(w) for w in words)
+    return 0.39 * len(words) / len(sents) + 11.8 * syl / len(words) - 15.59
+
+
+def find_shape_problems(text: str) -> list:
+    """Banned sentence constructions, as (label, count, per_1k, limit, examples)."""
+    n_words = max(1, len(text.split()))
+    out = []
+    for (pattern, why), limit in zip(SHAPE_PATTERNS, SHAPE_LIMITS):
+        hits = [snip(m.group(0), 70) for m in re.finditer(pattern, text, re.M)]
+        out.append((why, len(hits), len(hits) * 1000 / n_words, limit, hits[:3]))
+    return out
+
+
+def paragraphs(text: str) -> list:
+    """Body paragraphs. Blank-line separated, headings and tables already gone."""
+    blocks = re.split(r"\n\s*\n", text)
+    out = []
+    for b in blocks:
+        p = " ".join(b.split())
+        # "* " and "- " are bullets. "**" is a bold label, which is one of the
+        # two forms a scannable paragraph opener takes — excluding it made
+        # label_share return "no paragraphs" on a correctly written section and
+        # skip the check entirely.
+        if len(p.split()) >= 12 and not re.match(r"[-*|]\s|\|", p):
+            out.append(p)
+    return out
+
+
+def label_share(text: str):
+    """What fraction of body paragraphs open with a scannable 'Label:'."""
+    ps = paragraphs(text)
+    if not ps:
+        return None, 0, 0
+    labelled = [p for p in ps if LABEL_OPENER.match(p)]
+    return len(labelled) * 100 // len(ps), len(labelled), len(ps)
+
+
+def imperative_density(text: str) -> float:
+    n_words = max(1, len(text.split()))
+    return len(IMPERATIVE_OPENER.findall(text)) * 1000 / n_words
 
 
 def find_undefined_jargon(text: str) -> list:
@@ -523,6 +668,9 @@ def main():
     # Readability
     if check_language:
         body = prose_only(text)
+        # label_share needs the markdown still on it: a bold label is
+        # indistinguishable from an ordinary sentence once ** is stripped.
+        body_md = prose_only(text, keep_markdown=True)
         groups = [
             ("hedges", "Hedged non-commitment", find_phrases(body, HEDGE_PATTERNS)),
             ("vague_action", "Action buried in a noun, or nobody doing it",
@@ -548,12 +696,17 @@ def main():
             if over:
                 failures += 1
 
+        # Share, not count. At a 25-word threshold a long document legitimately
+        # carries more than five, and a count would punish length instead of
+        # shape. The competitor's document runs 8%; ours ran 16%.
         longs = find_long_sentences(body)
-        limit = LANGUAGE_LIMITS["long_sentences"]
+        all_sents = [s for s in sentences(body) if len(s.split()) >= 3]
+        pct = len(longs) * 100 // max(1, len(all_sents))
+        limit = LANGUAGE_LIMITS["long_sentence_pct"]
         if longs:
-            over = len(longs) > limit
+            over = pct > limit
             print(f"\n[{'FAIL' if over else 'REVIEW'}] Sentences over {LONG_SENTENCE_WORDS} words: "
-                  f"{len(longs)} (threshold {limit})")
+                  f"{len(longs)} of {len(all_sents)} ({pct}%, threshold {limit}%)")
             for n, snippet in longs[:6]:
                 print(f"       {n} words: {snippet}")
             if len(longs) > 6:
@@ -562,6 +715,49 @@ def main():
                 failures += 1
         else:
             print(f"\n[OK] No sentence over {LONG_SENTENCE_WORDS} words")
+
+        # ── Sentence shape ───────────────────────────────────────────────
+        # The checks above look for bad words. These look at how a sentence is
+        # built, which is what the client could not read.
+        shape = find_shape_problems(body)
+        shape_over = [row for row in shape if row[1] >= SHAPE_MIN_COUNT and row[2] > row[3]]
+        if shape_over:
+            print(f"\n[FAIL] Sentence shape — {len(shape_over)} construction(s) over the limit "
+                  f"(see references/plain-language.md):")
+            for why, n, per_k, limit_k, examples in shape_over:
+                print(f"       {per_k:.2f} per 1k words (limit {limit_k:.2f}, {n} found) — {why}")
+                for e in examples:
+                    print(f"           …{e}…")
+            failures += 1
+        else:
+            print("\n[OK] Sentence shape: no clefts, fronted clauses or \"rather than\" pile-ups")
+
+        # ── Scannability ─────────────────────────────────────────────────
+        pct_lab, n_lab, n_par = label_share(body_md)
+        if pct_lab is not None and pct_lab < LABEL_TARGET_PCT:
+            print(f"\n[REVIEW] Only {pct_lab}% of paragraphs open with a scannable \"Label:\" "
+                  f"({n_lab} of {n_par}, target {LABEL_TARGET_PCT}%+)")
+            print("       A client looking for one answer has to read everything to find it.")
+            print("       Lead every paragraph that carries instructions with what it is about.")
+        elif pct_lab is not None:
+            print(f"\n[OK] {pct_lab}% of paragraphs lead with a label — the document is scannable")
+
+        imp = imperative_density(body)
+        if imp < IMPERATIVE_TARGET:
+            print(f"\n[REVIEW] Actions written as instructions: {imp:.1f} per 1k words "
+                  f"(target {IMPERATIVE_TARGET}+)")
+            print("       \"Build the page\", not \"a page will be built\" or \"the work involves\".")
+        else:
+            print(f"\n[OK] Actions are written as instructions ({imp:.1f} per 1k words)")
+
+        grade = reading_grade(body)
+        if grade is not None:
+            if grade > FK_CEILING:
+                print(f"\n[REVIEW] Reading grade {grade:.1f} (target 9–10, ceiling {FK_CEILING})")
+            else:
+                print(f"\n[OK] Reading grade {grade:.1f}")
+            print("       Note: this number is a weak signal. The strategy that forced these")
+            print("       shape checks scored 8.5 and the client still could not read it.")
 
         jargon = find_undefined_jargon(body)
         limit = LANGUAGE_LIMITS["undefined_jargon"]
