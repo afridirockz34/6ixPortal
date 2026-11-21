@@ -3873,6 +3873,70 @@ add_action( 'wp_ajax_six_delete_task', function () {
  * it reports how many rows actually changed. "Published" with nothing written
  * is exactly the failure this codebase keeps repeating.
  */
+/**
+ * Which BrightLocal location is this client?
+ *
+ * The Google Business metric pull is keyed on a numeric BrightLocal location
+ * id, and until now nothing in the portal could set one — so the pull
+ * answered "no BrightLocal location is linked" for every client, every time.
+ * That is the failure this codebase keeps repeating: a feature gated on data
+ * nobody could create.
+ *
+ * Rather than send an advisor into another product to copy an id out of a
+ * URL, this asks BrightLocal what it holds and matches on the client's own
+ * domain. An exact domain match is offered as the answer; anything else comes
+ * back as a list to choose from, because picking the wrong location would
+ * report another business's rankings as this client's.
+ */
+add_action( 'wp_ajax_six_find_bl_location', function () {
+	check_ajax_referer( 'six_nonce', 'nonce' );
+	if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
+	if ( ! class_exists( 'Six_BrightLocal' ) || ! Six_BrightLocal::configured() ) {
+		wp_send_json_error( 'BrightLocal is not configured — add the API key under 6ix Portal → Integrations.' );
+	}
+
+	$client_id = intval( $_POST['client_id'] ?? 0 );
+	if ( ! $client_id ) wp_send_json_error( 'Missing client.' );
+
+	// The client's own domain, however it was stored.
+	$site = (string) get_user_meta( $client_id, 'six_gsc_site', true );
+	if ( ! $site ) {
+		global $wpdb;
+		$site = (string) $wpdb->get_var( $wpdb->prepare(
+			"SELECT website FROM {$wpdb->prefix}six_checkouts WHERE user_id=%d ORDER BY id DESC LIMIT 1", $client_id ) );
+	}
+	$host = strtolower( preg_replace( '#^www\.#i', '', (string) wp_parse_url(
+		( strpos( $site, '//' ) === false ? 'https://' . $site : $site ), PHP_URL_HOST ) ) );
+
+	$res = Six_BrightLocal::get( '/manage/v1/locations', array( 'num_per_page' => '15' ) );
+	if ( ! empty( $res['error'] ) ) wp_send_json_error( 'BrightLocal: ' . $res['error'] );
+
+	$items = $res['items'] ?? ( $res['data']['items'] ?? array() );
+	if ( ! $items ) wp_send_json_error( 'BrightLocal answered, but this account holds no locations.' );
+
+	$all = array(); $exact = null;
+	foreach ( $items as $it ) {
+		$lid = (int) ( $it['location_id'] ?? 0 );
+		if ( ! $lid ) continue;
+		$lhost = strtolower( preg_replace( '#^www\.#i', '', (string) wp_parse_url(
+			(string) ( $it['website_url'] ?? '' ), PHP_URL_HOST ) ) );
+		$row = array(
+			'id'      => $lid,
+			'name'    => sanitize_text_field( (string) ( $it['business_name'] ?? '' ) ),
+			'city'    => sanitize_text_field( (string) ( $it['city'] ?? '' ) ),
+			'website' => $lhost,
+		);
+		$all[] = $row;
+		if ( $host && $lhost && $lhost === $host ) $exact = $row;
+	}
+
+	wp_send_json_success( array(
+		'host'      => $host,
+		'match'     => $exact,
+		'locations' => $all,
+	) );
+} );
+
 add_action( 'wp_ajax_six_publish_tasks', function () {
 	check_ajax_referer( 'six_nonce', 'nonce' );
 	if ( ! Six_Roles::is_advisor() && ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Permission denied.' );
@@ -3882,16 +3946,22 @@ add_action( 'wp_ajax_six_publish_tasks', function () {
 	if ( ! $client_id ) wp_send_json_error( 'Missing client.' );
 	$publish = empty( $_POST['unpublish'] );
 	$phase   = intval( $_POST['phase'] ?? 0 );
+	$service = sanitize_key( wp_unslash( $_POST['service'] ?? '' ) );
 
-	$res = Six_Tasks::publish( $client_id, $publish, $phase );
+	$res = Six_Tasks::publish( $client_id, $publish, $phase, $service );
 	if ( ! $res['ok'] ) wp_send_json_error( $res['error'] );
 
+	// The summary comes back scoped the same way, so the panel that asked
+	// redraws with its own counts rather than the whole client's.
+	$scope = $service ? ' for ' . $service : '';
 	wp_send_json_success( array(
 		'changed' => $res['count'],
-		'summary' => Six_Tasks::summary( $client_id ),
+		'service' => $service,
+		'summary' => Six_Tasks::summary( $client_id, $service ),
 		'message' => $res['count']
-			? sprintf( '%d task%s %s.', $res['count'], $res['count'] === 1 ? '' : 's', $publish ? 'published' : 'unpublished' )
-			: 'Nothing changed — every task was already ' . ( $publish ? 'published' : 'a draft' ) . '.',
+			? sprintf( '%d task%s %s%s.', $res['count'], $res['count'] === 1 ? '' : 's',
+				$publish ? 'published' : 'unpublished', $scope )
+			: 'Nothing changed — every task' . $scope . ' was already ' . ( $publish ? 'published' : 'a draft' ) . '.',
 	) );
 } );
 

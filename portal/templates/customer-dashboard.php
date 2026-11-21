@@ -757,6 +757,10 @@ if ( $web_proj && $web_proj['total'] > 0 ):
 // estimate off as measured traffic.
 (function() {
   var VIS   = <?php echo wp_json_encode($six_visits); ?>;
+  // Named by the metric that won, not by a source column that can say
+  // something else. A caption naming the wrong tool is worse than one
+  // naming none, because the client goes and checks it.
+  var tool  = VIS.measured_tool || 'Google Search Console';
   var mount = document.getElementById('six-analytics-chart');
   if (!mount) return;
 
@@ -1001,14 +1005,16 @@ if ( $web_proj && $web_proj['total'] > 0 ):
           ? 'Entered by your advisor. It becomes a daily measured line once Google Analytics or Search Console is connected under Data Sources.'
           : hasFit
             ? ('The last ' + (VIS.window_days || 30) + ' days, smoothed over seven so a weekend does not read as a drop. '
-               + 'Solid line: your ' + unit + ', measured daily by ' + (VIS.measured_from === 'ga4' ? 'Google Analytics' : 'Google Search Console') + '. '
-               + 'Dashed line, from the day we started' + (VIS.split_on ? ' (' + VIS.split_on + ')' : '') + ': your own trend over the '
-               + VIS.fitted_on + ' days before that, carried forward from where you stood on the day.')
+               + 'Solid line: your ' + unit + ', measured daily by ' + tool + '. '
+               + 'Dashed line, from the day we started' + (VIS.split_on ? ' (' + VIS.split_on + ')' : '') + ': '
+               + (VIS.hold_level ? 'the ' + fmt(VIS.hold_level) + ' a day you were averaging' : 'the level you were holding')
+               + ' over the ' + VIS.fitted_on + ' days before that, held flat. We hold it rather than '
+               + 'projecting growth, because nobody can show what an untouched site would have done.')
             : (VIS.blocker === 'no_start'
-               ? ('Your ' + unit + ', measured daily by ' + (VIS.measured_from === 'ga4' ? 'Google Analytics' : 'Google Search Console') + '. '
+               ? ('Your ' + unit + ', measured daily by ' + tool + '. '
                   + 'The "without us" comparison needs the date the work began, which has not been recorded yet — your advisor can add it.')
                : VIS.daily
-               ? ('Your ' + unit + ', measured daily by ' + (VIS.measured_from === 'ga4' ? 'Google Analytics' : 'Google Search Console') + '. '
+               ? ('Your ' + unit + ', measured daily by ' + tool + '. '
                   + (VIS.note || 'There is not yet enough history from before we started to draw a "without us" comparison.'))
                : 'Measured across the services you\'re running with us.'))
        + '</div>',

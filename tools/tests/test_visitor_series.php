@@ -56,8 +56,8 @@ class Six_Tracking {
 	public static function graph_series( $uid, $key = '', $days = 180 ) {
 		if ( ! self::$has ) return array( 'has' => false, 'note' => 'none' );
 		list( $dates, $vals ) = six_fake_days();
-		$proj = array();
-		foreach ( $vals as $i => $v ) $proj[] = 200 + $i * 1.2;
+		// A held level, which is what Six_Tracking::hold_level() now returns.
+		$proj = array_fill( 0, count( $vals ), 214.0 );
 		return array(
 			'has'       => true,
 			'metric'    => 'gsc_clicks',
@@ -66,6 +66,7 @@ class Six_Tracking {
 			'projected' => self::$projected ? $proj : array(),
 			'start'     => self::$start,
 			'fitted_on' => 20,
+			'level'     => 214.0,
 			'source'    => 'gsc',
 			'blocker'   => self::$projected ? '' : 'too_few_before',
 			'note'      => '',
@@ -134,6 +135,41 @@ $give_up    = strpos( $fn, 'Nothing is reporting visitors yet' );
 check( 'the daily series is read before the function gives up',
 	$read_daily !== false && $give_up !== false && $read_daily < $give_up,
 	'the backfilled table was read three lines after the early return that skipped it' );
+
+// ── The comparison line is the level, and stays the level ───────────────
+// It used to be shifted up to meet the measured figure on the split day, so
+// the two lines left from exactly the same point. That was right for a
+// fitted slope and wrong for a held level: sliding the level to match one
+// day's reading stops it being the level. A small step at the split is the
+// truth — "you averaged 214 a day, and on the day we began you were at 230".
+$v5 = Six_Dash_Metrics::visitor_series( 7, $CTX );
+$after_split = array_values( array_filter( array_column( $v5['points'], 'before' ),
+	function ( $b ) { return $b !== null; } ) );
+check( 'the comparison line is flat across the whole window',
+	count( array_unique( $after_split ) ) === 1,
+	json_encode( array_slice( $after_split, 0, 5 ) ) );
+check( 'and it is the level itself, not the level shifted to meet the measured line',
+	(int) $after_split[0] === 214,
+	'drew ' . $after_split[0] . ' against a held level of 214' );
+check( 'the level reaches the chart so the caption can state it',
+	(int) ( $v5['hold_level'] ?? 0 ) === 214, var_export( $v5['hold_level'] ?? null, true ) );
+
+// The caption names a tool, and names it from the metric that won rather
+// than from a source column that can disagree with it.
+check( 'the tool is named from the winning metric',
+	( $v5['measured_tool'] ?? '' ) === 'Google Search Console',
+	$v5['measured_tool'] ?? 'none' );
+$tpl = file_get_contents( dirname( __DIR__, 2 ) . '/portal/templates/customer-dashboard.php' );
+check( 'and the caption uses it rather than guessing from the source column',
+	strpos( $tpl, "VIS.measured_tool || 'Google Search Console'" ) !== false
+	&& strpos( $tpl, "measured_from === 'ga4' ? 'Google Analytics'" ) === false );
+check( 'the caption says the level is held, not projected',
+	strpos( $tpl, 'held flat' ) !== false
+	&& strpos( $tpl, 'nobody can show what an untouched site would have done' ) !== false,
+	'a client who asks how the dashed line was worked out gets an answer' );
+check( 'and the anchor that moved it is gone',
+	strpos( file_get_contents( dirname( __DIR__, 2 ) . '/portal/class-dashboard-metrics.php' ),
+		'$anchor = (float)' ) === false );
 
 echo "\nPassed: $pass  Failed: $fail\n";
 exit( $fail ? 1 : 0 );
