@@ -960,6 +960,13 @@ class Six_EstimateEngine {
         $L[] = 'Same fact, right framing: not "three competitors already outrank you" but "your three named competitors rank above you today for <term> in <city> — those positions are the target". Not "almost none of that traffic reaches you" but "that is live demand in your market, and it is what this plan goes after". Keep every number exactly as given; only the framing changes.';
         $L[] = 'NAME RULE: never print a bare domain as if it were a company name. Say "Toronto Police Service", not "tps.ca". Where you have only a domain and cannot name the organization with confidence, write "a competing site" rather than guessing a name.';
         $L[] = 'QUOTE RULE: put the client\'s search terms in quotation marks — ranking higher for "criminal defence" searches — so the reader can see where the term ends and the sentence resumes.';
+        // The three rules the strategy skill enforces mechanically. This page
+        // is a generated document like any other, so it follows them too. The
+        // long version is
+        // .claude/skills/seo-strategy-builder/references/plain-language.md.
+        $L[] = 'PRONOUN RULE: "we" and "our" for the work and for anything we are doing together. ' . $biz . '\'s name for facts and measurements. "You" and "your" only for what is genuinely theirs — your name, your office, your profile. NEVER "your company", "your business" or "your firm"; use the name. Name the business at least as often as you say "you". Two parties are doing this together and the writing has to sound like it.';
+        $L[] = 'NO AUDIT FINDINGS: this is a plan, not a verdict. Never state a present-tense fault on its own — not "no page title contains the word lawyer", not "the services list is empty", not "426 words today". A current number is allowed ONLY beside the target it is measured against: "173 clicks a month today, 400 by month six". A baseline with no target attached is an audit finding and does not belong here.';
+        $L[] = 'NO SELF-COMMENTARY: write for the reader, never about the document. Cut "one thing worth knowing", "read these two columns together", "what those numbers add up to", "the honest answer is", "we would rather", and anything defending a figure against an objection nobody raised. State the thing and move on.';
         $L[] = 'Do not promise or imply a guaranteed result, a revenue figure or a return. State what is measurable now and what the opportunity is.';
         $L[] = '';
         $L[] = '=== REQUIRED JSON OUTPUT ===';

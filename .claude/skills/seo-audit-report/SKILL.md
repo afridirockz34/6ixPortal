@@ -112,6 +112,8 @@ That section also carries the tone rules, which matter as much as the line itsel
 
 ## Reference files
 
+- `seo-strategy-builder/references/plain-language.md` — **the house voice for every client-facing document.** Read it before writing any part of the report. Rule 1 (the document is for the client, never for its reviewer) and Rule 2 ("we" for the work, the firm's name for facts, "you" only for what is theirs) apply to the audit exactly as they apply to the strategy. Rule 3 does not — findings are what an audit is for.
+
 - `seo-strategy-builder/references/client-context.md` — getting the prospect's answers from the portal, a returned document, or neither
 - `seo-strategy-builder/references/performance-tracking.md` — reading a `check_performance` result when the subject is an existing client, why an `estimate` can't be quoted as a measurement, and the rules for saving a provisional target
 - `seo-strategy-builder/references/local-and-gmb.md` — deciding what to assess from the client's active services, and the BrightLocal rank grid, reviews and citation data that make a local finding measured rather than asserted

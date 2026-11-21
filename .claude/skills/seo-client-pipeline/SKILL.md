@@ -95,6 +95,9 @@ Not a separate process — a monitoring finding that's alarming or a genuine new
 
 ## Reference files
 
+- `seo-strategy-builder/references/plain-language.md` — **the house voice for every client-facing document** produced anywhere in the pipeline: the audit, the strategy, the monthly report and the content. One voice across all of them.
+
+
 - `references/implementation.md` — change-set → confirm → apply → log discipline for making approved strategy changes on the live site
 - `references/monitoring-and-escalation.md` — the biweekly check, the monthly report, and when (and how) a finding escalates into another strategy/implementation round
 - `scripts/check_implementation_log.py` — mechanical check that every applied change in the log is dated and has a clear status; an undated applied change breaks the Google Update Correlation discipline everything downstream relies on

@@ -77,6 +77,9 @@ The `references/ymyl-legal-pack.md` file's schema and AI-search guidance is a sn
 
 ## Reference files
 
+- `seo-strategy-builder/references/plain-language.md` — **the house voice for every client-facing document.** Read it before drafting anything a client reads. It carries the three rules that matter most: the document is for the client and never for its reviewer, "we" for the work and the firm's name for facts, and a plan never restates the audit's findings.
+
+
 - `seo-strategy-builder/references/client-context.md` — how to get the client's answers from the portal, from a document they filled in, or from neither
 - `seo-strategy-builder/references/performance-tracking.md` — using a performance check to decide what to write next, and which figures may appear in published copy
 - `seo-strategy-builder/references/ai-visibility.md` — what makes a page usable as a source in an AI answer, what to leave out of a brief, and the rule against promising a citation nobody controls

@@ -51,27 +51,34 @@ def run(text, *extra, name="doc.md"):
 
 
 # ── Prose written the way the house style asks ───────────────────────────
+#
+# Rewritten in November 2026 to the voice the skill now specifies: "we" for
+# the work, the firm's name for facts, "you" only for what is genuinely
+# theirs. The old version said "you" or "your" eleven times in 140 words and
+# named the firm never — which is the document the client said was talking at
+# him, and a positive fixture has to demonstrate the standard it is testing.
 GOOD = """# Phase 5 — SEO strategy
 
-## Three firms own the searches you are not on
+## Six pages that close the bail-hearing gap
 
-Your Domain Rating — Ahrefs' 0-100 estimate of how many other sites link to
-you — is 4. The three firms you named sit at 22, 31 and 38.
+Mira Law's Domain Rating — Ahrefs' 0-100 estimate of how many other sites link
+to a domain — is 4. The three firms named in the questionnaire sit at 22, 31
+and 38.
 
 We write six new pages about bail hearings, one for each stage of the process.
-Right now you have one. Those three firms have between four and nine each.
+Mira Law has one today. Those three firms have between four and nine each.
 
-That gap is why a search for any part of a bail hearing reaches them and not
-you. Six pages closes it.
+That gap is why a search for any part of a bail hearing reaches them first. Six
+pages closes it.
 
-## 2,900 monthly searches, none of them reaching you
+## 2,900 monthly searches, and where they go
 
-Search Console measured 31,400 impressions — the number of times you appeared
-in a Google result, whether or not anybody clicked — over the 28 days to
-4 November. Clicks were 412.
+Search Console measured 31,400 impressions — the number of times a page
+appeared in a Google result, whether or not anybody clicked — over the 28 days
+to 4 November. Clicks were 412.
 
-We rewrite the nine service pages in month one. Your developer needs to give
-us WordPress editor access first. That is the one thing we need from you.
+We rewrite the nine service pages in month one. Your developer gives us
+WordPress editor access first. That is the one thing we need.
 """
 
 code, out = run(GOOD)
@@ -535,6 +542,112 @@ check("  and the paragraphs are counted, not skipped",
 # voice. Without one the model infers the voice from the tone of the
 # instructions, and the instructions are not written in the voice of a
 # deliverable. That is how a 10,000-word strategy came out in essay register.
+print("\n-- Rule 1: the document is for the client, not the reviewer --")
+# A strategy gets reviewed internally. The reviewer pushes back, the next draft
+# answers the pushback, and the answer stays in the document. Ship a dozen
+# rounds of that and the client receives a transcript of an argument they did
+# not attend. Every string below is verbatim from a shipped document. The
+# agency this was calibrated against does it zero times in 5,893 words.
+REVIEWER_VOICE = "# Phase 5\n\n" + "\n\n".join([
+    "One thing we checked that is worth your knowing: neither competitor got "
+    "there on the strength of their links.",
+    "The 551 figure needs explaining, because it looks like a strength and is not.",
+    "Read the last two columns together, because they are the finding.",
+    "We would rather give 96 rows that can be built than pad four more.",
+    "That is the honest answer, not a gap in it.",
+    "This appendix is here so it is clear the question was asked.",
+    "That about-the-city section is not decoration.",
+])
+code, out = run(REVIEWER_VOICE)
+check("a document arguing with its reviewer fails",
+      code == 1 and "explaining or defending itself" in out, out[-900:])
+check("  and it says who the document is actually for",
+      "did not attend the review" in out, out[-900:])
+
+code, out = run("# Phase 5\n\n" + "\n\n".join([
+    "Neither competitor got there on the strength of their links.",
+    "Of the 551 sites linking to the firm, 547 are automated junk.",
+    "Citadel Law has 216 reviews and ranks 25.8 across the grid.",
+    "We write 96 searches into the sheet, each with the page that owns it.",
+]))
+check("  the same facts without the commentary pass",
+      "explaining or defending itself" not in out, out[-900:])
+
+print("\n-- Rule 2: pronouns --")
+# "We" says two parties are doing this. "You" with no "we" beside it says one
+# party is being assessed by another. Theirs: 5.3 per 1k. Ours was 23.3.
+JABBING = "# Phase 5\n\n" + "\n\n".join([
+    "Your homepage title is your firm name and nothing else, so your rankings "
+    "depend on your brand. Your competitors took your searches while your "
+    "pages sat unchanged, and your profile is not helping you either."
+] * 3)
+code, out = run(JABBING)
+check("prose that jabs \"you\" at the reader fails",
+      code == 1 and '"you" / "your"' in out, out[-900:])
+check("  and the limit is stated with the benchmark",
+      "limit 8.0" in out, out[-900:])
+
+code, out = run("# Phase 5\n\n" + "\n\n".join([
+    "Your company's rankings depend on brand searches today.",
+    "We rewrite the titles in month one.",
+    "Your business needs the profile completed before the map moves.",
+] * 2))
+check("\"your company\" and \"your business\" fail outright",
+      code == 1 and '"your company" / "your business"' in out, out[-900:])
+
+BALANCED = "# Phase 5\n\n" + "\n\n".join([
+    "Mira Law's website got 173 clicks in November. We looked at 139 of them, "
+    "and almost all came from people searching for your name.",
+    "We start with the pages and the Google Business Profile you already have. "
+    "Optimizing those builds the foundation.",
+    "Then we add content to support our ranking goals around the office. Mira "
+    "Law holds one page per service today and we take that to nine.",
+])
+code, out = run(BALANCED, "--client", "Mira Law")
+check("the voice the client asked for passes",
+      '[FAIL] "you"' not in out and '"your company"' not in out, out[-900:])
+check("  and the balance is reported",
+      "Pronouns balanced" in out, out[-900:])
+
+print("\n-- Rule 3: a strategy is not an audit --")
+# The audit says what is true now. The strategy says what we will do. A
+# baseline is allowed beside the target it is measured against, and nowhere
+# else. Verbatim from the shipped document again.
+FINDINGS = "# Phase 5\n\n" + "\n\n".join([
+    "No page title contains the word \"lawyer\".",
+    "The services list is empty and the service area is unset.",
+    "The sexual assault page is 426 words today.",
+    "The citation score is 6 out of 100.",
+    "The profile does not appear at any of the other 48 points.",
+])
+code, out = run(FINDINGS)
+check("a strategy full of audit findings fails",
+      code == 1 and "Audit findings in a strategy document" in out, out[-900:])
+check("  and it says where a baseline is allowed",
+      "beside the target it is measured against" in out, out[-900:])
+
+PROJECTED = """# Phase 5
+
+We rewrite the titles on all 23 pages in month one.
+
+We add nine services to the Google Business Profile in month one, and set the
+service area across all nine cities.
+
+We take the sexual assault page to 2,000 words in month two.
+
+| What we measure | Today | Month 6 | Month 12 |
+|---|---|---|---|
+| Clicks from searches that are not the firm's name | 1 | 40 | 120 |
+| Grid points where the profile appears | 1 of 49 | 20 of 49 | 35 of 49 |
+
+We start from 173 clicks a month and aim for 400 by month six.
+"""
+code, out = run(PROJECTED)
+check("the same numbers, paired with targets, pass",
+      "Audit findings in a strategy document" not in out, out[-900:])
+check("  and a baseline column in a table is not a finding",
+      "[OK] No audit findings" in out, out[-900:])
+
 print("\n-- The worked example --")
 VOICE = REPO / ".claude/skills/seo-strategy-builder/assets/worked-section-house-voice.md"
 check("the skill ships a worked section in the house voice", VOICE.exists())

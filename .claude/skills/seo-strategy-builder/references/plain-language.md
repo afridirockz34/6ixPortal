@@ -13,6 +13,118 @@ accurate it is.
 
 ---
 
+## Who this file governs
+
+**Every document a client reads.** The audit, the strategy, the monthly report,
+the content brief, the onboarding pages and the portal. One voice across all of
+them. The other skills point here rather than keeping their own copy.
+
+---
+
+## Rule 1 — The document is for the client, not for the reviewer
+
+This is the rule that was missing, and it caused more damage than anything
+else in this file.
+
+A strategy gets reviewed internally before it ships. The reviewer pushes back,
+the next draft answers the pushback, and the answer stays in the document. Do
+that a dozen times and the client receives a document arguing with somebody who
+is not in the room.
+
+Measured across the two documents this spec was built from: the agency we are
+measured against does this **zero** times in 5,893 words. Ours did it **eighteen**
+times in 7,420.
+
+**What it looks like.** All of these shipped:
+
+| Shipped | What is wrong | Write instead |
+|---|---|---|
+| One thing we checked that is worth your knowing: neither competitor got there on links. | Announcing that a check happened. The client assumes we checked. | Neither competitor got there on links. |
+| The 551 figure needs explaining, because it looks like a strength and is not. | Defending a number against an objection nobody raised. | Of the 551 sites linking to the firm, 547 are automated junk. |
+| Read the last two columns together, because they are the finding. | Instructing the reader how to read our table. | Citadel Law has 216 reviews and ranks 25.8. Mira Law has 12 and does not appear. |
+| We would rather give you 96 rows you can build than pad four more. | Justifying our own methodology. | 96 searches, each with a page that owns it. |
+| That is the honest answer, not a gap in it. | Pre-empting an accusation. | *(delete — say the thing and stop)* |
+| This appendix is here so it is clear the question was asked, not overlooked. | Defending the document's completeness. | No previous SEO work has been done on this site. |
+
+**The test.** Read any sentence and ask: *is this for Mira Bhandari, or is it for
+the person who might criticise the draft?* If it is the second, cut it. The
+client did not attend the review and does not need the transcript.
+
+**The same fault in another form.** A question asked in a working session must
+never become a paragraph in the deliverable. Somebody asks "why are there 'near
+me' keywords in here?" and the next draft grows a section explaining why "near
+me" keywords are in there. That explanation belongs in the reply to the
+question, not in the client's document. The client never asked.
+
+---
+
+## Rule 2 — Pronouns: we do the work, the firm owns the business
+
+**The ratios, measured.** The agency we are measured against says "you" or
+"your" 5.3 times per 1,000 words and names the client's firm 7.6 times. Ours
+said "you" 23.3 times and named the firm 2.4. We jab the reader four times as
+often and name them three times less. That is the whole "it is talking at me"
+feeling, in two numbers.
+
+| Use | For | Example |
+|---|---|---|
+| **we, our, us** | Everything we do, and everything we are doing together | "We start with the pages and the profile you already have." "Our ranking goals around the office." |
+| **the firm's name** | Facts, measurements, anything checkable | "Mira Law's website got 173 clicks in November." |
+| **you, your** | Only things that are genuinely and only theirs | "your name", "your office", "your Google Business Profile" |
+
+**Never:** "your company", "your business", "your firm" as a way of saying "you".
+Use the name. It is shorter, warmer and it is what a person would say.
+
+**Targets:** "you / your" under 8 per 1,000 words. The firm's name at least as
+often as "you".
+
+**Why this reads as warmer.** "We" says two parties are doing this. "You" with no
+"we" beside it says one party is being assessed by another. A client paying for
+twelve months of work should read the first.
+
+---
+
+## Rule 3 — A strategy is not an audit
+
+**The audit says what is true now. The strategy says what we are going to do.**
+A client can forward the strategy to their partners; the audit is the document
+that explains why they hired us, and they only need to read it once.
+
+**Banned from a strategy document:** any present-tense statement of a
+deficiency.
+
+| Never in a strategy | Why | Say instead |
+|---|---|---|
+| No page title contains the word "lawyer". | A finding. The audit already said it. | We rewrite the titles on all 23 pages in month one. |
+| The services list is empty. | A finding. | We add nine services to the profile in month one. |
+| 426 words today. | A finding. | We take the sexual assault page to 2,000 words in month two. |
+| Your citation score is 6 out of 100. | A third-party grade on the current state. | We get 20 listings live and correct by month three. |
+| The thirteen city pages are 53–61% the same text. | A finding. | We rewrite four city pages around their own courthouses. |
+
+**A number is allowed when it is half of a projection.** That is the whole
+test. A baseline exists to show the size of the jump, so it appears beside the
+target it is being measured against and nowhere else.
+
+> **Allowed.** We start from 173 clicks a month and aim for 400 by month six.
+
+> **Allowed.**
+>
+> | What we measure | Today | Month 6 | Month 12 |
+> |---|---|---|---|
+> | Clicks from searches that are not the firm's name | 1 | 40 | 120 |
+
+> **Never.** Of the 139 attributable clicks, 138 were somebody typing the firm's
+> name. One was not.
+
+The second version states a baseline with no target attached, so it is a
+finding, and findings belong in the audit.
+
+**What the strategy opens with.** Not what is wrong. What we are going to do,
+in what order, and what it is expected to produce. `document-assembly.md` has
+the running order.
+
+---
+
 ## Read this part first: the shape of a sentence, not the size of its words
 
 We got this wrong for a year, so it is worth stating plainly.

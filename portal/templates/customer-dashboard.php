@@ -457,7 +457,7 @@ $has_any_data     = !empty($dash_cards);
     <svg viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" width="18" height="18" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
     <div>
         <div style="font-size:12.5px;font-weight:600;color:var(--text1);margin-bottom:2px">Your advisor is setting up your metrics</div>
-        <div style="font-size:11.5px;color:var(--text3);line-height:1.5">Once your services are activated, your dashboard will display real performance data. Your advisor will reach out within one business day.</div>
+        <div style="font-size:11.5px;color:var(--text3);line-height:1.5">Your dashboard fills with real performance data as soon as your services are active. Your advisor will be in touch within one business day.</div>
     </div>
 </div>
 <?php endif; ?>
@@ -1124,7 +1124,7 @@ $comp_rows   = (is_array($comp_saved) && !empty($comp_saved['rows'])) ? $comp_sa
 <div class="six-card"><div class="six-card-body" style="text-align:center;padding:60px">
     <div style="font-size:40px;margin-bottom:16px"></div>
     <div style="font-size:15px;font-weight:600;margin-bottom:8px">Set up your profile first</div>
-    <p style="font-size:13px;color:var(--text2);max-width:360px;margin:0 auto 20px;line-height:1.7">Add your website URL and industry in your profile to run a competitor analysis. Your advisor can also add this for you.ebsite, industry, and competitors in your profile to unlock competitive intelligence.</p>
+    <p style="font-size:13px;color:var(--text2);max-width:360px;margin:0 auto 20px;line-height:1.7">Add your website and industry to your profile and we can run a competitor analysis. Your advisor can add them for you.</p>
     <a href="?tab=profile" class="six-btn six-btn-primary">Complete Profile →</a>
 </div></div>
 <?php else: ?>
@@ -1214,7 +1214,7 @@ if (class_exists('Six_Dash_Metrics')) {
     <div style="padding:12px 16px;border-top:1px solid var(--border);font-size:11px;color:var(--text3);line-height:1.6">
         Every figure in this table is a third-party estimate of what each site earns from search, pulled on the same day so the rows compare.
         <?php if($comp_measured !== null): ?>
-        <br>Your own analytics measured <strong style="color:var(--text2)"><?php echo number_format($comp_measured); ?></strong> organic visitors over the last 30 days. That is the number to trust for your own site — the estimate above exists so it can be set beside the others on the same basis.
+        <br>Your own analytics measured <strong style="color:var(--text2)"><?php echo number_format($comp_measured); ?></strong> organic visitors over the last 30 days. That is the measured figure for this site. The estimate above is there so every row compares on the same basis.
         <?php endif; ?>
     </div>
     <?php endif; ?>
@@ -1267,10 +1267,10 @@ if (class_exists('Six_Dash_Metrics')) {
 <div class="six-services-grid">
 <?php
 $all_svc_defs=array(
-    array('slug'=>'google-ads',       'name'=>'Google Ads',              'desc'=>'Paid search campaigns that drive immediate, high-intent leads.'),
-    array('slug'=>'seo',              'name'=>'SEO',                     'desc'=>'Long-term organic visibility that compounds month over month.'),
-    array('slug'=>'google-business',  'name'=>'Google Business Profile', 'desc'=>'Dominate local search and drive walk-ins with an optimized listing.'),
-    array('slug'=>'website',          'name'=>'Website Development',     'desc'=>'Conversion-optimised websites built for growth.'),
+    array('slug'=>'google-ads',       'name'=>'Google Ads',              'desc'=>'Paid ads that reach people searching for what you sell, today.'),
+    array('slug'=>'seo',              'name'=>'SEO',                     'desc'=>'Rankings that build month over month and keep working after the work stops.'),
+    array('slug'=>'google-business',  'name'=>'Google Business Profile', 'desc'=>'Show up on the map when people nearby search, and turn that into calls and visits.'),
+    array('slug'=>'website',          'name'=>'Website Development',     'desc'=>'A site built to turn visitors into enquiries, and to grow with you.'),
 );
 foreach($all_svc_defs as $def):
     $existing=null; foreach($services as $s){if($s->service_slug===$def['slug']){$existing=$s;break;}}
@@ -2206,7 +2206,7 @@ $q_done_at = $q_done ? six_strategy_questionnaire_submitted_at( $user_id ) : '';
    read. Everything below is a field the advisor filled in on upload; a
    report filed before those fields existed simply shows fewer of them. */
 $rep_kinds = array(
-    'audit'          => array('SEO audit', 'Where your site stands today, and the opportunities we found.'),
+    'audit'          => array('SEO audit', 'What we found on the site, and the opportunities we can go after.'),
     'strategy'       => array('Strategy', 'The plan: what gets built, in what order, and the targets it commits to.'),
     'monthly'        => array('Monthly performance', 'What moved last month, and what we changed to move it.'),
     'implementation' => array('Implementation log', 'Every change made on the site, with what it was before.'),

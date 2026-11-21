@@ -52,6 +52,7 @@ Seven kinds of thing get checked:
 Usage:
     python check_strategy_doc.py <document_file.md> [--phases 1,2,5,7,8,9]
                                                     [--no-language]
+                                                    [--client "Mira Law"]
 
     --phases is optional. If given, the script reports which of those
     phase numbers it found a heading for, so you can confirm an assembled
@@ -70,6 +71,7 @@ its threshold. Dead-advice warnings alone don't fail the run — they're a promp
 to review, not a blocker.
 """
 
+import collections
 import re
 import sys
 from pathlib import Path
@@ -369,6 +371,63 @@ IMPERATIVE_TARGET = 3.0        # per 1,000 words; theirs is 5.8
 # for a reason the shape checks will not catch.
 FK_CEILING = 13.0
 
+# ── The document is for the client, not for the reviewer ───────────────────
+# A strategy gets reviewed internally, the reviewer pushes back, the next draft
+# answers the pushback, and the answer stays in. Ship a dozen rounds of that and
+# the client receives a document arguing with somebody who is not in the room.
+# The agency we are measured against does this 0 times in 5,893 words. The
+# November 2026 strategy did it 18 times in 7,420.
+META_COMMENTARY = [
+    (r"\b(?:worth (?:your knowing|being plain about|noting|explaining)|needs explaining"
+     r"|one thing (?:we checked|to be straight about)|to be (?:straight|clear) about"
+     r"|the honest answer|this (?:appendix|section|table) is here)\b",
+     "the document announcing its own work — state the finding, not that you looked"),
+    (r"\bread (?:the|that|those)\s+[\w ]{0,24}?(?:again|together)\b"
+     r"|\bwhat (?:those|these)\s+[\w ]{0,24}?add up to\b",
+     "telling the reader how to read our own table — write the table so it does not need it"),
+    (r"\b(?:we would rather|we state it as|anyone quoting|rather than overlooked"
+     r"|not a gap in it|looks like a strength and is not|is not decoration"
+     r"|that does not (?:remove|change) the work)\b",
+     "defending the draft against an objection the client never raised"),
+]
+META_LIMIT = 0.5          # per 1,000 words; theirs is 0.00
+META_MIN_COUNT = 3
+
+# ── A strategy is not an audit ─────────────────────────────────────────────
+# The audit says what is true now. The strategy says what we will do. A
+# baseline is allowed only as half of a projection — beside the target it is
+# measured against. A deficiency stated on its own is a finding, and findings
+# belong in the audit.
+AUDIT_FINDING = [
+    (r"\b(?:no|not one|none of|nothing)\s+\w+(?:\s+\w+){0,3}\s+"
+     r"(?:contains?|has|have|says?|links?|carr(?:y|ies)|mentions?|names?|includes?)\b",
+     "a present-tense deficiency — say what we change, and in which month"),
+    (r"\bis\s+(?:currently\s+)?(?:empty|unset|missing|blank|incorrect|not set)\b",
+     "the current state stated as a fault — name the fix and its month"),
+    (r"\b\d[\d,]*\s+words?\s+today\b|\btoday\b[^.]{0,24}\b\d[\d,]*\s+words?\b",
+     "a current word count — give the target instead"),
+    (r"\bscore is \d{1,3}\s*(?:out of|/)\s*\d{1,3}\b",
+     "a grade on the current state — a strategy carries objectives, not scores"),
+    (r"\bdoes not (?:appear|rank|convert|exist)\b",
+     "a finding. Say where we expect it to appear, and by when"),
+]
+AUDIT_FINDING_LIMIT = 0.4     # per 1,000 words; theirs is 0.00
+AUDIT_FINDING_MIN_COUNT = 3
+
+# ── Pronouns ───────────────────────────────────────────────────────────────
+# "We" says two parties are doing this together. "You" with no "we" beside it
+# says one party is being assessed by another. Theirs: 5.3 "you" per 1,000
+# words, and the client's firm named 7.6 times. Ours: 23.3 and 2.4.
+SECOND_PERSON = re.compile(r"\b(?:you|your|you're|yours)\b", re.IGNORECASE)
+SECOND_PERSON_LIMIT = 8.0     # per 1,000 words
+# A density alone cannot judge a short excerpt: two "you"s in a 68-word
+# section is 29 per 1,000 words, and failing that would make this script
+# unusable on anything but a finished document. The benchmark document carries
+# about 31 uses in total, so eight is a sample worth drawing a rate from.
+SECOND_PERSON_MIN_COUNT = 8
+YOUR_BUSINESS = re.compile(
+    r"\byour (?:company|business|firm|practice|organisation|organization)\b", re.IGNORECASE)
+
 # A figure with no period attached. "31,400 sessions" is not a fact until it
 # says over what. Reported, never failed — too many legitimate phrasings.
 METRIC_WORDS = re.compile(
@@ -508,6 +567,54 @@ def imperative_density(text: str) -> float:
     return len(IMPERATIVE_OPENER.findall(text)) * 1000 / n_words
 
 
+def _density_group(text: str, patterns, limit, min_count):
+    """Shared shape for the density checks: (over, per_1k, count, rows)."""
+    n_words = max(1, len(text.split()))
+    rows, total = [], 0
+    for pattern, why in patterns:
+        hits = [" ".join(m.group(0).split()) for m in re.finditer(pattern, text, re.I)]
+        if hits:
+            rows.append((why, len(hits), hits[:3]))
+            total += len(hits)
+    per_k = total * 1000 / n_words
+    return (total >= min_count and per_k > limit), per_k, total, rows
+
+
+def find_meta_commentary(text: str):
+    return _density_group(text, META_COMMENTARY, META_LIMIT, META_MIN_COUNT)
+
+
+def find_audit_findings(text: str):
+    return _density_group(text, AUDIT_FINDING, AUDIT_FINDING_LIMIT, AUDIT_FINDING_MIN_COUNT)
+
+
+QUOTED_BLOCK = re.compile(r"^\s*>.*$", re.MULTILINE)
+
+
+def pronoun_balance(text: str, client_name: str = ""):
+    """How often we address the reader, against how often we name their firm.
+
+    Block quotes are dropped first. A strategy carries sample copy written for
+    the client's OWN customers — "When you call, you speak to Mira Bhandari" —
+    and that "you" is the sample doing its job, not the document addressing
+    its reader. Counting it made a correct document look like it was jabbing.
+
+    The firm's name is counted from --client when given. Without it we fall
+    back to the most frequent capitalised two-word phrase, which is good
+    enough to notice "we never say their name" and never used to fail.
+    """
+    text = QUOTED_BLOCK.sub("", text)
+    n_words = max(1, len(text.split()))
+    you = len(SECOND_PERSON.findall(text))
+    your_business = len(YOUR_BUSINESS.findall(text))
+    if client_name:
+        named = len(re.findall(re.escape(client_name), text, re.I))
+    else:
+        caps = re.findall(r"\b[A-Z][a-z]+ (?:[A-Z][a-z]+|LLP|Law)\b", text)
+        named = max(collections.Counter(caps).values()) if caps else 0
+    return you * 1000 / n_words, named * 1000 / n_words, you, named, your_business
+
+
 def find_undefined_jargon(text: str) -> list:
     """Terms whose FIRST appearance carries no gloss.
 
@@ -610,6 +717,7 @@ def main():
         return 0
     positional = []
     expected_phases = None
+    client_name = ""
     check_language = True
     check_sections = False
     i = 0
@@ -619,6 +727,15 @@ def main():
             check_language = False
         elif a == "--full":
             check_sections = True
+        elif a.startswith("--client"):
+            # The firm's name, so the pronoun check can count how often we use
+            # it against how often we say "you". Optional; without it the check
+            # guesses from the most frequent capitalised pair and never fails.
+            if "=" in a:
+                client_name = a.partition("=")[2]
+            else:
+                i += 1
+                client_name = raw[i] if i < len(raw) else ""
         elif a.startswith("--phases"):
             if "=" in a:
                 val = a.partition("=")[2]
@@ -731,6 +848,54 @@ def main():
             failures += 1
         else:
             print("\n[OK] Sentence shape: no clefts, fronted clauses or \"rather than\" pile-ups")
+
+        # ── The document is for the client, not for the reviewer ─────────
+        over, per_k, total, rows = find_meta_commentary(body)
+        if rows:
+            print(f"\n[{'FAIL' if over else 'REVIEW'}] The document is explaining or defending itself: "
+                  f"{total} ({per_k:.2f} per 1k, limit {META_LIMIT})")
+            for why, n, examples in rows:
+                print(f"       {n} × {why}")
+                for e in examples:
+                    print(f"           …{e[:72]}…")
+            print("       A client did not attend the review and does not need the transcript.")
+            if over:
+                failures += 1
+        else:
+            print("\n[OK] Nothing in the document is arguing with its reviewer")
+
+        # ── A strategy is not an audit ───────────────────────────────────
+        over, per_k, total, rows = find_audit_findings(body)
+        if rows:
+            print(f"\n[{'FAIL' if over else 'REVIEW'}] Audit findings in a strategy document: "
+                  f"{total} ({per_k:.2f} per 1k, limit {AUDIT_FINDING_LIMIT})")
+            for why, n, examples in rows:
+                print(f"       {n} × {why}")
+                for e in examples:
+                    print(f"           …{e[:72]}…")
+            print("       A baseline is allowed beside the target it is measured against,")
+            print("       and nowhere else. See references/plain-language.md, Rule 3.")
+            if over:
+                failures += 1
+        else:
+            print("\n[OK] No audit findings — this reads as a plan, not a verdict")
+
+        # ── Pronouns ─────────────────────────────────────────────────────
+        you_k, named_k, you_n, named_n, your_biz = pronoun_balance(body, client_name)
+        if your_biz:
+            print(f"\n[FAIL] \"your company\" / \"your business\" × {your_biz} — use the firm's name")
+            failures += 1
+        if you_n >= SECOND_PERSON_MIN_COUNT and you_k > SECOND_PERSON_LIMIT:
+            print(f"\n[FAIL] \"you\" / \"your\" {you_k:.1f} per 1k words "
+                  f"({you_n} uses, limit {SECOND_PERSON_LIMIT})")
+            print("       \"We\" for the work we do together. The firm's name for facts.")
+            print("       \"You\" only for what is genuinely theirs — your name, your office.")
+            failures += 1
+        elif named_k and named_k < you_k and you_n >= SECOND_PERSON_MIN_COUNT:
+            print(f"\n[REVIEW] \"you\" {you_k:.1f} per 1k against the firm's name {named_k:.1f} per 1k")
+            print("       Name them at least as often as you address them.")
+        else:
+            print(f"\n[OK] Pronouns balanced (\"you\" {you_k:.1f} per 1k, the firm named {named_k:.1f})")
 
         # ── Scannability ─────────────────────────────────────────────────
         pct_lab, n_lab, n_par = label_share(body_md)
