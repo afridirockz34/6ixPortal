@@ -92,8 +92,13 @@ check( 'step 5 carries an audit note',
 check( 'it says the account manager runs the audit after onboarding',
 	strpos( $ob, 'comprehensive ' ) !== false
 	&& strpos( $ob, 'as soon as you finish onboarding' ) !== false );
+/* The sentence was reworded in November 2026 to lead with its subject rather
+ * than a fronted "If you want to go ahead…" clause. Assert the commitment,
+ * not one phrasing of it — a test that pins the exact words breaks every time
+ * the copy improves, which is how a test ends up discouraging the fix. */
 check( 'it says the card is charged only if they go ahead',
-	strpos( $ob, 'we start the work and charge the card on file' ) !== false );
+	strpos( $ob, 'charge the card on file' ) !== false
+	&& preg_match( '/only once you have read the audit|if you want to go ahead/i', $ob ) === 1 );
 check( 'and that they can cancel afterwards',
 	strpos( $ob, 'cancel at any time' ) !== false );
 check( 'a website-only client is not promised an audit',

@@ -655,25 +655,25 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
         <div class="ob-svc-bar"></div><div class="ob-svc-chk"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
         <div class="ob-svc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg></div>
         <div class="ob-svc-name">Google Ads</div>
-        <div class="ob-svc-desc">Reach customers actively searching for your services with precision-targeted paid campaigns.</div>
+        <div class="ob-svc-desc">Paid ads that reach people searching for what you sell, today.</div>
       </div>
       <div class="ob-svc" data-svc="seo" style="--c:#1B9E52">
         <div class="ob-svc-bar"></div><div class="ob-svc-chk"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
         <div class="ob-svc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
         <div class="ob-svc-name">SEO</div>
-        <div class="ob-svc-desc">Build lasting organic rankings that bring qualified traffic month after month without ad spend.</div>
+        <div class="ob-svc-desc">Rankings that build month over month and keep working after the work stops.</div>
       </div>
       <div class="ob-svc" data-svc="google-business" style="--c:#FBBC04">
         <div class="ob-svc-bar"></div><div class="ob-svc-chk"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
         <div class="ob-svc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
         <div class="ob-svc-name">Google Business Profile</div>
-        <div class="ob-svc-desc">Dominate local search and drive walk-ins with an optimized Google Business listing.</div>
+        <div class="ob-svc-desc">Show up on the map when people nearby search, and turn that into calls and visits.</div>
       </div>
       <div class="ob-svc" data-svc="website" style="--c:#7C5CBF">
         <div class="ob-svc-bar"></div><div class="ob-svc-chk"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
         <div class="ob-svc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
         <div class="ob-svc-name">Website Development</div>
-        <div class="ob-svc-desc">A high-converting, professionally designed website that works as your best sales asset.</div>
+        <div class="ob-svc-desc">A site built to turn visitors into enquiries, and to grow with you.</div>
       </div>
     </div>
     <div class="ob-notsure" id="ob-notsure">
@@ -951,7 +951,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
         <strong>What happens next: your audit.</strong>
         <span id="ob-audit-svcs">Your account manager runs a comprehensive audit</span> as soon as you finish onboarding &mdash; your site, your rankings and your market, in full. You get it in writing with the plan we would run.
         <br><br>
-        If you want to go ahead after reading it, we start the work and charge the card on file. You can cancel at any time after that.
+        We start the work and charge the card on file only once you have read the audit and want to go ahead. You can cancel at any time after that.
       </div>
     </div>
 
@@ -1001,7 +1001,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
               <span>Link your Google Ads account</span>
             </div>
             <p class="ob-gads-link-p">
-              So your advisor can audit your live campaigns, we request <strong>manager (MCC) access</strong> to your Google Ads account.
+              We request <strong>manager (MCC) access</strong> to your Google Ads account so your advisor can audit the live campaigns.
               Enter your Google Ads <strong>Customer ID</strong> below and we'll send an access request that <strong>you approve from inside your own account</strong>.
             </p>
             <ul class="ob-gads-link-list">
