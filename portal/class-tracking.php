@@ -809,7 +809,7 @@ class Six_Tracking {
 					$start, count( $before ), self::MIN_FIT_POINTS ) );
 		}
 
-		$points = self::project( $before, $dates );
+		$points = self::hold_level( $before, $dates );
 		if ( ! $points ) {
 			return $none + array( 'blocker' => 'fit_failed', 'readings' => $readings,
 				'before' => count( $before ), 'start' => $start,
@@ -822,6 +822,9 @@ class Six_Tracking {
 				'fitted_on' => count( $before ),
 				'from'      => $before[0]['date'],
 				'start'     => $start,
+				// The flat level itself, so the chart can say what the
+				// dashed line is rather than leaving the reader to guess.
+				'level'     => $points ? (float) reset( $points ) : 0.0,
 			),
 			'ok'       => true,
 			'blocker'  => '',
@@ -846,6 +849,48 @@ class Six_Tracking {
 	 * @param array $before Each: date (Y-m-d), value.
 	 * @param array $dates  Y-m-d dates to evaluate the fitted line at.
 	 * @return array<string,float> date => value, or empty when it cannot be fitted.
+	 */
+	/**
+	 * The "without us" line: hold the pre-engagement level.
+	 *
+	 * This replaced a least-squares extrapolation of the client's own trend,
+	 * and the reason is worth stating because the old one looked more
+	 * sophisticated.
+	 *
+	 * Extrapolating a growth slope forward assumes a site keeps climbing on
+	 * its own with nobody working on it. For a client who had any momentum
+	 * before signing, that line chases the measured one and the two overlap —
+	 * which is what "the graph is not splitting" meant. Worse, the claim it
+	 * makes is unprovable: nobody can show what their trend would have done
+	 * for another year untouched.
+	 *
+	 * Holding the level flat makes a smaller, defensible claim: this is where
+	 * they were sitting before we started. It is a real average of real
+	 * readings, it is one sentence to explain, and the gap it opens is the
+	 * work actually moving the number rather than an artefact of a slope.
+	 *
+	 * @param array $before Each: date (Y-m-d), value. Pre-engagement only.
+	 * @param array $dates  Dates to draw across.
+	 * @return array date => value
+	 */
+	public static function hold_level( array $before, array $dates ) {
+		if ( count( $before ) < self::MIN_FIT_POINTS || ! $dates ) return array();
+
+		$sum = 0.0;
+		foreach ( $before as $h ) $sum += (float) $h['value'];
+		$level = round( $sum / count( $before ), 2 );
+
+		$points = array();
+		foreach ( $dates as $d ) $points[ $d ] = max( 0, $level );
+		return $points;
+	}
+
+	/**
+	 * Least-squares fit, extended over the given dates.
+	 *
+	 * No longer what the chart draws — see hold_level() above for why. Kept
+	 * because the arithmetic is tested and a trend fit is the right tool
+	 * elsewhere, e.g. for reading whether a metric is moving at all.
 	 */
 	public static function project( array $before, array $dates ) {
 		if ( count( $before ) < self::MIN_FIT_POINTS || ! $dates ) return array();
@@ -912,6 +957,7 @@ class Six_Tracking {
 			'projected' => $proj ? array_values( $proj['points'] ) : array(),
 			'start'     => $proj['start'] ?? self::engagement_start( $client_id ),
 			'fitted_on' => $proj['fitted_on'] ?? 0,
+			'level'     => $proj['level'] ?? 0.0,
 			'source'    => $series[0]['source'] ?? '',
 			// Which of the three requirements is missing, named. Pressing
 			// Backfill twice and seeing no second line taught nobody anything.

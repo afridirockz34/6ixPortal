@@ -212,5 +212,42 @@ $cust2 = file_get_contents( dirname( __DIR__, 2 ) . '/portal/templates/customer-
 check( 'the customer chart names the missing date rather than silently drawing one line',
 	strpos( $cust2, "VIS.blocker === 'no_start'" ) !== false );
 
+// ── The "without us" line holds the pre-engagement level ────────────────
+// Reported from live use: "the graph line is not splitting from there between
+// with us and projected line." Both lines were being drawn. They overlapped,
+// because the comparison extrapolated the client's own growth slope forward —
+// so a client with any momentum before signing had a counterfactual that
+// chased the measured line up the chart.
+//
+// It now holds the level they were sitting at. That is a smaller claim, it is
+// an average of real readings, and it is one sentence to explain. Projecting
+// growth for a site nobody is working on is a claim nobody can evidence.
+$flat_in = series( '2026-01-01', 30, 100, 2 );     // 100 rising 2/day, mean 129
+$held    = Six_Tracking::hold_level( $flat_in, dates_from( '2026-01-01', 45 ) );
+$vals    = array_values( $held );
+check( 'the comparison line is flat',
+	count( array_unique( $vals ) ) === 1, json_encode( array_slice( $vals, 0, 4 ) ) );
+check( 'and sits at the mean of the readings before the start',
+	abs( $vals[0] - 129 ) < 0.51, 'got ' . $vals[0] . ', expected about 129' );
+check( 'it covers every date asked for', count( $held ) === 45, count( $held ) . ' points' );
+
+// The old behaviour, kept for contrast: the fit climbed away from the level.
+$fitted = Six_Tracking::project( $flat_in, dates_from( '2026-01-01', 45 ) );
+check( 'the old fit reached much higher by day 45, which is why the lines met',
+	end( $fitted ) > $vals[0] + 40,
+	'fit ended at ' . end( $fitted ) . ' against a held level of ' . $vals[0] );
+
+check( 'too little history holds nothing, rather than holding a guess',
+	Six_Tracking::hold_level( series( '2026-01-01', 13, 100, 5 ), dates_from( '2026-01-01', 30 ) ) === array() );
+check( 'fourteen readings is enough',
+	Six_Tracking::hold_level( series( '2026-01-01', 14, 100, 5 ), dates_from( '2026-01-01', 30 ) ) !== array() );
+check( 'no dates means no line',
+	Six_Tracking::hold_level( series( '2026-01-01', 30, 100, 1 ), array() ) === array() );
+
+// A level cannot be negative, however the readings came in.
+$neg = Six_Tracking::hold_level( series( '2026-01-01', 20, 5, -1 ), dates_from( '2026-01-01', 10 ) );
+check( 'a level never goes below zero', min( array_values( $neg ) ) >= 0,
+	json_encode( array_slice( array_values( $neg ), 0, 3 ) ) );
+
 echo "\nPassed: $pass  Failed: $fail\n";
 exit( $fail ? 1 : 0 );

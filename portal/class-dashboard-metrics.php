@@ -864,23 +864,21 @@ class Six_Dash_Metrics {
 			// Before the work started there is one line, because there was
 			// nothing to compare against yet. The two lines exist only from
 			// the day the service was switched on.
-			// The two lines have to leave from the same point, or the chart
-			// shows a step at the split that is fit error rather than
-			// anything that happened. The claim being made is "your own
-			// trend, carried on from the day we started", so the fitted line
-			// is anchored to the measured figure on that day and its slope —
-			// which is the whole content of the claim — is untouched.
-			$anchor = 0.0;
-			if ( $split !== null && $has_proj
-			     && isset( $window[ $split ]['before'], $window[ $split ]['after'] ) ) {
-				$anchor = (float) $window[ $split ]['after'] - (float) $window[ $split ]['before'];
-			}
-
+			//
+			// There used to be an anchor here that shifted the comparison
+			// line up to meet the measured figure on the split day, so the
+			// two left from exactly the same point. That made sense when the
+			// line was a fitted slope. It does not now: the line is the level
+			// the client was holding before we started, and sliding it to
+			// match one particular day's reading stops it being that level.
+			//
+			// A small step at the split is the truth — "you were averaging
+			// 180 a day, and on the day we began you happened to be at 195"
+			// — and erasing it would be drawing something that did not
+			// happen on the most prominent claim the portal makes.
 			foreach ( $window as $i => $pt ) {
 				if ( $split === null || $i < $split ) {
 					$window[ $i ]['before'] = null;
-				} elseif ( $anchor ) {
-					$window[ $i ]['before'] = max( 0, (int) round( $pt['before'] + $anchor ) );
 				}
 				unset( $window[ $i ]['raw'] );
 			}
@@ -912,6 +910,16 @@ class Six_Dash_Metrics {
 				'metric'         => $metric_label[ $daily['metric'] ] ?? $daily['metric'],
 				'measured_from'  => $daily['source'] ?? '',
 				'fitted_on'      => (int) ( $daily['fitted_on'] ?? 0 ),
+				// The flat level the dashed line holds, so the caption can
+				// state it rather than describing a slope that is no longer
+				// how the line is built.
+				'hold_level'     => (int) round( (float) ( $daily['level'] ?? 0 ) ),
+				// Which tool the number came from, decided by the metric that
+				// won rather than by a source column that may say something
+				// else. The caption names it, and a caption that names the
+				// wrong tool is worse than one that names none.
+				'measured_tool'  => in_array( $daily['metric'] ?? '', array( 'organic_sessions', 'sessions' ), true )
+					? 'Google Analytics' : 'Google Search Console',
 				'note'           => (string) ( $daily['note'] ?? '' ),
 			);
 		}
