@@ -295,13 +295,23 @@ class Six_Tasks {
 	}
 
 	/** Publish or unpublish a whole plan, or one phase of it. */
-	public static function publish( $client_id, $published = true, $phase = 0 ) {
+	public static function publish( $client_id, $published = true, $phase = 0, $service_slug = '' ) {
 		global $wpdb;
 		$ok = self::writable();
 		if ( $ok !== true ) return array( 'ok' => false, 'count' => 0, 'error' => $ok );
 
+		/* Scoped to one service when the caller names one.
+		 *
+		 * `list()` and `summary()` have always filtered on service_slug, and
+		 * the advisor's button is drawn inside a single service's panel and
+		 * labelled with that service's draft count. This did not filter, so
+		 * pressing "Publish 4 drafts" under SEO published the Google Ads
+		 * drafts as well — work the client then saw on their timeline
+		 * before anybody had agreed to it. The button promised one service
+		 * and the write did all of them. */
 		$where = array( 'client_id' => (int) $client_id );
-		if ( $phase ) $where['phase'] = (int) $phase;
+		if ( $phase )        $where['phase']        = (int) $phase;
+		if ( $service_slug ) $where['service_slug'] = sanitize_key( $service_slug );
 
 		$wpdb->suppress_errors( true );
 		$n = $wpdb->update( self::table(), array( 'published' => $published ? 1 : 0 ), $where );

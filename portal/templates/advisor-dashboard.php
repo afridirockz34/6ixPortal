@@ -770,6 +770,10 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         $c_ga4_id  = get_user_meta($view_client_id,'six_ga4_property_id',true);
         $c_gbp_loc = get_user_meta($view_client_id,'six_gbp_location_id',true);
         $c_gsc_site= get_user_meta($view_client_id,'six_gsc_site',true);
+        // Which BrightLocal location this client is. The Google Business
+        // metric pull reads this and nothing else could set it, so the
+        // pull silently reported "no location linked" for every client.
+        $c_bl_loc  = get_user_meta($view_client_id,'six_bl_location_id',true);
         $c_meta_account = get_user_meta($view_client_id,'six_meta_ad_account_id',true);
         $c_meta_business = get_user_meta($view_client_id,'six_meta_business_id',true);
         $c_meta_pixel = get_user_meta($view_client_id,'six_meta_pixel_id',true);
@@ -1870,7 +1874,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px">
                     <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">To do &mdash; <?php echo esc_html($sd_item['name']); ?></div>
                     <?php if($svc_draft): ?>
-                    <button class="six-btn six-btn-primary six-btn-sm six-publish-tasks" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Publish <?php echo $svc_draft; ?> draft<?php echo $svc_draft===1?'':'s'; ?></button>
+                    <button class="six-btn six-btn-primary six-btn-sm six-publish-tasks" data-client="<?php echo $view_client_id; ?>" data-service="<?php echo esc_attr($slug); ?>" style="font-size:11px">Publish <?php echo $svc_draft; ?> draft<?php echo $svc_draft===1?'':'s'; ?></button>
                     <?php endif; ?>
                 </div>
                 <?php
@@ -2459,6 +2463,33 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                     <input class="six-input" id="gbp-location-id" value="<?php echo esc_attr($c_gbp_loc); ?>" placeholder="Provided by the client" style="font-size:12px">
                 </div>
                 <button class="six-btn six-btn-primary six-btn-sm six-ds-adv-save" data-key="six_gbp_location_id" data-input="gbp-location-id" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Save</button>
+                <div class="six-ds-adv-result" style="margin-top:8px;font-size:12px"></div>
+            </div>
+        </div>
+
+        <!-- BrightLocal -->
+        <div style="background:var(--dark2);border:1px solid rgba(255,102,153,0.2);border-radius:14px;overflow:hidden">
+            <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;gap:8px">
+                <span style="font-size:13px;font-weight:700">BrightLocal location</span>
+                <?php if($c_bl_loc): ?><span style="font-size:10px;background:rgba(86,211,100,0.1);color:var(--success);padding:2px 8px;border-radius:10px;font-weight:700">&#9679; Connected</span><?php endif; ?>
+            </div>
+            <div style="padding:14px 18px">
+                <div style="font-size:11px;color:var(--text3);line-height:1.5;margin-bottom:10px">
+                    Pull Metrics on the Google Business service reads the local rank grid for this location. Without it there is nothing to read.
+                </div>
+                <div style="margin-bottom:10px">
+                    <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Location ID</div>
+                    <input class="six-input" id="bl-location-id" value="<?php echo esc_attr($c_bl_loc); ?>" placeholder="4201430" style="font-size:12px;font-family:monospace">
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button class="six-btn six-btn-primary six-btn-sm six-ds-adv-save" data-key="six_bl_location_id" data-input="bl-location-id" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Save</button>
+                    <?php /* Nobody should have to go and find a numeric id in
+                             another product's admin. This asks BrightLocal which
+                             locations the account holds and matches on the
+                             client's own domain. */ ?>
+                    <button class="six-btn six-btn-ghost six-btn-sm" id="bl-find" data-client="<?php echo $view_client_id; ?>" style="font-size:11px">Find this client&rsquo;s location</button>
+                </div>
+                <div id="bl-find-result" style="margin-top:8px;font-size:12px"></div>
                 <div class="six-ds-adv-result" style="margin-top:8px;font-size:12px"></div>
             </div>
         </div>
@@ -5698,12 +5729,59 @@ document.querySelectorAll('.six-delete-task').forEach(function(btn){
     });
 });
 
+// Ask BrightLocal which location is this client's, rather than sending the
+// advisor into another product to copy a number out of a URL.
+(function(){
+  var btn = document.getElementById('bl-find');
+  if(!btn) return;
+  btn.addEventListener('click', function(){
+    var out = document.getElementById('bl-find-result');
+    var inp = document.getElementById('bl-location-id');
+    btn.disabled = true; out.textContent = 'Asking BrightLocal…'; out.style.color = 'var(--text3)';
+    post({action:'six_find_bl_location', client_id: btn.dataset.client}).then(function(r){
+      btn.disabled = false;
+      if(!r || !r.success){ out.style.color='var(--danger)'; out.textContent = (r&&r.data)||'Could not reach BrightLocal.'; return; }
+      var d = r.data;
+      if(d.match){
+        inp.value = d.match.id;
+        out.style.color = 'var(--success)';
+        out.textContent = 'Matched ' + d.match.name + ' (' + d.match.website + ') — id ' + d.match.id + '. Press Save.';
+        return;
+      }
+      // No domain match. Offer the list rather than picking one, because the
+      // wrong location reports another business's rankings as this client's.
+      out.style.color = 'var(--text2)';
+      out.innerHTML = 'No location matches ' + (d.host || 'this client\'s domain') + '. Pick one:';
+      var wrap = document.createElement('div');
+      wrap.style.cssText = 'display:flex;flex-direction:column;gap:4px;margin-top:6px';
+      (d.locations||[]).forEach(function(l){
+        var b = document.createElement('button');
+        b.className = 'six-btn six-btn-ghost six-btn-sm';
+        b.style.cssText = 'font-size:11px;text-align:left';
+        b.textContent = l.name + ' · ' + l.city + ' · ' + (l.website||'no website') + ' · id ' + l.id;
+        b.addEventListener('click', function(){
+          inp.value = l.id;
+          out.style.color='var(--success)';
+          out.textContent = 'Set to ' + l.name + ' (id ' + l.id + '). Press Save.';
+        });
+        wrap.appendChild(b);
+      });
+      out.appendChild(wrap);
+    }).catch(function(){ btn.disabled=false; out.style.color='var(--danger)'; out.textContent='Could not reach the server.'; });
+  });
+})();
+
 document.querySelectorAll('.six-publish-tasks').forEach(function(btn){
     btn.addEventListener('click',function(){
         var self = this, un = self.dataset.unpublish ? 1 : 0;
-        if(un && !confirm('Unpublish the whole plan? The client stops seeing the timeline.')) return;
+        // The button lives inside one service's panel and is labelled with
+        // that service's draft count, so it publishes that service only.
+        var svc = self.dataset.service || '';
+        if(un && !confirm(svc
+            ? ('Unpublish the ' + svc + ' tasks? The client stops seeing them.')
+            : 'Unpublish the whole plan? The client stops seeing the timeline.')) return;
         self.disabled = true; self.textContent = un ? 'Unpublishing…' : 'Publishing…';
-        post({action:'six_publish_tasks', client_id:self.dataset.client, unpublish:un})
+        post({action:'six_publish_tasks', client_id:self.dataset.client, service:svc, unpublish:un})
         .then(function(r){
             if(r && r.success){ location.reload(); }
             else { self.disabled = false; alert((r && r.data) ? r.data : 'Nothing was published.'); }

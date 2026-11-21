@@ -446,5 +446,48 @@ check( 'create_tasks names the deliverables that get forgotten',
 check( 'and says the plan arrives as a draft',
 	strpos( $mcp, 'Tasks are created as a draft' ) !== false );
 
+// ── Publishing one service does not publish the others ───────────────────
+// Reported from live use: "Publishing one service's to-do list is publishing
+// the other services' to-do list too." The button is drawn inside a single
+// service's panel and labelled with that service's draft count, so it
+// promised one service; publish() filtered on client and phase only, so the
+// write did all of them. The client then saw Google Ads work on their
+// timeline because somebody published SEO.
+$tasks_src = file_get_contents( dirname( __DIR__, 2 ) . '/portal/class-tasks.php' );
+$ajax_src  = file_get_contents( dirname( __DIR__, 2 ) . '/portal/ajax-handlers.php' );
+$adv_src   = file_get_contents( dirname( __DIR__, 2 ) . '/portal/templates/advisor-dashboard.php' );
+
+check( 'publish() takes a service to scope to',
+	preg_match( '/function publish\([^)]*\$service_slug/', $tasks_src ) === 1 );
+check( 'and adds it to the WHERE, like list() and summary() already did',
+	strpos( $tasks_src, "\$where['service_slug'] = sanitize_key( \$service_slug )" ) !== false );
+check( 'the handler reads the service off the request',
+	strpos( $ajax_src, "\$service = sanitize_key( wp_unslash( \$_POST['service'] ?? '' ) )" ) !== false );
+check( 'and passes it to publish()',
+	strpos( $ajax_src, 'Six_Tasks::publish( $client_id, $publish, $phase, $service )' ) !== false );
+check( 'the summary it returns is scoped the same way',
+	strpos( $ajax_src, 'Six_Tasks::summary( $client_id, $service )' ) !== false,
+	'a panel that asked about one service must not redraw with the whole client\'s counts' );
+check( 'the button carries the service it sits under',
+	strpos( $adv_src, 'six-publish-tasks" data-client="<?php echo $view_client_id; ?>" data-service=' ) !== false );
+check( 'and the request sends it',
+	strpos( $adv_src, "action:'six_publish_tasks', client_id:self.dataset.client, service:svc" ) !== false );
+
+// ── The Google Business pull had no way to be configured ─────────────────
+// six_bl_location_id was read by the metric pull and written by nothing. The
+// advisor pressed Pull Metrics and was told no location was linked, with no
+// field anywhere to link one.
+check( 'the advisor can set a BrightLocal location',
+	strpos( $adv_src, 'id="bl-location-id"' ) !== false
+	&& strpos( $adv_src, 'data-key="six_bl_location_id"' ) !== false,
+	'the pull reads this meta key; without a field nothing could ever write it' );
+check( 'and does not have to go and find the id by hand',
+	strpos( $adv_src, 'six_find_bl_location' ) !== false );
+check( 'the lookup matches on the client\'s own domain',
+	strpos( $ajax_src, "\$lhost === \$host" ) !== false );
+check( 'and offers a list rather than guessing when nothing matches',
+	strpos( $ajax_src, "'locations' => \$all" ) !== false,
+	'the wrong location reports another business\'s rankings as this client\'s' );
+
 echo "\nPassed: $pass  Failed: $fail\n";
 exit( $fail ? 1 : 0 );
