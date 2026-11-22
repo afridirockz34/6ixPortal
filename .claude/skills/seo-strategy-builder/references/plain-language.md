@@ -123,6 +123,34 @@ finding, and findings belong in the audit.
 in what order, and what it is expected to produce. `document-assembly.md` has
 the running order.
 
+### No findings section, whatever it is called
+
+The rule above is about sentences. This one is about chapters, and it is the
+half that actually went wrong.
+
+A strategy came back with a section headed **"Where the firm stands today"** —
+323 words of measured present, every figure sourced and dated, not one target
+anywhere. Every sentence in it was true. The checker passed it, because the
+checker was reading sentences.
+
+**A heading that announces the present is a findings chapter.** "Where the firm
+stands today", "Current performance", "Our findings", "Today's numbers". The
+plan's version of that content is a table with a Target column. If a section
+carries measured figures and commits to no month and no target, it belongs in
+the audit.
+
+**"Finding" is the audit's word for the audit's content.** A plan has
+priorities, targets and months. `scripts/check_strategy_doc.py` fails on it.
+
+**What is still allowed in a section about the present**, because this is a
+real distinction and the checker was taught it:
+
+- *Market demand* — "an estimated 2,900 people a month search dui lawyer" — is
+  the raw material of a plan, not a measurement of the client. A keyword
+  opportunity table is the most forward-looking thing in the document.
+- *A baseline beside its target*, in any shape: a Today / Month 6 / Month 12
+  table, or "173 clicks a month today, 400 by month six".
+
 ---
 
 ## Read this part first: the shape of a sentence, not the size of its words
@@ -141,7 +169,7 @@ what `scripts/check_strategy_doc.py` now measures.
 
 | Measured | Theirs | Ours | What we target |
 |---|---|---|---|
-| Paragraphs opening with a `Label:` | 32% | 6% | **30%+** |
+| Paragraphs opening with a `Label:` | 32% | 6% | **25–55%** |
 | Sentences opening with an imperative verb | 5.8 per 1k words | 0.6 per 1k | **4+ per 1k** |
 | Cleft sentences ("The useful part is not that they are ahead. It is how.") | 0.00 | 1.03 per 1k | **0** |
 | "rather than" / "not X but Y" | 0.00 | 4.27 per 1k | **under 1 per 1k** |
@@ -215,22 +243,44 @@ paragraphs and the largest single difference between the two documents.
 > and we draft the response template. Ask every client. Never offer anything in
 > exchange — that breaks Google's policy and can remove the whole review set.
 
+**Label between a quarter and half of them. Not all of them.** This is a range
+with a ceiling, and the ceiling is the half that was missing. A strategy
+written against a bare "25%+" target came back at **91% labelled paragraphs
+with zero connectives**, and the client who received it called it unreadable.
+He was right: a document where every paragraph is a bolded stub is a filing
+system, not a document. A label earns its place on a paragraph carrying
+instructions somebody will come back to look up, and gets in the way on a
+paragraph making an argument.
+
 Three rules for the body after the label:
 
+- **Complete sentences.** Subject, main verb. "A separate set of 40, in
+  keywords-gmb.csv." is a stub; "A separate set of 40 keywords sits in
+  keywords-gmb.csv." is a sentence. Fragments belong in a specification table —
+  "Under 60 characters." in a meta standards row — and nowhere else. An earlier
+  version of this file said fragments were "often better", and that one line
+  produced a document made of them.
+- **Say the noun.** "A separate set of 40" leaves the reader working out 40 of
+  what. "40 keywords" costs one word and saves a re-read.
+- **Connect the facts.** *because*, *so*, *which means*, *so that*. Two facts
+  side by side with nothing between them make the reader build the argument
+  themselves. Roughly one connective per paragraph is the difference between a
+  list and an argument.
 - **Imperative verbs for anything we or they will do.** "Build", "Add",
-  "Rewrite", "Claim", "Publish", "Replace". Not "we will be building", not "the
-  page will be rewritten".
-- **Fragments are allowed and often better.** "Under 60 characters." "No
-  multilingual content." "Zero E-E-A-T signals." A fragment that carries one
-  fact beats a sentence that carries it plus connective tissue.
+  "Rewrite", "Claim", "Publish". Not "we will be building".
+- **Say what we will do with it.** A paragraph about a deliverable that only
+  describes the deliverable is half-written. "The profile answers them, not a
+  page" describes. "We optimize the profile for these searches because
+  'criminal lawyer near me' alone gets 1,000 a month" commits.
 - **Two to four sentences, then stop.** One idea per paragraph.
 
 ---
 
 ## Sentence discipline
 
-- **12–18 words on average. Nothing over 25.** Break any sentence over 25 words
-  into two. Follow a long sentence with a short one.
+- **12–18 words on average. Nothing over 25.** Twenty-five is a ceiling, not a
+  target: a section of nothing but nine-word sentences reads as a telegram.
+  Vary the length, and follow a long sentence with a short one.
 - **Subject, verb, object.** In that order, in almost every sentence.
 - **One em-dash per section, at most.** The November document used 49 in 6,794
   words. Each one is a clause the reader has to hold open.
