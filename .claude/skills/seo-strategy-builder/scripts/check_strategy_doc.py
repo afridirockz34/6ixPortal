@@ -358,12 +358,33 @@ LABEL_OPENER = re.compile(
     r"^(?:\*\*[A-Z][^*\n]{2,60}[.:]\*\*\s+\S"      # **Label.** or **Label:**
     r"|[A-Z][A-Za-z0-9 /&'()–-]{2,45}:\s+\S)")  # Label: ...
 LABEL_TARGET_PCT = 25          # theirs is 32%; 25 leaves room for narrative sections
+# And a ceiling, which is the half that was missing. A floor with no ceiling is
+# a target to max out: a strategy written against a bare "25%+" came back at
+# 91% labelled paragraphs with zero connectives, and the client called it
+# unreadable. Every paragraph a bolded stub is a filing system, not a document.
+LABEL_CEILING_PCT = 60
+
+# Two facts side by side with nothing between them make the reader build the
+# argument themselves. Roughly one connective per paragraph is the difference
+# between a list and an argument; the 91% document had none at all.
+CONNECTIVE = re.compile(
+    r"\b(?:because|so that|which means|which is why|so we|and so|therefore|"
+    r"that is why|which lets|which gives|in order to)\b", re.IGNORECASE)
+CONNECTIVE_MIN_PER_PARA = 0.35
 
 # Actions written as instructions. Theirs: 5.8 per 1,000 words. Ours: 0.6.
+# Two forms count. A bare imperative at the start of a sentence — "Build 17
+# pages." — and "we build ..." anywhere in one.
+#
+# Requiring the sentence-initial form was itself pushing toward the telegraphic
+# style this spec now warns about: "so we build 17 of them between months 2
+# and 9" is a commitment in a readable sentence and scored zero, while "Build
+# 17 pages." scored. A rule that only rewards stubs produces stubs.
 IMPERATIVE_OPENER = re.compile(
-    r"(?:^|(?<=[.!?]\s))(?:Build|Add|Create|Target|Publish|Use|Write|Rewrite|Expand|"
-    r"Launch|Set|Run|Match|Claim|Fix|Replace|Submit|Monitor|Track|Optimize|Link|"
-    r"Name|List|Keep|Start|Send|Draft|Remove|Correct|Confirm|Ask|Check|Report)\b")
+    r"(?:(?:^|(?<=[.!?]\s))|\bwe\s+)(?:Build|Add|Create|Target|Publish|Use|Write|Rewrite|"
+    r"Expand|Launch|Set|Run|Match|Claim|Fix|Replace|Submit|Monitor|Track|Optimize|Link|"
+    r"Name|List|Keep|Start|Send|Draft|Remove|Correct|Confirm|Ask|Check|Report)\b",
+    re.IGNORECASE)
 IMPERATIVE_TARGET = 3.0        # per 1,000 words; theirs is 5.8
 
 # Flesch-Kincaid. Not a pass/fail gate on its own — the document that caused
@@ -413,7 +434,7 @@ AUDIT_FINDING = [
      "a verdict on the present — name the position we are going after instead"),
     (r"\b(?:produced|drew|took|earned|returned) no\b|\bnot one came\b",
      "a measured absence with no target beside it"),
-    (r"\bis\s+(?:currently\s+)?(?:empty|unset|missing|blank|incorrect|not set)\b",
+    (r"\b(?:is|are)\s+(?:currently\s+)?(?:empty|unset|missing|blank|incorrect|not set)\b",
      "the current state stated as a fault — name the fix and its month"),
     (r"\b\d[\d,]*\s+words?\s+today\b|\btoday\b[^.]{0,24}\b\d[\d,]*\s+words?\b",
      "a current word count — give the target instead"),
@@ -662,7 +683,8 @@ def find_meta_commentary(text: str):
 
 
 def find_audit_findings(text: str):
-    return _density_group(text, AUDIT_FINDING, AUDIT_FINDING_LIMIT, AUDIT_FINDING_MIN_COUNT)
+    floor = AUDIT_FINDING_MIN_COUNT if len(text.split()) < 2000 else 2
+    return _density_group(text, AUDIT_FINDING, AUDIT_FINDING_LIMIT, floor)
 
 
 QUOTED_BLOCK = re.compile(r"^\s*>.*$", re.MULTILINE)
@@ -996,7 +1018,15 @@ def main():
             print("\n[OK] Nothing in the document is arguing with its reviewer")
 
         # ── A strategy is not an audit ───────────────────────────────────
-        over, per_k, total, rows = find_audit_findings(body)
+        # Table cells as well as prose. The findings in the last strategy had
+        # migrated into a "Why it is first" column, and prose_only() strips
+        # table rows — so the check reported a clean document while the
+        # findings sat in the first table a reader meets.
+        cells = " ".join(
+            c.strip() for line in text.splitlines() if line.strip().startswith("|")
+            for c in line.strip("|").split("|")
+        )
+        over, per_k, total, rows = find_audit_findings(body + "\n" + cells)
         if rows:
             print(f"\n[{'FAIL' if over else 'REVIEW'}] Audit findings in a strategy document: "
                   f"{total} ({per_k:.2f} per 1k, limit {AUDIT_FINDING_LIMIT})")
@@ -1054,8 +1084,36 @@ def main():
                   f"({n_lab} of {n_par}, target {LABEL_TARGET_PCT}%+)")
             print("       A client looking for one answer has to read everything to find it.")
             print("       Lead every paragraph that carries instructions with what it is about.")
+        elif pct_lab is not None and pct_lab > LABEL_CEILING_PCT:
+            print(f"\n[FAIL] {pct_lab}% of paragraphs open with a label "
+                  f"({n_lab} of {n_par}, ceiling {LABEL_CEILING_PCT}%)")
+            print("       Every paragraph a bolded stub is a filing system, not a document.")
+            print("       A label earns its place on a paragraph somebody will look up,")
+            print("       and gets in the way on one making an argument.")
+            failures += 1
         elif pct_lab is not None:
-            print(f"\n[OK] {pct_lab}% of paragraphs lead with a label — the document is scannable")
+            print(f"\n[OK] {pct_lab}% of paragraphs lead with a label — scannable, and still prose")
+
+        # Connectives: is this an argument, or a pile of facts?
+        paras_n = len(paragraphs(body_md))
+        conn = len(CONNECTIVE.findall(body))
+        if paras_n >= 8:
+            rate = conn / paras_n
+            if rate < CONNECTIVE_MIN_PER_PARA:
+                # REVIEW, not FAIL, and the reason is worth recording: the
+                # agency document this whole spec is calibrated against runs
+                # at 0.01 connectives a paragraph and the client holds it up
+                # as the model. Connective density does not separate good
+                # from bad on its own, so it is reported for a human to read
+                # rather than used to block. The label ceiling does separate
+                # them — 32% against 94% — and that one blocks.
+                print(f"\n[REVIEW] {conn} connectives across {paras_n} paragraphs "
+                      f"({rate:.2f} each; roughly {CONNECTIVE_MIN_PER_PARA} reads as an argument)")
+                print("       \"because\", \"so\", \"which means\". Without them a reader is handed")
+                print("       facts side by side and left to work out why they are next to each other.")
+                print("       Spec rows do not need them. Paragraphs that explain anything do.")
+            else:
+                print(f"\n[OK] The facts are connected ({rate:.2f} connectives a paragraph)")
 
         imp = imperative_density(body)
         if imp < IMPERATIVE_TARGET:

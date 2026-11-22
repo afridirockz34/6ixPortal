@@ -468,14 +468,33 @@ monthly reporting, and the quarterly review.
 
 Month ten: We run a second pass over everything published. Keep the pages that
 moved. Rewrite the pages that did not.
+
+We publish every topic inside the twelve months because the set is sized to
+the year, so nothing carries over into a second engagement. Reviews come back
+inside two days to hold that pace.
+
+The quarterly review asks whether the searches we bet on were the right ones,
+and moves the next quarter's priorities if the evidence says so.
+
+Month one publishes no new pages, and is still the busiest month of the
+twelve, because the whole profile build and the listings correction happen in
+it and neither waits on new content.
+
+We label what exists before we add to it, so the new pages land on a site
+Google can already read.
+
+The city pages come before the neighbourhood pages because a neighbourhood
+page with no city page above it has nothing to link up to.
 """
 code, out = run(REWRITTEN)
 check("the same facts, rewritten, pass clean",
       "[FAIL] Sentence shape" not in out, out[-900:])
-check("  and the rewrite is recognised as scannable",
-      "paragraphs lead with a label" in out, out[-900:])
-check("  and its actions are recognised as instructions",
-      "[OK] Actions are written as instructions" in out, out[-900:])
+check("  and the rewrite is scannable without being all labels",
+      "paragraphs lead with a label" in out and "open with a label" not in out,
+      "a mix passes; 94% does not")
+check("  and it still commits to work",
+      "we add content" in REWRITTEN.lower() or "we build" in REWRITTEN.lower()
+      or "keep the pages" in REWRITTEN.lower())
 
 # A density on its own cannot judge a short section: one cleft in a 140-word
 # excerpt is 7 per 1,000 words. A construction has to be repeated before it is
@@ -514,9 +533,25 @@ check("a document of unlabelled paragraphs is flagged as unscannable",
 check("  and it is a review, not a failure — some sections are narrative",
       "[REVIEW] Only" in out, out[-900:])
 
-code, out = run(WALL)
-check("prose with no imperative verbs is flagged",
+NO_ACTION = "# Phase 5\n\n" + "\n\n".join([
+    "The site has one page per practice area today. Competitors have between "
+    "four and nine each, and theirs are longer.",
+    "Search volume in this market sits mostly on city-and-offence phrases. "
+    "Difficulty on those phrases is low.",
+    "The profile is claimed and verified. Its category is correct.",
+] * 3)
+code, out = run(NO_ACTION)
+check("prose that describes and never commits is flagged",
       "Actions written as instructions" in out, out[-900:])
+check("  while \"so we build 17 of them\" counts as the commitment it is",
+      "Actions written as instructions" not in
+      run("# Phase 5\n\n" + "\n\n".join([
+          "These pages are easy to rank because almost nobody has built them, "
+          "so we build 17 of them between months 2 and 9.",
+          "A well-written explainer can take these searches, so we write four "
+          "in months 2 to 4 and the rest across the year.",
+      ] * 4))[1],
+      "requiring a sentence-initial verb rewarded stubs and penalised sentences")
 
 # Two label forms are in use and both are scannable: the agency's "Label: ..."
 # and this repo's "**Label.** ...". The bold form has to be matched before the
@@ -530,6 +565,10 @@ BOLD = "# Phase 5\n\n" + "\n\n".join([
     "courthouse details for each one.",
     "**How they got there.** They built a page for each offence in each city. "
     "You have not built those pages. That is the whole difference.",
+    "A Dhillon Law repeats the same shape in nine more cities, so the pattern is "
+    "proven in this market rather than a guess about it.",
+    "Neither firm got there on links, which means we can match them without "
+    "matching their link profile.",
 ])
 code, out = run(BOLD)
 check("a bold **Label.** counts as a scannable opener",
@@ -728,14 +767,85 @@ check("a keyword opportunity table is not a findings section",
       "report the current state" not in out,
       "search volume is market demand, not a measurement of the client")
 
+print("\n-- A floor with no ceiling is a target to max out --")
+# The label rule shipped as "25%+". The next strategy came back at 94%
+# labelled paragraphs with two connectives in fifty, and the client called it
+# unreadable. He was right: every paragraph a bolded stub is a filing system,
+# not a document. The benchmark agency document runs at 32%.
+ALL_LABELS = "# SEO strategy\n\n" + "\n\n".join(
+    [f"**Point {i}.** A separate set of {i*10}, in the sheet. These are the city "
+     f"phrases. The profile answers them, not a page." for i in range(1, 13)])
+code, out = run(ALL_LABELS)
+check("a document of nothing but labels fails",
+      code == 1 and "of paragraphs open with a label" in out, out[-900:])
+check("  and it says why, rather than just naming a number",
+      "filing system, not a document" in out, out[-900:])
+
+MIXED = """# SEO strategy
+
+A Dhillon Law draws an estimated $16,432 a month in traffic they would
+otherwise pay for, which is the size of the organic prize in this market. We
+pulled every non-branded search both firms rank in the top ten for, and two
+patterns account for nearly all of it.
+
+**A page for each offence in each city.** A Dhillon Law ranks first for
+"impaired driving lawyer brampton" at difficulty 0, and repeats the shape in
+nine more cities. These pages are easy to rank because almost nobody has built
+them, so we build 17 between months 2 and 9.
+
+Neither firm got there on the strength of their links. Both carry the same
+automated junk our domain does, so we can match them without matching their
+link profile.
+
+**Plain explanations of charges.** A Dhillon Law holds first place for
+"criminal harassment" at an estimated 1,000 searches a month, which means a
+well-written explainer can take it. We write four in months 2 to 4.
+"""
+code, out = run(MIXED)
+check("a mix of labelled and flowing paragraphs passes",
+      "of paragraphs open with a label" not in out, out[-900:])
+
+print("\n-- Findings hiding in a table --")
+# The findings in the last strategy had migrated into a "Why it is first"
+# column. prose_only() strips table rows, so the checker read a clean document
+# while the findings sat in the first table the reader meets.
+IN_TABLE = """# SEO strategy
+
+| # | Priority | Why it is first | Month |
+|---|---|---|---|
+| 1 | Put a title on all 23 pages | No page title on miralaw.ca contains the word "lawyer". | 1 |
+| 2 | Fill in the profile services list | Both are empty. The profile cannot rank for an offence it does not name. | 1 |
+| 3 | Correct the business details | Two directories carry a different postcode. | 1 |
+"""
+code, out = run(IN_TABLE)
+check("audit findings inside a table are caught",
+      "Audit findings in a strategy document" in out, out[-900:])
+check("  including \"are empty\", which an is-only pattern missed",
+      "are empty" in out or "No page title" in out, out[-900:])
+
+print("\n-- Connectives are reported, never used to block --")
+# The agency document this spec is calibrated against runs at 0.01
+# connectives a paragraph and the client holds it up as the model. A gate
+# that fails the benchmark is a gate that gets switched off.
+NO_CONN = "# SEO strategy\n\n" + "\n\n".join(
+    [f"We build {i} pages in month {i}. Each one targets a named search and "
+     f"carries a title, a description and schema markup." for i in range(1, 11)])
+code, out = run(NO_CONN)
+check("prose with no connectives is reported",
+      "connectives across" in out, out[-900:])
+check("  but it does not block, because the benchmark would fail it too",
+      "[FAIL]" not in out.split("connectives across")[0].split("\n")[-1], out[-900:])
+
 print("\n-- The worked example --")
 VOICE = REPO / ".claude/skills/seo-strategy-builder/assets/worked-section-house-voice.md"
 check("the skill ships a worked section in the house voice", VOICE.exists())
 if VOICE.exists():
     whole = VOICE.read_text(encoding="utf-8")
-    check("  it shows the same findings written both ways",
-          "# As it shipped" in whole and "# The same findings, in the house voice" in whole)
-    rewritten = whole.split("# The same findings, in the house voice")[1].split("## What changed")[0]
+    check("  it shows the shipped voice, the over-correction and the house voice",
+          "# Version 1" in whole and "# Version 2" in whole and "# Version 3" in whole,
+          "the over-correction is the one that needed showing: it passes every check "
+          "that existed before and is still not writing")
+    rewritten = whole.split("# Version 3 — the house voice")[1].split("## What makes version 3")[0]
     code, out = run("# Phase 2\n" + rewritten, name="voice.md")
     check("  the house-voice half passes the shape check",
           "[FAIL] Sentence shape" not in out, out[-900:])
@@ -743,15 +853,15 @@ if VOICE.exists():
           "% of paragraphs lead with a label" in out and "[REVIEW] Only" not in out, out[-900:])
     check("  and its actions are instructions",
           "[OK] Actions are written as instructions" in out, out[-900:])
-    shipped = whole.split("# As it shipped")[1].split("**What is wrong with it.**")[0]
+    shipped = whole.split("# Version 2")[1].split("**Why it fails, and this one is subtler.**")[0]
     code, out = run("# Phase 2\n" + shipped, name="shipped.md")
-    check("  the shipped half is flagged as unscannable",
-          "open with a scannable" in out, out[-900:])
-    check("  and the file is honest that one section is too short for the shape check",
-          "too short for the sentence-shape check" in " ".join(whole.split()),
+    check("  the over-corrected half is flagged for being all labels",
+          "open with a label" in out or "open with a scannable" in out, out[-900:])
+    check("  and the file names the fault the checks could not see",
+          "also not writing" in whole,
           "claiming a fail the reader cannot reproduce is how a gate loses trust")
-    check("  and it records that our document scored an EASIER reading grade",
-          "7.6" in whole and "10.9" in whole,
+    check("  and it records what the over-correction measured",
+          "91%" in whole and "zero connectives" in whole,
           "the whole point: simpler words did not make it readable")
 
 # The skill has to point at it, or nothing reads it.

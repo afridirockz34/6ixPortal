@@ -61,6 +61,12 @@ WEB_FILES |= OUTPUT_FILES
 # and matching it against this repository would report every one as broken.
 OUTPUT_DIRS = ("off-page/", "existing-pages/", "service/", "service-hub/",
                "location/", "blog/", "content/")
+# Deliverables the client receives alongside the document. A skill names them
+# so an author knows what to produce; they are not files that live in the
+# skill, and demanding they resolve would mean the skills could never mention
+# their own output by name.
+OUTPUT_FILES = ("keywords-website.csv", "keywords-gmb.csv", "topics-blog.csv",
+                "link-prospects.csv", "audit.json", "run.json")
 # Connector tools the skills tell a reader to call.
 TOOL_RE = re.compile(r"`(mcp__[A-Za-z0-9_]+|[a-z][a-z0-9_]{3,})\(")
 
@@ -122,7 +128,7 @@ def check_links():
                 continue
             if Path(target).name in WEB_FILES:
                 continue
-            if target.startswith(OUTPUT_DIRS):
+            if target.startswith(OUTPUT_DIRS) or target in OUTPUT_FILES:
                 continue
             # Resolve against the file's own directory, its skill and the
             # skill's three subdirectories, then the skills root — every way
