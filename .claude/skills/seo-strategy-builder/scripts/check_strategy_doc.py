@@ -399,9 +399,20 @@ META_MIN_COUNT = 3
 # measured against. A deficiency stated on its own is a finding, and findings
 # belong in the audit.
 AUDIT_FINDING = [
-    (r"\b(?:no|not one|none of|nothing)\s+\w+(?:\s+\w+){0,3}\s+"
-     r"(?:contains?|has|have|says?|links?|carr(?:y|ies)|mentions?|names?|includes?)\b",
+    # Up to 60 characters between the negative and its verb, because the thing
+    # being negated is often a domain or a qualified noun phrase: "No page
+    # title on miralaw.ca contains the word lawyer" slipped straight through a
+    # \w+-only version of this.
+    # A dot is allowed mid-match when it sits inside a word, because the thing
+    # being negated is usually a domain: excluding "." outright meant "No page
+    # title on miralaw.ca contains the word lawyer" never matched.
+    (r"\b(?:no|not one|not a single|none of|nothing)\b(?:[^.!?\n]|\.(?=[a-z])){0,60}?\b"
+     r"(?:contains?|has|have|says?|links?|carr(?:y|ies)|mentions?|names?|includes?|convert(?:s|ed)?)\b",
      "a present-tense deficiency — say what we change, and in which month"),
+    (r"\b(?:is|are) (?:currently )?(?:invisible|not competing|nowhere|absent)\b",
+     "a verdict on the present — name the position we are going after instead"),
+    (r"\b(?:produced|drew|took|earned|returned) no\b|\bnot one came\b",
+     "a measured absence with no target beside it"),
     (r"\bis\s+(?:currently\s+)?(?:empty|unset|missing|blank|incorrect|not set)\b",
      "the current state stated as a fault — name the fix and its month"),
     (r"\b\d[\d,]*\s+words?\s+today\b|\btoday\b[^.]{0,24}\b\d[\d,]*\s+words?\b",
@@ -413,6 +424,59 @@ AUDIT_FINDING = [
 ]
 AUDIT_FINDING_LIMIT = 0.4     # per 1,000 words; theirs is 0.00
 AUDIT_FINDING_MIN_COUNT = 3
+
+# ── The structural half of Rule 3 ──────────────────────────────────────────
+# The phrase list above was fitted to one document and caught 1 of 8 findings
+# in the next one. Phrasings are endless; the structure is not. The rule is
+# "a current-state figure appears beside the target it is measured against",
+# so what actually needs checking is whether a section reports the present
+# and commits to nothing.
+#
+# A heading that announces the current state is an audit section whatever the
+# sentences inside it say. "Where the firm stands today" is a findings
+# chapter; the strategy's version of that content is an objectives table with
+# a Target column.
+AUDIT_HEADING = re.compile(
+    r"\b(?:where (?:the firm|we|they|things|you) (?:stand|stands|are)(?!\s+(?:going|headed|heading|taking))"
+    r"|where (?:the firm|we|they|you) (?:is|are) (?:now|today)"
+    r"|current (?:state|position|performance|standing|situation)"
+    r"|the (?:current )?baseline"
+    r"|what we found|our findings|the findings"
+    r"|today'?s? (?:numbers|position|performance)"
+    r"|how (?:the firm|the site|things) (?:is|are) performing)\b", re.IGNORECASE)
+
+# "Finding" is the audit's own word for its own content. A plan has
+# priorities, targets and months.
+AUDIT_VOCAB_HARD = re.compile(r"\bthe finding\b|\bour finding\b|\bkey finding\b|\bfindings?\b(?!\s+table)",
+                              re.IGNORECASE)
+
+# A figure that describes the present.
+# Deliberately NOT "N searches a month". That is market demand — how many
+# people type a phrase — and it is the raw material of a plan, not a
+# measurement of the client. Counting it made this fire on the keyword
+# opportunity table, which is the most forward-looking thing in the document.
+MEASURED_NOW = re.compile(
+    r"\b\d[\d,]*(?:\.\d+)?\s*%?\s*(?:clicks?|visits?|visitors?|sessions?|enquiries|inquiries|"
+    r"impressions?|times shown|seconds?|reviews?|listings?)\b"
+    r"|\b(?:average )?position\s+\d"
+    r"|\b\d[\d,]*\s+(?:of|out of)\s+\d", re.IGNORECASE)
+
+# A commitment: a month, a target, or something we will do.
+# A commitment: a month, a target, or something that will be done. The bare
+# verbs matter as much as the "we ..." forms, because a "What we do" column
+# in a table reads "Retitle and expand the existing page" with no subject —
+# and that is a commitment, not a finding.
+FORWARD_MARKER = re.compile(
+    r"\bmonth\s*\d|\bby month\b|\bmonths?\s+\d+\s*[\u2013-]\s*\d"
+    r"|\btargets?\b"
+    r"|\b(?:we\s+)?(?:build|write|add|publish|rewrite|retitle|expand|split|merge|redirect|"
+    r"remove|claim|correct|set|fix|start|take|get|run|ship|fold)(?:s|ed|ing)?\b"
+    r"|\bby (?:January|February|March|April|May|June|July|August|September|October|November|December)\b",
+    re.IGNORECASE)
+
+# Three measurements with nothing committed is a findings section. Two could
+# be scene-setting in a section that then gets on with the plan.
+AUDIT_SECTION_MIN_FIGURES = 3
 
 # ── Pronouns ───────────────────────────────────────────────────────────────
 # "We" says two parties are doing this together. "You" with no "we" beside it
@@ -446,6 +510,19 @@ FENCED_BLOCK = re.compile(r"^```.*?^```", re.MULTILINE | re.DOTALL)
 TABLE_LINE = re.compile(r"^\s*\|.*$", re.MULTILINE)
 HEADING_ONLY = re.compile(r"^#{1,6}\s+.*$", re.MULTILINE)
 PLACEHOLDER_FOR_PROSE = re.compile(r"\[NEEDS[^\]]*\]", re.IGNORECASE)
+
+
+def sections_text(text: str) -> str:
+    """Body text with its headings still attached.
+
+    prose_only() strips headings, which is right for sentence checks and
+    fatal for anything that reasons about sections: the first version of
+    find_audit_sections() was handed a blob with no headings in it and
+    reported, very confidently, that there were no sections at all.
+    """
+    t = FENCED_BLOCK.sub("\n", text)
+    t = PLACEHOLDER_FOR_PROSE.sub("", t)
+    return MARKDOWN_NOISE_PATTERN.sub("", t)
 
 
 def prose_only(text: str, keep_markdown: bool = False) -> str:
@@ -613,6 +690,60 @@ def pronoun_balance(text: str, client_name: str = ""):
         caps = re.findall(r"\b[A-Z][a-z]+ (?:[A-Z][a-z]+|LLP|Law)\b", text)
         named = max(collections.Counter(caps).values()) if caps else 0
     return you * 1000 / n_words, named * 1000 / n_words, you, named, your_business
+
+
+def find_audit_sections(text: str):
+    """Sections that report the present and commit to nothing.
+
+    This is the structural half of Rule 3, and it is the half that matters.
+    A phrase list is fitted to the document in front of you: the first version
+    of this check caught one finding in eight on the next document it saw. A
+    section that carries three measured figures and names no month, no target
+    and nothing we will do is a findings chapter, whatever words it uses.
+
+    Returns (flagged, rows) where each row is
+    (heading, figure_count, reason).
+    """
+    rows = []
+    # Split on any heading level, keeping the heading with its body.
+    parts = re.split(r"^(#{1,3})\s+(.+)$", text, flags=re.MULTILINE)
+    # parts[0] is any preamble; then (hashes, heading, body) triples.
+    for i in range(1, len(parts) - 2, 3):
+        heading, body = parts[i + 1].strip(), parts[i + 2]
+        if re.search(r"^appendix\b", heading, re.IGNORECASE):
+            continue                      # an appendix is where sources live
+        forward = FORWARD_MARKER.search(body)
+        # What excuses a present-tense heading is a target, not a passing
+        # mention of a month. "Where the firm stands today" earned a pass
+        # from the single sentence "speed work is included in month 4",
+        # sitting under 300 words of findings.
+        has_target = bool(re.search(r"\btargets?\b", body, re.IGNORECASE)) or \
+                     len(set(re.findall(r"month\s*(\d+)", body, re.IGNORECASE))) >= 2
+        # A heading that announces the present is only a problem when the
+        # section then commits to nothing. "Where Mira Law starts, and where
+        # we are going" sits above a Today / Month 6 / Month 12 table, which
+        # is exactly the shape Rule 3 asks for — failing it would be failing
+        # the thing the rule wants.
+        if AUDIT_HEADING.search(heading) and not has_target:
+            rows.append((heading, 0, "the heading announces the current state and the section "
+                                     "commits to nothing — a plan's version of this is a table "
+                                     "with a Target column"))
+            continue
+        figures = len(MEASURED_NOW.findall(body))
+        if figures >= AUDIT_SECTION_MIN_FIGURES and not forward:
+            rows.append((heading, figures,
+                         f"{figures} measured figures and nothing committed — no month, no target, "
+                         "nothing we said we would do"))
+    return bool(rows), rows
+
+
+def find_audit_vocab_hard(text: str):
+    """The audit's own word for its own content."""
+    out = []
+    for m in AUDIT_VOCAB_HARD.finditer(text):
+        start = max(0, m.start() - 40)
+        out.append(" ".join(text[start:m.end() + 40].split()))
+    return out
 
 
 def find_undefined_jargon(text: str) -> list:
@@ -879,6 +1010,25 @@ def main():
                 failures += 1
         else:
             print("\n[OK] No audit findings — this reads as a plan, not a verdict")
+
+        # The structural half: a section that reports the present and
+        # commits to nothing is a findings chapter however it is worded.
+        sec_bad, sec_rows = find_audit_sections(sections_text(text))
+        if sec_bad:
+            print(f"\n[FAIL] {len(sec_rows)} section(s) report the current state without a target:")
+            for heading, figures, why in sec_rows:
+                print(f"       \"{heading}\" — {why}")
+            print("       Rule 3: a baseline belongs beside the target it is measured against.")
+            print("       Move these figures into the objectives table, or give each one a month.")
+            failures += 1
+
+        vocab = find_audit_vocab_hard(body)
+        if vocab:
+            print(f"\n[FAIL] \"finding\" is the audit's word for the audit's content ({len(vocab)}):")
+            for v in vocab[:4]:
+                print(f"           \u2026{v[:88]}\u2026")
+            print("       A plan has priorities, targets and months.")
+            failures += 1
 
         # ── Pronouns ─────────────────────────────────────────────────────
         you_k, named_k, you_n, named_n, your_biz = pronoun_balance(body, client_name)

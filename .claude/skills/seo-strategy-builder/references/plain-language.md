@@ -123,6 +123,34 @@ finding, and findings belong in the audit.
 in what order, and what it is expected to produce. `document-assembly.md` has
 the running order.
 
+### No findings section, whatever it is called
+
+The rule above is about sentences. This one is about chapters, and it is the
+half that actually went wrong.
+
+A strategy came back with a section headed **"Where the firm stands today"** —
+323 words of measured present, every figure sourced and dated, not one target
+anywhere. Every sentence in it was true. The checker passed it, because the
+checker was reading sentences.
+
+**A heading that announces the present is a findings chapter.** "Where the firm
+stands today", "Current performance", "Our findings", "Today's numbers". The
+plan's version of that content is a table with a Target column. If a section
+carries measured figures and commits to no month and no target, it belongs in
+the audit.
+
+**"Finding" is the audit's word for the audit's content.** A plan has
+priorities, targets and months. `scripts/check_strategy_doc.py` fails on it.
+
+**What is still allowed in a section about the present**, because this is a
+real distinction and the checker was taught it:
+
+- *Market demand* — "an estimated 2,900 people a month search dui lawyer" — is
+  the raw material of a plan, not a measurement of the client. A keyword
+  opportunity table is the most forward-looking thing in the document.
+- *A baseline beside its target*, in any shape: a Today / Month 6 / Month 12
+  table, or "173 clicks a month today, 400 by month six".
+
 ---
 
 ## Read this part first: the shape of a sentence, not the size of its words

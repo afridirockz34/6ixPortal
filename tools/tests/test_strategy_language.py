@@ -648,6 +648,86 @@ check("the same numbers, paired with targets, pass",
 check("  and a baseline column in a table is not a finding",
       "[OK] No audit findings" in out, out[-900:])
 
+print("\n-- Rule 3, structurally --")
+# The phrase list shipped in the first version of Rule 3 was fitted to one
+# document. On the next strategy the skill produced it caught 1 finding in 8:
+# "No page title on miralaw.ca contains the word lawyer" slipped a \\w+-only
+# pattern because a domain has a dot in it, and an entire section headed
+# "Where the firm stands today" — 323 words of measured present with no
+# target anywhere — was invisible, because nothing was looking at sections.
+#
+# Phrasings are endless. The structure is not.
+FINDINGS_SECTION = """# SEO strategy
+
+## Where the firm stands today
+
+Google served the site 1,965 times in the 28 days to 20 November and sent 202
+clicks. Average position across everything: 17.1.
+
+Of the 202 clicks, 153 came from somebody typing the firm's name. Not one came
+from a search by somebody who did not already know it.
+
+The site took 383 visits from 252 people in the same 28 days, with 5 enquiries.
+"""
+code, out = run(FINDINGS_SECTION)
+check("a section headed with the present, committing to nothing, fails",
+      code == 1 and "report the current state" in out, out[-900:])
+check("  and it says where those figures belong",
+      "beside the target it is measured against" in out, out[-900:])
+
+# The same heading over a section that does commit is the shape Rule 3 wants.
+WITH_TARGETS = FINDINGS_SECTION + """
+| What we measure | Today | Month 6 | Month 12 |
+|---|---|---|---|
+| Non-brand clicks | 1 | 40 | 120 |
+| Organic visits | 147 | 250 | 400 |
+"""
+code, out = run(WITH_TARGETS)
+check("  the same heading passes once the section carries targets",
+      "report the current state" not in out,
+      "failing this would fail the exact shape the rule asks for")
+
+# One stray month reference must not excuse 300 words of findings.
+code, out = run(FINDINGS_SECTION + "\nSpeed work is included in month 4.\n")
+check("  and one passing mention of a month does not excuse it",
+      "report the current state" in out, out[-900:])
+
+# The domain-with-a-dot miss, verbatim.
+code, out = run("# Phase 5\n\n" + "\n\n".join([
+    'No page title on miralaw.ca contains the word "lawyer".',
+    "Two directories carry a different postcode and phone number.",
+    "The site is invisible to anyone who does not already know the firm.",
+    "Those searches produced no clicks at all.",
+]))
+check("deficiencies survive a domain, a qualifier or a passive dressing",
+      code == 1 and "Audit findings in a strategy document" in out, out[-900:])
+
+# "Finding" is the audit's word for the audit's content.
+code, out = run("# Phase 5\n\nThe finding that drives this plan is simple enough.\n")
+check("\"the finding\" fails outright in a strategy",
+      code == 1 and "the audit's word" in out, out[-900:])
+code, out = run("# Phase 5\n\nWe build 17 pages across months 2 to 9, starting with Brampton.\n")
+check("  and a plan that just says what happens does not trip it",
+      "the audit's word" not in out, out[-900:])
+
+# Market demand is not a measurement of the client. The keyword opportunity
+# table is the most forward-looking thing in a strategy and the first version
+# of this check failed it.
+MARKET = """# SEO strategy
+
+## The searches we go after first
+
+| Search | Est. searches a month | Difficulty | What we do |
+|---|---|---|---|
+| dui lawyer | 2,900 | 0 | Retitle and expand the existing page |
+| peace bond | 1,600 | 0 | One new article |
+| criminal harassment | 1,000 | 0 | One new service page |
+"""
+code, out = run(MARKET)
+check("a keyword opportunity table is not a findings section",
+      "report the current state" not in out,
+      "search volume is market demand, not a measurement of the client")
+
 print("\n-- The worked example --")
 VOICE = REPO / ".claude/skills/seo-strategy-builder/assets/worked-section-house-voice.md"
 check("the skill ships a worked section in the house voice", VOICE.exists())
