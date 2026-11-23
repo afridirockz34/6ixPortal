@@ -56,6 +56,48 @@ me' keywords in here?" and the next draft grows a section explaining why "near
 me" keywords are in there. That explanation belongs in the reply to the
 question, not in the client's document. The client never asked.
 
+### The month table is read first, and read by a non-specialist
+
+Everything else in this file is about sentences. The month table has no
+sentences, which is exactly why it goes wrong: twelve rows of three-word
+cells, written at the speed of someone who already knows the plan.
+
+A real table shipped with these cells: **"4 Tier 1 listings"**, **"Q&A
+seeded"**, **"Profile photo set expanded"**, **"Speed work: the 9.0-second
+render path"**, **"Internal link text repaired"**. The client who received it
+said he could not understand his own plan, and he runs the agency.
+
+**Every cell says what a person would do, in words the client used.**
+
+| Shipped | Write instead |
+|---|---|
+| 4 Tier 1 listings | Claim the four professional listings the firm is entitled to |
+| Q&A seeded | Write and answer eight questions on the Google profile |
+| Profile photo set expanded | Add six more photographs to the profile |
+| Speed work: the 9.0-second render path | Cut the time the homepage takes to look finished |
+| Internal link text repaired | Rewrite the wording of the links between pages |
+| 1 citable resource published | Publish one guide other sites would link to |
+| Grid re-measured | Re-run the map ranking check across the GTA |
+
+No tier numbers. No abbreviations the client did not use. Nothing in the
+passive. If a cell needs a term of art, the term does not belong in the table.
+
+`scripts/check_strategy_doc.py` carries a list of the shorthand we are known
+to reach for and fails on it. That list is a floor, not the rule: it cannot
+know the shorthand we invent next week. The rule is the table above.
+
+### Put the client's stated priority in month one
+
+If the client named a goal — first-page results in Brampton — month one shows
+work against it. Not the whole build; the part that can start immediately.
+Brampton's titles, the Brampton service area on the profile, the keyword set
+for it.
+
+A plan that opens with five months of groundwork before touching the thing
+the client asked for reads as a plan about us. The sequencing can still be
+foundation-first underneath, and usually should be. What changes is that the
+client can find their own priority in month one and watch it move.
+
 ---
 
 ## Rule 2 — Pronouns: we do the work, the firm owns the business
@@ -266,8 +308,14 @@ Three rules for the body after the label:
   side by side with nothing between them make the reader build the argument
   themselves. Roughly one connective per paragraph is the difference between a
   list and an argument.
-- **Imperative verbs for anything we or they will do.** "Build", "Add",
-  "Rewrite", "Claim", "Publish". Not "we will be building".
+- **Future work takes "will".** "We **will** optimize the existing pages in
+  month one." Not "We optimize the existing pages in month one", which is the
+  present tense describing something that has not happened, and a reader stops
+  on it. An earlier version of this file said "imperatives, not we will be
+  building", and the checker scored *we build* 1 and *we will build* 0 — so
+  the written rule and the measured one were both training documents out of
+  the future tense. Imperatives stay right in a specification row: "Add nine
+  services to the profile." A sentence about a named month takes "will".
 - **Say what we will do with it.** A paragraph about a deliverable that only
   describes the deliverable is half-written. "The profile answers them, not a
   page" describes. "We optimize the profile for these searches because

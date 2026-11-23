@@ -355,7 +355,9 @@ check("--help explains that --full is for a complete document only",
 # thing is a year of work. The client reads it as a list of what is about to
 # happen, is surprised in month two that four posts exist, and surprised
 # again in month nine that there is work left.
-MONTHS = "\n".join(f"| {m} | Focus | 2 posts | Tier 1 | Titles |" for m in range(1, 13))
+MONTHS = "\n".join(
+    f"| {i} | Foundations | 2 posts | Claim two professional listings "
+    f"| Rewrite the page titles |" for i in range(1, 13))
 YEAR = f"""# SEO strategy
 
 ## Summary
@@ -386,7 +388,7 @@ check("a document that never says how long the plan is, is flagged",
       "never says how long the plan is" in out, out[-700:])
 
 # A month missing from the table is a month the client will ask about.
-gap = YEAR.replace("| 7 | Focus | 2 posts | Tier 1 | Titles |\n", "")
+gap = YEAR.replace("| 7 | Foundations | 2 posts | Claim two professional listings | Rewrite the page titles |\n", "")
 code, out = run(gap)
 check("a month missing from the table is named",
       "skips month(s) [7]" in out, out[-700:])
@@ -394,7 +396,7 @@ check("a month missing from the table is named",
 # Six months is a plan too — the check must not demand twelve.
 SIX = YEAR.replace("twelve months", "six months").replace("that year", "those six months")
 for m in range(7, 13):
-    SIX = SIX.replace(f"| {m} | Focus | 2 posts | Tier 1 | Titles |\n", "")
+    SIX = SIX.replace(f"| {m} | Foundations | 2 posts | Claim two professional listings | Rewrite the page titles |\n", "")
 code, out = run(SIX)
 check("a six-month plan is a plan, not a twelve-month one with gaps",
       "months 1-6" in out and "skips month" not in out, out[-700:])
@@ -835,6 +837,96 @@ check("prose with no connectives is reported",
       "connectives across" in out, out[-900:])
 check("  but it does not block, because the benchmark would fail it too",
       "[FAIL]" not in out.split("connectives across")[0].split("\n")[-1], out[-900:])
+
+print("\n-- Future work takes \"will\" --")
+# The spec said "imperatives, not we will be building", and the imperative
+# metric scored "we build" 1 and "we will build" 0. Both the written rule and
+# the measured one were training documents out of the future tense, and a
+# real strategy came back with 21 bare "we <verb>" against 6 "we will".
+PRESENT = "# SEO strategy\n\n" + "\n\n".join([
+    "We optimize the existing pages in month one.",
+    "We rewrite all 23 titles in month one.",
+    "We build two Oakville pages in month six.",
+    "We re-measure the map grid in month twelve.",
+])
+code, out = run(PRESENT)
+check("future work in the present tense fails",
+      code == 1 and "present tense" in out, out[-900:])
+code, out = run(PRESENT.replace("We ", "We will "))
+check("  and the same sentences with \"will\" pass",
+      "present tense" not in out, out[-900:])
+check("  the imperative metric no longer penalises \"we will build\"",
+      "[OK] Actions are written as instructions" in out, out[-900:])
+code, out = run("# SEO strategy\n\n" + "\n\n".join([
+    "Add nine services to the Google Business Profile.",
+    "Rewrite the 750-character description.",
+    "Claim the four professional listings.",
+] * 3))
+check("  an imperative in a specification row is still correct",
+      "present tense" not in out, out[-900:])
+
+print("\n-- Internal shorthand in the month table --")
+# Reported verbatim: "What do 4 Tier 1 listings mean? Profile photo set
+# expanded. Speed work: the 9.0-second render path. What do Profile posts
+# start and Q&A seeded mean?" The client runs the agency and could not read
+# his own plan.
+SHORTHAND = """# SEO strategy
+
+| Month | Content | Off-page | Technical |
+|---|---|---|---|
+| 1 | 0 new pages | 4 Tier 1 listings | Q&A seeded |
+| 2 | 2 service pages | Internal link text repaired | Speed work: the render path |
+| 3 | 4 location pages | 1 citable resource published | Profile photo set expanded |
+"""
+code, out = run(SHORTHAND)
+check("planning vocabulary in a table fails",
+      code == 1 and "internal shorthand" in out, out[-900:])
+for term in ("Tier 1", "Q&A seeded", "render path", "citable", "photo set expanded"):
+    check(f'  names "{term}"', term.lower() in out.lower(), out[-900:])
+check("  and says what to write instead, not just what is wrong",
+      "say what the listing is" in out or "we write and answer eight" in out, out[-900:])
+
+PLAIN = """# SEO strategy
+
+| Month | Content | Off-page | Technical |
+|---|---|---|---|
+| 1 | No new pages | Claim the four professional listings the firm is entitled to | Write and answer eight questions on the Google profile |
+| 2 | Two service pages | Rewrite the wording of the links between pages | Cut the time the homepage takes to look finished |
+| 3 | Four city pages | Publish one guide other sites would link to | Add six more photographs to the profile |
+"""
+code, out = run(PLAIN)
+check("the same rows in plain words pass",
+      "[FAIL]" not in out.split("internal shorthand")[0].rsplit("\n", 2)[-1]
+      and "piece(s) of internal shorthand" not in out, out[-900:])
+
+print("\n-- Objectives cited before they exist --")
+# The introduction said "Objective 1 sets the target" and "Objective 7 takes
+# the profile from 0 of 49". The objectives table was 550 lines further down.
+# The client read the first two sections and stopped.
+FWD = """# SEO strategy
+
+## Introduction
+
+We go after the searches that bring new clients. Objective 1 sets the target:
+120 clicks a month that are not the firm's name, by month 12.
+
+## Objectives, and how we will know
+
+| # | Objective | Today | Target | By |
+|---|---|---|---|---|
+| 1 | Non-brand clicks a month | 1 | 120 | Month 12 |
+"""
+code, out = run(FWD)
+check("a numbered objective cited before its table fails",
+      code == 1 and "before the table that defines it" in out, out[-900:])
+check("  and it offers both ways out",
+      "State the target in words" in out and "move the table up" in out, out[-900:])
+
+code, out = run(FWD.replace(
+    "Objective 1 sets the target:\n120 clicks a month that are not the firm's name, by month 12.",
+    "We are going from 1 non-brand click a month to 120 by month 12."))
+check("  stating the target in words where it is used passes",
+      "before the table that defines it" not in out, out[-900:])
 
 print("\n-- The worked example --")
 VOICE = REPO / ".claude/skills/seo-strategy-builder/assets/worked-section-house-voice.md"

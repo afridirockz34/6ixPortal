@@ -381,7 +381,7 @@ CONNECTIVE_MIN_PER_PARA = 0.35
 # and 9" is a commitment in a readable sentence and scored zero, while "Build
 # 17 pages." scored. A rule that only rewards stubs produces stubs.
 IMPERATIVE_OPENER = re.compile(
-    r"(?:(?:^|(?<=[.!?]\s))|\bwe\s+)(?:Build|Add|Create|Target|Publish|Use|Write|Rewrite|"
+    r"(?:(?:^|(?<=[.!?]\s))|\bwe\s+(?:will\s+)?)(?:Build|Add|Create|Target|Publish|Use|Write|Rewrite|"
     r"Expand|Launch|Set|Run|Match|Claim|Fix|Replace|Submit|Monitor|Track|Optimize|Link|"
     r"Name|List|Keep|Start|Send|Draft|Remove|Correct|Confirm|Ask|Check|Report)\b",
     re.IGNORECASE)
@@ -498,6 +498,52 @@ FORWARD_MARKER = re.compile(
 # Three measurements with nothing committed is a findings section. Two could
 # be scene-setting in a section that then gets on with the plan.
 AUDIT_SECTION_MIN_FIGURES = 3
+
+
+# ── Future work is written in the future tense ────────────────────────────
+# "We optimize the website in month one" is the present tense describing
+# something that has not happened. A reader stops on it. The spec used to say
+# imperatives and "not we will be building", and the imperative metric scored
+# "we build" 1 and "we will build" 0 — so both the written rule and the
+# measured one were training the document out of the future tense.
+#
+# Imperatives stay correct in a specification row ("Add nine services"). A
+# sentence about what happens in a named month takes "will".
+MISSING_WILL = re.compile(
+    r"\bwe\s+(?!will\b|have\b|had\b|are\b|were\b|do\b|did\b|can\b|cannot\b|already\b|also\b)"
+    r"(build|write|add|publish|rewrite|optimi[sz]e|correct|claim|fix|set|take|get|run|ship|"
+    r"start|send|draft|remove|expand|split|merge|redirect|track|monitor|report|measure|re-measure)"
+    r"\b[^.!?]{0,80}?\b(?:in|from|by|during|across)\s+month", re.IGNORECASE)
+MISSING_WILL_LIMIT = 2
+
+# ── Internal shorthand in the month table ─────────────────────────────────
+# "4 Tier 1 listings". "Q&A seeded". "Profile photo set expanded". "Speed
+# work: the 9.0-second render path". Every one is planning vocabulary, and the
+# month table is the first thing a client reads.
+#
+# The generic version of this check — words that appear in a table and nowhere
+# in the prose — was tried and thrown away: it flagged 188 words in a real
+# document, most of them page names and ordinary English. There is no
+# mechanical signal that separates "4 location pages" from "Q&A seeded".
+#
+# So this is a blocklist, and a blocklist of OUR shorthand rather than of
+# jargon in general. It will not catch shorthand we have not invented yet.
+# The thing that actually governs this is the worked example and the rule in
+# plain-language.md; this list is the floor under them. When a new piece of
+# shorthand reaches a client, add it here.
+MONTH_TABLE_SHORTHAND = [
+    (r"\bTier\s*\d\b", "\"Tier 1\" means nothing to a client — say what the listing is"),
+    (r"\bQ&?A\s+seed(?:ed|ing)?\b", "\"Q&A seeded\" — say \"we write and answer eight common questions\""),
+    (r"\brender path\b", "\"render path\" — say \"how long the page takes to appear\""),
+    (r"\bcitable\b", "\"citable resource\" — say what it is and who would link to it"),
+    (r"\banchor text\b|\blink text repaired\b", "say what the words in a link will say"),
+    (r"\b(?:photo set|asset set)\s+expanded\b", "say how many photographs, and of what"),
+    (r"\bseeded\b|\bre-?measured\b(?!\s+(?:in|on|at))", "planning vocabulary — say who does what"),
+    (r"\bdisavow\b(?![^.]{0,40}(?:\u2014|-|is |means ))", "\"disavow\" needs its one-line gloss on first use"),
+    (r"\bE-?E-?A-?T\b(?![^.]{0,40}(?:\u2014|-|is |means ))", "spell it out on first use"),
+    (r"\bGBP\b", "\"GBP\" reads as pounds sterling — write Google Business Profile"),
+]
+MONTH_TABLE_SHORTHAND_LIMIT = 0
 
 # ── Pronouns ───────────────────────────────────────────────────────────────
 # "We" says two parties are doing this together. "You" with no "we" beside it
@@ -765,6 +811,53 @@ def find_audit_vocab_hard(text: str):
     for m in AUDIT_VOCAB_HARD.finditer(text):
         start = max(0, m.start() - 40)
         out.append(" ".join(text[start:m.end() + 40].split()))
+    return out
+
+
+def find_missing_will(text: str):
+    """Future work written in the present tense."""
+    return [" ".join(m.group(0).split()) for m in MISSING_WILL.finditer(text)]
+
+
+def find_month_table_shorthand(text: str):
+    """Our own planning vocabulary, on a page a client reads.
+
+    Scoped to table rows, because that is where terseness turns a plan into
+    notes. Prose has room to explain itself; a table cell does not.
+    """
+    rows = "\n".join(l for l in text.splitlines() if l.strip().startswith("|"))
+    if not rows:
+        # A document converted out of .docx loses its pipes, so fall back to
+        # the whole text rather than silently checking nothing.
+        rows = text
+    out = []
+    for pattern, why in MONTH_TABLE_SHORTHAND:
+        for m in re.finditer(pattern, rows, re.IGNORECASE):
+            out.append((m.group(0).strip(), why))
+    seen, uniq = set(), []
+    for term, why in out:
+        k = term.lower()
+        if k not in seen:
+            seen.add(k); uniq.append((term, why))
+    return uniq
+
+
+def find_forward_objective_refs(text: str):
+    """"Objective 7" cited before the reader has seen the objectives.
+
+    A reader meeting "Objective 1 sets the target" in the introduction has
+    no numbering to resolve it against; the table is 500 lines further on.
+    Either state the target in words where it is used, or move the table up.
+    """
+    table_at = None
+    for m in re.finditer(r"^#{1,3}\s+.*objectives?\b.*$", text, re.IGNORECASE | re.MULTILINE):
+        table_at = m.start()
+        break
+    out = []
+    for m in re.finditer(r"\bObjectives?\s+\d+\b", text):
+        if table_at is None or m.start() < table_at:
+            start = max(0, m.start() - 50)
+            out.append(" ".join(text[start:m.end() + 50].split()))
     return out
 
 
@@ -1122,6 +1215,38 @@ def main():
             print("       \"Build the page\", not \"a page will be built\" or \"the work involves\".")
         else:
             print(f"\n[OK] Actions are written as instructions ({imp:.1f} per 1k words)")
+
+        # Future work, in the future tense.
+        wills = find_missing_will(body)
+        if len(wills) > MISSING_WILL_LIMIT:
+            print(f"\n[FAIL] {len(wills)} sentences put future work in the present tense:")
+            for w in wills[:5]:
+                print(f"           \u2026{w[:80]}\u2026")
+            print("       \"We will optimize the website in month one\". A reader stops on the")
+            print("       present tense for something that has not happened yet.")
+            failures += 1
+        elif wills:
+            print(f"\n[REVIEW] {len(wills)} sentence(s) put future work in the present tense")
+
+        # Our own planning vocabulary, on a page a client reads.
+        shorthand = find_month_table_shorthand(text)
+        if len(shorthand) > MONTH_TABLE_SHORTHAND_LIMIT:
+            print(f"\n[FAIL] {len(shorthand)} piece(s) of internal shorthand a client will not follow:")
+            for term, why in shorthand[:8]:
+                print(f"       \"{term}\" \u2014 {why}")
+            print("       The month table is the first thing they read.")
+            failures += 1
+        else:
+            print("\n[OK] No internal shorthand in the tables")
+
+        # Numbered objectives cited before the objectives exist.
+        fwd = find_forward_objective_refs(text)
+        if fwd:
+            print(f"\n[FAIL] {len(fwd)} reference(s) to a numbered objective before the table that defines it:")
+            for f in fwd[:4]:
+                print(f"           \u2026{f[:84]}\u2026")
+            print("       State the target in words where it is used, or move the table up.")
+            failures += 1
 
         grade = reading_grade(body)
         if grade is not None:
