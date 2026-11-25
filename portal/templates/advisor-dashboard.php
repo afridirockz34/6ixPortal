@@ -342,7 +342,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             if (count($cl['services'])>=1 && $cl['health']>=70) {
                 $svc_names = array_column($cl['services'],'service_name');
                 if (!in_array('seo',$svc_names)) $upsells[]=array('client'=>$cl['name'],'service'=>'SEO','reason'=>'High engagement — strong SEO candidate','color'=>'var(--cyan)');
-                if (!in_array('google-business',$svc_names)) $upsells[]=array('client'=>$cl['name'],'service'=>'Google Business Profile','reason'=>'Local presence can drive walk-in traffic','color'=>'var(--cyan)');
+                if (!in_array('google-business',$svc_names)) $upsells[]=array('client'=>$cl['name'],'service'=>'GMB','reason'=>'Local presence can drive walk-in traffic','color'=>'var(--cyan)');
             }
             if (count($upsells)>=4) break;
         }
@@ -378,7 +378,24 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         $p_ap = intval( $total_pending ?? 0 );
         if ( $p_ap > 0 ) $priorities[] = array('key'=>'approvals','n'=>$p_ap,'t'=>$p_ap.' approval'.($p_ap>1?'s':'').' waiting','d'=>'Budget & service requests need your sign-off','u'=>'?tab=approvals','c'=>'var(--warning)','cta'=>'Review');
         $p_um = intval( $unread_msg ?? 0 );
-        if ( $p_um > 0 ) $priorities[] = array('key'=>'messages','n'=>$p_um,'t'=>$p_um.' unread message'.($p_um>1?'s':''),'d'=>'Clients are waiting to hear back from you','u'=>'?tab=clients','c'=>'var(--pink)','cta'=>'Open');
+        if ( $p_um > 0 ) {
+            // This used to link to ?tab=clients, which opens the customer
+            // list — every client, no messages. Open the conversation
+            // instead: straight into it when one person is waiting, and the
+            // messages tab when several are, which is as specific as a
+            // single button can honestly be.
+            $um_from = class_exists('Six_Messaging') && method_exists('Six_Messaging','unread_senders')
+                ? Six_Messaging::unread_senders( $advisor_id ) : array();
+            $um_url  = count( $um_from ) === 1
+                ? '?tab=messages&with=' . intval( $um_from[0]['id'] )
+                : '?tab=messages';
+            $um_desc = count( $um_from ) === 1
+                ? esc_html( $um_from[0]['name'] ) . ' is waiting to hear back from you'
+                : ( count( $um_from ) > 1
+                    ? count( $um_from ) . ' clients are waiting to hear back from you'
+                    : 'Clients are waiting to hear back from you' );
+            $priorities[] = array('key'=>'messages','n'=>$p_um,'t'=>$p_um.' unread message'.($p_um>1?'s':''),'d'=>$um_desc,'u'=>$um_url,'c'=>'var(--pink)','cta'=>'Open');
+        }
         $p_ai = intval( $total_intel_pending ?? 0 );
         if ( $p_ai > 0 ) $priorities[] = array('key'=>'ai','n'=>$p_ai,'t'=>$p_ai.' AI recommendation'.($p_ai>1?'s':'').' to review','d'=>'Approve or decline growth opportunities for your clients','u'=>'?tab=intelligence','c'=>'#8781BA','cta'=>'Review');
         $p_crit = array_filter( (array)$clients_attention, function($c){ return ($c['health'] ?? 100) < 50; } );
@@ -795,7 +812,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
         $svc_def = array(
             'google-ads'      => array('name'=>'Google Ads',              'icon'=>'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="3"/><path d="M7 15V9m5 6V7m5 8V5" stroke-width="2"/></svg>', 'color'=>'#4285F4'),
             'seo'             => array('name'=>'SEO',                     'icon'=>'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>', 'color'=>'#56D364'),
-            'google-business' => array('name'=>'Google Business Profile', 'icon'=>'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>', 'color'=>'#FBBC05'),
+            'google-business' => array('name'=>'GMB', 'icon'=>'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>', 'color'=>'#FBBC05'),
             'website'         => array('name'=>'Website Development',     'icon'=>'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>', 'color'=>'#8781BA'));
 
         // Determine account status
@@ -2309,7 +2326,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             'Google Analytics 4'      => (bool) $c_ga4_id,
             'Search Console'          => (bool) $c_gsc_site,
             'Meta Ads'                => (bool) $c_meta_account,
-            'Google Business Profile' => (bool) $c_gbp_loc,
+            'GMB' => (bool) $c_gbp_loc,
         );
         $ds_done  = count(array_filter($ds_sources));
         $ds_total = count($ds_sources);
@@ -2451,10 +2468,10 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
             </div>
         </div>
 
-        <!-- Google Business Profile -->
+        <!-- GMB -->
         <div style="background:var(--dark2);border:1px solid rgba(251,188,5,0.2);border-radius:14px;overflow:hidden">
             <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;gap:8px">
-                <span style="font-size:13px;font-weight:700">Google Business Profile</span>
+                <span style="font-size:13px;font-weight:700">GMB</span>
                 <?php if($c_gbp_loc): ?><span style="font-size:10px;background:rgba(86,211,100,0.1);color:var(--success);padding:2px 8px;border-radius:10px;font-weight:700">● Connected</span><?php endif; ?>
             </div>
             <div style="padding:14px 18px">
@@ -2913,12 +2930,12 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
     <?php endif; // end seo budget ?>
 
     <?php if($c_gbp_name || $c_gbp_cat): ?>
-    <!-- Google Business Profile -->
+    <!-- GMB -->
     <div style="background:var(--dark2);border:1px solid rgba(251,188,4,0.3);border-radius:14px;padding:18px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)">
             <div style="display:flex;align-items:center;gap:8px">
                 <div style="width:10px;height:10px;border-radius:50%;background:#FBBC04"></div>
-                <span style="font-size:12px;font-weight:700;color:var(--text1);text-transform:uppercase;letter-spacing:.5px">Google Business Profile</span>
+                <span style="font-size:12px;font-weight:700;color:var(--text1);text-transform:uppercase;letter-spacing:.5px">GMB</span>
                 <?php if($c_gbp_bud>0): ?><span style="font-size:11px;font-weight:700;color:#C17B1A;background:rgba(251,188,4,0.1);border:1px solid rgba(251,188,4,0.2);border-radius:20px;padding:2px 9px">$<?php echo number_format($c_gbp_bud); ?>/mo</span><?php endif; ?>
             </div>
         </div>
@@ -3009,7 +3026,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 foreach([
                     'google-ads'      => 'Google Ads',
                     'seo'             => 'SEO',
-                    'google-business' => 'Google Business Profile',
+                    'google-business' => 'GMB',
                     'website'         => 'Website Development',
                 ] as $slug => $label):
                     $checked = strpos($plats, $slug) !== false ? 'checked' : '';
@@ -3091,7 +3108,7 @@ $mcc_configured = ! empty( get_option('six_gads_refresh_token') ) && ! empty( ge
                 <option value="">Add a service…</option>
                 <option value="google-ads">Google Ads</option>
                 <option value="seo">SEO</option>
-                <option value="google-business">Google Business Profile</option>
+                <option value="google-business">GMB</option>
                 <option value="website">Website Development</option>
             </select>
             <input type="number" id="adv-add-svc-bud-<?php echo $view_client_id;?>" min="0" step="100" placeholder="Budget"
@@ -4570,7 +4587,7 @@ var SIX_SVC_FIELDS = {
     {k:'six_gsc_site', label:'Search Console property', ph:'https://example.com/ or sc-domain:example.com', g:'int'},
     {k:'six_ga4_property_id', label:'GA4 Property ID', ph:'e.g. 312345678', g:'int'},
     {k:'six_gtm_container_id', label:'Google Tag / GTM Container ID', ph:'GTM-XXXXXXX', g:'int'},
-    {k:'six_gbp_location_id', label:'Google Business Profile ID', ph:'Place ID or listing name', g:'int'},
+    {k:'six_gbp_location_id', label:'GMB ID', ph:'Place ID or listing name', g:'int'},
     {k:'target_keywords', label:'Target keywords', ph:'plumber toronto, emergency plumber…', ta:true, g:'ans'},
     {k:'target_cities', label:'Target cities', ph:'Toronto, Vaughan, Markham', g:'ans'},
     {k:'competitors', label:'Competitor sites', ph:'competitor1.com, competitor2.com', g:'ans'},

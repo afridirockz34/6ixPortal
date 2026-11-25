@@ -849,15 +849,29 @@ class Six_Dash_Metrics {
 			// daily readings rather than a single scraped total, and the
 			// baseline is the same window off the fitted line, so the "+N vs
 			// before" compares like with like.
+			// Keep the whole series. Everything below trims to the last 30
+			// days for drawing, and last_calendar_month() was then asked for
+			// "last month" out of that 30-day slice — so on 25 November it
+			// found the five October days inside the window and, because
+			// five is under its is-daily threshold, averaged them. October
+			// came out as 114 next to a 30-day total of 3,745: the same
+			// metric, labelled the same way, thirty times apart.
+			$full       = $points;
+			// How many days the chart draws. The headline stays the last 30
+			// whatever the chart shows, because "last 30 days" is the figure
+			// a client recognises and comparing it against last month only
+			// works if it keeps meaning the same thing.
+			$win        = max( 7, min( 365, (int) ( $ctx['window'] ?? 30 ) ) );
 			$tail       = array_slice( $points, -30 );
 			$current    = (int) round( array_sum( array_column( $tail, 'raw' ) ) );
 			$base_tail  = $has_proj ? array_sum( array_column( $tail, 'before' ) ) : 0;
 			$baseline   = $has_proj ? (int) round( $base_tail ) : 0;
 
-			// The chart shows the last 30 days only. Everything before that
-			// was fitted on, not drawn — a client looking at this month does
-			// not want six months of axis to read past first.
-			$window = $tail;
+			// The chart shows the chosen window, 30 days by default. The rest
+			// of the 180 fetched was fitted on rather than drawn — a client
+			// looking at this month does not want six months of axis to read
+			// past first, but they can now ask for it.
+			$window = array_slice( $points, -$win );
 			$start  = class_exists( 'Six_Tracking' ) ? Six_Tracking::engagement_start( $user_id ) : '';
 			$split  = self::split_index( $window, $start );
 
@@ -896,7 +910,7 @@ class Six_Dash_Metrics {
 				'daily'          => true,
 				'baseline_mo'    => $baseline,
 				'current_mo'     => $current,
-				'last_month'     => self::last_calendar_month( $points ),
+				'last_month'     => self::last_calendar_month( $full ),
 				'target'         => self::visitor_target( $user_id ),
 				'points'         => $points,
 				'split_at'       => $split,
@@ -991,9 +1005,12 @@ class Six_Dash_Metrics {
 			'daily'          => false,
 			'baseline_mo'    => $baseline,
 			'current_mo'     => $current,
+			// false: these are weekly snapshots of a monthly rate, so the
+			// month is their average, not their sum. Summing four snapshots
+			// of "visitors this month" would report four months of traffic.
 			'last_month'     => self::last_calendar_month( array_map( function ( $m ) {
 				return array( 'date' => $m['date'], 'after' => $m['value'] );
-			}, $measured ) ),
+			}, $measured ), false ),
 			'target'         => self::visitor_target( $user_id ),
 			'points'         => $points,
 			// Flat, and labelled as such. The old chart drew this same line
@@ -1011,6 +1028,79 @@ class Six_Dash_Metrics {
 	 *
 	 * @param array $points Each: date (Y-m-d), after.
 	 */
+	/**
+	 * Where visitors came from, and what they did when they arrived.
+	 *
+	 * Three figures the overview could never show: the channel sending the
+	 * most sessions, taps on the phone number, and form submissions. All
+	 * three are in GA4 already — `ga4_summary()` has had `by_channel` since
+	 * it was written, and `ga4_events()` reads the event breakdown the
+	 * `conversions` total was hiding.
+	 *
+	 * Cached for an hour. This runs on a page load, GA4 takes a second or
+	 * two to answer, and nothing here changes faster than that. The cache is
+	 * keyed on the window as well as the client, so switching the range does
+	 * not read another range's answer.
+	 *
+	 * Every figure can come back null, and null is rendered as nothing
+	 * rather than as a zero. A property with no call event is not a property
+	 * where nobody called.
+	 *
+	 * @return array{ok:bool,source:string,top:?array,calls:?int,forms:?int,error:string}
+	 */
+	public static function engagement( $user_id, $days = 30 ) {
+		$days = max( 1, min( 365, (int) $days ) );
+		$none = array( 'ok' => false, 'source' => '', 'top' => null,
+			'calls' => null, 'forms' => null, 'error' => '' );
+
+		$prop = trim( (string) get_user_meta( $user_id, 'six_ga4_property_id', true ) );
+		if ( ! $prop || ! class_exists( 'Six_Analytics' ) ) {
+			return array( 'error' => 'not_connected' ) + $none;
+		}
+
+		$ck     = 'six_engage_' . (int) $user_id . '_' . $days;
+		$cached = get_transient( $ck );
+		if ( is_array( $cached ) ) return $cached;
+
+		$out = $none;
+		$sum = Six_Analytics::ga4_summary( $prop, $days );
+		if ( ! empty( $sum['error'] ) ) {
+			$out['error'] = $sum['error'];
+		} else {
+			$out['ok']     = true;
+			$out['source'] = 'GA4';
+			$chans = (array) ( $sum['by_channel'] ?? array() );
+			// ga4_summary already orders by sessions desc, but it is ordered
+			// by Google rather than by us — sort again rather than trust a
+			// position in somebody else's response.
+			usort( $chans, function ( $a, $b ) {
+				return (int) $b['sessions'] <=> (int) $a['sessions'];
+			} );
+			$total = (int) ( $sum['totals']['sessions'] ?? 0 );
+			if ( $chans && (int) $chans[0]['sessions'] > 0 ) {
+				$out['top'] = array(
+					'channel'  => (string) $chans[0]['channel'],
+					'sessions' => (int) $chans[0]['sessions'],
+					'share'    => $total > 0 ? (int) round( $chans[0]['sessions'] / $total * 100 ) : null,
+				);
+			}
+		}
+
+		$ev = Six_Analytics::ga4_events( $prop, $days );
+		if ( empty( $ev['error'] ) ) {
+			$out['ok']      = true;
+			$out['source']  = 'GA4';
+			$out['calls']   = $ev['calls'];
+			$out['forms']   = $ev['forms'];
+			$out['matched'] = $ev['matched'] ?? array();
+		}
+
+		// A short cache even on failure, so a property that is misconfigured
+		// does not cost two GA4 round trips on every page load.
+		set_transient( $ck, $out, $out['ok'] ? HOUR_IN_SECONDS : 10 * MINUTE_IN_SECONDS );
+		return $out;
+	}
+
 	protected static function last_calendar_month( array $points, $daily = true ) {
 		if ( ! $points ) return null;
 		$from = gmdate( 'Y-m-01', strtotime( 'first day of last month' ) );
@@ -1021,10 +1111,30 @@ class Six_Dash_Metrics {
 			if ( $d >= $from && $d <= $to ) $vals[] = (float) ( $p['after'] ?? 0 );
 		}
 		if ( ! $vals ) return null;
-		// A daily series sums to a month; a series of monthly rates averages.
-		$is_daily = count( $vals ) > 6;
+
+		// `$daily` is now read rather than guessed. It used to infer the kind
+		// of series from `count($vals) > 6`, and that inference is what put
+		// "October 2026 · 114 visitors" on the dashboard beside a 30-day
+		// total of 3,745: the caller passed a 30-day window, only five
+		// October days fell inside it, five is not more than six, so five
+		// daily readings were averaged and the mean was labelled as the
+		// month. A count cannot tell a short month from a sparse one.
+		if ( ! $daily ) {
+			return array(
+				'value' => (int) round( array_sum( $vals ) / count( $vals ) ),
+				'label' => gmdate( 'F Y', strtotime( $from ) ),
+			);
+		}
+
+		// A daily series sums to a month — but only if we actually hold the
+		// month. A partial month summed is a month total that is quietly too
+		// low, which is worse than no figure at all, because the client puts
+		// it next to this month's and reads a fall that did not happen.
+		$days_in_month = (int) gmdate( 't', strtotime( $from ) );
+		if ( count( $vals ) < (int) ceil( $days_in_month * 0.8 ) ) return null;
+
 		return array(
-			'value' => (int) round( $is_daily ? array_sum( $vals ) : array_sum( $vals ) / count( $vals ) ),
+			'value' => (int) round( array_sum( $vals ) ),
 			'label' => gmdate( 'F Y', strtotime( $from ) ),
 		);
 	}

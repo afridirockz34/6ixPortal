@@ -118,7 +118,7 @@ $ai_svc_names     = implode(', ', array_column( $active_svcs, 'service_name' ) )
 $ai_metrics_summary = '';
 foreach ( $metrics as $m ) $ai_metrics_summary .= $m->label . ': ' . $m->current_value . '; ';
 $missing_svcs = implode(', ', array_filter(
-    array('Google Ads','SEO','Google Business Profile','Website Development'),
+    array('Google Ads','SEO','GMB','Website Development'),
     fn($s) => stripos($ai_svc_names, $s) === false
 ));
 $website_url = $checkout->website ?? '';
@@ -141,7 +141,7 @@ $maturity_color = $maturity_score>=80?'var(--success)':($maturity_score>=65?'var
 $svc_def = array(
     'google-ads'      => array('name'=>'Google Ads',              'icon'=>'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="3"/><path d="M7 15V9m5 6V7m5 8V5" stroke-width="2"/></svg>', 'color'=>'#4285F4'),
     'seo'             => array('name'=>'SEO',                     'icon'=>'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>', 'color'=>'#56D364'),
-    'google-business' => array('name'=>'Google Business Profile', 'icon'=>'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>', 'color'=>'#FBBC05'),
+    'google-business' => array('name'=>'GMB', 'icon'=>'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>', 'color'=>'#FBBC05'),
     'website'         => array('name'=>'Website Development',     'icon'=>'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>', 'color'=>'#8781BA'),
 );
 ?>
@@ -387,10 +387,23 @@ $dash_ctx = array(
     'budgets' => $dash_budgets,
     'kpi'     => $kpi_data,
     'cpc'     => floatval( get_user_meta($user_id,'six_market_avg_cpc',true) ),
+    'window'  => ( isset($_GET['range']) && in_array((int)$_GET['range'], array(30,90,180), true) ) ? (int)$_GET['range'] : 30,
 );
 
 $dash_cards = class_exists('Six_Dash_Metrics') ? Six_Dash_Metrics::cards($user_id, $dash_ctx) : array();
 $six_visits = class_exists('Six_Dash_Metrics') ? Six_Dash_Metrics::visitor_series($user_id, $dash_ctx) : array('has'=>false);
+
+/* How long a window the overview covers. The chart was fixed at the last 30
+ * days with no way to ask for anything else, so a client could not see
+ * whether a quiet fortnight was a trend or a fortnight. The daily series is
+ * already fetched over 180 days, so the longer windows cost nothing extra. */
+$six_ranges  = array( 30 => 'Last 30 days', 90 => 'Last 3 months', 180 => 'Last 6 months' );
+$six_range   = isset($_GET['range']) ? (int) $_GET['range'] : 30;
+if ( ! isset( $six_ranges[ $six_range ] ) ) $six_range = 30;
+$six_visits['range']  = $six_range;
+$six_visits['ranges'] = $six_ranges;
+
+$six_engage = class_exists('Six_Dash_Metrics') ? Six_Dash_Metrics::engagement($user_id, $six_range) : array('ok'=>false);
 ?>
 
 <!-- ── GREETING ──────────────────────────────────────────────────────────── -->
@@ -411,16 +424,37 @@ $six_visits = class_exists('Six_Dash_Metrics') ? Six_Dash_Metrics::visitor_serie
  * empty dashboard rather than as work in progress, so this says plainly what
  * is happening and what arrives next.
  *
- * It goes away by itself the moment an audit report is filed for them — no
- * advisor has to remember to switch it off, which is the only reason a banner
- * like this survives contact with a real account. */
+ * It goes away by itself the moment the work visibly starts — no advisor has
+ * to remember to switch it off, which is the only reason a banner like this
+ * survives contact with a real account.
+ *
+ * It used to switch off on exactly one signal: a report row of type `audit`.
+ * That is too narrow, and NR Lawyers proved it — the audit was delivered and
+ * the build was months under way while the dashboard still told them their
+ * audit was being prepared. An audit written in a client session and handed
+ * over as a document never creates that row.
+ *
+ * So any of four signals ends it, because each one means work has started and
+ * the client can see something:
+ *   - an audit report filed
+ *   - any report at all filed (a strategy implies the audit came first)
+ *   - a task published to their board
+ *   - work logged against their account
+ *
+ * Deliberately generous. The cost of hiding it early is a slightly emptier
+ * page for a client whose work has begun; the cost of showing it late is
+ * telling a client we have not started when we are in month six. */
 $audited_slugs = array_intersect( $dash_slugs, array( 'seo', 'google-ads', 'google-business' ) );
-$audit_filed   = false;
-foreach ( (array) $reports as $r ) {
-    if ( ( $r->type ?? '' ) === 'audit' ) { $audit_filed = true; break; }
+$work_started  = ! empty( $reports );
+if ( ! $work_started && class_exists( 'Six_Tasks' ) ) {
+    $t_sum        = Six_Tasks::summary( $user_id );
+    $work_started = ! empty( $t_sum['published'] );
 }
-if ( $audited_slugs && ! $audit_filed ) :
-    $svc_names = array( 'seo' => 'SEO', 'google-ads' => 'Google Ads', 'google-business' => 'Google Business Profile' );
+if ( ! $work_started && class_exists( 'Six_Tracking' ) ) {
+    $work_started = (bool) Six_Tracking::work_log( $user_id, array( 'limit' => 1 ) );
+}
+if ( $audited_slugs && ! $work_started ) :
+    $svc_names = array( 'seo' => 'SEO', 'google-ads' => 'Google Ads', 'google-business' => 'GMB' );
     $named     = array_values( array_map( function ( $s ) use ( $svc_names ) { return $svc_names[ $s ]; }, $audited_slugs ) );
     $named_txt = count( $named ) === 1 ? $named[0]
                : implode( ', ', array_slice( $named, 0, -1 ) ) . ' and ' . end( $named );
@@ -437,6 +471,70 @@ if ( $audited_slugs && ! $audit_filed ) :
         <div style="font-size:12px;color:var(--text2);line-height:1.6">
             Your account manager is going through your site, your rankings and your market in full. You will get the audit in writing here, with the plan we would run from it — and the work starts as soon as you have read it.
         </div>
+    </div>
+</div>
+<?php endif; ?>
+
+<?php
+/* ── Where they came from, and what they did ──────────────────────────────
+ *
+ * Three figures GA4 has always held and the overview never showed: the
+ * channel sending the most sessions, taps on the phone number, and form
+ * submissions. The old card row could answer "how many people" and never
+ * "where from" or "did any of them get in touch", which is the question a
+ * client actually has.
+ *
+ * Each tile is omitted when its figure is null rather than drawn as a zero.
+ * A property with no call event is not a property where nobody called, and
+ * a measured-looking zero is the kind of number nobody can tell apart from
+ * a real one. */
+if ( ! empty( $six_engage['ok'] ) &&
+     ( $six_engage['top'] || $six_engage['calls'] !== null || $six_engage['forms'] !== null ) ) :
+    $eng_win = $six_ranges[ $six_range ] ?? 'Last 30 days';
+?>
+<div class="six-card" style="margin-bottom:18px">
+    <div class="six-card-header">
+        <span class="six-card-title">Where your visitors came from</span>
+        <span style="font-size:11px;color:var(--text2)"><?php echo esc_html( strtolower( $eng_win ) ); ?> &middot; Google Analytics</span>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:28px;padding:16px 18px 18px">
+        <?php if ( $six_engage['top'] ) : $t = $six_engage['top']; ?>
+        <div style="min-width:150px">
+            <div style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--text2)">Top traffic source</div>
+            <div style="font-size:19px;font-weight:800;letter-spacing:-.02em;color:var(--text1);margin-top:2px"><?php echo esc_html( $t['channel'] ); ?></div>
+            <div style="font-size:11.5px;color:var(--text2)">
+                <?php echo esc_html( number_format_i18n( $t['sessions'] ) ); ?> visits<?php
+                if ( $t['share'] !== null ) echo ' &middot; ' . intval( $t['share'] ) . '% of all visits'; ?>
+            </div>
+        </div>
+        <?php endif; ?>
+        <?php if ( $six_engage['calls'] !== null ) : ?>
+        <div style="min-width:120px">
+            <div style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--text2)">Calls from the site</div>
+            <div style="font-size:19px;font-weight:800;letter-spacing:-.02em;color:var(--text1);margin-top:2px"><?php echo esc_html( number_format_i18n( (int) $six_engage['calls'] ) ); ?></div>
+            <div style="font-size:11.5px;color:var(--text2)">people tapped your number</div>
+        </div>
+        <?php endif; ?>
+        <?php if ( $six_engage['forms'] !== null ) : ?>
+        <div style="min-width:120px">
+            <div style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--text2)">Form submissions</div>
+            <div style="font-size:19px;font-weight:800;letter-spacing:-.02em;color:var(--text1);margin-top:2px"><?php echo esc_html( number_format_i18n( (int) $six_engage['forms'] ) ); ?></div>
+            <div style="font-size:11.5px;color:var(--text2)">enquiries sent through the site</div>
+        </div>
+        <?php endif; ?>
+        <?php
+        /* Say when a figure is missing because nothing is tracking it. A
+         * blank where a number should be reads as zero, and the fix — adding
+         * the event in Analytics — is not something the client would guess. */
+        $eng_missing = array();
+        if ( $six_engage['calls'] === null ) $eng_missing[] = 'calls';
+        if ( $six_engage['forms'] === null ) $eng_missing[] = 'form submissions';
+        if ( $eng_missing ) : ?>
+        <div style="flex-basis:100%;font-size:11px;color:var(--text2);line-height:1.5;padding-top:4px">
+            Your Analytics is not yet tracking <?php echo esc_html( implode( ' or ', $eng_missing ) ); ?>.
+            We can set that up so it shows here &mdash; ask your account manager.
+        </div>
+        <?php endif; ?>
     </div>
 </div>
 <?php endif; ?>
@@ -805,7 +903,7 @@ if ( $web_proj && $web_proj['total'] > 0 ):
     if (!W || !H) return;
     svg.setAttribute('viewBox','0 0 '+W+' '+H);
 
-    var pad = { t:14, b:26, l:46, r:16 };
+    var pad = { t:14, b:26, l:46, r:22 };
     var pts = VIS.points, n = pts.length;
     // A "without us" line only exists when we could fit one on readings from
     // before the engagement started. Where we could not, nothing is drawn
@@ -826,10 +924,14 @@ if ( $web_proj && $web_proj['total'] > 0 ):
       return (hasBefore && p.before !== null && p.before !== undefined)
         ? Math.max(p.before, p.after) : p.after;
     })) || 1;
-    var maxY = peak / 0.80;
-    // And the same horizontally, with the slack on the right so the end of
-    // the line has room for its marker and its label.
-    var spanW = (W - pad.l - pad.r) * 0.80;
+    var maxY = peak / 0.88;
+    // Horizontally this used to stop at 80% of the plot, reserving the right
+    // fifth for "the end of the line's marker and its label" — but no end
+    // label is ever drawn, so a fifth of the chart was blank. That empty
+    // band is most of why the chart read as unfinished next to Search
+    // Console, which runs its line the full width. Keep only what the end
+    // marker needs.
+    var spanW = (W - pad.l - pad.r) * 0.985;
     var X = function(i){ return pad.l + (n > 1 ? (i/(n-1)) * spanW : spanW/2); };
     var Y = function(v){ return H-pad.b - (v/maxY) * (H-pad.t-pad.b); };
 
@@ -917,7 +1019,13 @@ if ( $web_proj && $web_proj['total'] > 0 ):
     end.setAttribute('cx', afterPts[afterPts.length-1][0]);
     end.setAttribute('cy', afterPts[afterPts.length-1][1]);
 
-    GEO = { X:X, Y:Y, pad:pad, W:W, H:H, n:n };
+    // spanW goes in GEO because the hover has to invert X() exactly. It used
+    // to divide by the full plot width while X() multiplies by 80% of it, so
+    // every lookup landed at 0.8 of the index under the cursor — hover over
+    // week 6 and week 4 or 5 came back. Any future change to X() has to
+    // change here too, which is the reason the span travels with it rather
+    // than being written out twice.
+    GEO = { X:X, Y:Y, pad:pad, W:W, H:H, n:n, spanW:spanW };
   }
 
   function build(){
@@ -936,6 +1044,37 @@ if ( $web_proj && $web_proj['total'] > 0 ):
     var lastMo   = VIS.last_month || null;
     var target   = VIS.target || null;
     var unit     = VIS.metric || 'visitors';
+    // The short form repeated beside every figure in the row, so all three
+    // are visibly the same thing. "organic sessions" is too long to sit
+    // after a number three times; "sessions" and "clicks" are not.
+    var unitShort = /click/i.test(unit) ? 'clicks'
+                  : /session/i.test(unit) ? 'sessions'
+                  : 'visitors';
+    // Why the comparison line is absent, in four or five words, for the
+    // legend. The full sentence stays in the caption and the tooltip.
+    // Pressing Backfill twice and seeing no second line taught nobody
+    // anything, and this is the first place anyone looks.
+    var blockerShort = ({
+      'no_start'      : 'no start date recorded',
+      'no_readings'   : 'no daily readings yet',
+      'too_few_before': 'too little history before we started',
+      'fit_failed'    : 'the earlier readings could not be fitted',
+      'no_dates'      : 'nothing to compare against yet'
+    })[VIS.blocker] || 'not enough history before we started';
+
+    // The range pills. The current one is kept out of the links so it reads
+    // as state rather than as something to click.
+    var rangeBtns = '';
+    Object.keys(VIS.ranges || {}).forEach(function(d){
+      var on = String(VIS.range) === String(d);
+      var u  = new URL(window.location.href);
+      u.searchParams.set('range', d);
+      rangeBtns += '<a href="' + u.pathname + u.search + '" style="font-size:10.5px;font-weight:700;'
+        + 'padding:4px 9px;border-radius:14px;text-decoration:none;white-space:nowrap;'
+        + (on ? 'background:#FF6699;color:#fff'
+              : 'color:'+muted+';border:1px solid '+(isDark?'rgba(255,255,255,.14)':'rgba(15,20,40,.14)'))
+        + '">' + VIS.ranges[d].replace('Last ','') + '</a>';
+    });
     // Say what the chart is actually showing. The old subtitle promised a
     // comparison the chart could not always draw.
     var subtitle = hasFit
@@ -956,27 +1095,55 @@ if ( $web_proj && $web_proj['total'] > 0 ):
     '      </div>',
     '      <div style="font-size:11.5px;color:'+muted+';margin-top:4px">'+subtitle+'</div>',
     '    </div>',
-    '    <div style="text-align:right">',
-    '      <div style="font-size:22px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:'+strong+'">'+fmt(VIS.current_mo)+'</div>',
-    '      <div style="font-size:10.5px;color:'+muted+'">'+(VIS.daily?unit+' · last 30 days':'visitors / mo')+(lift>0?' · +'+fmt(lift)+' vs your own trend':'')+'</div>',
-    '    </div>',
+    /* The window picker. The chart was fixed at 30 days with no way to ask
+     * for anything else, so a quiet fortnight could not be told from a
+     * trend. These are links rather than a JS control because the server
+     * already slices the series — reloading with ?range= keeps one
+     * implementation of the window instead of two that can disagree. */
+    '    <div style="display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">' + rangeBtns + '</div>',
     '  </div>',
-    // Last month's actual figure and the target the strategy committed to.
-    // Both are omitted entirely when absent rather than shown as a zero or a
-    // placeholder: a target only appears once somebody has actually saved
-    // one, so this line can never show a number nobody stands behind.
-    ((lastMo || target) ?
-    '  <div style="display:flex;flex-wrap:wrap;gap:18px;margin-top:10px;padding-top:10px;border-top:1px solid '+(isDark?'rgba(255,255,255,.08)':'rgba(15,20,40,.08)')+'">'
+    /* One row, one unit, in time order.
+     *
+     * These three used to sit apart — the 30-day total alone in the top
+     * right, last month and the target on a strip below — and they were not
+     * comparable. The top right read "3,745 organic sessions · last 30 days"
+     * while the strip underneath read "October 2026 · 114 visitors", which
+     * was the MEAN of the five October days that happened to fall inside the
+     * 30-day display window, printed as if it were the month's total. Two
+     * numbers for the same thing, thirty times apart, labelled the same way.
+     *
+     * Now all three are monthly totals of the same metric, carry the same
+     * unit, and sit next to each other so the comparison is the obvious one:
+     * where we are, where we were, where we are going. Anything we cannot
+     * state on that basis is left out rather than converted. */
+    '  <div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:26px;margin-top:12px;padding-top:12px;border-top:1px solid '+(isDark?'rgba(255,255,255,.08)':'rgba(15,20,40,.08)')+'">'
+      + '<div><div style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:'+muted+'">Last 30 days</div>'
+      + '<div style="font-size:22px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:'+strong+'">'+fmt(VIS.current_mo)
+      + ' <span style="font-size:10.5px;font-weight:400;color:'+muted+'">'+unitShort+'</span></div>'
+      + (lift>0 ? '<div style="font-size:10px;color:#1a7f5a;font-weight:700">+'+fmt(lift)+' vs your own trend</div>' : '')
+      + '</div>'
       + (lastMo ?
         '<div><div style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:'+muted+'">'+lastMo.label+'</div>'
-        + '<div style="font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;color:'+strong+'">'+fmt(lastMo.value)+' <span style="font-size:10.5px;font-weight:400;color:'+muted+'">visitors</span></div></div>' : '')
+        + '<div style="font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;color:'+strong+'">'+fmt(lastMo.value)
+        + ' <span style="font-size:10.5px;font-weight:400;color:'+muted+'">'+unitShort+'</span></div></div>' : '')
       + (target ?
         '<div><div style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:'+muted+'">Target &middot; '+target.label+'</div>'
-        + '<div style="font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;color:#FF6699">'+fmt(target.value)+' <span style="font-size:10.5px;font-weight:400;color:'+muted+'">visitors</span></div></div>' : '')
-    + '  </div>' : ''),
-    '  <div style="display:flex;gap:16px;margin:12px 0 2px;font-size:11px;color:'+muted+'">',
+        + '<div style="font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;color:#FF6699">'+fmt(target.value)
+        + ' <span style="font-size:10.5px;font-weight:400;color:'+muted+'">'+unitShort+' / mo</span></div></div>' : '')
+    + '  </div>',
+    /* The legend listed "Without us" whether or not that line was drawn, so
+     * a client whose comparison could not be built read a key for a line
+     * that was not on the chart and assumed something was broken. It is
+     * listed only when it exists; when it does not, the reason takes its
+     * place, in the legend row where it will actually be read rather than
+     * in grey 10px at the foot of the card. */
+    '  <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin:12px 0 2px;font-size:11px;color:'+muted+'">',
     '    <span style="display:flex;align-items:center;gap:6px"><span style="width:14px;height:2.6px;border-radius:2px;background:#FF6699;display:inline-block"></span>With 6ix Developers</span>',
-    '    <span style="display:flex;align-items:center;gap:6px"><span style="width:14px;height:0;border-top:2px dashed '+(isDark?'rgba(255,255,255,.45)':'rgba(15,20,40,.4)')+';display:inline-block"></span>Without us</span>',
+    (hasFit
+      ? '    <span style="display:flex;align-items:center;gap:6px"><span style="width:14px;height:0;border-top:2px dashed '+(isDark?'rgba(255,255,255,.45)':'rgba(15,20,40,.4)')+';display:inline-block"></span>Without us</span>'
+      : '    <span title="'+String(VIS.note||'').replace(/"/g,'&quot;')+'" style="display:flex;align-items:center;gap:6px;opacity:.8">'
+        + '<span style="width:14px;height:0;border-top:2px dashed '+(isDark?'rgba(255,255,255,.2)':'rgba(15,20,40,.18)')+';display:inline-block"></span>'
+        + '<span style="text-decoration:underline dotted">No &ldquo;without us&rdquo; line &mdash; ' + blockerShort + '</span></span>'),
     '  </div>',
     '  <div id="vis-plot" style="position:relative;width:100%;height:210px;margin:6px 0 4px">',
     '    <svg id="vis-svg" style="width:100%;height:100%;overflow:visible" role="img" aria-label="Visitors over the last 30 days, with and without 6ix Developers">',
@@ -992,12 +1159,15 @@ if ( $web_proj && $web_proj['total'] > 0 ):
     '      <path id="vis-after" fill="none" stroke="#FF6699" stroke-width="2.6" stroke-linecap="round"/>',
     '      <g id="vis-xlbl"></g><g id="vis-ylbl"></g>',
     '      <circle id="vis-end" r="4.5" fill="#FF6699"/>',
-    '      <line id="vis-hv" stroke="'+(isDark?'rgba(255,255,255,.14)':'rgba(15,20,40,.14)')+'" stroke-width="1" stroke-dasharray="3,3" opacity="0"/>',
+    '      <line id="vis-hv" stroke="'+(isDark?'rgba(255,255,255,.22)':'rgba(15,20,40,.22)')+'" stroke-width="1" stroke-dasharray="3,3" opacity="0"/>',
+    '      <circle id="vis-hdot" r="4" fill="#FF6699" stroke="'+bg+'" stroke-width="2" opacity="0"/>',
+    '      <circle id="vis-hdot-b" r="3.5" fill="'+(isDark?'rgba(255,255,255,.55)':'rgba(15,20,40,.45)')+'" stroke="'+bg+'" stroke-width="2" opacity="0"/>',
     '    </svg>',
-    '    <div id="vis-tt" style="position:absolute;pointer-events:none;opacity:0;background:'+(isDark?'rgba(11,15,26,.92)':'rgba(255,255,255,.96)')+';border:1px solid '+(isDark?'rgba(255,102,153,.2)':'rgba(15,20,40,.12)')+';border-radius:9px;padding:8px 11px;font-size:11.5px;min-width:150px;box-shadow:0 8px 28px rgba(0,0,0,.32);transition:opacity .12s;z-index:20;color:'+strong+'">',
+    '    <div id="vis-tt" style="position:absolute;pointer-events:none;opacity:0;background:'+(isDark?'rgba(11,15,26,.95)':'rgba(255,255,255,.98)')+';border:1px solid '+(isDark?'rgba(255,102,153,.2)':'rgba(15,20,40,.12)')+';border-radius:9px;padding:8px 11px;font-size:11.5px;min-width:172px;box-shadow:0 8px 28px rgba(0,0,0,.32);transition:opacity .12s;z-index:20;color:'+strong+'">',
     '      <div id="vis-tt-w" style="font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;opacity:.5;margin-bottom:5px"></div>',
-    '      <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:2px"><span style="color:#FF6699;font-weight:700">With us</span><span id="vis-tt-a" style="font-variant-numeric:tabular-nums"></span></div>',
-    (hasFit ? '      <div style="display:flex;justify-content:space-between;gap:12px;font-size:10.5px;opacity:.7"><span>Without us</span><span id="vis-tt-b" style="font-variant-numeric:tabular-nums"></span></div>' : ''),
+    '      <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:2px"><span style="color:#FF6699;font-weight:700">With us</span><span id="vis-tt-a" style="font-variant-numeric:tabular-nums;font-weight:700"></span></div>',
+    '      <div id="vis-tt-brow" style="display:none;justify-content:space-between;gap:12px;font-size:10.5px;opacity:.75"><span>Without us</span><span id="vis-tt-b" style="font-variant-numeric:tabular-nums"></span></div>',
+    '      <div id="vis-tt-drow" style="display:none;justify-content:space-between;gap:12px;font-size:10.5px;margin-top:4px;padding-top:4px;border-top:1px solid '+(isDark?'rgba(255,255,255,.1)':'rgba(15,20,40,.1)')+'"><span style="opacity:.6">Difference</span><span id="vis-tt-d" style="font-variant-numeric:tabular-nums;font-weight:700"></span></div>',
     '    </div>',
     '  </div>',
     '  <div style="font-size:10.5px;line-height:1.5;color:'+(isDark?'rgba(255,255,255,.34)':'rgba(15,20,40,.45)')+';margin-top:6px">'
@@ -1025,23 +1195,60 @@ if ( $web_proj && $web_proj['total'] > 0 ):
     plot.addEventListener('mousemove', function(e){
       if (!GEO) return;
       var rect = plot.getBoundingClientRect();
-      var i = Math.max(0, Math.min(GEO.n-1, Math.round((((e.clientX-rect.left)-GEO.pad.l)/(GEO.W-GEO.pad.l-GEO.pad.r))*(GEO.n-1))));
+      // The exact inverse of X(): X(i) = pad.l + (i/(n-1)) * spanW.
+      var i = GEO.n > 1
+        ? Math.round((((e.clientX - rect.left) - GEO.pad.l) / GEO.spanW) * (GEO.n - 1))
+        : 0;
+      i = Math.max(0, Math.min(GEO.n-1, i));
       var p = VIS.points[i], x = GEO.X(i);
       var hv = document.getElementById('vis-hv');
       hv.setAttribute('x1',x); hv.setAttribute('x2',x);
       hv.setAttribute('y1',GEO.pad.t); hv.setAttribute('y2',GEO.H-GEO.pad.b);
       hv.setAttribute('opacity','1');
-      document.getElementById('vis-tt-w').textContent = 'Week ' + (i+1);
-      document.getElementById('vis-tt-a').textContent = fmt(p.after);
+      // Put a dot on the line being read. Search Console and GA4 both do
+      // this, and without it the crosshair is a vertical line with no
+      // indication of which value on it the tooltip belongs to.
+      var dot = document.getElementById('vis-hdot');
+      dot.setAttribute('cx', x); dot.setAttribute('cy', GEO.Y(p.after));
+      dot.setAttribute('opacity','1');
+      var dotB = document.getElementById('vis-hdot-b');
+      var hasB = (p.before !== null && p.before !== undefined);
+      if (hasB) { dotB.setAttribute('cx', x); dotB.setAttribute('cy', GEO.Y(p.before)); dotB.setAttribute('opacity','1'); }
+      else dotB.setAttribute('opacity','0');
+
+      // The real date, not "Week N". The axis has carried real dates since
+      // the series went daily, and a tooltip saying "Week 6" next to an axis
+      // saying "14 Nov" is the chart disagreeing with itself.
+      document.getElementById('vis-tt-w').textContent =
+        p.date ? new Date(p.date + 'T00:00:00').toLocaleDateString(undefined,
+                   { weekday:'short', day:'numeric', month:'short' })
+               : (p.label || ('Day ' + (i+1)));
+      document.getElementById('vis-tt-a').textContent = fmt(p.after) + ' ' + unitShort;
       var ttb = document.getElementById('vis-tt-b');
-      if (ttb) ttb.textContent = fmt(p.before);
+      var ttbRow = document.getElementById('vis-tt-brow');
+      // Before the split there is no "without us" value, and fmt(null) was
+      // printing 0 — a measured-looking zero on days we had not started.
+      if (ttbRow) ttbRow.style.display = hasB ? 'flex' : 'none';
+      if (ttb && hasB) ttb.textContent = fmt(p.before) + ' ' + unitShort;
+      // The gap is the number the whole chart exists to show, so it is
+      // stated rather than left to be eyeballed off two lines.
+      var ttd = document.getElementById('vis-tt-d');
+      var ttdRow = document.getElementById('vis-tt-drow');
+      if (ttdRow) ttdRow.style.display = hasB ? 'flex' : 'none';
+      if (ttd && hasB) {
+        var diff = p.after - p.before;
+        ttd.textContent = (diff >= 0 ? '+' : '−') + fmt(Math.abs(diff)) + ' ' + unitShort;
+        ttd.style.color = diff >= 0 ? '#1a7f5a' : (isDark ? 'rgba(255,255,255,.6)' : 'rgba(15,20,40,.5)');
+      }
       var tt = document.getElementById('vis-tt');
-      var left = x + 14; if (left + 165 > GEO.W) left = x - 165;
-      tt.style.left = left + 'px'; tt.style.top = '10px'; tt.style.opacity = '1';
+      var left = x + 14; if (left + 185 > GEO.W) left = x - 185;
+      tt.style.left = Math.max(0, left) + 'px'; tt.style.top = '10px'; tt.style.opacity = '1';
     });
     plot.addEventListener('mouseleave', function(){
       document.getElementById('vis-tt').style.opacity='0';
       document.getElementById('vis-hv').setAttribute('opacity','0');
+      document.getElementById('vis-hdot').setAttribute('opacity','0');
+      document.getElementById('vis-hdot-b').setAttribute('opacity','0');
     });
 
     render();
@@ -1275,7 +1482,7 @@ if (class_exists('Six_Dash_Metrics')) {
 $all_svc_defs=array(
     array('slug'=>'google-ads',       'name'=>'Google Ads',              'desc'=>'Paid ads that reach people searching for what you sell, today.'),
     array('slug'=>'seo',              'name'=>'SEO',                     'desc'=>'Rankings that build month over month and keep working after the work stops.'),
-    array('slug'=>'google-business',  'name'=>'Google Business Profile', 'desc'=>'Show up on the map when people nearby search, and turn that into calls and visits.'),
+    array('slug'=>'google-business',  'name'=>'GMB', 'desc'=>'Show up on the map when people nearby search, and turn that into calls and visits.'),
     array('slug'=>'website',          'name'=>'Website Development',     'desc'=>'A site built to turn visitors into enquiries, and to grow with you.'),
 );
 foreach($all_svc_defs as $def):
@@ -1371,7 +1578,22 @@ foreach(array_slice($s_mets, 0, 6) as $m) {
 // rather than drawing a curve through a single point.
 $trend = array( 'has' => false, 'labels' => array(), 'series' => array() );
 if ( class_exists( 'Six_Performance' ) && class_exists( 'Six_Dash_Metrics' ) ) {
-    $hist = array_reverse( Six_Performance::history( $user_id, 26 ) );   // oldest first
+    $hist = array_reverse( Six_Performance::history( $user_id, 52 ) );   // oldest first
+    /* Same window control as the overview. A service page showed every
+     * snapshot ever captured with no way to narrow it, so a client six
+     * months in read a year of axis to find this month.
+     *
+     * Falls back to the full history when the window holds fewer than two
+     * captures, because an empty chart answers nothing — better to show
+     * everything and say so than to show a blank where a trend was. */
+    if ( count( $hist ) >= 2 ) {
+        $cut   = gmdate( 'Y-m-d', strtotime( '-' . (int) $six_range . ' days' ) );
+        $inwin = array_values( array_filter( $hist, function ( $h ) use ( $cut ) {
+            return substr( (string) $h['captured_at'], 0, 10 ) >= $cut;
+        } ) );
+        $svc_range_full = count( $inwin ) < 2;
+        if ( ! $svc_range_full ) $hist = $inwin;
+    }
     if ( count( $hist ) >= 2 ) {
         $cat  = Six_Dash_Metrics::catalog();
         $keys = array_keys( $cat[ $svc_slug ]['metrics'] ?? array() );
@@ -1531,7 +1753,29 @@ if ( $plan_rows ):
         <div style="width:6px;height:6px;border-radius:50%;background:<?php echo $sd['color']; ?>"></div>
         <span style="font-size:12px;font-weight:700;color:var(--text1)">Performance Metrics</span>
         <span style="font-size:11px;color:var(--text3);margin-left:4px">· Updated by your advisor</span>
+        <?php
+        /* The same window control as the overview, on the same query string,
+         * so moving between the two keeps the range rather than silently
+         * resetting it. It narrows the trend graphs below; the summary row
+         * is always the latest reading and does not move. */
+        if ( ! empty( $trend['has'] ) || ! empty( $svc_range_full ) ) : ?>
+        <span style="margin-left:auto;display:flex;gap:4px;flex-wrap:wrap">
+            <?php foreach ( $six_ranges as $rd => $rlabel ) :
+                $on = ( (int) $rd === (int) $six_range ); ?>
+            <a href="?tab=<?php echo esc_attr( $active_tab ); ?>&range=<?php echo (int) $rd; ?>"
+               style="font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:14px;text-decoration:none;white-space:nowrap;<?php
+               echo $on ? 'background:' . esc_attr( $sd['color'] ) . ';color:#fff'
+                        : 'color:var(--text3);border:1px solid var(--border)'; ?>"><?php
+               echo esc_html( str_replace( 'Last ', '', $rlabel ) ); ?></a>
+            <?php endforeach; ?>
+        </span>
+        <?php endif; ?>
     </div>
+    <?php if ( ! empty( $svc_range_full ) ) : ?>
+    <div style="padding:8px 20px;font-size:11px;color:var(--text3);border-bottom:1px solid rgba(255,255,255,0.05)">
+        Fewer than two readings in that window, so the graphs below show everything recorded so far.
+    </div>
+    <?php endif; ?>
     <!-- Summary row — big numbers across top -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));border-bottom:1px solid rgba(255,255,255,0.05)">
     <?php foreach(array_slice($s_mets,0,4) as $met):
@@ -2218,7 +2462,7 @@ $rep_kinds = array(
     'implementation' => array('Implementation log', 'Every change made on the site, with what it was before.'),
     'other'          => array('Report', ''),
 );
-$rep_svc = array('seo'=>'SEO','google-ads'=>'Google Ads','google-business'=>'Google Business Profile','website'=>'Website');
+$rep_svc = array('seo'=>'SEO','google-ads'=>'Google Ads','google-business'=>'GMB','website'=>'Website');
 ?>
 <?php if(empty($reports)): ?>
 <div style="text-align:center;padding:40px;color:var(--text3)"><div style="margin-bottom:12px;color:var(--text3)"><?php echo class_exists('Six_Icon')?Six_Icon::get('reports','','36px'):''; ?></div>Your advisor will upload monthly reports here once campaigns are running.</div>

@@ -302,10 +302,20 @@ check( 'and marks that day on the plot', strpos( $cust, "'we started'" ) !== fal
 check( 'the "without us" line starts at the split, not at the left edge',
 	strpos( $cust, 'for (var bi = Math.max(0, split); bi < n; bi++)' ) !== false,
 	'the grey line would describe days before we did anything' );
-check( 'the line tops out at 80% of the plot height',
-	strpos( $cust, 'var maxY = peak / 0.80' ) !== false );
-check( 'and 80% of its width, with the slack on the right',
-	strpos( $cust, 'var spanW = (W - pad.l - pad.r) * 0.80' ) !== false );
+/* Headroom above the line, so a chart whose line touches the frame does not
+ * read as a number with nowhere left to go. Kept as a range rather than an
+ * exact factor: the value is a judgement about how the plot looks, and a
+ * test that pins it turns every visual tweak into a test failure. */
+check( 'the line leaves headroom above it rather than touching the frame',
+	preg_match( '/var maxY = peak \/ 0\.(8[0-9]|9[0-2])\b/', $cust ) === 1,
+	'a line against the top of the plot reads as maxed out' );
+/* Horizontally it used to stop at 80%, reserving the right fifth for "the
+ * end of the line's marker and its label". No end label is ever drawn, so a
+ * fifth of the chart was blank — reported as the graph looking incomplete
+ * beside Search Console, which runs its line the full width. */
+check( 'the line runs the full width of the plot',
+	preg_match( '/var spanW = \(W - pad\.l - pad\.r\) \* 0\.9[5-9]\d*/', $cust ) === 1,
+	'a blank right-hand fifth is why the chart read as unfinished' );
 check( 'the caption says how many days are shown',
 	strpos( $cust, 'VIS.window_days' ) !== false );
 check( 'and that the line is smoothed, so a client is not told a weekend was a crash',

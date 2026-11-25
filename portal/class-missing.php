@@ -220,6 +220,40 @@ class Six_Messaging {
             $user_id
         ) );
     }
+
+    /**
+     * Who the unread messages are from, newest conversation first.
+     *
+     * The count alone was all the dashboard had, so the "N unread messages"
+     * card could only link somewhere general — it pointed at the client
+     * list, which opens every customer and none of the messages. With the
+     * senders in hand the card can open the one conversation that is
+     * waiting, which is what the button appears to promise.
+     *
+     * @return array<int,array{id:int,n:int,name:string,last:string}>
+     */
+    public static function unread_senders( $user_id ) {
+        global $wpdb;
+        $rows = $wpdb->get_results( $wpdb->prepare(
+            "SELECT sender_id, COUNT(*) n, MAX(created_at) last
+               FROM {$wpdb->prefix}six_messages
+              WHERE receiver_id = %d AND is_read = 0
+              GROUP BY sender_id
+              ORDER BY last DESC",
+            $user_id
+        ) );
+        $out = array();
+        foreach ( (array) $rows as $r ) {
+            $u = get_userdata( (int) $r->sender_id );
+            $out[] = array(
+                'id'   => (int) $r->sender_id,
+                'n'    => (int) $r->n,
+                'name' => $u ? $u->display_name : ( 'User #' . (int) $r->sender_id ),
+                'last' => (string) $r->last,
+            );
+        }
+        return $out;
+    }
 }
 endif;
 

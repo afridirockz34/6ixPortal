@@ -145,9 +145,23 @@ function six_render_questionnaire_page( $client_id ) {
 				<?php if ( ( $f['type'] ?? 'text' ) === 'textarea' ) : ?>
 				<textarea id="<?php echo $fid; ?>" data-q="<?php echo esc_attr( $f['key'] ); ?>" rows="3" style="<?php echo $style; ?>;resize:vertical" placeholder="<?php echo esc_attr( $f['placeholder'] ?? '' ); ?>"><?php echo esc_textarea( $val ); ?></textarea>
 				<?php elseif ( ( $f['type'] ?? '' ) === 'select' ) : ?>
+				<?php
+				/* A saved answer that is no longer one of the options still
+				 * has to show, and show as selected. Without this the select
+				 * falls back to "Choose one…" and the client's own answer is
+				 * invisible — then the next save writes the empty value over
+				 * it, so renaming an option quietly deletes data.
+				 *
+				 * This bit when "Maps (local / Google Business Profile)"
+				 * became "Maps (local / GMB)". Any future rewording of an
+				 * option does the same, which is why this is general rather
+				 * than a map of old labels to new ones. */
+				$opts = array_values( (array) $f['options'] );
+				if ( $val !== '' && ! in_array( $val, $opts, true ) ) $opts[] = $val;
+				?>
 				<select id="<?php echo $fid; ?>" data-q="<?php echo esc_attr( $f['key'] ); ?>" style="<?php echo $style; ?>">
 					<option value="">Choose one…</option>
-					<?php foreach ( (array) $f['options'] as $opt ) : ?>
+					<?php foreach ( $opts as $opt ) : ?>
 					<option value="<?php echo esc_attr( $opt ); ?>" <?php selected( $val, $opt ); ?>><?php echo esc_html( $opt ); ?></option>
 					<?php endforeach; ?>
 				</select>
