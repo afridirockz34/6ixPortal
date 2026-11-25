@@ -117,12 +117,26 @@ feeling, in two numbers.
 **Never:** "your company", "your business", "your firm" as a way of saying "you".
 Use the name. It is shorter, warmer and it is what a person would say.
 
-**Targets:** "you / your" under 8 per 1,000 words. The firm's name at least as
-often as "you".
+**Targets:** "you / your" under 14 per 1,000 words. The firm's name at least
+as often as "you".
 
-**Why this reads as warmer.** "We" says two parties are doing this. "You" with no
-"we" beside it says one party is being assessed by another. A client paying for
-twelve months of work should read the first.
+**The limit used to be 8, and that was too tight.** The benchmark runs 3.0
+and uses "you" warmly — *"enough information for you to understand"*,
+*"you'll receive monthly performance reports"*, *"based on our research and
+your feedback"*. Those are the warmest sentences in the document. A limit
+tight enough to make a writer avoid them is working against the voice we
+want.
+
+The word was never the problem. Institutional coldness was, and what fixes
+that is contractions, one idea per paragraph, and a sentence that puts
+somebody in the work. Those are the rules that replaced it.
+
+**Still never:** "your company", "your business", "your firm" as a way of
+saying "you". Use the name.
+
+**Why "we" reads as warmer.** "We" says two parties are doing this. "You"
+with no "we" beside it says one party is being assessed by another. A client
+paying for twelve months of work should read the first.
 
 ---
 
@@ -195,31 +209,49 @@ real distinction and the checker was taught it:
 
 ---
 
-## Read this part first: the shape of a sentence, not the size of its words
+## Read this part first: a strategy is a letter, not a spec sheet
 
-We got this wrong for a year, so it is worth stating plainly.
+This file was calibrated against the wrong document for a year, and four of
+its targets were the wrong sign as a result. Worth stating plainly, because
+the error is easy to repeat.
 
-A 10,000-word strategy we shipped in November scored **Grade 8.5** on
-Flesch-Kincaid. The competitor document it was measured against scored **Grade
-11.4**. Ours used shorter words and shorter sentences by every standard metric.
-The client needed four hours to read it and said he could not present it to his
-team.
+The numbers in the old version of this section were measured against a
+competitor's **audit** — a technical reference document written for an agency
+audience. An audit is looked things up in, so it is dense, heavily labelled
+and written in the imperative. All of that is correct for an audit.
 
-So the problem was never vocabulary and it was never sentence length. **It was
-sentence shape and page shape.** Those are what this file now specifies, and
-what `scripts/check_strategy_doc.py` now measures.
+A strategy document is read front to back by somebody who is not a
+specialist, and then forwarded to a partner who was in none of the meetings.
+The two genres want opposite things. We specified the first and shipped four
+drafts of it while the client asked for the second.
 
-| Measured | Theirs | Ours | What we target |
+**`assets/client-letter-benchmark.md` is the voice.** Read it before writing
+anything. What it measures, against what we were producing:
+
+| Measured over prose | Benchmark | Ours, rejected | Target now |
 |---|---|---|---|
-| Paragraphs opening with a `Label:` | 32% | 6% | **25–55%** |
-| Sentences opening with an imperative verb | 5.8 per 1k words | 0.6 per 1k | **4+ per 1k** |
-| Cleft sentences ("The useful part is not that they are ahead. It is how.") | 0.00 | 1.03 per 1k | **0** |
-| "rather than" / "not X but Y" | 0.00 | 4.27 per 1k | **under 1 per 1k** |
-| "is what" / "is why" / "is the one" | 0.00 | 1.77 per 1k | **0** |
-| Sentences over 25 words | 8% | 16% | **under 10%** |
+| **Sentences per paragraph** | **1.1** | 2.8 | **under 1.9** |
+| **Contractions per 1,000 words** | **24.5** | 6.1 | **10+** |
+| `we'll` against `We will` | 10 / 0 | 0 / 12 | prefer `we'll` |
+| Paragraphs opening with a fragment | 3% | 44% | **under 10%** |
+| Bare imperatives per 1,000 words | 0.0 | 6.1 | **under 2.0** |
+| Unhedged four-figure estimates | 0 | 4 | **0** |
+| Cleft sentences | 0.00 | 1.03 per 1k | **0** |
+| "rather than" / "not X but Y" | 0.00 | 4.27 per 1k | under 1 per 1k |
+| Sentences over 25 words | 24% | 3% | **not counted** |
+| Longest sentence | 42 words | 30 | under 40 |
+| Flesch-Kincaid grade | 14.5 | 7.0 | **not a target** |
 
-The right column is not a style preference. It is the difference between a
-document a partner can read on a phone and a document he has to study.
+Read the last two rows together before trusting any readability number
+again. The document the client calls readable is **harder** by every standard
+metric and uses **longer** sentences than the one he gave up on. Grade level,
+sentence length and word length cannot see whatever makes writing readable,
+and four of them were gates in this skill until this rewrite.
+
+What survived the recalibration: the banned constructions below. Those are
+about **shape**, and the benchmark scores zero on all of them. Shape was
+always the real fault. Length, labels, imperatives and reading grade were
+not, and chasing them is what produced a telegram.
 
 ---
 
@@ -271,84 +303,164 @@ comparison the reader has to resolve.
 
 ## The shape of a paragraph
 
-**Lead with a label wherever the paragraph carries instructions.** A client
-scanning for the answer to one question finds it from the label. A client
-reading straight through loses nothing. This is 32% of the competitor's
-paragraphs and the largest single difference between the two documents.
+**One idea, one paragraph. Usually one sentence.**
 
-> **Title Tags:** Format: `[Primary Keyword] [Location] | NR Lawyers`. Under 60
-> characters. Unique on every page. Include the location modifier on all service
-> and location pages.
+This is the single most important rule in the file, and it replaces a rule
+that said the opposite. The benchmark runs **1.1 sentences per paragraph** —
+almost every sentence gets its own line and white space around it. Ours ran
+2.8, because this file used to say "two to four sentences, then stop".
 
-> **Review Strategy:** You have 12 Google reviews. The ten firms on your map
-> hold 72 to 216. We set up a request that goes out after every closed matter,
-> and we draft the response template. Ask every client. Never offer anything in
-> exchange — that breaks Google's policy and can remove the whole review set.
+That density is what made the labels necessary. A reader facing a wall of
+three-sentence blocks needs a handle on each one, so labels got bolted on,
+and then a rule demanded more of them. Fix the paragraph length and the
+labels stop being needed at all.
 
-**Label between a quarter and half of them. Not all of them.** This is a range
-with a ceiling, and the ceiling is the half that was missing. A strategy
-written against a bare "25%+" target came back at **91% labelled paragraphs
-with zero connectives**, and the client who received it called it unreadable.
-He was right: a document where every paragraph is a bolded stub is a filing
-system, not a document. A label earns its place on a paragraph carrying
-instructions somebody will come back to look up, and gets in the way on a
-paragraph making an argument.
+In a 60-page document this is what decides whether anybody reaches the end.
 
-Three rules for the body after the label:
+### No fragment openers
 
-- **Complete sentences.** Subject, main verb. "A separate set of 40, in
-  keywords-gmb.csv." is a stub; "A separate set of 40 keywords sits in
-  keywords-gmb.csv." is a sentence. Fragments belong in a specification table —
-  "Under 60 characters." in a meta standards row — and nowhere else. An earlier
-  version of this file said fragments were "often better", and that one line
-  produced a document made of them.
-- **Say the noun.** "A separate set of 40" leaves the reader working out 40 of
-  what. "40 keywords" costs one word and saves a re-read.
-- **Connect the facts.** *because*, *so*, *which means*, *so that*. Two facts
-  side by side with nothing between them make the reader build the argument
-  themselves. Roughly one connective per paragraph is the difference between a
-  list and an argument.
-- **Future work takes "will".** "We **will** optimize the existing pages in
-  month one." Not "We optimize the existing pages in month one", which is the
-  present tense describing something that has not happened, and a reader stops
-  on it. An earlier version of this file said "imperatives, not we will be
-  building", and the checker scored *we build* 1 and *we will build* 0 — so
-  the written rule and the measured one were both training documents out of
-  the future tense. Imperatives stay right in a specification row: "Add nine
-  services to the profile." A sentence about a named month takes "will".
-- **Say what we will do with it.** A paragraph about a deliverable that only
-  describes the deliverable is half-written. "The profile answers them, not a
-  page" describes. "We optimize the profile for these searches because
-  'criminal lawyer near me' alone gets 1,000 a month" commits.
-- **Two to four sentences, then stop.** One idea per paragraph.
+Our signature habit, and the one the client gave up on. 44% of the paragraphs
+in the rejected strategy opened with a verbless fragment and a full stop:
+
+> **Never:** The year's totals. The plan delivers 4 service pages, 24 city
+> location pages and 1 resource guide.
+
+> **Write:** The plan delivers 4 service pages, 24 city location pages and 1
+> resource guide.
+
+The fragment is a heading nobody asked for. `The year's totals.`, `How each
+keyword is scored.`, `Who is reading.`, `Claim the memberships first.`, `The
+wider GTA.` — all shipped, all cut.
+
+The old label check could not see any of it, because it only matched a colon
+or a bold run. It scored our 44% document at 0% and told the model to add
+more labels. `scripts/check_strategy_doc.py` now fails above 10%.
+
+### Labels: a ceiling, not a floor
+
+A label earns its place in a **specification block** — a meta standards row,
+a schema table, a linking rule somebody looks up. It does not belong on
+narrative prose, and this file used to demand it on a quarter of every
+document. The ceiling is now 15% and there is no floor.
+
+> **Correct, in a specification block.** **Title tags:** `[Primary Keyword]
+> [Location] | Mira Law`. Under 60 characters. Unique on every page.
+
+### The rules for the sentence itself
+
+- **Contract what a person would contract.** `we'll`, `we've`, `I've`,
+  `isn't`, `you'll`. The benchmark runs 24.5 contractions per 1,000 words;
+  ours ran 6.1, with twelve `We will` and not one `we'll`. A document with no
+  contractions reads as a notice, and this is a large share of what the
+  client meant by "humans don't talk like this". It is not informality — the
+  benchmark is a professional document and it contracts constantly.
+- **`We'll` and the verb. Never the bare verb.** `We'll profile the render
+  path in month 4.` Not `Profile the render path in month 4`, which is a line
+  from our worklist. The benchmark uses **zero** bare imperatives in prose;
+  ours used 6.1 per 1,000 words, because this file demanded 4+. Imperatives
+  stay correct inside a specification row.
+- **Future work takes `will` or `we'll`.** Not `We optimize the website in
+  month one`, which is the present tense for something that has not happened,
+  and a reader stops on it.
+- **Complete sentences.** Subject, main verb. `A separate set of 40, in
+  keywords-gmb.csv.` is a stub; `A separate set of 40 keywords sits in
+  keywords-gmb.csv.` is a sentence.
+- **Say the noun.** `A separate set of 40` leaves the reader working out 40
+  of what. `40 keywords` costs one word and saves a re-read.
+- **Say what we will do with it.** A paragraph that only describes a
+  deliverable is half-written. `The profile answers them, not a page`
+  describes. `We'll optimize the profile for these searches, because
+  "criminal lawyer near me" alone gets about 1,000 a month` commits.
+- **Lead with the reader's situation.** `To put things into perspective …`,
+  `For example, someone searching for "DUI Lawyer Brampton" …`, `Think of
+  this as making sure Google properly understands …`. Every technical point
+  arrives attached to a person doing something.
 
 ---
 
 ## Sentence discipline
 
-- **12–18 words on average. Nothing over 25.** Twenty-five is a ceiling, not a
-  target: a section of nothing but nine-word sentences reads as a telegram.
-  Vary the length, and follow a long sentence with a short one.
-- **Subject, verb, object.** In that order, in almost every sentence.
-- **One em-dash per section, at most.** The November document used 49 in 6,794
-  words. Each one is a clause the reader has to hold open.
-- **Target Grade 9–10 on Flesch-Kincaid**, which is the standard for a
-  frightened non-specialist reading on a phone. Note that this is a floor on
-  *clarity*, not a ceiling — scoring 8.5 did not make the November document
-  readable, because the metric cannot see sentence shape.
-- **Tables for anything with more than three parallel items.** 41% of the
-  competitor's document is tabular. A paragraph listing eight keywords is
-  unreadable; the same eight in a table are scannable and can go straight to a
-  developer.
+- **Length is not a rule.** This file used to say "12–18 words on average,
+  nothing over 25", and the checker failed any document with more than 10% of
+  its sentences over 25 words. The benchmark runs **24% over 25 words**,
+  averages 19.2 and peaks at 42. Shape is what costs a re-read; length is
+  not. 40 words is the only ceiling now, and it is a review rather than a
+  failure.
+- **A long sentence has to run in one direction.** The benchmark's 42-word
+  sentence is a list: subject, verb, three parallel things. That reads
+  straight through. A 20-word sentence that doubles back on itself does not.
+- **Subject, verb, object.** In that order, in almost every sentence. This is
+  the rule the banned constructions below all protect.
+- **One em-dash per section, at most.** The rejected document used 49 in
+  6,794 words. Each one is a clause the reader has to hold open.
+- **No reading-grade target.** Flesch-Kincaid is reported and ignored. The
+  benchmark scores 14.5; the document the client gave up on scored 7.0.
+- **Tables for anything with more than three parallel items.** A paragraph
+  listing eight keywords is unreadable; the same eight in a table are
+  scannable and can go straight to a developer.
+
+---
+
+## Round every estimate, and keep the word "estimated"
+
+Two separate rules that pull in the same direction.
+
+**Round it.** The benchmark writes `approximately 4,500 organic visits per
+month` and `approximately $23,600/month`. Ours wrote `4,501 visits` and
+`$23,655`. Both are Ahrefs estimates of a competitor's traffic, so the last
+three digits are noise, and printing them is most of what makes our prose
+read like a lab report.
+
+It is also an accuracy problem. A client who checks `4,501` against a real
+figure of 4,120 has caught us being precisely wrong instead of roughly right.
+
+**Keep the hedge.** `estimated`, `approximately`, `about`. This is a
+commitment in `CLAUDE.md`, not a style choice: never state a client's own
+traffic as fact from Ahrefs, because it is the one number they can check
+against an analytics tab they already have open.
+
+The benchmark does both at once — `receives an estimated 4,500 organic visits
+per month` — which is the proof that honesty and confidence are not in
+tension. Confidence comes from knowing what we'll do about the number, not
+from pretending to four significant figures.
+
+**Tables keep their digits.** A keyword volume column, an Opportunity Score,
+a page count. Those are specifications, and `check_strategy_doc.py` measures
+prose only.
+
+---
+
+## No provenance, no appendices
+
+The client asked for this out, in these words: *"We don't need to tell the
+client where everything is coming from. The information we are giving to
+client should be fundamentally confidence giving. We don't need appendixes.
+We have already onboarded the client and this is a strategy document."*
+
+Out, therefore:
+
+| Shipped | Why it goes |
+|---|---|
+| `All the figures below are Ahrefs estimates taken on 21 November 2026.` | An audit trail for a reviewer. Rule 1 in another costume |
+| `measured on 21 November 2026` | A pull date. The client does not audit our sources |
+| `Appendix A — Where every figure came from` | Same, with a heading |
+| A `Measured or estimated` column | Say `estimated` in the sentence instead |
+| `(Ahrefs, 9 Nov 2026)` after a baseline | Drop the citation, keep the word |
+
+The sources, dates and methods stay in our own notes and in the portal, where
+they are genuinely needed. They are how we answer a challenge; they are not
+the document.
 
 ---
 
 ## The three questions every section answers, in this order
 
-1. **What is true right now.** The measurement, with its number, its period and
-   its source.
-2. **What we are going to do about it.** A named, countable action, in the
-   imperative.
+1. **What is true right now.** One rounded number, in a sentence a
+   non-specialist follows. Not its period and not its source — see *No
+   provenance* above.
+2. **What we are going to do about it.** A named, countable action, with
+   `we'll` in front of it. Not the bare imperative: `We'll write 24 location
+   pages`, never `Write 24 location pages`.
 3. **What changes if we do it.** The mechanism — *why* the action moves the
    number. Not a promised figure.
 
@@ -433,20 +545,36 @@ The client is paying for a decision, not a survey of possibilities.
 
 ---
 
-## Section titles that say something
+## Section titles: plain and orienting
 
-A title is read by everybody; the body is read by some.
+This section used to recommend the opposite, and it was wrong twice over.
 
-| Don't | Do |
+It asked for titles like *"Your site blocks Google from a third of its own
+pages"* and *"You appear in 4 of 25 map searches across the GTA"*. Those are
+**audit headlines** — a present-tense deficiency, which Rule 3 bans in the
+body and should equally ban in a heading. They also jab the reader with
+"you" in the one place they cannot skip.
+
+The second fault is navigation. In a 60-page document a reader uses the
+contents page to find things, and a clever title is unfindable. Ours shipped
+*"Who is ahead, and how"*, *"Keywords"*, *"The page plan"*, *"Appearing in AI
+answers"*. The benchmark uses boring titles that say what the chapter is:
+
+| Ours, rejected | Benchmark |
 |---|---|
-| Competitor Analysis | Three firms own the searches you are not on |
-| Technical SEO | Your site blocks Google from a third of its own pages |
-| Keyword Research | 2,900 monthly searches, none of them reaching you |
-| Content Strategy | 12 pages, in the order they should be built |
-| Local SEO | You appear in 4 of 25 map searches across the GTA |
+| Who is ahead, and how | Current SEO Performance & Opportunities |
+| Keywords | Keyword Research & Targeting Strategy |
+| Changes to the pages you already have | Website Optimization & Technical SEO |
+| The page plan | Service Pages & Location-Based SEO |
+| Links and authority | Content Development & SEO Authority |
+| Objectives, and how we will know | Our 12-Month SEO Objectives |
+| Reporting | Ongoing SEO Management & Reporting |
 
-Keep them accurate. A title is a claim. If the body does not support it, cut the
-title rather than the evidence.
+Dull, parallel, and a partner can find the one chapter they care about in
+four seconds. That is the whole job of a title in a long document.
+
+Keep the interesting claim for the first sentence underneath it, where it has
+room to be true.
 
 ---
 
@@ -461,9 +589,17 @@ Then the mechanical pass:
 python scripts/check_strategy_doc.py <document.md>
 ```
 
-It measures sentence shape, label density, imperative density, sentence length
-and reading grade against the targets at the top of this file. It cannot tell
-you the document is clear. It can tell you where it is definitely not.
+It measures sentence shape, paragraph length, fragment openers, contraction
+rate, bare imperatives, unhedged estimates and provenance clutter against the
+table at the top of this file. It cannot tell you the document is clear. It
+can tell you where it is definitely not.
+
+**Calibration rule, and it is not optional.** Every check in that script is
+run against three documents before it ships: the rejected strategy (must
+fail), the rewrite (must pass), and `assets/client-letter-benchmark.md` (must
+pass). A check that fails the benchmark is wrong, whatever it is measuring —
+four of them did, for a year, and that is why the output was unreadable. Fix
+the check, then add the case to `tools/tests/test_strategy_language.py`.
 
 The thing it cannot check, and the one that matters most: **hand the document to
 somebody who was not in the research and ask them what we are going to do.** If

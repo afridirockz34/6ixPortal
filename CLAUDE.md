@@ -27,7 +27,8 @@ the repo and a parse error takes the whole deploy down.
 | `python3 tools/check_seo_skills.py` | the skills still work read cold: frontmatter, every path reference, every bundled script |
 | `php tools/check_skill_drift.php` | metric keys and profile stages the skills quote vs. the code that emits them |
 | `python3 tools/tests/test_keyword_set.py` | the keyword/topic/GMB set shape: named clusters, target pages, controlled vocabularies |
-| `python3 tools/tests/test_strategy_language.py` | the readability gate — good prose passes, a document of hedges fails |
+| `python3 tools/tests/test_strategy_language.py` | the readability gate — the client-letter benchmark passes, a document of fragments and bare imperatives fails |
+| `python3 tools/tests/test_client_figures.py` | the document's progress bars and rings — above all that a downward metric is drawn shrinking toward its goal |
 | `python3 tools/tests/test_section_budget.py` | each page template's section minimums actually fit inside its word limit |
 | `php tools/tests/test_tracking.php` | the visitors graph's trend fit, and that no write reports success without a table |
 | `php tools/tests/test_metric_math.php` | progress bars and trend arrows point the way the metric actually improves |
@@ -118,6 +119,45 @@ Both checkers were widened after they rejected sets and documents that were
 actually fine — a gate that fails good work gets switched off. Keep that
 direction: when one fires on something correct, fix the checker and add the
 case to its suite.
+
+### The gate was pointed the wrong way for a year
+
+Worth its own heading, because the failure was invisible from inside and cost
+four rejected drafts.
+
+`check_strategy_doc.py` was calibrated against a competitor's **audit** — a
+dense, heavily labelled, imperative reference document written for an agency
+audience, which is correct for an audit. A strategy document is a **letter**,
+read front to back by a non-specialist and forwarded to a partner. Four
+thresholds were therefore the wrong sign, and the model dutifully hit every
+one of them:
+
+| Check | Demanded | The benchmark actually runs |
+|---|---|---|
+| Paragraphs opening with a label | 25% floor | 3% |
+| Bare imperatives | 3+ per 1,000 words | 0.0 |
+| Sentences over 25 words | under 10% | 24% |
+| Reading grade | 9–10 | 14.5 |
+
+The document the client calls readable is **harder** by every standard
+readability metric than the one he gave up on. Grade level, word length and
+sentence length cannot see what makes writing readable.
+
+Two things follow, and both are now enforced:
+
+- **Every check runs against three documents before it ships:** the rejected
+  strategy (must fail), the rewrite (must pass), and
+  `seo-strategy-builder/assets/client-letter-benchmark.md` (must pass). A
+  check that fails the benchmark is wrong, whatever it is measuring.
+- **The example outranks the rule.** The model copies the worked example far
+  more faithfully than it follows a prose instruction. When the voice is
+  wrong, fix `client-letter-benchmark.md` first and the checker second.
+
+One detection bug is worth knowing about because it hid the whole problem:
+the label check only matched `Label:` with a colon or a bold run, while this
+repo's actual habit is a bare fragment and a full stop — `The year's totals.
+The plan delivers …`. It scored a 44%-labelled document at **0%** and kept
+telling the model to add more labels.
 
 ### A limit that cannot be satisfied
 

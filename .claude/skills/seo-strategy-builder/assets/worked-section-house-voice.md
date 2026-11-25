@@ -1,3 +1,24 @@
+> ## ⚠ SUPERSEDED — do not write like any version in this file
+>
+> **Read `client-letter-benchmark.md` instead.** That file holds a complete
+> strategy document the client approved as the standard, after rejecting four
+> drafts written against this one.
+>
+> This file is kept because the mistake in it is worth knowing. Every version
+> below — including the one labelled "the house voice" — was calibrated
+> against a competitor's **audit**: a technical reference document for an
+> agency audience, which is correctly dense, labelled and imperative. A
+> strategy document is a letter read front to back by a non-specialist. The
+> two genres want opposite things, and "Version 3" below is written in the
+> wrong one.
+>
+> Specifically, Version 3 opens three of its four paragraphs with a bolded
+> label, runs 2+ sentences per paragraph, uses no contractions, and writes
+> `we build 17 of them` in the present tense. The benchmark labels 3% of
+> paragraphs, runs 1.1 sentences each, contracts 24.5 times per 1,000 words
+> and writes `we'll`. See `../references/plain-language.md` for the measured
+> comparison.
+
 *A worked section in the house voice. Read this before writing any part of a
 strategy document, and read `../references/plain-language.md` for the rules it
 follows.*

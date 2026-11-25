@@ -129,21 +129,38 @@ LONG = "# Phase 5\n\n" + "\n\n".join(
      "performance continues past every reasonable point and keeps adding "
      "clauses until the reader has lost the subject entirely and gives up."] * 6)
 code, out = run(LONG)
-check("a document of overlong sentences fails",
-      code == 1 and "[FAIL] Sentences over 25 words" in out, out[-700:])
+check("a document of overlong sentences is flagged",
+      "Sentences over 40 words" in out, out[-700:])
 
-# The threshold moved from 45 words to 25 in November 2026. 45 was the reason
-# this check never fired on the strategy a client needed four hours to read:
-# that document's median sentence was 13 words and its longest was 46. The
-# number now matches what plain-language.md asks for, and what the agency we
-# are measured against states in its own style guide.
+# The ceiling went 45 -> 25 -> 40, and the middle step was a mistake worth
+# recording. 25 came from a competitor's style guide, which governs an AUDIT
+# written for an agency audience. The client-letter benchmark runs 24% of its
+# sentences over 25 words, averages 19.2 and peaks at 42 — and it is the
+# document the client asked us to write like. Our own rewrite ran 3% over 25,
+# averaged 14.5, and he gave up on it in the first two sections.
+#
+# So a 30-word sentence must now PASS. Shape is what costs a re-read, and the
+# SHAPE_PATTERNS checks are what catch shape.
 MID = "# Phase 5\n\n" + "\n\n".join(
-    ["We rewrite the nine service pages in month one and then build the twelve "
+    ["We'll rewrite the nine service pages in month one and then build the twelve "
      "location pages across months two to five, starting with the two cities "
      "you named as most profitable for the firm."] * 8)
 code, out = run(MID)
-check("a 30-word sentence is now caught, where 45 was the old bar",
-      code == 1 and "[FAIL] Sentences over 25 words" in out, out[-700:])
+check("a 30-word sentence passes — 25 was the wrong ceiling",
+      "[FAIL] Sentences over" not in out, out[-700:])
+
+# The benchmark's own longest sentence, reproduced. It reads straight through
+# because it is a list: subject, verb, three parallel things. A gate that
+# fails this is a gate that fails the house voice.
+BENCH_LONG = "# Phase 5\n\n" + "\n\n".join(
+    ["There is quite a bit to cover, but we wanted to provide enough information "
+     "for you to understand where the website currently stands, what "
+     "opportunities we've identified, and how we plan to position Mira Law "
+     "competitively across Toronto and the surrounding cities."]
+    + ["We'll optimize all 23 existing pages in month one."] * 6)
+code, out = run(BENCH_LONG)
+check("the benchmark's own 42-word sentence does not fail",
+      "[FAIL] Sentences over" not in out, out[-700:])
 
 # Share, not count: a long document legitimately carries more than five.
 OCCASIONAL = "# Phase 5\n\n" + "\n\n".join(
@@ -166,6 +183,14 @@ Anchor text needs work.
 Core Web Vitals look poor.
 
 Crawl budget gets wasted.
+
+Their topical authority looks thin across the practice areas.
+
+Referring domains fell again last quarter.
+
+The long-tail went unclaimed for most of the year.
+
+Their citations carry three different phone numbers.
 """
 code, out = run(JARGON)
 check("terms used before they are explained fails",
@@ -450,50 +475,48 @@ check("  and a run of clefts is caught on its own",
 
 # The same facts, written the way plain-language.md now asks. Nothing here is
 # softer or shorter — it is the same content with the subject in front.
-REWRITTEN = """# Phase 5 — SEO strategy
+REWRITTEN = """# Phase 5
 
-Why they are ahead: They built a page for each offence in each city. You have
-not built those pages. That is the whole difference.
+You named sexual assault and impaired driving as the firm's most profitable
+work, so we'll build those pages first.
 
-Location pages: Name the actual courthouse on every one. Without it the page
-is a template with the city swapped, and Google treats it as one.
+A bigger search in an area you did not name waits until the year's second half.
 
-Internal links: Link each hub to its children using the child's own search
-term. That tells Google which page owns which search.
+Four things run for the whole twelve months, not just the build phase.
 
-Order of work: You named sexual assault and impaired driving as your most
-profitable work. We build those pages first. A bigger search in an area you
-did not name waits.
+Those are the 100 articles, a weekly Google Business post, monthly reporting
+and the quarterly review.
 
-What runs all year: Four things. 100 articles, a weekly Google Business post,
-monthly reporting, and the quarterly review.
+In month ten we'll run a second pass over everything published so far.
 
-Month ten: We run a second pass over everything published. Keep the pages that
-moved. Rewrite the pages that did not.
+We'll keep the pages that moved and rewrite the ones that didn't.
 
-We publish every topic inside the twelve months because the set is sized to
-the year, so nothing carries over into a second engagement. Reviews come back
-inside two days to hold that pace.
+We'll publish every topic inside the twelve months, because the set is sized
+to the year and nothing carries over into a second engagement.
 
-The quarterly review asks whether the searches we bet on were the right ones,
-and moves the next quarter's priorities if the evidence says so.
+Reviews need to come back inside two days to hold that pace.
 
-Month one publishes no new pages, and is still the busiest month of the
-twelve, because the whole profile build and the listings correction happen in
-it and neither waits on new content.
+The quarterly review asks whether the searches we bet on were the right ones.
 
-We label what exists before we add to it, so the new pages land on a site
-Google can already read.
+Where the evidence says they weren't, we'll move the next quarter's priorities.
 
-The city pages come before the neighbourhood pages because a neighbourhood
+Month one publishes no new pages and is still the busiest month of the twelve.
+
+That's because the whole profile build and the listings correction happen in
+it, and neither one waits on new content.
+
+We'll label what already exists before we add to it, so the new pages land on
+a site Google can read.
+
+The city pages come before the neighbourhood pages, because a neighbourhood
 page with no city page above it has nothing to link up to.
 """
 code, out = run(REWRITTEN)
 check("the same facts, rewritten, pass clean",
       "[FAIL] Sentence shape" not in out, out[-900:])
-check("  and the rewrite is scannable without being all labels",
-      "paragraphs lead with a label" in out and "open with a label" not in out,
-      "a mix passes; 94% does not")
+check("  and the rewrite is not over-labelled",
+      "open with a label" not in out,
+      "the ceiling is 15%; there is no floor any more")
 check("  and it still commits to work",
       "we add content" in REWRITTEN.lower() or "we build" in REWRITTEN.lower()
       or "keep the pages" in REWRITTEN.lower())
@@ -523,17 +546,67 @@ check("'is why' and 'is the one' are clear English and are not flagged",
       "a gate that fails clear writing gets switched off")
 
 print("\n-- Scannability --")
-# The largest single structural difference between the two documents: 32% of
-# the agency's paragraphs open with a scannable label, against 6% of ours.
+# This block used to assert the opposite, and it was the most damaging
+# assertion in the file. It required a FLOOR of 25% labelled paragraphs, on
+# the evidence that a competitor's audit ran 32%.
+#
+# That competitor document is a reference work for an agency audience. The
+# client-letter benchmark labels 3% of its paragraphs and is what the client
+# asked for. So an unlabelled document must now pass cleanly.
 WALL = "# Phase 5\n\n" + "\n\n".join([
-    "We rewrite the nine service pages in month one. You have one page about "
-    "bail hearings today and your competitors have between four and nine each."
-] * 6)
+    "We'll rewrite the nine service pages in month one.",
+    "The firm has one page about bail hearings today.",
+    "The three competing firms have between four and nine each.",
+    "We'll write six more, one for each stage of a bail hearing.",
+    "They'll publish across months two and three.",
+    "Each one answers a question somebody actually types into Google.",
+] * 2)
 code, out = run(WALL)
-check("a document of unlabelled paragraphs is flagged as unscannable",
-      "open with a scannable" in out, out[-900:])
-check("  and it is a review, not a failure — some sections are narrative",
-      "[REVIEW] Only" in out, out[-900:])
+check("a document of unlabelled paragraphs passes — there is no floor now",
+      "open with a scannable" not in out and "[FAIL] " not in out, out[-900:])
+
+# And the form the old check could not see at all: a verbless fragment, a
+# full stop, then the real sentence. 44% of the rejected strategy's
+# paragraphs, scored by the old gate at 0%.
+STUBS = "# Phase 5\n\n" + "\n\n".join([
+    "The year's totals. The plan delivers 4 service pages and 24 location pages.",
+    "How each keyword is scored. Every keyword carries a score out of 100.",
+    "The wider GTA. Mississauga and Vaughan enter the plan in month nine.",
+    "Who is reading. The reader is frightened and often reading at night.",
+    "Claim the memberships first. The firm already holds three of them.",
+    "The blog topics. The 86 topics fall into nine groups.",
+    "Link text plan. Rotate the phrases so no page collects the same text twice.",
+    "Set the service area in month one. It covers twenty cities and boroughs.",
+    "We'll rewrite the nine service pages in month one.",
+    "The firm has one page about bail hearings today.",
+    "We'll write six more, one for each stage of a bail hearing.",
+    "Each one answers a question somebody actually types into Google.",
+])
+code, out = run(STUBS)
+check("fragment openers are caught — the habit the old gate was blind to",
+      code == 1 and "open with a sentence fragment" in out, out[-900:])
+check("  and the fragment itself is quoted back",
+      "The year's totals" in out, out[-900:])
+
+# A short opening sentence is not a fragment. It has a verb, and a gate that
+# cannot tell the difference fails good writing.
+SHORT_BUT_WHOLE = "# Phase 5\n\n" + "\n\n".join([
+    "SEO isn't a one-time process. We'll keep optimizing for the whole year.",
+    "Mira Law ranks for none of them. The three competing firms rank for 881.",
+    "Google needs more than a fast website. It also needs content people want.",
+    "The profile matters more than the website here. Only a profile answers a map search.",
+    "This will be one of the most significant components of our strategy.",
+    "We'll develop dedicated pages targeting specific services and locations.",
+    "Before expanding the website, our first priority is the existing foundation.",
+    "These improvements will provide the base for everything else in the year.",
+    "You'll receive monthly performance reports showing what moved and what we did.",
+    "We'll also conduct quarterly strategy reviews to evaluate our progress.",
+    "Our focus will remain on searches that can attract real potential clients.",
+    "Think of this as making sure Google properly understands what the firm does.",
+])
+code, out = run(SHORT_BUT_WHOLE)
+check("a short sentence with a verb is not mistaken for a fragment",
+      "open with a sentence fragment" not in out, out[-900:])
 
 NO_ACTION = "# Phase 5\n\n" + "\n\n".join([
     "The site has one page per practice area today. Competitors have between "
@@ -543,17 +616,33 @@ NO_ACTION = "# Phase 5\n\n" + "\n\n".join([
     "The profile is claimed and verified. Its category is correct.",
 ] * 3)
 code, out = run(NO_ACTION)
-check("prose that describes and never commits is flagged",
-      "Actions written as instructions" in out, out[-900:])
-check("  while \"so we build 17 of them\" counts as the commitment it is",
-      "Actions written as instructions" not in
-      run("# Phase 5\n\n" + "\n\n".join([
-          "These pages are easy to rank because almost nobody has built them, "
-          "so we build 17 of them between months 2 and 9.",
-          "A well-written explainer can take these searches, so we write four "
-          "in months 2 to 4 and the rest across the year.",
-      ] * 4))[1],
-      "requiring a sentence-initial verb rewarded stubs and penalised sentences")
+# This used to require a FLOOR of 3 bare imperatives per 1,000 words, and the
+# floor is what put "Profile the render path in month 4" into a client
+# document. The benchmark uses ZERO and writes "we'll develop", "we'll
+# prioritize". So prose with no imperatives in it must now pass, and the
+# describing-without-committing fault is caught by the vague-action check
+# instead, which looks for the missing subject rather than the missing verb.
+check("prose with no bare imperatives passes — the floor is gone",
+      "bare instructions per 1k words" not in out
+      or "[FAIL]" not in out.split("bare instructions")[0].split("\n")[-1],
+      out[-900:])
+
+# A document written as a worklist now fails.
+WORKLIST = "# Phase 5\n\n" + "\n\n".join([
+    "Profile the render path in month 4, then defer the scripts that block it.",
+    "Build 17 city-and-offence pages across months 2 to 9.",
+    "Claim the four professional listings in month one.",
+    "Rewrite the wording of the links between pages.",
+    "Add the Google code to every new page in month eight.",
+    "Publish one guide other sites would want to link to.",
+    "Check the wording of every link built so far.",
+    "Set the service area to the twenty cities the firm wants calls from.",
+])
+code, out = run(WORKLIST)
+check("a document written as a worklist fails",
+      code == 1 and "bare instructions per 1k words" in out, out[-900:])
+check("  and it names the fix",
+      "we'll" in out.lower(), out[-900:])
 
 # Two label forms are in use and both are scannable: the agency's "Label: ..."
 # and this repo's "**Label.** ...". The bold form has to be matched before the
@@ -573,10 +662,26 @@ BOLD = "# Phase 5\n\n" + "\n\n".join([
     "matching their link profile.",
 ])
 code, out = run(BOLD)
-check("a bold **Label.** counts as a scannable opener",
-      "% of paragraphs lead with a label" in out, out[-900:])
+check("a bold **Label.** is still recognised as a label",
+      "Labels used sparingly" in out or "open with a label" in out, out[-900:])
 check("  and the paragraphs are counted, not skipped",
-      "0 of 0" not in out and "Only 0%" not in out, out[-900:])
+      "0 of 0" not in out, out[-900:])
+
+# Over the ceiling it fails. The rejected strategy ran 91% labelled
+# paragraphs at one point, and the client called it a filing system.
+ALL_LABELS = "# Phase 5\n\n" + "\n\n".join([
+    "**What we build.** 17 city-and-offence pages across months 2 to 9.",
+    "**What you do.** Confirm the two cities before 1 December this year.",
+    "**How they got there.** They built a page for each offence in each city.",
+    "**Pattern 1.** A page for each offence in each city, in eleven cities.",
+    "**Pattern 2.** Plain explanations of what each charge actually means.",
+    "**The year's totals.** 4 service pages, 24 location pages, 86 articles.",
+    "**Month one.** Titles, descriptions and schema on all 23 existing pages.",
+    "**Month two.** The impaired driving page, and eight articles beside it.",
+])
+code, out = run(ALL_LABELS)
+check("a document of nothing but labels fails",
+      code == 1 and "open with a label" in out, out[-900:])
 
 # ── The worked example ───────────────────────────────────────────────────
 # The skill had no sample of a finished client-facing section in the house
@@ -626,7 +731,25 @@ code, out = run(JABBING)
 check("prose that jabs \"you\" at the reader fails",
       code == 1 and '"you" / "your"' in out, out[-900:])
 check("  and the limit is stated with the benchmark",
-      "limit 8.0" in out, out[-900:])
+      "limit 14.0" in out, out[-900:])
+
+# The limit moved 8.0 -> 14.0. The benchmark runs 3.0 and uses "you" in its
+# warmest sentences — "you'll receive monthly performance reports", "enough
+# information for you to understand". A limit tight enough to push a writer
+# off those is working against the voice. The word was never the fault.
+WARM_YOU = "# Phase 5\n\n" + "\n\n".join([
+    "You'll receive monthly performance reports showing exactly what moved.",
+    "We wanted to give you enough information to see where the site stands.",
+    "Based on our research and your feedback, we'll start with impaired driving.",
+    "We'll send you a short note each month with the work we completed.",
+    "Mira Law's website gets about 170 clicks a month from search today.",
+    "We'll take that to roughly 400 by month twelve.",
+    "The firm's profile doesn't appear on the map outside the office.",
+    "We'll work that up to fifteen of the forty-nine points we track.",
+])
+code, out = run(WARM_YOU)
+check("  \"you\" used warmly is not penalised",
+      '[FAIL] "you"' not in out, out[-900:])
 
 code, out = run("# Phase 5\n\n" + "\n\n".join([
     "Your company's rankings depend on brand searches today.",
@@ -804,8 +927,15 @@ link profile.
 well-written explainer can take it. We write four in months 2 to 4.
 """
 code, out = run(MIXED)
-check("a mix of labelled and flowing paragraphs passes",
-      "of paragraphs open with a label" not in out, out[-900:])
+# This fixture is the old "house voice" example, and it used to pass here.
+# It now fails at 50% labelled paragraphs against a 15% ceiling, which is the
+# whole correction: the ceiling replaced a 25% FLOOR, and the floor is what
+# produced the document the client called a filing system. Kept as the
+# regression marker — if this ever passes again, the floor has come back.
+check("the old house-voice example is now over-labelled, and fails",
+      code == 1 and "of paragraphs open with a label" in out, out[-900:])
+check("  and the ceiling is named in the message",
+      "ceiling 15%" in out, out[-900:])
 
 print("\n-- Findings hiding in a table --")
 # The findings in the last strategy had migrated into a "Why it is first"
@@ -855,8 +985,14 @@ check("future work in the present tense fails",
 code, out = run(PRESENT.replace("We ", "We will "))
 check("  and the same sentences with \"will\" pass",
       "present tense" not in out, out[-900:])
-check("  the imperative metric no longer penalises \"we will build\"",
-      "[OK] Actions are written as instructions" in out, out[-900:])
+# This used to assert a FLOOR on imperatives. The floor is gone: the
+# benchmark writes "we'll develop" and uses zero bare imperatives, and the
+# floor is what put "Profile the render path in month 4" into a client
+# document. "We will build" must simply not be penalised either way.
+check("  \"we will build\" is not counted as a bare instruction",
+      "bare instructions per 1k words" not in out
+      or "[FAIL]" not in out.split("bare instructions")[0].split("\n")[-1],
+      out[-900:])
 code, out = run("# SEO strategy\n\n" + "\n\n".join([
     "Add nine services to the Google Business Profile.",
     "Rewrite the 750-character description.",
@@ -928,41 +1064,68 @@ code, out = run(FWD.replace(
 check("  stating the target in words where it is used passes",
       "before the table that defines it" not in out, out[-900:])
 
-print("\n-- The worked example --")
+print("\n-- The benchmark the voice is calibrated against --")
+# The highest-leverage file in the skill: the model copies the example it is
+# shown far more faithfully than it follows a rule. The previous example here
+# was calibrated against a competitor's AUDIT — a dense, labelled, imperative
+# reference document for an agency audience — and the client gave up on four
+# drafts written to it. The benchmark is a client LETTER.
+BENCH = REPO / ".claude/skills/seo-strategy-builder/assets/client-letter-benchmark.md"
+check("the skill ships the client-letter benchmark", BENCH.exists())
+if BENCH.exists():
+    whole = BENCH.read_text(encoding="utf-8")
+    body = whole.split("# \u25bc THE BENCHMARK BEGINS")[1].split("# \u25b2 THE BENCHMARK ENDS")[0]
+
+    # The benchmark must pass every gate in the checker. A check that fails it
+    # is a check pointed the wrong way, which is exactly what happened to four
+    # of them, so this assertion is the guard against repeating it.
+    code, out = run("# Phase 2\n" + body, name="benchmark.md")
+    check("  the benchmark passes the checker outright",
+          code == 0,
+          "a gate that fails the house voice is the bug, not the document:\n"
+          + "\n".join(l for l in out.splitlines() if l.startswith("[FAIL]")))
+    check("  no bare imperatives in it",
+          "[FAIL] " not in out.split("bare instructions")[0].split("\n")[-1], out[-900:])
+    check("  it contracts like a person",
+          "contractions per 1k" in out and "[FAIL] " not in
+          out.split("contractions per 1k")[0].split("\n")[-1], out[-900:])
+    check("  it opens paragraphs with sentences, not fragments",
+          "sentences, not fragments" in out, out[-900:])
+
+    # The measured comparison is the evidence, and losing it is how the
+    # calibration drifts back.
+    check("  it records the measured difference from what we were producing",
+          "1.1" in whole and "24.5" in whole and "44%" in whole,
+          "sentences per paragraph, contractions, fragment openers")
+    check("  and that readability metrics pointed the wrong way",
+          "14.5" in whole and "7.0" in whole,
+          "the readable document scores HARDER; this is why grade level is not a gate")
+    check("  it says no appendices and no provenance",
+          "appendix" in whole.lower() and "pull date" in whole.lower())
+
+# The old example stays, marked, because the mistake in it is instructive.
 VOICE = REPO / ".claude/skills/seo-strategy-builder/assets/worked-section-house-voice.md"
-check("the skill ships a worked section in the house voice", VOICE.exists())
 if VOICE.exists():
-    whole = VOICE.read_text(encoding="utf-8")
-    check("  it shows the shipped voice, the over-correction and the house voice",
-          "# Version 1" in whole and "# Version 2" in whole and "# Version 3" in whole,
-          "the over-correction is the one that needed showing: it passes every check "
-          "that existed before and is still not writing")
-    rewritten = whole.split("# Version 3 — the house voice")[1].split("## What makes version 3")[0]
-    code, out = run("# Phase 2\n" + rewritten, name="voice.md")
-    check("  the house-voice half passes the shape check",
-          "[FAIL] Sentence shape" not in out, out[-900:])
-    check("  and is scannable",
-          "% of paragraphs lead with a label" in out and "[REVIEW] Only" not in out, out[-900:])
-    check("  and its actions are instructions",
-          "[OK] Actions are written as instructions" in out, out[-900:])
-    shipped = whole.split("# Version 2")[1].split("**Why it fails, and this one is subtler.**")[0]
-    code, out = run("# Phase 2\n" + shipped, name="shipped.md")
-    check("  the over-corrected half is flagged for being all labels",
-          "open with a label" in out or "open with a scannable" in out, out[-900:])
-    check("  and the file names the fault the checks could not see",
-          "also not writing" in whole,
-          "claiming a fail the reader cannot reproduce is how a gate loses trust")
-    check("  and it records what the over-correction measured",
-          "91%" in whole and "zero connectives" in whole,
-          "the whole point: simpler words did not make it readable")
+    old = VOICE.read_text(encoding="utf-8")
+    check("the superseded example says so at the top, before any of its prose",
+          "SUPERSEDED" in old[:600], old[:300])
+    check("  and sends the reader to the benchmark instead",
+          "client-letter-benchmark.md" in old[:1200], old[:600])
+    check("  and names why it was wrong: it was calibrated against an audit",
+          "audit" in old[:1600].lower(), old[:900])
 
 # The skill has to point at it, or nothing reads it.
 SKILL_MD = (REPO / ".claude/skills/seo-strategy-builder/SKILL.md").read_text(encoding="utf-8")
-check("the skill tells a session to read the worked example before drafting",
-      "worked-section-house-voice.md" in SKILL_MD)
+check("the skill tells a session to read the benchmark first",
+      "client-letter-benchmark.md" in SKILL_MD)
 check("  and says not to infer the voice from the instructions themselves",
-      "not the voice of a client deliverable" in SKILL_MD,
+      "not a client deliverable" in SKILL_MD,
       "this is the actual root cause: the model mirrors the register it is reading")
+check("  and states the rules that replaced the inverted ones",
+      "one idea per paragraph" in SKILL_MD.lower()
+      and "we'll" in SKILL_MD.lower()
+      and "bare imperative" in SKILL_MD.lower(),
+      SKILL_MD[:200])
 
 print()
 print(f"Passed: {passed}  Failed: {failed}")

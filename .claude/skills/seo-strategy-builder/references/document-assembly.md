@@ -69,11 +69,49 @@ at more than one address, so we will tell Google which address is the real one
 for each.* `plain-language.md` is the standard and `check_strategy_doc.py`
 counts the failures.
 
-**Compare every number to something.** A figure on its own is not a finding.
-612 referring domains means nothing; 612 against a competitor's 2,100, pulled
-the same day, is an argument. Every baseline in the document carries either a
-competitor's equivalent, the same figure from a previous period, or the target
-it is being compared to — and says which.
+**Compare every number to something.** A figure on its own means nothing.
+610 referring domains says nothing; 610 against a competitor's roughly 2,100
+is an argument. Every baseline carries either a competitor's equivalent or
+the target it is being measured against.
+
+**Round it, and keep the hedge.** `approximately 4,500 visits`, not `4,501`.
+`about $23,600`, not `$23,655`. The rounding is both honesty and readability
+— see *Round every estimate* in `plain-language.md`. Tables keep their
+digits; prose does not.
+
+---
+
+## Figures, not tables, wherever a number has to land with a non-specialist
+
+The client's instruction: *"It is also a client facing doc, it should have
+more content in design format like graphs and progress bars/circles for the
+customer who knows nothing about technical terms can see and understand."*
+
+`scripts/make_figures.py` generates them from a small JSON spec. Plain SVG,
+no dependencies, embeds directly into Word, Pages and Google Docs.
+
+| Section | Figure | Instead of |
+|---|---|---|
+| Objectives | `goal` — today against target, two bars a row | The ten-row objectives table |
+| What happens when | `journey` — a twelve-month track with the work on it | Reading the month table to find out roughly when things land |
+| Google Business Profile | `compare` — the firm's bar in colour against competitors | The grid table of average positions and review counts |
+| Monthly report | `ring` — a progress circle per objective | A column of numbers |
+
+**Use `goal`, not `ring`, in a strategy document.** A ring shows how far
+through the work we are, which is the right question in a monthly report and
+a useless one at kickoff: every ring reads 0% and a page of empty circles
+says only that nothing has happened yet. Two bars show the jump the plan is
+for, which is the thing the client is buying.
+
+**The table stays underneath the figure where the detail matters.** A figure
+is for the partner skimming it; the table is for the person who has to build
+from it. The figure does not replace the table, it goes above it — and on a
+section where the table is the deliverable, like the page plan or the keyword
+clusters, there is no figure at all.
+
+**Every figure's label follows the same language rules as the prose.** No
+`Tier 1`, no `Q&A seeded`, no `Speed Index`. A figure a client cannot read is
+worse than a table, because it looks like it was meant to be easy.
 
 ---
 
@@ -106,10 +144,16 @@ Every title below is the section name. None of them contains a phase number.
 
 | Section | What it is |
 |---|---|
-| Summary and decisions needed | One page. What we found, what we are doing, and the three to five decisions we need from the client, each with a recommendation. Written last |
+| Introduction | Three or four single-sentence paragraphs. What this covers, over what term, and what it is for. The benchmark's is reproduced in `assets/client-letter-benchmark.md` |
+| Summary and decisions needed | One page. What we are doing, and the three to five decisions we need from the client, each with a recommendation. Written last |
 | What we will do first | The numbered priorities table — see below. The one page a client who reads nothing else will read |
-| What happens when | The twelve-row month table from `engagement-plans.md`. One row per month, counts rather than names, every column that applies filled in. On a six-month plan it is six rows and says so |
-| How to read the figures | Which numbers are measured (their GA4, Search Console) and which are estimated (Ahrefs), with the period and pull date for each. Two sentences per source |
+| What happens when | The twelve-row month table from `engagement-plans.md`, **with the `journey` figure above it.** One row per month, counts rather than names. On a six-month plan it is six rows and says so |
+
+There is no *How to read the figures* section any more. It named every
+source and its pull date, which is the audit trail the client asked us to
+drop. The honesty it was protecting now lives in the sentence beside each
+number — `an estimated 4,500 visits a month` — which is where a client
+actually reads it.
 
 **Part 1 — Where the business stands**
 
@@ -186,14 +230,23 @@ Every title below is the section name. None of them contains a phase number.
 | The quality gate every page passes | `seo-content-production` — the three conditions |
 | Who approves what | the client profile's approvers |
 
-**Appendices**
+**Appendices — there are none**
 
-| Section | What it is |
+The client asked for all of them out, in these words: *"We don't need
+appendixes. We don't need to convince the client here. We have already
+onboarded the client and this is a strategy document."*
+
+He is right, and the reason is worth keeping. An appendix is something you
+attach when you expect to be challenged. We are past that point — the
+contract is signed — and a document that still carries its evidence locker
+reads as a document that is still arguing.
+
+| Was Appendix | Where it goes now |
 |---|---|
-| A — Full keyword list with scores | The working sheet, including the computed Opportunity Scores behind the Priority bands |
-| B — Decisions on the previous plan | *Only where a predecessor exists.* Every page or recommendation of theirs, and what we are doing with it |
-| C — Open questions for the client | Everything still marked `[NEEDS CLIENT INPUT]`, as a list they can answer in one sitting |
-| D — Sources and pull dates | Every figure's source and the date it was pulled |
+| A — Full keyword list with scores | The CSV. `keywords-website.csv` ships beside the document and is referenced in one sentence |
+| B — Decisions on the previous plan | Nowhere the client sees. Our own notes |
+| C — Open questions for the client | A short section in the front matter, before anything else, so they can answer it in one sitting. Not buried at the back |
+| D — Sources and pull dates | Nowhere. See *No provenance* in `plain-language.md` — the word "estimated" stays on the figure, the citation does not |
 
 ### Saying how long it is
 
@@ -256,11 +309,16 @@ returns to:
 | 1 | Organic sessions | 2,800/month (GA4, Oct 2026) | 5,000/month | 6 months |
 | 2 | Keywords in positions 1–3 | 107 (Ahrefs, 9 Nov) | 200 | 6 months |
 
-Every row carries its baseline **with the source and date**, because a target
-with no baseline cannot be checked and a baseline with no date cannot be
-reproduced. These are also the rows that go to `save_strategy_projections`, so
-the portal can check them later — a target that lives only in the PDF is a
-target nobody will ever be held to.
+Every row carries its baseline, because a target with no baseline cannot be
+checked. The **source and date come out** of the client's copy — they go to
+`save_strategy_projections` instead, where the portal keeps them and can
+check the target later. A target that lives only in the PDF is a target
+nobody will ever be held to, and a pull date printed beside it was never what
+made it checkable.
+
+**Put the `goal` figure above this table.** Five or six rows of today-against-
+target bars is the single most useful picture in the document, and the table
+underneath carries the dates for whoever wants them.
 
 ---
 
@@ -299,6 +357,7 @@ next to what happened, and a merged revision destroys exactly that.
 ```bash
 python scripts/check_strategy_doc.py <assembled_document> --full
 python scripts/check_keyword_set.py <keywords.csv> --kind website --plan 12
+python scripts/make_figures.py figures.json --out figures/
 ```
 
 The first checks unresolved placeholders, dead-advice language from
