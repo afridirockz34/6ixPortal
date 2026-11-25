@@ -387,7 +387,7 @@ $dash_ctx = array(
     'budgets' => $dash_budgets,
     'kpi'     => $kpi_data,
     'cpc'     => floatval( get_user_meta($user_id,'six_market_avg_cpc',true) ),
-    'window'  => ( isset($_GET['range']) && in_array((int)$_GET['range'], array(30,90,180), true) ) ? (int)$_GET['range'] : 30,
+    'window'  => ( isset($_GET['range']) && in_array((int)$_GET['range'], array(30,90,180,365), true) ) ? (int)$_GET['range'] : 30,
 );
 
 $dash_cards = class_exists('Six_Dash_Metrics') ? Six_Dash_Metrics::cards($user_id, $dash_ctx) : array();
@@ -397,7 +397,7 @@ $six_visits = class_exists('Six_Dash_Metrics') ? Six_Dash_Metrics::visitor_serie
  * days with no way to ask for anything else, so a client could not see
  * whether a quiet fortnight was a trend or a fortnight. The daily series is
  * already fetched over 180 days, so the longer windows cost nothing extra. */
-$six_ranges  = array( 30 => 'Last 30 days', 90 => 'Last 3 months', 180 => 'Last 6 months' );
+$six_ranges  = array( 30 => 'Last 30 days', 90 => 'Last 3 months', 180 => 'Last 6 months', 365 => 'Last 12 months' );
 $six_range   = isset($_GET['range']) ? (int) $_GET['range'] : 30;
 if ( ! isset( $six_ranges[ $six_range ] ) ) $six_range = 30;
 $six_visits['range']  = $six_range;
@@ -1163,7 +1163,9 @@ if ( $web_proj && $web_proj['total'] > 0 ):
     '      <circle id="vis-hdot" r="4" fill="#FF6699" stroke="'+bg+'" stroke-width="2" opacity="0"/>',
     '      <circle id="vis-hdot-b" r="3.5" fill="'+(isDark?'rgba(255,255,255,.55)':'rgba(15,20,40,.45)')+'" stroke="'+bg+'" stroke-width="2" opacity="0"/>',
     '    </svg>',
-    '    <div id="vis-tt" style="position:absolute;pointer-events:none;opacity:0;background:'+(isDark?'rgba(11,15,26,.95)':'rgba(255,255,255,.98)')+';border:1px solid '+(isDark?'rgba(255,102,153,.2)':'rgba(15,20,40,.12)')+';border-radius:9px;padding:8px 11px;font-size:11.5px;min-width:172px;box-shadow:0 8px 28px rgba(0,0,0,.32);transition:opacity .12s;z-index:20;color:'+strong+'">',
+    // Fully opaque. At 98% the "we started" label drawn in the SVG beneath
+    // bled through the tooltip and the two sets of text overlapped.
+    '    <div id="vis-tt" style="position:absolute;pointer-events:none;opacity:0;background:'+(isDark?'#121826':'#ffffff')+';border:1px solid '+(isDark?'rgba(255,102,153,.25)':'rgba(15,20,40,.14)')+';border-radius:9px;padding:8px 11px;font-size:11.5px;min-width:172px;box-shadow:0 8px 28px rgba(0,0,0,.32);transition:opacity .12s;z-index:20;color:'+strong+'">',
     '      <div id="vis-tt-w" style="font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;opacity:.5;margin-bottom:5px"></div>',
     '      <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:2px"><span style="color:#FF6699;font-weight:700">With us</span><span id="vis-tt-a" style="font-variant-numeric:tabular-nums;font-weight:700"></span></div>',
     '      <div id="vis-tt-brow" style="display:none;justify-content:space-between;gap:12px;font-size:10.5px;opacity:.75"><span>Without us</span><span id="vis-tt-b" style="font-variant-numeric:tabular-nums"></span></div>',
@@ -1577,7 +1579,23 @@ foreach(array_slice($s_mets, 0, 6) as $m) {
 // modelled: with fewer than two captures it falls back to the bar comparison
 // rather than drawing a curve through a single point.
 $trend = array( 'has' => false, 'labels' => array(), 'series' => array() );
-if ( class_exists( 'Six_Performance' ) && class_exists( 'Six_Dash_Metrics' ) ) {
+
+/* First choice: the backfilled daily readings.
+ *
+ * sync_client() reaches back about sixteen months on its first run and
+ * writes six daily keys, and none of them ever reached a service page —
+ * these graphs read six_snapshots, which starts the day the portal first
+ * captured one. So every line began partway along however much history we
+ * actually hold, and a client who had just been backfilled saw a graph that
+ * did not come from anywhere.
+ *
+ * Snapshots stay as the fallback, for metrics nothing is syncing daily. */
+if ( class_exists( 'Six_Dash_Metrics' ) && method_exists( 'Six_Dash_Metrics', 'trend_series' ) ) {
+    $bt = Six_Dash_Metrics::trend_series( $user_id, $svc_slug, $six_range );
+    if ( ! empty( $bt['has'] ) ) $trend = $bt;
+}
+
+if ( empty( $trend['has'] ) && class_exists( 'Six_Performance' ) && class_exists( 'Six_Dash_Metrics' ) ) {
     $hist = array_reverse( Six_Performance::history( $user_id, 52 ) );   // oldest first
     /* Same window control as the overview. A service page showed every
      * snapshot ever captured with no way to narrow it, so a client six

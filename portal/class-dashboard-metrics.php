@@ -819,7 +819,11 @@ class Six_Dash_Metrics {
 		// Console or GA4, and the "without us" line is their own pre-
 		// engagement trend fitted and extended — not an assumption that they
 		// would have stayed exactly still.
-		$daily = class_exists( 'Six_Tracking' ) ? Six_Tracking::graph_series( $user_id, '', 180 ) : array( 'has' => false );
+		// 540, not 180. The backfill reaches back about sixteen months on its
+		// first run, and fetching only 180 days threw most of it away before
+		// the window was even chosen — so asking for a longer range could
+		// never show more than six months however much history we held.
+		$daily = class_exists( 'Six_Tracking' ) ? Six_Tracking::graph_series( $user_id, '', 540 ) : array( 'has' => false );
 		if ( ! empty( $daily['has'] ) && count( $daily['dates'] ) >= 7 ) {
 			$has_proj = ! empty( $daily['projected'] );
 
@@ -1028,6 +1032,163 @@ class Six_Dash_Metrics {
 	 *
 	 * @param array $points Each: date (Y-m-d), after.
 	 */
+	/**
+	 * Which backfilled daily reading stands behind a catalog metric.
+	 *
+	 * `sync_client()` writes six keys into six_daily_metrics and reaches back
+	 * about sixteen months on the first run — gsc_clicks, gsc_impressions,
+	 * gsc_position from Search Console, and sessions, organic_sessions,
+	 * users from GA4. The service pages never read any of them. They drew
+	 * from six_snapshots instead, which only starts the day the portal first
+	 * captured one, so every graph on a service page began partway along
+	 * however much history we actually hold.
+	 *
+	 * `agg` is the part that has to be right. A catalog metric labelled
+	 * "/mo" has to stay a monthly figure or the line stops meaning what the
+	 * number above it means, so a count is a rolling 30-day SUM and a rate
+	 * is a rolling 30-day MEAN. Plotting raw daily values under a "/mo"
+	 * label would be the October-114-against-3,745 mistake again, one panel
+	 * further down.
+	 *
+	 * `alt` is the fallback when the first source has no readings — a client
+	 * with Search Console but no GA4 still gets a visitors line.
+	 */
+	protected static function daily_source( $metric_key ) {
+		$map = array(
+			'organic_visitors' => array( 'key' => 'organic_sessions', 'alt' => 'gsc_clicks', 'agg' => 'sum' ),
+			'seo_avg_position' => array( 'key' => 'gsc_position',     'alt' => '',           'agg' => 'mean' ),
+		);
+		return $map[ $metric_key ] ?? null;
+	}
+
+	/**
+	 * A service page's trend, reaching as far back as the backfill does.
+	 *
+	 * Returns the same shape the snapshot trend returned — labels plus one
+	 * series per metric — so the chart that renders it does not change.
+	 * Metrics with a daily source are built from the backfill; the rest keep
+	 * coming from snapshots, placed on the same axis.
+	 *
+	 * @return array{has:bool,labels:array,series:array,from:string,reach:string}
+	 */
+	public static function trend_series( $user_id, $slug, $days = 90 ) {
+		$days = max( 14, min( 540, (int) $days ) );
+		$none = array( 'has' => false, 'labels' => array(), 'series' => array(),
+			'from' => '', 'reach' => '' );
+		if ( ! class_exists( 'Six_Tracking' ) ) return $none;
+
+		$cat  = self::catalog();
+		$keys = array_keys( $cat[ $slug ]['metrics'] ?? array() );
+		if ( ! $keys ) return $none;
+
+		// Pull every daily series this service can use, in one pass.
+		$roll = 30;
+		$daily = array();
+		foreach ( $keys as $k ) {
+			$src = self::daily_source( $k );
+			if ( ! $src ) continue;
+			// Ask for the window plus the rolling period, or the first point
+			// of the line would be a 30-day figure built from one day.
+			foreach ( array( $src['key'], $src['alt'] ) as $sk ) {
+				if ( ! $sk ) continue;
+				$rows = Six_Tracking::daily( $user_id, $sk, $days + $roll );
+				if ( count( $rows ) >= $roll ) {
+					$daily[ $k ] = array( 'rows' => $rows, 'agg' => $src['agg'], 'src' => $sk );
+					break;
+				}
+			}
+		}
+		if ( ! $daily ) return $none;
+
+		// One axis for everything. Weekly points over anything longer than
+		// six weeks: 480 daily points is not a chart anybody reads, and the
+		// rolling window has already done the smoothing.
+		$step  = $days > 45 ? 7 : 1;
+		$first = null;
+		foreach ( $daily as $d ) {
+			$f = $d['rows'][0]['date'] ?? null;
+			if ( $f && ( $first === null || $f < $first ) ) $first = $f;
+		}
+		$start_ts = max( strtotime( $first ), strtotime( '-' . $days . ' days' ) );
+		$end_ts   = strtotime( current_time( 'Y-m-d' ) );
+
+		$axis = array();
+		for ( $t = $start_ts; $t <= $end_ts; $t += $step * DAY_IN_SECONDS ) $axis[] = gmdate( 'Y-m-d', $t );
+		if ( count( $axis ) < 2 ) return $none;
+
+		$series = array();
+		foreach ( $daily as $k => $d ) {
+			$by_date = array();
+			foreach ( $d['rows'] as $r ) $by_date[ $r['date'] ] = (float) $r['value'];
+			$vals = array();
+			foreach ( $axis as $day ) {
+				// The rolling window ending on this axis point.
+				$from = gmdate( 'Y-m-d', strtotime( $day ) - ( $roll - 1 ) * DAY_IN_SECONDS );
+				$win  = array();
+				foreach ( $by_date as $dd => $vv ) {
+					if ( $dd >= $from && $dd <= $day ) $win[] = $vv;
+				}
+				// Under half the window present is not a 30-day figure. A
+				// gap reads as null and the line breaks, which is honest.
+				if ( count( $win ) < (int) ceil( $roll / 2 ) ) { $vals[] = null; continue; }
+				$vals[] = $d['agg'] === 'mean'
+					? round( array_sum( $win ) / count( $win ), 1 )
+					: (int) round( array_sum( $win ) );
+			}
+			if ( count( array_filter( $vals, function ( $v ) { return $v !== null; } ) ) < 2 ) continue;
+			$series[] = array(
+				'key'          => $k,
+				'label'        => $cat[ $slug ]['metrics'][ $k ]['label'] ?? $k,
+				'values'       => $vals,
+				'lower_better' => self::lower_is_better( $k ),
+				'measured'     => true,
+			);
+		}
+		if ( ! $series ) return $none;
+
+		// Snapshot-only metrics go on the same axis, at their nearest point,
+		// so a page does not end up with two charts on two timelines.
+		if ( class_exists( 'Six_Performance' ) ) {
+			$snaps = array_reverse( Six_Performance::history( $user_id, 104 ) );
+			if ( $snaps ) {
+				foreach ( $keys as $k ) {
+					if ( isset( $daily[ $k ] ) ) continue;
+					$vals = array_fill( 0, count( $axis ), null );
+					$any  = false;
+					foreach ( $snaps as $s ) {
+						if ( ! isset( $s['values'][ $k ] ) ) continue;
+						$d = substr( (string) $s['captured_at'], 0, 10 );
+						if ( $d < $axis[0] ) continue;
+						$i = (int) floor( ( strtotime( $d ) - strtotime( $axis[0] ) ) / ( $step * DAY_IN_SECONDS ) );
+						if ( $i < 0 || $i >= count( $axis ) ) continue;
+						$vals[ $i ] = (float) $s['values'][ $k ];
+						$any = true;
+					}
+					if ( ! $any ) continue;
+					if ( count( array_filter( $vals, function ( $v ) { return $v !== null; } ) ) < 2 ) continue;
+					$series[] = array(
+						'key'          => $k,
+						'label'        => $cat[ $slug ]['metrics'][ $k ]['label'] ?? $k,
+						'values'       => $vals,
+						'lower_better' => self::lower_is_better( $k ),
+						'measured'     => false,
+					);
+				}
+			}
+		}
+
+		$labels = array_map( function ( $d ) { return gmdate( 'j M', strtotime( $d ) ); }, $axis );
+		return array(
+			'has'    => true,
+			'labels' => $labels,
+			'series' => $series,
+			'from'   => $axis[0],
+			// So the panel can say how far back the line actually goes,
+			// which is the thing that was missing and invisible.
+			'reach'  => (int) round( ( strtotime( end( $axis ) ) - strtotime( $axis[0] ) ) / DAY_IN_SECONDS ) . ' days',
+		);
+	}
+
 	/**
 	 * Where visitors came from, and what they did when they arrived.
 	 *

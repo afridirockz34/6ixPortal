@@ -76,6 +76,31 @@ class Six_Tracking {
 		);
 	}
 	public static function engagement_start( $uid ) { return self::$start; }
+
+	/** Backfilled daily readings, as sync_client() writes them. */
+	public static $backfill_days = 480;
+	public static function daily( $cid, $key, $days = 180 ) {
+		$out = array(); $n = min( (int) $days, self::$backfill_days );
+		for ( $i = $n; $i >= 0; $i-- ) {
+			$d = gmdate( 'Y-m-d', strtotime( "-$i days" ) );
+			$age = self::$backfill_days - $i;
+			if ( $key === 'gsc_position' )          $v = max( 4, 24 - $age * 0.03 );
+			elseif ( $key === 'organic_sessions' )  $v = 95 + $age * 0.22;
+			else                                    $v = 0;
+			if ( $v <= 0 ) continue;
+			$out[] = array( 'date' => $d, 'value' => round( $v, 1 ), 'source' => 'ga4' );
+		}
+		return $out;
+	}
+}
+
+/* Defined so trend_series() can fall back to snapshots, and stubbed empty so
+ * the backfill is the only thing under test here. projection_due() has to
+ * exist as well: once this class is declared, visitor_target() stops
+ * short-circuiting on class_exists() and calls it. */
+class Six_Performance {
+	public static function history( $cid, $l = 26 ) { return array(); }
+	public static function projection_due( $cid, $key, $by ) { return null; }
 }
 
 require dirname( __DIR__, 2 ) . '/portal/class-dashboard-metrics.php';
@@ -294,6 +319,53 @@ check( 'and the client is told which of the two it is',
 	'a blank where a number belongs reads as zero' );
 check( 'the figures are cached so a page load does not wait on GA4 twice',
 	strpos( $dm, 'six_engage_' ) !== false && strpos( $dm, 'set_transient' ) !== false );
+
+/* ── Service-page graphs reach back as far as the backfill ───────────────
+ *
+ * Reported: "the graphs don\x27t have backfill data, like the graph line
+ * coming from back". sync_client() reaches back about sixteen months on its
+ * first run and writes six daily keys — and no service page ever read one
+ * of them. They drew from six_snapshots, which starts the day the portal
+ * first captured one, so every line began partway along however much
+ * history we actually hold. */
+echo "\n-- Service trends are built from the backfill --\n";
+$t30  = Six_Dash_Metrics::trend_series( 7, 'seo', 30 );
+$t365 = Six_Dash_Metrics::trend_series( 7, 'seo', 365 );
+check( 'a service trend is built at all', ! empty( $t365['has'] ),
+	'snapshots alone left these empty for a freshly backfilled client' );
+check( '  and it reaches back a year when a year was backfilled',
+	(int) $t365['reach'] > 300, $t365['reach'] );
+check( '  while the short window stays short',
+	count( $t30['labels'] ) < count( $t365['labels'] ),
+	'30d=' . count( $t30['labels'] ) . ' 365d=' . count( $t365['labels'] ) );
+check( '  and a year is not drawn as 365 points',
+	count( $t365['labels'] ) < 60,
+	count( $t365['labels'] ) . ' points — nobody reads a 365-point line' );
+
+/* The unit is the part that has to be right. "Organic Visitors" is labelled
+ * /mo in the catalog, so the line has to stay a monthly figure — a rolling
+ * 30-day sum, not a raw daily value under a monthly label. That mistake is
+ * the October-114-against-3,745 bug one panel further down. */
+$by = array();
+foreach ( $t365['series'] as $sx ) $by[ $sx['key'] ] = $sx;
+check( 'a per-month count is a rolling 30-day total, not a daily value',
+	isset( $by['organic_visitors'] )
+	&& max( array_filter( $by['organic_visitors']['values'], function ( $v ) { return $v !== null; } ) ) > 1000,
+	'a daily figure would be in the hundreds under a "/mo" label' );
+check( 'a rate is a rolling 30-day average, not a sum',
+	isset( $by['seo_avg_position'] )
+	&& max( array_filter( $by['seo_avg_position']['values'], function ( $v ) { return $v !== null; } ) ) < 40,
+	'summing positions would put an average rank in the hundreds' );
+check( '  and the direction it improves in travels with it',
+	! empty( $by['seo_avg_position']['lower_better'] ),
+	'a position falling from 21 to 10 is an improvement' );
+
+check( 'the service page prefers the backfill and keeps snapshots as fallback',
+	strpos( $tpl, 'Six_Dash_Metrics::trend_series' ) !== false
+	&& strpos( $tpl, 'if ( empty( $trend[\'has\'] ) && class_exists( \'Six_Performance\' )' ) !== false );
+check( 'and the overview fetches the whole backfill, not six months of it',
+	strpos( $dm, 'graph_series( $user_id, \'\', 540 )' ) !== false,
+	'asking for 180 threw the history away before the window was chosen' );
 
 echo "\nPassed: $pass  Failed: $fail\n";
 exit( $fail ? 1 : 0 );
