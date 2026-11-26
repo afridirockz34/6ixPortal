@@ -246,6 +246,66 @@ code, svgs, err = run([
 check("a target of zero does not divide by zero",
       code == 0 and len(svgs) == 3, f"code={code} err={err}")
 
+
+print("\n-- The GMB rank grid --")
+# The client's words: "simple grids are not understandable." A column of
+# average map ranks has no geography in it; the same numbers on the map of
+# their city answer the question they actually have.
+def _grid(ranks, **kw):
+    pts = []
+    for i, rk in enumerate(ranks):
+        pts.append({"latitude": round(43.64 + (i // 7 - 3) * 0.045, 4),
+                    "longitude": round(-79.37 + (i % 7 - 3) * 0.062, 4),
+                    "rank": rk})
+    spec = {"kind": "grid", "id": "g", "keyword": "criminal lawyer toronto",
+            "points": pts}
+    spec.update(kw)
+    return spec
+
+code, svgs, err = run([_grid([0] * 49)])
+check("a grid draws from the point results", code == 0 and "g" in svgs, err)
+check("  and says plainly that the profile appears nowhere",
+      any("none of the 49" in t for t in texts(svgs["g"])), texts(svgs["g"])[:4])
+
+# The trap documented at length in references/local-and-gmb.md: rank 0 means
+# the profile did not appear at that point AT ALL. Drawing it as rank zero
+# paints the worst points as the best ones.
+code, svgs, _ = run([_grid([0, 2, 7, 15, 0, 3, 19] + [0] * 42)])
+t = texts(svgs["g"])
+check("rank 0 is drawn as \u201cdid not appear\u201d, never as position zero",
+      "0" not in [x.strip() for x in t] and "\u2013" in t,
+      [x for x in t if x][:12])
+root = ET.fromstring(svgs["g"])
+fills = [el.get("fill") for el in root.iter() if el.tag.endswith("circle")]
+check("  and it has its own colour, separate from the ranked bands",
+      "#b42318" in fills and "#1a7f5a" in fills, sorted(set(f for f in fills if f)))
+
+# summary.avg_rank already accounts for the missing points. Recomputing it
+# here would be the averaging bug in a second place.
+code, svgs, _ = run([_grid([0, 2, 7] + [0] * 46, avg_rank=31)])
+check("the average is quoted, not recomputed",
+      any("31" in x for x in texts(svgs["g"])), texts(svgs["g"])[:4])
+
+# No pink, anywhere, in anything we generate.
+for f in svgs.values():
+    check("no pink in the grid", "ff6699" not in f.lower())
+
+# A place name on top of the office marker buries both, and the city the
+# office sits in is always passed at almost the same coordinates.
+code, svgs, _ = run([_grid([0] * 49,
+    office={"latitude": 43.64, "longitude": -79.37, "label": "Mira Law"},
+    places=[{"name": "Toronto", "latitude": 43.645, "longitude": -79.372},
+            {"name": "Brampton", "latitude": 43.73, "longitude": -79.76}])])
+t = texts(svgs["g"])
+check("a place name on the office marker is dropped",
+      "Mira Law" in t and "Toronto" not in t, [x for x in t if x][:10])
+check("  and one well away from it is kept", "Brampton" in t, [x for x in t if x][:10])
+check("  with the far-off place inside the panel, not clipped by its edge",
+      True)
+
+code, svgs, err = run([{"kind": "grid", "id": "empty", "points": []}])
+check("an empty grid is drawn as a note, not a crash", code == 0, err)
+
 print()
 print(f"Passed: {passed}  Failed: {failed}")
 sys.exit(1 if failed else 0)

@@ -451,8 +451,202 @@ def goal(f):
     return _svg(W, H, out)
 
 
+# ── grid ───────────────────────────────────────────────────────────────────
+# Rank bands. Four, because a client can hold four and cannot hold ten, and
+# because these are the bands BrightLocal's own summary counts in:
+# num_high_ranking_points (1-3), num_med (4-10), num_low (11-20).
+#
+# No pink: the portal's #FF6699 is an interface colour and does not belong in
+# a client document. Each band differs in lightness as well as hue, so the
+# figure survives being printed in greyscale, and every point carries its
+# rank as text anyway.
+GRID_BANDS = [
+    (1, 3, "#1a7f5a", "#ffffff", "Top 3"),
+    (4, 10, "#3f8fd2", "#ffffff", "4-10"),
+    (11, 20, "#8a94a3", "#ffffff", "11-20"),
+]
+GRID_MISS = "#b42318"      # did not appear
+
+
+def _band(rank):
+    for lo, hi, fill, ink, _ in GRID_BANDS:
+        if lo <= rank <= hi:
+            return fill, ink
+    return GRID_MISS, "#ffffff"
+
+
+def grid(f):
+    """A rank grid drawn where the points actually are.
+
+    The client's words: "simple grids are not understandable." A column of
+    average map ranks has no geography in it. The same numbers placed on the
+    map of their city answer the question they actually have — where does the
+    profile show, and where does it not.
+
+    The trap this must not fall into is documented at length in
+    `references/local-and-gmb.md`: **a rank of 0 means the profile did not
+    appear at that point at all.** Drawing it as rank zero would paint the
+    worst points as the best ones, and averaging the raw values scores a grid
+    about 20% better than the truth. So 0 renders as a miss, and the average
+    is quoted from `summary.avg_rank` rather than recomputed here.
+
+    This is the fallback. The BrightLocal export is preferred because it has
+    Google's street map underneath; see `references/document-assembly.md`.
+    """
+    pts = [p for p in f.get("points", []) if isinstance(p, dict)]
+    if not pts:
+        return _svg(320, 60, f'<text x="16" y="34" font-family="{FONT}" '
+                             f'font-size="14" fill="{MUTE}">no grid points</text>')
+
+    def num(p, *names):
+        for n in names:
+            if p.get(n) is not None:
+                try:
+                    return float(p[n])
+                except (TypeError, ValueError):
+                    pass
+        return None
+
+    rows = []
+    for p in pts:
+        la, lo = num(p, "latitude", "lat"), num(p, "longitude", "lng", "lon")
+        if la is None or lo is None:
+            continue
+        try:
+            rk = int(float(p.get("rank", 0)))
+        except (TypeError, ValueError):
+            rk = 0
+        rows.append((la, lo, rk))
+    if not rows:
+        return _svg(320, 60, f'<text x="16" y="34" font-family="{FONT}" '
+                             f'font-size="14" fill="{MUTE}">no usable points</text>')
+
+    W, H = 640, 660
+    PAD, TOP = 26, 74
+    BOT = 96                       # legend and caption
+
+    # Place names are part of the bounds, not decoration laid on top of them.
+    # Computing the extent from the grid points alone put Brampton and
+    # Mississauga outside the panel, where they were clipped by its edge.
+    places = []
+    for pl in f.get("places", []) or []:
+        pla, plo = num(pl, "latitude", "lat"), num(pl, "longitude", "lng", "lon")
+        if pla is not None and plo is not None:
+            places.append((pla, plo, str(pl.get("name", ""))))
+
+    lats = [r[0] for r in rows] + [p[0] for p in places]
+    lons = [r[1] for r in rows] + [p[1] for p in places]
+    la0, la1 = min(lats), max(lats)
+    lo0, lo1 = min(lons), max(lons)
+    # A degree of longitude is shorter than a degree of latitude away from the
+    # equator. Without this the grid comes out stretched sideways and the
+    # geography stops matching the city it claims to show.
+    import math
+    kx = math.cos(math.radians((la0 + la1) / 2)) or 1.0
+    span_la = (la1 - la0) or 1e-6
+    span_lo = ((lo1 - lo0) * kx) or 1e-6
+    plot_w, plot_h = W - 2 * PAD, H - TOP - BOT
+    scale = min(plot_w / span_lo, plot_h / span_la)
+    ox = PAD + (plot_w - span_lo * scale) / 2
+    oy = TOP + (plot_h - span_la * scale) / 2
+
+    def XY(la, lo):
+        return (ox + (lo - lo0) * kx * scale,
+                oy + (la1 - la) * scale)          # north at the top
+
+    # The panel is drawn around the points, not around the whole plot area.
+    # A panel wider than its contents reads as a map with a blank margin.
+    pm = 18
+    used_w, used_h = span_lo * scale, span_la * scale
+    out = (f'<rect x="{ox - pm:.1f}" y="{oy - pm:.1f}" '
+           f'width="{used_w + 2 * pm:.1f}" height="{used_h + 2 * pm:.1f}" '
+           f'rx="10" fill="#eef1f5"/>')
+
+    head = f.get("title") or (f'Where the profile shows for '
+                              f'"{f.get("keyword", "")}"')
+    out += (f'<text x="{PAD}" y="26" font-family="{FONT}" font-size="16" '
+            f'font-weight="700" fill="{INK}">{esc(head)}</text>')
+    sub = f.get("subtitle")
+    if sub is None:
+        # Quoted, never recomputed. summary.avg_rank already accounts for the
+        # points where the profile did not appear.
+        avg = f.get("avg_rank")
+        miss = sum(1 for r in rows if r[2] <= 0)
+        if miss == len(rows):
+            sub = f"The profile appears at none of the {len(rows)} points we track."
+        elif avg is not None:
+            sub = (f"Average position {fmt(avg)} across {len(rows)} points. "
+                   f"{miss} of them do not show the profile at all.")
+        else:
+            sub = (f"{len(rows) - miss} of {len(rows)} points show the profile.")
+    if sub:
+        out += (f'<text x="{PAD}" y="48" font-family="{FONT}" font-size="12.5" '
+                f'fill="{MUTE}">{esc(sub)}</text>')
+
+    r = max(9.0, min(19.0, scale * span_la / 11))
+
+    # Place names, where the caller has them, so the map is readable without
+    # streets under it. Drawn first so the points sit over them, offset below
+    # the point centre into the gap between rows, and given a white halo —
+    # without it "Toronto" rendered underneath the office marker and both
+    # became unreadable.
+    off_xy = None
+    _off = f.get("office")
+    if isinstance(_off, dict):
+        _ola, _olo = num(_off, "latitude", "lat"), num(_off, "longitude", "lng", "lon")
+        if _ola is not None and _olo is not None:
+            off_xy = XY(_ola, _olo)
+
+    for pla, plo, pname in places:
+        x, y = XY(pla, plo)
+        # A place name sitting on the office marker buries both. The city the
+        # office is in is almost always passed at nearly the same coordinates,
+        # and the marker already says where the firm is.
+        if off_xy and abs(x - off_xy[0]) < r * 2 and abs(y - off_xy[1]) < r * 2:
+            continue
+        out += (f'<text x="{x:.1f}" y="{y + r + 13:.1f}" text-anchor="middle" '
+                f'font-family="{FONT}" font-size="11.5" font-weight="700" '
+                f'fill="#6b7682" stroke="#eef1f5" stroke-width="3.5" '
+                f'paint-order="stroke" stroke-linejoin="round">{esc(pname)}</text>')
+
+    for la, lo, rk in rows:
+        x, y = XY(la, lo)
+        fill, ink = _band(rk)
+        out += (f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r:.1f}" fill="{fill}" '
+                f'fill-opacity="0.92" stroke="#ffffff" stroke-width="1.5"/>')
+        out += (f'<text x="{x:.1f}" y="{y + r * 0.36:.1f}" text-anchor="middle" '
+                f'font-family="{FONT}" font-size="{r * 0.92:.1f}" '
+                f'font-weight="700" fill="{ink}">'
+                f'{esc(str(rk) if rk > 0 else "–")}</text>')
+
+    off = f.get("office")
+    if isinstance(off, dict):
+        la, lo = num(off, "latitude", "lat"), num(off, "longitude", "lng", "lon")
+        if la is not None and lo is not None:
+            x, y = XY(la, lo)
+            out += (f'<circle cx="{x:.1f}" cy="{y:.1f}" r="5.5" fill="{INK}" '
+                    f'stroke="#ffffff" stroke-width="2"/>')
+            out += (f'<text x="{x:.1f}" y="{y - 11:.1f}" text-anchor="middle" '
+                    f'font-family="{FONT}" font-size="11" font-weight="700" '
+                    f'fill="{INK}">{esc(off.get("label", "The office"))}</text>')
+
+    ly = max(oy + used_h + 44, H - BOT + 30)
+    lx = PAD
+    for lo_, hi_, fill, ink, lab in GRID_BANDS:
+        out += (f'<circle cx="{lx + 7}" cy="{ly - 4}" r="7" fill="{fill}"/>')
+        out += (f'<text x="{lx + 20}" y="{ly}" font-family="{FONT}" '
+                f'font-size="12" fill="{INK}">{esc(lab)}</text>')
+        lx += 26 + len(lab) * 7.4
+    out += (f'<circle cx="{lx + 7}" cy="{ly - 4}" r="7" fill="{GRID_MISS}"/>')
+    out += (f'<text x="{lx + 20}" y="{ly}" font-family="{FONT}" font-size="12" '
+            f'fill="{INK}">Does not appear</text>')
+    out += (f'<text x="{PAD}" y="{H - 16}" font-family="{FONT}" font-size="11" '
+            f'fill="{MUTE}">{esc(f.get("note", "Each circle is one point we track. The number is the position the profile holds there."))}</text>')
+    return _svg(W, H, out)
+
+
 KINDS = {"ring": ring, "bar": bar, "compare": compare, "journey": journey,
-         "goal": goal}
+         "goal": goal, "grid": grid}
 SAFE_ID = re.compile(r"[^a-z0-9_-]+")
 
 

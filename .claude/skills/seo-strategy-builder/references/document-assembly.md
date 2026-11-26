@@ -138,147 +138,187 @@ saving.
 
 ## The client-facing table of contents
 
-Every title below is the section name. None of them contains a phase number.
+**This is the running order of the document the client approved**, after
+four drafts were rejected and one was rebuilt by hand over several hours.
+Sixteen sections, in this order, and nothing else.
 
-**Front matter**
+| # | Section | What goes in it |
+|---|---|---|
+| 1 | Introduction | Three or four single-sentence paragraphs. Where the site stands in one rounded number, what the opportunity is, what this covers |
+| 2 | Monthly Plan | The twelve-month table. See *The monthly plan* below — it has its own rules and most of them are prohibitions |
+| 3 | Website Optimization & Technical SEO | What changes on the pages that already exist, with the change table. Page speed is a row in that table, never its own section |
+| 4 | Keyword Research & Targeting Strategy | The cluster table: group, keyword count, monthly searches, where they are targeted |
+| 5 | Service Pages & Location-Based SEO | What gets built and why each page has a search behind it |
+| 6 | The page plan | The build table: what, how many, which months |
+| 7 | Google Business Profile and Local Search | The profile work, and the profile table |
+| 8 | Current GMB Ranking | The grids. See *The GMB grids* below |
+| 9 | Links and Authority | Where links come from. **No month column** — see *Nothing client-dependent gets a date* |
+| 10 | AI Optimization | How we write for AI answers |
+| 11 | Content Development & SEO Authority | The article programme |
+| 12 | Content Voice & Tone | Who is reading and what they are worried about |
+| 13 | What this sounds like on the page | A worked passage of real page copy, quoted |
+| 14 | Our 12-Month SEO Objectives | The objectives table, with the `goal` figure above it |
+| 15 | Ongoing SEO Management & Reporting | Monitoring, monthly reports, quarterly reviews, the monthly map-grid re-check |
+| 16 | Closing Thoughts | Three paragraphs |
 
-| Section | What it is |
+### Four sections that were cut, and stay cut
+
+Each of these was in the generated document and taken out by hand.
+
+| Cut | Why |
 |---|---|
-| Introduction | Three or four single-sentence paragraphs. What this covers, over what term, and what it is for. The benchmark's is reproduced in `assets/client-letter-benchmark.md` |
-| Summary and decisions needed | One page. What we are doing, and the three to five decisions we need from the client, each with a recommendation. Written last |
-| What we will do first | The numbered priorities table — see below. The one page a client who reads nothing else will read |
-| What happens when | The twelve-row month table from `engagement-plans.md`, **with the `journey` figure above it.** One row per month, counts rather than names. On a six-month plan it is six rows and says so |
+| **What We Will Do First** — a numbered priorities table | It restated the first three months of the monthly plan one page earlier. Two tables of the same work, and the client has to reconcile them |
+| **Current SEO Performance & Opportunities** | Competitor traffic estimates and a comparison of link profiles. This is audit content. Rule 3 in `plain-language.md` |
+| **Page speed**, as its own section | It is one row in the website changes table: *Further optimization of website speed · All · 4* |
+| **What We Need From You** | Access, photographs, approvals. All of it client-dependent, and giving it a month promises a date we do not control |
 
-There is no *How to read the figures* section any more. It named every
-source and its pull date, which is the audit trail the client asked us to
-drop. The honesty it was protecting now lives in the sentence beside each
-number — `an estimated 4,500 visits a month` — which is where a client
-actually reads it.
+There are no appendices. There is no *How to read the figures* section.
 
-**Part 1 — Where the business stands**
+---
 
-| Section | Built from |
-|---|---|
-| The business, in its own words | `phase1-foundation.md` |
-| Services, ranked by what the client says is profitable | `phase1-foundation.md` |
-| Who we are writing for | `phase1-foundation.md` |
-| Where the business serves | `phase1-foundation.md` |
-| What the numbers show today | `phase1-foundation.md` baseline + `performance-tracking.md` |
-| Who is ahead, and on what | `phase2-competitors-and-keywords.md` |
-| Where the openings are | `phase2-competitors-and-keywords.md` content opportunity matrix |
+## The monthly plan
 
-**Part 2 — How it will sound**
+The first table the client reads, and the one they came back on hardest.
+Three columns, in this order:
 
-| Section | Built from |
-|---|---|
-| Brand voice pillars | `seo-content-production/references/house-standards.md` §1 |
-| Core messages | `house-standards.md` §2 |
-| Terminology — say this, not that | `house-standards.md` §3 |
-| Voice examples: one good, one bad | `house-standards.md` §4 |
-| Words and phrases to avoid entirely | `house-standards.md` §5 |
-| Claims policy | `house-standards.md` §12 |
+| Month | Writing | What we work on |
+|---|---|---|
+| 1 | 3 hub pages and content optimization | **SEO:** Write a title and a description for all 23 pages. Schema, address and phone correction. **GMB:** Fill in the services list and set the service area. Rewrite the description to cover every service and city. Start posting, 1 post this month. **Listings:** Begin building and correcting the business listings across the main directories. **New Content:** Brampton, Belleville and Owen Sound hub pages |
+| 2 | 1 service page, 3 sub-service pages, 8 articles | **SEO:** Rebuild the links between pages. Delete the two unfinished pages. Remove 8 duplicate blogs. **GMB:** 2 posts. **New Content:** The impaired driving page, and 3 Brampton sub-service pages |
 
-**Part 3 — What gets built**
+**The column order is Month, Writing, What we work on.** Writing sits beside
+the month because the count of pages and articles is the thing a client
+checks first.
 
-| Section | Built from |
-|---|---|
-| The 100 website keywords, by cluster | `keyword-strategy.md` §1 |
-| The 40 Google Business Profile keywords, and where each one goes | `keyword-strategy.md` §2, `local-and-gmb.md` |
-| One owner for every search | `keyword-strategy.md` — the keyword map |
-| The page plan | `phase9-10-architecture-linking.md` |
-| Changes to pages you already have | `phase9-10-architecture-linking.md` — see below |
-| Internal linking rules | `house-standards.md` §10 |
-| The 100 blog topics, by cluster | `keyword-strategy.md` §3 |
-| The publishing schedule | `phase13-14-content-calendar.md` |
+Inside the third column, group with inline bold labels — **SEO:**, **GMB:**,
+**Listings:**, **New Content:**. A table cell is a specification, so the
+terse style is right here and only here; `plain-language.md` governs the
+prose, not these.
 
-**Part 4 — How it gets written**
+### Month one has to show them something
 
-| Section | Built from |
-|---|---|
-| Content length standards | `house-standards.md` §6 |
-| Critical keyword placements | `house-standards.md` §7 |
-| Meta element standards | `house-standards.md` §8 |
-| Grammar and mechanics | `house-standards.md` §9 |
-| Readability standards | `house-standards.md` §11 |
-| The section contract for every page type | `seo-content-production/references/content-templates.md` |
-| The writing brief | the client profile, reproduced in full |
+A plan whose first month is titles, schema and internal links reads as a
+month of invisible work. **GMB posting starts in month one**, because it is
+the one thing the client can open their phone and see.
 
-**Part 5 — The technical and local work**
+The same principle sets the rest of month one: whatever the client named as
+their priority gets work against it in month one, even if the bulk of that
+build lands later. Hub pages for the priority cities belong here.
 
-| Section | Built from |
-|---|---|
-| Google Business Profile strategy | `phase5-6-strategy-and-gmb.md`, `local-and-gmb.md` |
-| The one NAP string, used everywhere | `local-and-gmb.md` |
-| Citations, in tiers, with an order | `local-and-gmb.md` |
-| Review strategy | `local-and-gmb.md` |
-| Schema plan, page type by page type | `phase11-12-geo-schema.md` |
-| Appearing in AI answers | `ai-visibility.md`, `phase11-12-geo-schema.md` |
-| Page speed and Core Web Vitals | `phase17-18-19-tools-tracking-reporting.md` — included work, never a saving |
-| Links and authority — the plan | `backlink-plan.md`, judgement from `off-page.md` |
-| Who we will approach for links, in tiers | `backlink-plan.md` §3 — the prospect sheet |
-| Anchor text, page by page | `backlink-plan.md` §4 |
-| Links to disown, and why | `backlink-plan.md` §2 |
+### What never goes in this table
 
-**Part 6 — How we will know it worked**
+Six prohibitions, every one of them from the rejected drafts.
 
-| Section | Built from |
-|---|---|
-| Objectives, with baselines and timelines | `phase5-6-strategy-and-gmb.md` |
-| The tools, and what each one is for | `phase17-18-19-tools-tracking-reporting.md` |
-| Rank tracking setup | `phase17-18-19-tools-tracking-reporting.md` |
-| What the monthly report contains | `phase17-18-19-tools-tracking-reporting.md` |
-| The quality gate every page passes | `seo-content-production` — the three conditions |
-| Who approves what | the client profile's approvers |
+| Never | Why | Where it goes |
+|---|---|---|
+| A **Links and listings** column | Directory and membership work is not a parallel track; it is part of the work | Folded into *What we work on* as **Listings:** |
+| A separate **Website and Google profile** column | Those *are* what we work on | Same column, under **SEO:** and **GMB:** |
+| Reviews, reports, retrospectives | *Half-year review*, *Quarterly strategy review*, *the year review*, *Set the priorities for year two* | Section 15, *Ongoing SEO Management & Reporting* |
+| **Re-running the map grid** on a single month | It is re-run every month, so putting it on month 6 says it happens once | Section 15, as a standing monthly item |
+| Anything the **client** has to supply | Photographs, logins, approvals, memberships | Its own section, with no date |
+| Who reviews a draft, and how long they take | The client did not ask and it is our internal process | Nowhere |
 
-**Appendices — there are none**
+**Re-optimising pages we have already published does stay.** It is
+production work, not reporting: *Re-optimize the pages published in months 1
+to 4* is a month of somebody's time. The test is whether a person does
+something to the site that month. Re-writing a page passes. Reading a report
+does not.
 
-The client asked for all of them out, in these words: *"We don't need
-appendixes. We don't need to convince the client here. We have already
-onboarded the client and this is a strategy document."*
+---
 
-He is right, and the reason is worth keeping. An appendix is something you
-attach when you expect to be challenged. We are past that point — the
-contract is signed — and a document that still carries its evidence locker
-reads as a document that is still arguing.
+## Nothing client-dependent gets a date
 
-| Was Appendix | Where it goes now |
-|---|---|
-| A — Full keyword list with scores | The CSV. `keywords-website.csv` ships beside the document and is referenced in one sentence |
-| B — Decisions on the previous plan | Nowhere the client sees. Our own notes |
-| C — Open questions for the client | A short section in the front matter, before anything else, so they can answer it in one sitting. Not buried at the back |
-| D — Sources and pull dates | Nowhere. See *No provenance* in `plain-language.md` — the word "estimated" stays on the figure, the citation does not |
+A month next to a row is a promise. We can only promise the things we
+control.
 
-### Saying how long it is
+Photographs for the profile, the firm's own memberships, logins, sign-offs —
+every one of those waits on the client, and dating them means the plan is
+late in month two through nobody's fault. The *Links and Authority* table
+therefore has **no Month column at all**; it lists where the links will come
+from and stops.
 
-The summary's first paragraph states the term and that the optimizing
-continues through it:
+Write the client-dependent work as its own short section with no table:
 
-> This plan covers twelve months. The content and every other deliverable
-> below is spread across that year, and we keep optimizing what is already
-> live for the whole of it — the work does not stop once the pages are
-> published.
+> Four of the strongest links available are ones the firm already qualifies
+> for through its memberships. We will claim the Criminal Lawyers'
+> Association directory listing, the Law Society of Ontario directory entry
+> and the Toronto Lawyers Association profile as soon as we have the login
+> details for each.
 
-Without it a client reads a hundred blog topics as a list of what is about to
-happen, is surprised in month two that four posts exist, and surprised again
-in month nine that there is work left. `engagement-plans.md` has the
-six-month wording and the comparison section a six-month document carries.
+That names the work, says what it depends on, and promises no date.
 
-### The priorities table
+---
 
-Front matter, straight after the summary, and the section most clients read
-twice. Numbered, ordered by what we do first, with the starting point on every
-row so the client can see the size of the gap rather than being told it is
-large:
+## The GMB grids
 
-| # | What we are going to do | Where it stands today | By when |
-|---|---|---|---|
-| 1 | Get the bail hearing page built and ranking | No page exists | Month 2 |
-| 2 | Take keywords in positions 1–3 from 107 to 200 | 107 (Ahrefs, 9 Nov 2026) | 6 months |
-| 3 | Move the link profile from 18% dofollow to 40% | 18% (Ahrefs, 9 Nov 2026) | 12 months |
+Section 8 is the one the client asked for in these words: *"simple grids are
+not understandable."* A table of average map ranks is a column of numbers
+with no geography in it. The same data on a map of their city is instantly
+readable — this is where the profile shows, and this is where it does not.
 
-Eight rows at most. A priority list of twenty is a task list, and a client
-cannot tell from it what matters. The rest of the work belongs in the task
-board, which is where a long list is useful.
+One grid per target keyword, named in the caption: *criminal defence
+lawyer*, *sexual assault lawyer*, and whatever else the strategy is
+targeting locally.
+
+**Preferred: the BrightLocal export.** Open the Local Search Grid report for
+the location, pick the keyword, and use the map BrightLocal draws. It has
+Google's own street map underneath, which is what makes it legible.
+
+**Fallback: generate it.** When BrightLocal is unreachable, or the report has
+not been run yet, `scripts/make_figures.py` draws a `grid` figure from the
+point results — each of the points positioned where it actually sits, shaded
+by rank band, with the office marked. It has no street map under it, so it
+is the second choice, but the section is never empty and the geography is
+still there.
+
+Either way, say underneath what the grid shows in one sentence: *the profile
+appears at none of the 49 points we track for this search.*
+
+---
+
+## Type and colour
+
+Two rules, both from the approved document, both measured out of it.
+
+- **Body text 13pt. Table text 9pt.** The generated document set everything
+  at 9pt, including the prose, and it was retyped by hand. In the approved
+  file every one of the 125 paragraph runs is 13pt and all 302 table runs
+  are 9pt.
+- **No pink anywhere.** `#FF6699` is the portal's interface colour and it
+  does not belong in a client document. Figures use the blue, grey and green
+  in `scripts/make_figures.py`; headings and rules are the text colour.
+
+### Saying how long it is, and what the year contains
+
+The monthly plan opens with one sentence that states the term, the whole
+inventory, and that the optimizing continues through it. From the approved
+document, verbatim:
+
+> In the first 12 months, we will publish and continuously optimize; 5 city
+> hub landing pages, 4 service pages, 28 city pages, 12 Toronto
+> neighbourhood pages, one guide and 86 articles, alongside monthly reports
+> and quarterly strategy reviews.
+
+Two jobs in one sentence. Without the inventory a client reads eighty-six
+article topics as a list of what is about to happen and is surprised in
+month two that eight exist. Without *continuously optimize* they read the
+engagement as a delivery project that ends when the last page ships.
+
+Every number in that sentence has to reconcile with the page plan table and
+with the month rows. A client who adds up the Writing column and gets a
+different answer has found the one error that costs us the most trust.
+`engagement-plans.md` has the six-month wording.
+
+### There is no priorities table
+
+A numbered *What We Will Do First* table used to sit in the front matter.
+It was cut from the approved document and it stays cut: it restated the
+first three months of the monthly plan one page earlier, so the client had
+two tables of the same work to reconcile and no way to tell which one was
+authoritative.
+
+The monthly plan is the priority list. It is ordered by month, which is the
+order the work happens in, which is what a priority list is.
 
 ### Changes to pages you already have
 

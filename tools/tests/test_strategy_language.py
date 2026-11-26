@@ -380,9 +380,13 @@ check("--help explains that --full is for a complete document only",
 # thing is a year of work. The client reads it as a list of what is about to
 # happen, is surprised in month two that four posts exist, and surprised
 # again in month nine that there is work left.
+# The monthly plan in its agreed shape: three columns, Month / Writing /
+# What we work on, GMB posting from month one, and nothing in it that waits
+# on the client or that is a report rather than work.
 MONTHS = "\n".join(
-    f"| {i} | Foundations | 2 posts | Claim two professional listings "
-    f"| Rewrite the page titles |" for i in range(1, 13))
+    f"| {i} | 1 service page, 8 articles | **SEO:** Rewrite the page titles. "
+    f"**GMB:** 2 posts. **New Content:** The Brampton hub page |"
+    for i in range(1, 13))
 YEAR = f"""# SEO strategy
 
 ## Summary
@@ -392,8 +396,8 @@ and we keep optimizing what is already live for the whole of it.
 
 ## What happens when
 
-| Month | Focus | Content | Off-page | Technical |
-|---|---|---|---|---|
+| Month | Writing | What we work on |
+|---|---|---|
 {MONTHS}
 """
 code, out = run(YEAR)
@@ -413,7 +417,9 @@ check("a document that never says how long the plan is, is flagged",
       "never says how long the plan is" in out, out[-700:])
 
 # A month missing from the table is a month the client will ask about.
-gap = YEAR.replace("| 7 | Foundations | 2 posts | Claim two professional listings | Rewrite the page titles |\n", "")
+gap = YEAR.replace(
+    "| 7 | 1 service page, 8 articles | **SEO:** Rewrite the page titles. "
+    "**GMB:** 2 posts. **New Content:** The Brampton hub page |\n", "")
 code, out = run(gap)
 check("a month missing from the table is named",
       "skips month(s) [7]" in out, out[-700:])
@@ -421,7 +427,9 @@ check("a month missing from the table is named",
 # Six months is a plan too — the check must not demand twelve.
 SIX = YEAR.replace("twelve months", "six months").replace("that year", "those six months")
 for m in range(7, 13):
-    SIX = SIX.replace(f"| {m} | Foundations | 2 posts | Claim two professional listings | Rewrite the page titles |\n", "")
+    SIX = SIX.replace(
+        f"| {m} | 1 service page, 8 articles | **SEO:** Rewrite the page titles. "
+        f"**GMB:** 2 posts. **New Content:** The Brampton hub page |\n", "")
 code, out = run(SIX)
 check("a six-month plan is a plan, not a twelve-month one with gaps",
       "months 1-6" in out and "skips month" not in out, out[-700:])
@@ -1063,6 +1071,127 @@ code, out = run(FWD.replace(
     "We are going from 1 non-brand click a month to 120 by month 12."))
 check("  stating the target in words where it is used passes",
       "before the table that defines it" not in out, out[-900:])
+
+
+print("\n-- The monthly plan: six prohibitions --")
+# The first table the client reads, and the one they came back on hardest
+# after four rejected drafts. references/document-assembly.md has the
+# reasoning; these are the mechanical half.
+PLAN_HEAD = """# SEO strategy
+
+This plan covers twelve months, and we keep optimizing what is already live
+for the whole of it.
+
+## Monthly Plan
+
+| Month | Writing | What we work on |
+|---|---|---|
+"""
+def plan(rows):
+    return PLAN_HEAD + "\n".join(rows) + "\n"
+
+GOOD_ROWS = ["| %d | 1 service page, 8 articles | **SEO:** Rewrite the page titles. "
+             "**GMB:** 2 posts. **New Content:** The Brampton hub page |" % i
+             for i in range(1, 13)]
+
+code, out = run(plan(GOOD_ROWS))
+check("a clean monthly plan passes", "[FAIL]" not in out, out[-900:])
+check("  and its columns are confirmed",
+      "Month, Writing, What we work on" in out, out[-500:])
+
+# 1-2. Reporting is not a month's work.
+for bad, label in [
+    ("Half-year review. Re-run the map ranking check across the GTA", "half-year review"),
+    ("Reporting: Quarterly strategy review", "quarterly review"),
+    ("Set the priorities for year two", "next year's priorities"),
+    ("Re-run the map grid", "the map grid re-check"),
+]:
+    rows = list(GOOD_ROWS)
+    rows[5] = "| 6 | 8 articles | **SEO:** " + bad + " |"
+    code, out = run(plan(rows))
+    check("  %s is kept out of the plan" % label,
+          code == 1 and "[FAIL]" in out and "beside a month" in out, out[-700:])
+
+# Re-optimising a published page is WORK and stays. This is the line the
+# client drew: somebody does something to the site that month.
+rows = list(GOOD_ROWS)
+rows[6] = "| 7 | 8 articles | **SEO:** Re-optimize the pages published in months 1 to 4 |"
+code, out = run(plan(rows))
+check("  but re-optimising a published page is work, and stays",
+      "[FAIL]" not in out, out[-900:])
+
+# 3. Work that waits on the client cannot carry a date.
+for bad, label in [
+    ("Add further photographs of the office and the team", "photographs"),
+    ("Claim the professional memberships the firm holds", "memberships"),
+    ("Manager access to the Google Business Profile", "access"),
+    ("Feedback on drafts within two to three days", "the client's own replies"),
+]:
+    rows = list(GOOD_ROWS)
+    rows[4] = "| 5 | 8 articles | **GMB:** " + bad + " |"
+    code, out = run(plan(rows))
+    check("  %s gets no month" % label,
+          code == 1 and "[FAIL]" in out and "beside a month" in out, out[-700:])
+
+# And the same rule in any other table that dates work — this is how the
+# firm's own memberships ended up with months beside them in Links and
+# Authority, which is a different table entirely.
+LINKS = PLAN_HEAD + "\n".join(GOOD_ROWS) + """
+
+## Links and Authority
+
+| Where the links will come from | Month |
+|---|---|
+| The Criminal Lawyers' Association directory, a membership the firm holds | 1 |
+"""
+code, out = run(LINKS)
+check("  and a Month column anywhere else is held to the same rule",
+      code == 1 and "beside a month" in out, out[-700:])
+
+# 4. Columns that were removed.
+for col, label in [("Links and listings", "Links and listings"),
+                   ("Website and Google profile", "Website and Google profile")]:
+    doc = plan(GOOD_ROWS).replace("| Month | Writing | What we work on |",
+                                  "| Month | Writing | " + col + " | What we work on |")
+    code, out = run(doc)
+    check("  the %s column is rejected" % label,
+          code == 1 and "column(s) that were removed" in out, out[-700:])
+
+# 5. Column ORDER. Asked for in these words: Month, Writing, what we work on.
+doc = plan(GOOD_ROWS).replace("| Month | Writing | What we work on |",
+                              "| Month | What we work on | Writing |")
+code, out = run(doc)
+check("  Writing on the right is flagged, as the approved document had it",
+      "Writing is column 3" in out, out[-700:])
+
+# 6. Month one has to show them something.
+rows = list(GOOD_ROWS)
+rows[0] = "| 1 | content optimization | **SEO:** Titles, descriptions and schema on all 23 pages |"
+code, out = run(plan(rows))
+check("  month one with nothing visible fails",
+      code == 1 and "shows the client nothing" in out, out[-700:])
+check("    and it names the fix",
+      "GMB posting starts in month one" in out, out[-700:])
+
+# A keyword table's Priority column is not a schedule. The first version of
+# this check read every cell for a bare 1-12 and failed a good document on
+# a keyword row, which is how a gate starts failing good work.
+KW = plan(GOOD_ROWS) + """
+## Keywords
+
+| # | Keyword | Est. searches | Priority | Target page |
+|---|---|---|---|---|
+| 1 | criminal lawyer toronto | 2,400 | 1 | Service page |
+| 2 | dui lawyer brampton | 600 | 1 | Location page |
+"""
+code, out = run(KW)
+check("  a Priority column is not mistaken for a schedule",
+      "[FAIL]" not in out, out[-900:])
+
+print("\n-- No pink --")
+code, out = run(plan(GOOD_ROWS) + "\nThe chart uses #FF6699 for the trend line.\n")
+check("pink in a client document fails",
+      code == 1 and "Pink in a client document" in out, out[-700:])
 
 print("\n-- The benchmark the voice is calibrated against --")
 # The highest-leverage file in the skill: the model copies the example it is

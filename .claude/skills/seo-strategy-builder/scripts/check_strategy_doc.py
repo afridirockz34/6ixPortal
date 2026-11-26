@@ -676,6 +676,67 @@ MONTH_TABLE_SHORTHAND = [
 ]
 MONTH_TABLE_SHORTHAND_LIMIT = 0
 
+# ── The monthly plan: six prohibitions ────────────────────────────────────
+#
+# The first table the client reads, and the one they came back on hardest
+# after four drafts. Every pattern below was in a rejected draft, and the
+# reasoning is in references/document-assembly.md under "The monthly plan".
+#
+# Two separate faults, kept apart because they have different fixes:
+#
+#   1. Reporting in a delivery plan. A half-year review, a quarterly review,
+#      re-running the map grid, setting next year's priorities — none of
+#      these is somebody doing something to the site that month. They belong
+#      in the reporting section. Re-OPTIMISING a published page is not in
+#      this list: that is a month of real work and it stays.
+#
+#   2. Work that waits on the client. Photographs, logins, approvals, the
+#      firm's own memberships. A month beside one of those is a promise we
+#      do not control, and the plan is then late in month two through
+#      nobody's fault.
+MONTH_PLAN_REPORTING = [
+    (r"\bhalf[- ]year review\b", "a half-year review is reporting, not work on the site"),
+    (r"\bquarterly (?:strategy )?review\b", "the quarterly review belongs in the reporting section"),
+    (r"\byear(?:ly)? review\b|\bthe year review\b", "the year review belongs in the reporting section"),
+    (r"\bset the priorities for year two\b|\bpriorities for year two\b", "planning next year is not this year's work"),
+    (r"re-?run the map (?:ranking|grid)|map (?:ranking|grid) (?:check|re-?run)",
+     "the map grid is re-checked every month — say so once in the reporting section"),
+    (r"\bmonthly report\b|\breporting:\s", "reports are not a month's deliverable in this table"),
+]
+# Client-dependent work. Matched anywhere a month is attached, not only in
+# the monthly plan, because the Links and Authority table had a Month column
+# full of the firm's own memberships.
+MONTH_PLAN_CLIENT_DEPENDENT = [
+    (r"\bphotograph", "photographs come from the client, so we cannot date them"),
+    (r"\bmembership", "the firm's memberships wait on their login details"),
+    (r"\b(?:manager )?access\b|\blogin\b|\bcredential", "access waits on the client"),
+    (r"\bapprov(?:e|al)\b|\bsign-?off\b", "an approval waits on the client"),
+    (r"\bfeedback (?:on|within)\b", "we do not schedule the client's own replies"),
+]
+MONTH_PLAN_LIMIT = 0
+
+# The columns, in order. Month, Writing, What we work on — asked for in
+# those words. The rejected drafts carried a "Links and listings" column and
+# a separate "Website and Google profile" column; both are part of what we
+# work on, and splitting them made a five-column table nobody could read.
+MONTH_PLAN_HEADER = re.compile(
+    r"^\|\s*#?\s*Month\s*\|\s*Writing\s*\|\s*What we work on\s*\|", re.IGNORECASE | re.MULTILINE)
+MONTH_PLAN_BANNED_COLS = [
+    (r"\|\s*Links and listings\s*\|", "the \"Links and listings\" column — fold it in as \"Listings:\""),
+    (r"\|\s*Website and Google profile\s*\|", "\"Website and Google profile\" IS what we work on"),
+]
+
+# Month one has to show the client something. GMB posting is the one thing
+# they can open their phone and look at, so it starts in month one; a first
+# month of titles, schema and internal links reads as a month of nothing.
+MONTH_ONE_VISIBLE = re.compile(
+    r"\bGMB\b[^|]{0,200}?\bpost", re.IGNORECASE)
+
+# ── Pink ──────────────────────────────────────────────────────────────────
+# #FF6699 is the portal's interface colour. It is not a document colour, and
+# the client asked for it out of everything we generate.
+PINK = re.compile(r"#(?:ff6699|FF6699|ff66|e91e63|ff69b4)\b|\bpink\b", re.IGNORECASE)
+
 # ── Pronouns ───────────────────────────────────────────────────────────────
 # "We" says two parties are doing this together. "You" with no "we" beside it
 # says one party is being assessed by another. Theirs: 5.3 "you" per 1,000
@@ -1025,6 +1086,109 @@ def find_false_precision(text: str):
                 continue
             out.append((m.group(0).strip(), why))
     return out
+
+
+def _tables(text: str):
+    """Every markdown table, as (header_cells_lowercased, [row_cells])."""
+    out, cur = [], None
+    for ln in text.splitlines():
+        t = ln.strip()
+        if t.startswith("|") and t.endswith("|"):
+            cells = [c.strip() for c in t.strip("|").split("|")]
+            if set(t) <= set("|-: "):          # the ---|--- separator
+                continue
+            if cur is None:
+                cur = ([c.lower() for c in cells], [])
+            else:
+                cur[1].append(cells)
+        else:
+            if cur is not None:
+                out.append(cur)
+            cur = None
+    if cur is not None:
+        out.append(cur)
+    return out
+
+
+def month_rows(text: str):
+    """Rows of tables that put a month beside a piece of work.
+
+    Deliberately not "rows of the monthly plan". The Links and Authority
+    table had its own Month column full of the firm's memberships, and the
+    rule — a date is a promise, so only promise what we control — applies to
+    any table that dates work.
+
+    Found by the COLUMN HEADER, not by looking for a number that could be a
+    month. The first version scanned every cell for a bare 1-12, which made
+    a keyword table's Priority column look like a schedule and failed a
+    perfectly good document on it.
+    """
+    out = []
+    for header, rows in _tables(text):
+        idx = [i for i, h in enumerate(header)
+               if re.fullmatch(r"months?|when|by|by when|timing", h)]
+        if not idx:
+            continue
+        for cells in rows:
+            if any(i < len(cells) and re.fullmatch(
+                    r"(?:1[0-2]|[1-9])\s*[–-]?\s*(?:1[0-2]|[1-9])?", cells[i]) for i in idx):
+                out.append("| " + " | ".join(cells) + " |")
+    return out
+
+
+def find_month_plan_problems(text: str):
+    """Reporting, and client-dependent work, sitting next to a month."""
+    rows = month_rows(text)
+    hay = "\n".join(rows)
+    out = []
+    for patterns, kind in ((MONTH_PLAN_REPORTING, "reporting"),
+                           (MONTH_PLAN_CLIENT_DEPENDENT, "client-dependent")):
+        for pattern, why in patterns:
+            for m in re.finditer(pattern, hay, re.IGNORECASE):
+                out.append((m.group(0).strip(), why, kind))
+    return out
+
+
+def find_month_plan_columns(text: str):
+    """Columns the monthly plan must not have, and the order it must.
+
+    Returns (problems, header_ok). A table whose first column is Month is
+    the monthly plan, so its remaining headers are checked against the
+    order that was asked for in those words: Month, Writing, What we work
+    on. The approved document still had Writing on the right, which is why
+    the wrong order is reported rather than assumed correct.
+    """
+    bad = []
+    for pattern, why in MONTH_PLAN_BANNED_COLS:
+        if re.search(pattern, text, re.IGNORECASE):
+            bad.append(why)
+
+    header_ok = bool(MONTH_PLAN_HEADER.search(text))
+    if not header_ok:
+        for header, _rows in _tables(text):
+            if header and header[0] in ("month", "months") and len(header) >= 3:
+                if "writing" in header and header.index("writing") != 1:
+                    bad.append("Writing is column %d; it belongs second, beside the month"
+                               % (header.index("writing") + 1))
+                break
+    return bad, header_ok
+
+
+def month_one_shows_something(text: str):
+    """Is there anything visible to the client in month one?
+
+    None means there is no monthly plan to judge. True/False otherwise.
+    """
+    # The monthly plan only — a table whose FIRST column is Month. Scanning
+    # every table for a row starting "1" found the keyword table's first row
+    # and failed a good document for having no GMB post in it.
+    for header, rows in _tables(text):
+        if not header or header[0] not in ("month", "months"):
+            continue
+        for cells in rows:
+            if cells and cells[0].strip() == "1":
+                return bool(MONTH_ONE_VISIBLE.search("| " + " | ".join(cells) + " |"))
+    return None
 
 
 def find_provenance_clutter(text: str):
@@ -1629,6 +1793,51 @@ def main():
 
         # Our own planning vocabulary, on a page a client reads.
         shorthand = find_month_table_shorthand(text)
+        # ── The monthly plan ─────────────────────────────────────────────
+        mp = find_month_plan_problems(text)
+        if len(mp) > MONTH_PLAN_LIMIT:
+            rep = [x for x in mp if x[2] == "reporting"]
+            dep = [x for x in mp if x[2] == "client-dependent"]
+            print(f"\n[FAIL] {len(mp)} row(s) put something beside a month that should not have one:")
+            for hit, why, _ in mp[:8]:
+                print(f"       \"{hit}\" — {why}")
+            if rep:
+                print("       Reporting goes in Ongoing SEO Management & Reporting.")
+                print("       Re-optimising a published page is work and stays; reading a report is not.")
+            if dep:
+                print("       Client-dependent work gets its own section with no date. A month")
+                print("       beside it promises something we do not control.")
+            failures += 1
+        else:
+            print("\n[OK] Nothing beside a month that we cannot deliver ourselves")
+
+        bad_cols, header_ok = find_month_plan_columns(text)
+        if bad_cols:
+            print(f"\n[FAIL] The monthly plan has {len(bad_cols)} column(s) that were removed:")
+            for why in bad_cols:
+                print(f"       {why}")
+            print("       The columns are Month, Writing, What we work on — in that order.")
+            failures += 1
+        elif header_ok:
+            print("\n[OK] Monthly plan columns: Month, Writing, What we work on")
+
+        m1 = month_one_shows_something(text)
+        if m1 is False:
+            print("\n[FAIL] Month one shows the client nothing they can look at")
+            print("       GMB posting starts in month one. Titles, schema and internal")
+            print("       links are a month of invisible work, and month one is the month")
+            print("       they are deciding whether this was worth buying.")
+            failures += 1
+        elif m1:
+            print("\n[OK] Month one has something the client can see")
+
+        pink = sorted(set(m.group(0) for m in PINK.finditer(text)))
+        if pink:
+            print(f"\n[FAIL] Pink in a client document: {', '.join(pink[:6])}")
+            print("       #FF6699 is the portal's interface colour. Figures use the blue,")
+            print("       grey and green in scripts/make_figures.py.")
+            failures += 1
+
         if len(shorthand) > MONTH_TABLE_SHORTHAND_LIMIT:
             print(f"\n[FAIL] {len(shorthand)} piece(s) of internal shorthand a client will not follow:")
             for term, why in shorthand[:8]:
