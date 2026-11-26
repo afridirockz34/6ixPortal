@@ -134,12 +134,90 @@ META_COMMENTARY = [
      "defending the draft against an objection the client never raised"),
 ]
 SECOND_PERSON = re.compile(r"\b(?:you|your|you're|yours)\b", re.IGNORECASE)
-SECOND_PERSON_LIMIT = 8.0     # per 1,000 words; the benchmark document runs 5.3
+# Raised from 8.0 to match the strategy. The client-letter benchmark runs 3.0
+# and uses "you" in its warmest sentences — "you'll receive a monthly report".
+# A limit tight enough to push a writer off those works against the voice.
+SECOND_PERSON_LIMIT = 14.0    # per 1,000 words
 # Two "you"s in a short section is 29 per 1,000 words. Draw a rate only from a
 # sample worth drawing one from.
 SECOND_PERSON_MIN_COUNT = 8
 YOUR_BUSINESS = re.compile(
     r"\byour (?:company|business|firm|practice|organisation|organization)\b", re.IGNORECASE)
+
+# ── The rest of the house voice ───────────────────────────────────────────
+# Everything above predates the voice recalibration. These are the rules the
+# strategy skill was rebuilt around after four drafts were rejected, and they
+# apply to the audit for the reason the client gave: it is a client-facing
+# report and it should sound like the other one.
+#
+# The long version, with the measured comparison that produced each number,
+# is seo-strategy-builder/references/plain-language.md and
+# assets/client-letter-benchmark.md. Repeated here rather than imported,
+# because these skills run in client sessions with no sight of each other.
+#
+# TWO STRATEGY RULES DELIBERATELY DO NOT APPLY HERE:
+#
+#   - **Provenance.** The strategy strips pull dates and source stamps; the
+#     audit is the document that exists to show its evidence, and
+#     references/measured-vs-estimated.md is a core part of this skill. An
+#     audit that does not say where a figure came from is the fault, not the
+#     fix.
+#   - **"A strategy is not an audit."** Findings are what this document is
+#     for.
+#
+# Everything else is shared.
+
+# The benchmark runs 24.5 contractions per 1,000 words. A document with none
+# reads as a notice, and that was most of what the client meant by "humans
+# don't talk like this".
+CONTRACTION = re.compile(r"\b\w+(?:'|’)(?:ll|ve|re|s|t|d|m)\b", re.IGNORECASE)
+CONTRACTION_MIN_PER_1K = 10.0
+CONTRACTION_MIN_WORDS = 400
+
+# A bare imperative in a client report is a line from our worklist. The
+# benchmark uses zero and writes "we'll rewrite the titles".
+IMPERATIVE_OPENER = re.compile(
+    r"(?:^|(?<=[.!?]\s)|(?<=[.!?]\n))(?:Build|Add|Create|Target|Publish|Use|Write|Rewrite|"
+    r"Expand|Launch|Set|Run|Match|Claim|Fix|Replace|Submit|Monitor|Track|Optimize|Link|"
+    r"Name|List|Keep|Start|Send|Draft|Remove|Correct|Confirm|Ask|Check|Report|"
+    r"Profile|Rotate|Join|Delete|Resolve|Hold|Leave|Cut|Take|Make|Read|Say|Measure)\b",
+    re.MULTILINE)
+IMPERATIVE_CEILING = 2.0      # per 1,000 words of prose
+IMPERATIVE_MIN_COUNT = 4
+
+# A verbless fragment standing in for a heading: "The year's totals. The plan
+# delivers ..." 44% of the paragraphs in the rejected strategy, 3% of the
+# benchmark's. Length does most of the work here; see the long note in
+# check_strategy_doc.py for why a verb whitelist was the wrong instrument.
+STUB_OPENER = re.compile(r"^(?:\*\*)?([A-Z][^.!?:\n]{2,70}?)(?:\*\*)?\.\s+[A-Z]")
+STUB_MAX_WORDS = 6
+STUB_VERB = re.compile(
+    r"\b(?:is|are|was|were|be|been|am|has|have|had|will|would|shall|should|"
+    r"can|could|may|might|must|do|does|did|goes|go|went)\b"
+    r"|\b(?:it|that|there|here|what|who|he|she|this|one|everything|nothing|"
+    r"something|someone|nobody)(?:'|’)s\b"
+    r"|\b\w+(?:'|’)(?:re|ve|ll|d)\b"
+    r"|\b(?:is|are|was|were|has|have|had|does|do|did|wo|ca|could|should|"
+    r"would|must|need|might)(?:n(?:'|’)?t)\b"
+    r"|\b\w{3,}(?:ed|ing)\b",
+    re.IGNORECASE)
+STUB_CEILING_PCT = 10
+STUB_MIN_PARAS = 8
+
+# An Ahrefs estimate carried to four significant figures claims an accuracy
+# nobody has, and this document is mostly third-party estimates. A hedge
+# nearby makes it honest: "approximately 4,500" is fine, "4,501" is not.
+FALSE_PRECISION = [
+    (r"(?<![\d.,])(?:\d,\d{3}|\d{2},\d{3})(?![\d.,])",
+     "a four-figure estimate — round it (4,501 -> about 4,500)"),
+    (r"\$\s?\d{1,3},\d{3}\b",
+     "an exact dollar figure for an estimate — round it"),
+    (r"\b\d{1,3}\.\d\s?%", "a percentage to one decimal — whole numbers read better"),
+]
+ESTIMATE_WORDS = re.compile(
+    r"\b(?:estimated?|approximately|about|roughly|around)\b", re.IGNORECASE)
+FALSE_PRECISION_LIMIT = 1.5
+FALSE_PRECISION_MIN_COUNT = 3
 
 BARE_ACRONYM_DOMAIN = re.compile(
     r"(?<![\w./@-])([a-z]{2,4})\.(?:ca|com|net|org|co)\b(?![\w/])", re.IGNORECASE)
@@ -384,6 +462,124 @@ def pronoun_balance(text: str):
     return you * 1000 / n_words, named * 1000 / n_words, you, len(YOUR_BUSINESS.findall(text))
 
 
+def prose_only(sections):
+    """The report's writing, without its specification rows.
+
+    A scorecard row is a spec — "Backlinks · Weak · 41 referring domains" —
+    and holding it to a prose rule would fail every report for having a
+    scorecard in it. Findings, the executive summary and the closing are the
+    writing, and they are what the voice checks read.
+    """
+    return "\n\n".join(
+        body for heading, _lvl, body in sections
+        if not heading.lower().startswith("scorecard:") and body.strip()
+    )
+
+
+def contraction_rate(text: str):
+    n_words = len(text.split())
+    if n_words < CONTRACTION_MIN_WORDS:
+        return None, n_words
+    return len(CONTRACTION.findall(text)) / (n_words / 1000), n_words
+
+
+def imperative_density(text: str):
+    n_words = max(1, len(text.split()))
+    hits = IMPERATIVE_OPENER.findall(text)
+    return len(hits) * 1000 / n_words, len(hits)
+
+
+def find_stub_openers(blocks):
+    """Paragraphs opening with a verbless fragment standing in for a heading."""
+    paras = [" ".join(b.split()) for b in blocks if len(b.split()) >= 6]
+    if len(paras) < STUB_MIN_PARAS:
+        return [], None, len(paras)
+    stubs = []
+    for p in paras:
+        m = STUB_OPENER.match(p)
+        if not m:
+            continue
+        frag = m.group(1).strip()
+        if len(frag.split()) > STUB_MAX_WORDS or STUB_VERB.search(frag):
+            continue
+        stubs.append(frag)
+    return stubs, len(stubs) * 100 // len(paras), len(paras)
+
+
+def find_false_precision(text: str):
+    """Unhedged four-figure estimates.
+
+    A density threshold could not separate the good document from the bad one
+    — they sat 3.0 against 3.9 per 1,000 words. What separates them is
+    whether a rounding word sits beside the figure, so that is what is
+    measured.
+    """
+    out = []
+    for pattern, why in FALSE_PRECISION:
+        for m in re.finditer(pattern, text):
+            lo = max(0, m.start() - 60)
+            if ESTIMATE_WORDS.search(text[lo:m.start()]):
+                continue
+            out.append((m.group(0).strip(), why))
+    return out
+
+
+def check_local_grid(data):
+    """Is the rank grid there, and is there a map under it?
+
+    Two separate failures, and the second is the one that keeps happening.
+    `fetch_map.py` exists and the skill tells a session to run it, but it is
+    a separate step before rendering and a skipped step leaves a grid of
+    coloured squares floating on nothing. The finding a grid exists to show
+    is which direction visibility falls off in, and without the ground under
+    it nobody can tell whether that is three blocks or thirty kilometres.
+
+    Returns (blocking, advisory). Both empty for a report with no `local`
+    block at all, because a national or e-commerce prospect has no catchment
+    and the whole section is correctly absent.
+
+    A MISSING GRID BLOCKS. That is the thing worth enforcing: a local client
+    handed a report with no grid has been audited on the half of their
+    business they can check from their own phone in ten seconds.
+
+    A MISSING MAP DOES NOT BLOCK, and the reason is practical rather than
+    principled. `fetch_map.py` needs Pillow to stitch the tiles, and a client
+    session may not have it — so making the map a hard requirement would fail
+    every report produced on a machine without it, which is how a gate ends
+    up switched off. The renderer already draws the grid unmapped. It is
+    worse, and it is said so, loudly, every time.
+    """
+    blocking, advisory = [], []
+    local = data.get("local")
+    if not isinstance(local, dict):
+        return blocking, advisory
+    kws = local.get("keywords") or []
+    if not kws:
+        blocking.append(("the report has a local section with no keyword grids in it",
+                         "pull one with get_lsg_latest_run and paste grid_points and "
+                         "summary into local.keywords"))
+        return blocking, advisory
+    top_map = local.get("map_image")
+    for kw in kws:
+        if not isinstance(kw, dict):
+            continue
+        name = str(kw.get("keyword") or "(unnamed keyword)")
+        if not (kw.get("grid_points") or kw.get("points")):
+            blocking.append((f'"{name}" has no grid points',
+                             "paste the run's grid_points in unchanged"))
+            continue
+        if not (kw.get("map_image") or top_map):
+            advisory.append((f'"{name}" has a grid with no map behind it',
+                             "python scripts/fetch_map.py <run.json> --into audit.json "
+                             "(needs Pillow; without the ground under it nobody can tell "
+                             "whether the falloff is three blocks or thirty kilometres)"))
+        if not str(kw.get("shape") or "").strip():
+            advisory.append((f'"{name}" has no shape line',
+                             "the finding is which direction the visibility falls off in, "
+                             "not the average — write that sentence yourself"))
+    return blocking, advisory
+
+
 def find_bare_acronym_domains(text: str):
     """Acronym domains printed as if they were an organization's name."""
     seen, out = set(), []
@@ -413,6 +609,9 @@ def main():
 
     raw = path.read_text(encoding="utf-8", errors="replace")
     suffix = path.suffix.lower()
+    # Defined for every input kind: the grid check reads it, and only the
+    # JSON branch fills it in.
+    data = {}
 
     # The audit JSON is the source the report is rendered from, so checking it
     # catches a missing severity as a missing field rather than as a word a
@@ -503,6 +702,71 @@ def main():
         print("  \"We\" for the work. The firm's name for facts. \"You\" only for what is theirs.")
         print()
 
+    # ── The rest of the house voice ──────────────────────────────────────
+    # The JSON only, and the reason is that prose has to be separable from
+    # specification. In the audit file it is: `finding`, `why`, `teaser` and
+    # the summary are writing, and a scorecard row is not. Once rendered,
+    # that distinction is gone — stripping the HTML returns the scorecard,
+    # the chart labels and every axis number as one block of text, and the
+    # voice checks then read "4,120" off a chart as an over-precise figure
+    # in the prose. The JSON is the source the skill tells you to write, so
+    # it is the thing to check.
+    prose = prose_only(sections) if suffix == ".json" else ""
+    voice_bad = []
+
+    c_k, c_words = contraction_rate(prose) if prose else (None, 0)
+    if c_k is not None and c_k < CONTRACTION_MIN_PER_1K:
+        voice_bad.append("contractions")
+        print(f"REVIEW — {c_k:.1f} contractions per 1k words ({c_words} words, "
+              f"floor {CONTRACTION_MIN_PER_1K}).")
+        print("  The benchmark runs 24.5. \"we'll\", \"we've\", \"you'll\", \"isn't\".")
+        print("  A report with none reads as a notice rather than a person.")
+        print()
+
+    imp_k, imp_n = imperative_density(prose) if prose else (0.0, 0)
+    if imp_k > IMPERATIVE_CEILING and imp_n >= IMPERATIVE_MIN_COUNT:
+        voice_bad.append("imperatives")
+        print(f"REVIEW — {imp_k:.1f} bare instructions per 1k words ({imp_n} of them, "
+              f"ceiling {IMPERATIVE_CEILING}).")
+        print("  \"Rewrite the titles\" is a line from our worklist. Write \"we'll\"")
+        print("  and the verb. Imperatives stay right inside a specification row.")
+        print()
+
+    stubs, stub_pct, _n_par = find_stub_openers(
+        [b for _h, _l, b in sections if b.strip()]) if prose else ([], None, 0)
+    if stub_pct is not None and stub_pct > STUB_CEILING_PCT:
+        voice_bad.append("fragments")
+        print(f"REVIEW — {stub_pct}% of paragraphs open with a sentence fragment "
+              f"(ceiling {STUB_CEILING_PCT}%):")
+        for sfrag in stubs[:5]:
+            print(f"  \"{sfrag}.\" — fold it into the sentence after it")
+        print()
+
+    fp = find_false_precision(prose) if prose else []
+    if fp:
+        fp_k = len(fp) / max(1.0, len(prose.split()) / 1000)
+        if fp_k > FALSE_PRECISION_LIMIT and len(fp) >= FALSE_PRECISION_MIN_COUNT:
+            voice_bad.append("false precision")
+            print(f"REVIEW — {len(fp)} over-precise figures ({fp_k:.1f} per 1k):")
+            for hit, why in fp[:5]:
+                print(f"  \"{hit}\" — {why}")
+            print("  Most of this report is third-party estimates. A client who checks")
+            print("  4,501 against a real 4,120 has caught us being precisely wrong")
+            print("  rather than roughly right. Keep the word \"estimated\".")
+            print()
+
+    # ── The rank grid ────────────────────────────────────────────────────
+    grid_bad, grid_soft = check_local_grid(data) if suffix == ".json" else ([], [])
+    for rows, label in ((grid_bad, "the local section is missing its rank grid"),
+                        (grid_soft, "the rank grid is not as readable as it should be")):
+        if not rows:
+            continue
+        print(f"REVIEW — {label}:")
+        for problem, remedy in rows:
+            print(f"  {problem}")
+            print(f"    → {remedy}")
+        print()
+
     slips = find_spelling_slips(text)
     if slips:
         print("REVIEW — spellings that are not Canadian English:")
@@ -527,6 +791,8 @@ def main():
         and not bare_domains
         and has_cta_section(sections)
         and score_present
+        and not voice_bad
+        and not grid_bad
     ):
         print("PASS — no unresolved placeholders, every weakness section has a severity")
         print("  rating, a closing/CTA section is present, an SEO Health Score is reported,")
@@ -534,6 +800,9 @@ def main():
         print("  every competitor is named rather than left as a")
         print("  domain, the tone states the opportunity rather than the client's shortfall,")
         print("  and no section reads like a full fix instead of a teaser.")
+        print("  It also reads in the house voice, and where the client has a")
+        print("  catchment the rank grid is there. Read any REVIEW lines above:")
+        print("  a grid with no map under it still renders, and still reads worse.")
 
     sys.exit(1 if hard_fail else 0)
 
