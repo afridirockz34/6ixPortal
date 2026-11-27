@@ -811,7 +811,7 @@ class Six_EstimateEngine {
         $svc_labels = array(
             'google-ads'     => 'Google Ads',
             'seo'            => 'SEO',
-            'google-business'=> 'Google Business Profile',
+            'google-business'=> 'GMB',
             'website'        => 'Website Development',
         );
 
@@ -986,7 +986,7 @@ class Six_EstimateEngine {
             $L[] = 'They are NOT running Google Ads. Do NOT frame growth around CPC, clicks, or ad spend. Frame SEO around: keyword rankings, page-1 positions, organic traffic growth, domain authority, and content — cite real search volumes, not CPC-as-spend.';
         if ( $has_ads )  $L[] = 'Google Ads focus: CPC economics, click volume, conversion rate, campaign structure, negative keywords, and cost-per-lead.';
         if ( $has_seo )  $L[] = 'SEO focus: current vs target rankings for their keywords, organic traffic upside from real search volume, on-page/technical fixes, and content gaps vs competitors.';
-        if ( $has_gbp )  $L[] = 'Google Business Profile focus: local map-pack ranking, review velocity/rating, calls and direction requests, photos and posts.';
+        if ( $has_gbp )  $L[] = 'GMB focus: local map-pack ranking, review velocity/rating, calls and direction requests, photos and posts.';
         if ( $has_web )  $L[] = 'Website focus: conversion rate, page speed, mobile UX, and the highest-impact pages/CTAs to build first.';
         $L[] = 'Choose KPI labels that match their services — e.g. for SEO use "Est. Organic Leads / Mo", "Keywords on Page 1", "Traffic Growth"; for Google Ads use lead, CPC and click labels. NEVER use a revenue or ROI label — we do not guarantee returns.';
         $L[] = 'PLAIN LANGUAGE RULE: write for the business owner, not for an SEO. No jargon they would have to look up. Never write "page-2 opportunities" \u2014 say "search terms where you already appear just below the first page". Always say what a number counts: "200 searches a month", never a bare "200/mo". Spell out any term you cannot avoid.';
@@ -1150,7 +1150,7 @@ class Six_EstimateEngine {
     private static function numeric_fallback( $co, array $svcs, array $kw, float $cr ): array {
         $svc_labels = array(
             'google-ads'=>'Google Ads','seo'=>'SEO',
-            'google-business'=>'Google Business Profile','website'=>'Website Development',
+            'google-business'=>'GMB','website'=>'Website Development',
         );
         $biz  = $co->business_name ?? 'your business';
         $ind  = $co->industry      ?? 'your industry';

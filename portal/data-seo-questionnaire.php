@@ -171,7 +171,7 @@ function six_seo_questionnaire_schema() {
 				array( 'key' => 'seo_approver', 'label' => 'Who approves new content, and what is their email?', 'type' => 'text',
 				       'help' => 'We SEO-optimise it, then it needs a yes from your side before it goes live.' ),
 				array( 'key' => 'seo_priority', 'label' => 'Prioritize maps or organic?', 'type' => 'select',
-				       'options' => array( 'No preference — do both', 'Maps (local / Google Business Profile)', 'Organic (content, meta, performance)' ),
+				       'options' => array( 'No preference — do both', 'Maps (local / GMB)', 'Organic (content, meta, performance)' ),
 				       'help' => 'We normally work both in the same month.' ),
 				array( 'key' => 'seo_topics',      'label' => 'Topics to cover — and any to stay away from', 'type' => 'textarea' ),
 				array( 'key' => 'seo_paid_links',  'label' => 'Any previous paid backlinking?', 'type' => 'select',
@@ -261,7 +261,7 @@ function six_seo_questionnaire_schema() {
 				array( 'key' => 'seo_gsc',          'label' => 'Google Analytics and Search Console — set up, and can you grant access?', 'type' => 'textarea', 'maps_to' => 'seo_gsc' ),
 				// A Google Business Profile client answers this properly in
 				// the local section below, so they are not asked twice.
-				array( 'key' => 'tools_gbp_status', 'label' => 'Is your Google Business Profile claimed and verified? Who manages it?', 'type' => 'textarea',
+				array( 'key' => 'tools_gbp_status', 'label' => 'Is your GMB claimed and verified? Who manages it?', 'type' => 'textarea',
 				       'skip_if_svc' => array( 'google-business' ) ),
 				array( 'key' => 'tools_social',     'label' => 'Active social media channels', 'type' => 'textarea', 'optional' => true ),
 				array( 'key' => 'tools_other',      'label' => 'Any other SEO, marketing or CRM tools in use', 'type' => 'textarea', 'optional' => true,
@@ -278,7 +278,7 @@ function six_seo_questionnaire_schema() {
 		// local work actually needs: where to centre a rank grid, how wide to
 		// draw it, and who is allowed to reply to a review.
 		'local' => array(
-			'title'  => 'Your Google Business Profile',
+			'title'  => 'Your GMB',
 			'intro'  => 'This is what decides whether you show up in the map results when somebody nearby searches for what you do.',
 			'fields' => array(
 				array( 'key' => 'gbp_status',      'label' => 'Is the profile claimed and verified, and who manages it today?', 'type' => 'textarea',

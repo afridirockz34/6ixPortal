@@ -451,6 +451,133 @@ ok("the worked example stays clean under both new checks",
    tone((SKILL / "assets" / "sample-weakness-section.md").read_text()) == [],
    "a gate that fails our own calibrated example is a gate that gets switched off")
 
+
+print("\n── The audit speaks in the same voice as the strategy ───────────────")
+# The client's instruction: the audit report is client-facing too, so it
+# should sound like the strategy. Everything in check_audit_report.py
+# predated the voice recalibration except Rules 1 and 2.
+#
+# Two strategy rules deliberately do NOT cross over, and the tests below
+# assert that they do not: an audit must show its sources, and findings are
+# what the document is for.
+with tempfile.TemporaryDirectory() as tmp:
+    tmp = Path(tmp)
+
+    def run_json(obj, name="v.json"):
+        q = tmp / name
+        q.write_text(json.dumps(obj))
+        r = subprocess.run([sys.executable, str(SKILL / "scripts" / "check_audit_report.py"), str(q)],
+                           capture_output=True, text=True)
+        return r.returncode, r.stdout
+
+    def with_prose(text, n=1):
+        d = json.loads(json.dumps(EXAMPLE))
+        d["sections"][0]["finding"] = text * n
+        return d
+
+    # Long enough to draw a rate from: the floor needs 400 words.
+    FILLER = ("The firm ranks outside the first page for the searches that "
+              "matter most to it, and that is the gap this plan closes. ")
+    code, out = run_json(with_prose(FILLER, 40))
+    ok("a report with no contractions is flagged",
+       "contractions per 1k" in out, out[:400])
+
+    code, out = run_json(with_prose(
+        "We'll rewrite the titles and we've already mapped the pages. "
+        "You'll see the first movement inside two months, and it isn't "
+        "going to stop there. We're starting with the service pages. ", 40))
+    ok("  and one that contracts naturally is not",
+       "contractions per 1k" not in out, out[:400])
+
+    code, out = run_json(with_prose(
+        "Rewrite the page titles. Add the schema markup. Fix the duplicate "
+        "blog posts. Claim the directory listings. Build the city pages. ", 20))
+    ok("a report written as a worklist is flagged",
+       "bare instructions per 1k" in out, out[:400])
+
+    # An Ahrefs estimate carried to four figures, in a document that is
+    # mostly third-party estimates.
+    code, out = run_json(with_prose(
+        "A rival draws 4,501 visits a month worth $23,655, against 1,204 "
+        "for this site and 8,470 for the market leader. ", 6))
+    ok("unhedged four-figure estimates are flagged",
+       "over-precise figures" in out, out[:400])
+    code, out = run_json(with_prose(
+        "A rival draws approximately 4,500 visits a month worth about "
+        "$23,600, against roughly 1,200 for this site. ", 6))
+    ok("  but the same figures rounded and hedged are not",
+       "over-precise figures" not in out, out[:400])
+
+    # The two that must NOT cross over from the strategy.
+    code, out = run_json(with_prose(
+        "Ahrefs estimates 4,500 visits a month, measured on 21 November 2026. "
+        "Search Console reports 173 clicks over the 28 days to 20 November. ", 6))
+    ok("an audit may cite its sources and dates — that rule is the strategy's",
+       "provenance" not in out.lower() and "pull date" not in out.lower(), out[:400])
+
+    code, out = run_json(with_prose(
+        "No page title on the site contains the word lawyer, and the services "
+        "list on the profile is empty. ", 10))
+    ok("and findings are what an audit is for, so they are not flagged",
+       "audit finding" not in out.lower(), out[:400])
+
+print("\n── The rank grid has to be there ────────────────────────────────────")
+with tempfile.TemporaryDirectory() as tmp:
+    tmp = Path(tmp)
+
+    def run_json(obj, name="g.json"):
+        q = tmp / name
+        q.write_text(json.dumps(obj))
+        r = subprocess.run([sys.executable, str(SKILL / "scripts" / "check_audit_report.py"), str(q)],
+                           capture_output=True, text=True)
+        return r.returncode, r.stdout
+
+    # A local client handed a report with no grid has been audited on the
+    # half of their business they can check from their own phone.
+    d = json.loads(json.dumps(EXAMPLE))
+    d["local"]["keywords"] = []
+    code, out = run_json(d)
+    ok("a local section with no grid blocks the pass",
+       "missing its rank grid" in out and "PASS" not in out, out[:400])
+
+    d = json.loads(json.dumps(EXAMPLE))
+    d["local"]["keywords"][0].pop("grid_points", None)
+    code, out = run_json(d)
+    ok("  and so does a keyword with no points",
+       "no grid points" in out and "PASS" not in out, out[:400])
+
+    # A missing map is reported loudly and does not block: fetch_map.py needs
+    # Pillow, and a gate that fails every report on a machine without it is a
+    # gate that gets switched off.
+    d = json.loads(json.dumps(EXAMPLE))
+    code, out = run_json(d)
+    ok("a grid with no map under it is reported",
+       "no map behind it" in out, out[:400])
+    ok("  but does not block, because fetch_map needs Pillow",
+       "PASS" in out, out[:400])
+    ok("  and the remedy names the command",
+       "fetch_map.py" in out, out[:400])
+
+    d = json.loads(json.dumps(EXAMPLE))
+    d["local"]["keywords"][0]["map_image"] = "data:image/png;base64,iVBORw0KGgo="
+    code, out = run_json(d)
+    ok("a grid with a map is clean", "no map behind it" not in out, out[:400])
+
+    d = json.loads(json.dumps(EXAMPLE))
+    d["local"]["keywords"][0]["shape"] = ""
+    code, out = run_json(d)
+    ok("a grid with no shape line is reported",
+       "no shape line" in out, out[:400])
+
+    # A national prospect has no catchment, so the whole block is correctly
+    # absent and must not be demanded.
+    d = json.loads(json.dumps(EXAMPLE))
+    d.pop("local", None)
+    code, out = run_json(d)
+    ok("a report with no local section at all is not asked for a grid",
+       "missing its rank grid" not in out and "no map behind it" not in out
+       and "PASS" in out, out[:400])
+
 print("\n" + "\n".join(LOG))
 print(f"\nPassed: {PASS}  Failed: {FAIL}")
 sys.exit(1 if FAIL else 0)

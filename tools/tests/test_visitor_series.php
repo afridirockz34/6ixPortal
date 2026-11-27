@@ -53,9 +53,12 @@ class Six_Tracking {
 	public static $projected = true;
 	public static $start = '2026-10-21';
 
+	public static $from = '2026-10-01';
+	public static $ndays = 40;
+
 	public static function graph_series( $uid, $key = '', $days = 180 ) {
 		if ( ! self::$has ) return array( 'has' => false, 'note' => 'none' );
-		list( $dates, $vals ) = six_fake_days();
+		list( $dates, $vals ) = six_fake_days( self::$ndays, self::$from );
 		// A held level, which is what Six_Tracking::hold_level() now returns.
 		$proj = array_fill( 0, count( $vals ), 214.0 );
 		return array(
@@ -73,6 +76,31 @@ class Six_Tracking {
 		);
 	}
 	public static function engagement_start( $uid ) { return self::$start; }
+
+	/** Backfilled daily readings, as sync_client() writes them. */
+	public static $backfill_days = 480;
+	public static function daily( $cid, $key, $days = 180 ) {
+		$out = array(); $n = min( (int) $days, self::$backfill_days );
+		for ( $i = $n; $i >= 0; $i-- ) {
+			$d = gmdate( 'Y-m-d', strtotime( "-$i days" ) );
+			$age = self::$backfill_days - $i;
+			if ( $key === 'gsc_position' )          $v = max( 4, 24 - $age * 0.03 );
+			elseif ( $key === 'organic_sessions' )  $v = 95 + $age * 0.22;
+			else                                    $v = 0;
+			if ( $v <= 0 ) continue;
+			$out[] = array( 'date' => $d, 'value' => round( $v, 1 ), 'source' => 'ga4' );
+		}
+		return $out;
+	}
+}
+
+/* Defined so trend_series() can fall back to snapshots, and stubbed empty so
+ * the backfill is the only thing under test here. projection_due() has to
+ * exist as well: once this class is declared, visitor_target() stops
+ * short-circuiting on class_exists() and calls it. */
+class Six_Performance {
+	public static function history( $cid, $l = 26 ) { return array(); }
+	public static function projection_due( $cid, $key, $by ) { return null; }
 }
 
 require dirname( __DIR__, 2 ) . '/portal/class-dashboard-metrics.php';
@@ -160,6 +188,7 @@ check( 'the tool is named from the winning metric',
 	( $v5['measured_tool'] ?? '' ) === 'Google Search Console',
 	$v5['measured_tool'] ?? 'none' );
 $tpl = file_get_contents( dirname( __DIR__, 2 ) . '/portal/templates/customer-dashboard.php' );
+$dm  = file_get_contents( dirname( __DIR__, 2 ) . '/portal/class-dashboard-metrics.php' );
 check( 'and the caption uses it rather than guessing from the source column',
 	strpos( $tpl, "VIS.measured_tool || 'Google Search Console'" ) !== false
 	&& strpos( $tpl, "measured_from === 'ga4' ? 'Google Analytics'" ) === false );
@@ -170,6 +199,173 @@ check( 'the caption says the level is held, not projected',
 check( 'and the anchor that moved it is gone',
 	strpos( file_get_contents( dirname( __DIR__, 2 ) . '/portal/class-dashboard-metrics.php' ),
 		'$anchor = (float)' ) === false );
+
+/* ── The two figures that disagreed ──────────────────────────────────────
+ *
+ * Reported from live use: the card read "3,745 organic sessions · last 30
+ * days" in the top right, and directly under it "October 2026 · 114
+ * visitors". Same metric, same card, thirty times apart.
+ *
+ * 114 was the MEAN of the handful of October days that happened to fall
+ * inside the 30-day display window. last_calendar_month() was handed that
+ * window rather than the full series, found five October days in it, and
+ * decided from `count($vals) > 6` that five readings could not be a daily
+ * series — so it averaged them and labelled the result as the month. */
+echo "\n-- Last month against last 30 days --\n";
+Six_Tracking::$start     = '2026-10-21';
+Six_Tracking::$projected = true;
+Six_Tracking::$from      = '2026-10-01';
+Six_Tracking::$ndays     = 40;              // 1 Oct – 9 Nov: October complete
+$vm = Six_Dash_Metrics::visitor_series( 7, $CTX );
+$lm = $vm['last_month'] ?? null;
+check( 'last month is reported when the month is actually held',
+	is_array( $lm ) && ( $lm['label'] ?? '' ) === 'October 2026',
+	'got ' . var_export( $lm, true ) );
+check( '  and it is the month TOTAL, not the mean of a few days',
+	is_array( $lm ) && (int) $lm['value'] > 5000,
+	'got ' . ( is_array( $lm ) ? $lm['value'] : 'null' )
+	. ' — a daily mean would land near 250, which is the bug this guards' );
+check( '  so it is the same kind of number as the 30-day figure',
+	is_array( $lm ) && ( $vm['current_mo'] ?? 0 ) > 0
+	&& $lm['value'] / max( 1, $vm['current_mo'] ) > 0.4
+	&& $lm['value'] / max( 1, $vm['current_mo'] ) < 2.5,
+	'month=' . ( is_array( $lm ) ? $lm['value'] : 'null' ) . ' 30d=' . ( $vm['current_mo'] ?? 0 )
+	. ' — two totals of the same metric cannot be an order of magnitude apart' );
+
+/* And the other half: a month we only partly hold is not reported at all.
+ * A partial month summed is a total that is quietly too low, which is worse
+ * than an absent figure, because the client puts it beside this month's and
+ * reads a fall that did not happen. */
+Six_Tracking::$from  = '2026-10-24';        // only the tail of October
+Six_Tracking::$ndays = 32;
+$vp = Six_Dash_Metrics::visitor_series( 7, $CTX );
+check( 'a month we only partly hold is left out rather than under-reported',
+	( $vp['last_month'] ?? null ) === null,
+	'got ' . var_export( $vp['last_month'] ?? null, true ) );
+
+/* ── The hover read the wrong point ──────────────────────────────────────
+ *
+ * X(i) places a point at pad.l + (i/(n-1)) * spanW, where spanW is 80% of
+ * the plot width — the slack on the right is for the end marker and its
+ * label. The hover inverted it against the FULL width, so every lookup
+ * landed at 0.8 of the index under the cursor: hover over week 6, read
+ * week 4 or 5. Reported exactly that way. */
+echo "\n-- Hovering reads the point under the cursor --\n";
+check( 'the span the forward mapping uses travels with the geometry',
+	strpos( $tpl, 'spanW:spanW' ) !== false,
+	'the inverse cannot be right unless it can see the same number' );
+check( '  and the inverse divides by that span, not the full plot width',
+	strpos( $tpl, 'GEO.pad.l) / GEO.spanW' ) !== false
+	&& strpos( $tpl, '/(GEO.W-GEO.pad.l-GEO.pad.r))*(GEO.n-1)' ) === false,
+	'this is the 0.8 offset' );
+check( 'the tooltip names the real date rather than "Week N"',
+	strpos( $tpl, "'Week ' + (i+1)" ) === false
+	&& strpos( $tpl, 'toLocaleDateString' ) !== false,
+	'the axis has carried real dates since the series went daily' );
+check( 'no "without us" figure is shown on days before we started',
+	strpos( $tpl, "ttbRow.style.display = hasB ? 'flex' : 'none'" ) !== false,
+	'fmt(null) printed 0, which reads as a measured zero' );
+check( 'and the legend does not key a line that was not drawn',
+	strpos( $tpl, 'No &ldquo;without us&rdquo; line' ) !== false
+	&& strpos( $tpl, 'blockerShort' ) !== false,
+	'a key for a missing line reads as a broken chart' );
+
+/* ── The window is adjustable ────────────────────────────────────────────
+ *
+ * The chart was fixed at the last 30 days with no control, so a client
+ * could not tell a quiet fortnight from a trend. The daily series is
+ * already fetched over 180 days, so the longer windows cost nothing. */
+echo "\n-- Choosing how far back to look --\n";
+Six_Tracking::$from  = '2026-06-01';
+Six_Tracking::$ndays = 180;
+$w30 = Six_Dash_Metrics::visitor_series( 7, $CTX + array( 'window' => 30 ) );
+$w90 = Six_Dash_Metrics::visitor_series( 7, array( 'window' => 90 ) + $CTX );
+check( 'the default window is 30 days', count( $w30['points'] ?? array() ) === 30,
+	count( $w30['points'] ?? array() ) . ' points' );
+check( 'asking for 90 draws 90', count( $w90['points'] ?? array() ) === 90,
+	count( $w90['points'] ?? array() ) . ' points' );
+check( 'the headline stays the last 30 days whatever the chart shows',
+	( $w30['current_mo'] ?? 0 ) === ( $w90['current_mo'] ?? -1 ),
+	'30d=' . ( $w30['current_mo'] ?? 0 ) . ' 90d=' . ( $w90['current_mo'] ?? 0 )
+	. ' — "last 30 days" has to keep meaning the same thing, or it cannot be '
+	. 'compared against last month' );
+check( 'and a silly window is clamped rather than obeyed',
+	count( Six_Dash_Metrics::visitor_series( 7, array( 'window' => 99999 ) + $CTX )['points'] ) <= 180 );
+
+check( 'the picker is rendered from the ranges the server allows',
+	strpos( $tpl, 'rangeBtns' ) !== false && strpos( $tpl, "searchParams.set('range'" ) !== false,
+	'one implementation of the window, on the server' );
+
+/* ── GA4 had the answers all along ───────────────────────────────────────
+ *
+ * by_channel has been in ga4_summary() since it was written, and the
+ * conversions total was hiding the event breakdown. Neither reached the
+ * overview, so it could say how many people came and never where from or
+ * whether any of them got in touch. */
+echo "\n-- Where visitors came from, and what they did --\n";
+$an = file_get_contents( dirname( __DIR__, 2 ) . '/portal/class-analytics.php' );
+check( 'GA4 events are read by name, not just totalled',
+	strpos( $an, "'name' => 'eventName'" ) !== false
+	&& strpos( $an, 'function ga4_events' ) !== false );
+check( 'automatic events are not counted as engagement',
+	strpos( $an, "'session_start', 'first_visit', 'page_view'" ) !== false,
+	'every property would otherwise look busy' );
+check( 'an untracked call event reports null, never a measured zero',
+	strpos( $an, 'null, not 0' ) !== false
+	&& strpos( $dm, "'calls' => $calls" ) !== false,
+	'"nobody called" and "we are not tracking calls" are different claims' );
+check( 'and the client is told which of the two it is',
+	strpos( $tpl, 'not yet tracking' ) !== false,
+	'a blank where a number belongs reads as zero' );
+check( 'the figures are cached so a page load does not wait on GA4 twice',
+	strpos( $dm, 'six_engage_' ) !== false && strpos( $dm, 'set_transient' ) !== false );
+
+/* ── Service-page graphs reach back as far as the backfill ───────────────
+ *
+ * Reported: "the graphs don\x27t have backfill data, like the graph line
+ * coming from back". sync_client() reaches back about sixteen months on its
+ * first run and writes six daily keys — and no service page ever read one
+ * of them. They drew from six_snapshots, which starts the day the portal
+ * first captured one, so every line began partway along however much
+ * history we actually hold. */
+echo "\n-- Service trends are built from the backfill --\n";
+$t30  = Six_Dash_Metrics::trend_series( 7, 'seo', 30 );
+$t365 = Six_Dash_Metrics::trend_series( 7, 'seo', 365 );
+check( 'a service trend is built at all', ! empty( $t365['has'] ),
+	'snapshots alone left these empty for a freshly backfilled client' );
+check( '  and it reaches back a year when a year was backfilled',
+	(int) $t365['reach'] > 300, $t365['reach'] );
+check( '  while the short window stays short',
+	count( $t30['labels'] ) < count( $t365['labels'] ),
+	'30d=' . count( $t30['labels'] ) . ' 365d=' . count( $t365['labels'] ) );
+check( '  and a year is not drawn as 365 points',
+	count( $t365['labels'] ) < 60,
+	count( $t365['labels'] ) . ' points — nobody reads a 365-point line' );
+
+/* The unit is the part that has to be right. "Organic Visitors" is labelled
+ * /mo in the catalog, so the line has to stay a monthly figure — a rolling
+ * 30-day sum, not a raw daily value under a monthly label. That mistake is
+ * the October-114-against-3,745 bug one panel further down. */
+$by = array();
+foreach ( $t365['series'] as $sx ) $by[ $sx['key'] ] = $sx;
+check( 'a per-month count is a rolling 30-day total, not a daily value',
+	isset( $by['organic_visitors'] )
+	&& max( array_filter( $by['organic_visitors']['values'], function ( $v ) { return $v !== null; } ) ) > 1000,
+	'a daily figure would be in the hundreds under a "/mo" label' );
+check( 'a rate is a rolling 30-day average, not a sum',
+	isset( $by['seo_avg_position'] )
+	&& max( array_filter( $by['seo_avg_position']['values'], function ( $v ) { return $v !== null; } ) ) < 40,
+	'summing positions would put an average rank in the hundreds' );
+check( '  and the direction it improves in travels with it',
+	! empty( $by['seo_avg_position']['lower_better'] ),
+	'a position falling from 21 to 10 is an improvement' );
+
+check( 'the service page prefers the backfill and keeps snapshots as fallback',
+	strpos( $tpl, 'Six_Dash_Metrics::trend_series' ) !== false
+	&& strpos( $tpl, 'if ( empty( $trend[\'has\'] ) && class_exists( \'Six_Performance\' )' ) !== false );
+check( 'and the overview fetches the whole backfill, not six months of it',
+	strpos( $dm, 'graph_series( $user_id, \'\', 540 )' ) !== false,
+	'asking for 180 threw the history away before the window was chosen' );
 
 echo "\nPassed: $pass  Failed: $fail\n";
 exit( $fail ? 1 : 0 );

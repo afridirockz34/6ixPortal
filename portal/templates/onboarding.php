@@ -666,7 +666,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       <div class="ob-svc" data-svc="google-business" style="--c:#FBBC04">
         <div class="ob-svc-bar"></div><div class="ob-svc-chk"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
         <div class="ob-svc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
-        <div class="ob-svc-name">Google Business Profile</div>
+        <div class="ob-svc-name">GMB</div>
         <div class="ob-svc-desc">Show up on the map when people nearby search, and turn that into calls and visits.</div>
       </div>
       <div class="ob-svc" data-svc="website" style="--c:#7C5CBF">
@@ -1431,18 +1431,18 @@ function buildPane(slug){
       +'</div>'
     );
     h+=qSec('Where to focus',
-      qFG('Prioritize maps or organic?','<select class="ob-inp" id="q-seo-priority"><option>No preference — do both</option><option>Maps (local / Google Business Profile)</option><option>Organic (content, meta, performance)</option></select>','We normally work both in the same month')
+      qFG('Prioritize maps or organic?','<select class="ob-inp" id="q-seo-priority"><option>No preference — do both</option><option>Maps (local / GMB)</option><option>Organic (content, meta, performance)</option></select>','We normally work both in the same month')
       +qFG('Any previous SEO work on the site?','<textarea class="ob-inp" id="q-seo-prev" rows="2" placeholder="Roughly when, and did they leave any reporting?"></textarea>','Helps us tell past work from a fresh start')
       +qFG('Why customers choose you','<input class="ob-inp" id="q-seo-usp" placeholder="What sets you apart from competitors?">','We reuse this across your campaigns, so you only answer it once')
     );
   } else if(slug==='google-business'){
-    h+=qSec('Google Business Profile',
+    h+=qSec('GMB',
       qFG('Business name on Google','<input class="ob-inp" id="q-gbp-name" placeholder="Your business name as it appears on Google">','Exactly as it appears on your Google listing')
       +qFG('Main category','<input class="ob-inp" id="q-gbp-cat" placeholder="e.g. '+indEx('category')+'">','The main category customers would search for')
       +qFG('Services to highlight','<textarea class="ob-inp" id="q-gbp-svcs" rows="2" placeholder="e.g. '+indEx('services')+'"></textarea>','The services you want featured on your profile')
       +qFG('Business hours',qHours('gbp'),'When you are open to customers')
       +qFG('Current rating','<input class="ob-inp" id="q-gbp-rating" placeholder="e.g. 4.7 stars, 120 reviews" style="max-width:240px">','Your star rating and review count, if you have one')
-      +qFixedPrice('Your investment',499,'Google Business Profile management is a flat monthly rate \u2014 posts, optimization and reporting included.')
+      +qFixedPrice('Your investment',499,'GMB management is a flat monthly rate \u2014 posts, optimization and reporting included.')
     );
   } else if(slug==='website'){
     h+=qSec('Website Project',
@@ -1773,7 +1773,7 @@ window.OB={
     var meta={
       'google-ads':      {name:'Google Ads',           ttl:'Set up your Google Ads campaign.',   dsc:'These details help us build exactly the right campaign structure for you.'},
       'seo':             {name:'SEO',                  ttl:'Set up your SEO strategy.',          dsc:'A few details to tailor your organic growth plan to your market.'},
-      'google-business': {name:'Google Business Profile',ttl:'Optimize your local presence.',    dsc:'These details power your local search strategy.'},
+      'google-business': {name:'GMB',ttl:'Optimize your local presence.',    dsc:'These details power your local search strategy.'},
       'website':         {name:'Website',              ttl:'Plan your website project.',         dsc:'Tell us what you need so we can scope the right solution.'},
     };
     var m=meta[slug]||{name:slug,ttl:'Service details.',dsc:''};
@@ -2117,7 +2117,7 @@ window.OB={
 
     // Client-side fallback if server call fails
     if(!plan){
-      var svcN={'google-ads':'Google Ads','seo':'SEO','google-business':'Google Business Profile','website':'Website Development'};
+      var svcN={'google-ads':'Google Ads','seo':'SEO','google-business':'GMB','website':'Website Development'};
       var ch=svcs.map(function(s){return svcN[s]||s;}).join(', ');
       // Market = the cities they want to target (never their own street address).
       var mktLoc=((svcs.indexOf('seo')>-1?S.q.seo_loc:'')||S.q.ads_loc||S.q.seo_loc||'').split(',').slice(0,2).map(function(s){return s.trim();}).filter(Boolean).join(', ');
@@ -2638,7 +2638,7 @@ window.OB={
   _auditNote:function(){
     var box=$i('ob-audit-note'); if(!box) return;
     // Written so each reads correctly inside "a comprehensive ___ audit".
-    var names={'seo':'SEO','google-ads':'Google Ads','google-business':'Google Business Profile'};
+    var names={'seo':'SEO','google-ads':'Google Ads','google-business':'GMB'};
     var audited=(S.svcs||[]).filter(function(s){ return names.hasOwnProperty(s); });
     if(!audited.length){ box.style.display='none'; return; }
     var list=audited.map(function(s){ return names[s]; });

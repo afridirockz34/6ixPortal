@@ -198,6 +198,98 @@ class Six_Analytics {
         );
     }
 
+    /**
+     * What people actually did, by GA4 event name.
+     *
+     * ga4_summary() returns a single `conversions` total, which answers "how
+     * many" and never "which". A client asking whether anybody is calling
+     * cannot be answered from a number that lumps a phone tap in with a
+     * newsletter signup, so this reads the event breakdown and sorts the two
+     * that every service business asks about first: calls and form fills.
+     *
+     * Every property names its events differently — GA4's enhanced
+     * measurement emits `form_submit`, a GTM setup usually sends something
+     * hand-named, and a tel: link is almost always custom. So the matching
+     * is by pattern over the names the property actually reports, and
+     * `matched` says which real event names were counted, because a figure
+     * nobody can trace back to an event in their own Analytics is a figure
+     * they cannot check.
+     *
+     * Nothing is inferred. A property with no call event reports `null` for
+     * calls, never zero — zero is a measurement, and "we are not tracking
+     * this" is not the same claim.
+     */
+    public static function ga4_events( $property_id, $days = 30 ) {
+        $raw         = trim( (string) $property_id );
+        $property_id = preg_replace( '/[^0-9]/', '', $raw );
+        if ( ! $property_id ) return array( 'error' => 'No GA4 property ID is saved for this client.' );
+        if ( $property_id !== $raw ) {
+            return array( 'error' => 'GA4 property ID "' . $raw . '" is not a plain number.' );
+        }
+        $token = self::token();
+        if ( is_array( $token ) ) return $token;
+
+        $days = max( 1, min( 365, intval( $days ) ) );
+        $resp = wp_remote_post(
+            "https://analyticsdata.googleapis.com/v1beta/properties/{$property_id}:runReport",
+            array(
+                'timeout' => 30,
+                'headers' => array( 'Authorization' => 'Bearer ' . $token, 'Content-Type' => 'application/json' ),
+                'body'    => wp_json_encode( array(
+                    'dateRanges' => array( array( 'startDate' => "{$days}daysAgo", 'endDate' => 'today' ) ),
+                    'dimensions' => array( array( 'name' => 'eventName' ) ),
+                    'metrics'    => array( array( 'name' => 'eventCount' ) ),
+                    'orderBys'   => array( array( 'metric' => array( 'metricName' => 'eventCount' ), 'desc' => true ) ),
+                    'limit'      => 60,
+                ) ),
+            )
+        );
+        if ( is_wp_error( $resp ) ) {
+            return array( 'error' => 'GA4 network error: ' . $resp->get_error_message() );
+        }
+        $data = json_decode( wp_remote_retrieve_body( $resp ), true );
+        if ( isset( $data['error'] ) ) {
+            return array( 'error' => 'GA4: ' . self::explain( $data['error']['message'] ?? 'error', $property_id ) );
+        }
+
+        // Automatically-collected events that are not actions anybody took
+        // towards becoming a customer. Counting these as engagement would
+        // make every property look busy.
+        $ignore = array(
+            'session_start', 'first_visit', 'page_view', 'user_engagement',
+            'scroll', 'view_page_view', 'first_open',
+        );
+        // Deliberately loose on the left of each pattern and anchored on the
+        // right, so `click_to_call` and `tel_click` both match and `recall`
+        // does not.
+        $call_re = '/(^|_)(call|tel|phone|dial)(_|$)|click[_-]?to[_-]?call|call[_-]?now/i';
+        $form_re = '/(^|_)(form|contact|enquiry|inquiry|quote|booking|appointment)(_|$)|generate_lead|submit/i';
+
+        $events = array();
+        $calls  = null; $forms = null;
+        $call_names = array(); $form_names = array();
+        foreach ( $data['rows'] ?? array() as $row ) {
+            $name = (string) ( $row['dimensionValues'][0]['value'] ?? '' );
+            $n    = intval( $row['metricValues'][0]['value'] ?? 0 );
+            if ( $name === '' || in_array( $name, $ignore, true ) ) continue;
+            $events[] = array( 'event' => $name, 'count' => $n );
+            if ( preg_match( $call_re, $name ) ) { $calls = (int) $calls + $n; $call_names[] = $name; }
+            elseif ( preg_match( $form_re, $name ) ) { $forms = (int) $forms + $n; $form_names[] = $name; }
+        }
+
+        return array(
+            'property_id' => $property_id,
+            'period_days' => $days,
+            'events'      => $events,
+            // null, not 0: nothing matched means the property is not
+            // tracking it, which is a different statement from "nobody did
+            // it" and must not be shown as a measured zero.
+            'calls'       => $calls,
+            'forms'       => $forms,
+            'matched'     => array( 'calls' => $call_names, 'forms' => $form_names ),
+        );
+    }
+
     // ── PageSpeed Insights ─────────────────────────────────────────────────
     /**
      * Google's own measurement of a page, for anybody's URL.

@@ -152,7 +152,7 @@ function six_data_source_meta_map() {
         'ga4'   => array( 'meta' => 'six_ga4_property_id',     'label' => 'Google Analytics 4' ),
         'gads'  => array( 'meta' => 'six_gads_customer_id',    'label' => 'Google Ads' ),
         'meta'  => array( 'meta' => 'six_meta_ad_account_id',  'label' => 'Meta Ads' ),
-        'gbp'   => array( 'meta' => 'six_gbp_location_id',     'label' => 'Google Business Profile' ),
+        'gbp'   => array( 'meta' => 'six_gbp_location_id',     'label' => 'GMB' ),
         'gsc'   => array( 'meta' => 'six_gsc_site',            'label' => 'Google Search Console' ),
         // Which BrightLocal location is this client's. Without it there is
         // no way to pull their local rank grid, which is the only part of a
@@ -271,7 +271,7 @@ function six_adv_add_client_service(){
     $names = array(
         'google-ads'     => 'Google Ads',
         'seo'            => 'SEO',
-        'google-business'=> 'Google Business Profile',
+        'google-business'=> 'GMB',
         'website'        => 'Website Development',
     );
     // Check if already exists (any status)
@@ -1208,7 +1208,7 @@ add_action( 'wp_ajax_six_suggest_metrics', function() {
 
         // Said once, whatever happened above: these three are on the client's
         // own profile and nothing we hold can read them.
-        $sources[] = 'Map views, calls from Maps and direction requests come from the Google Business Profile itself, '
+        $sources[] = 'Map views, calls from Maps and direction requests come from the GMB itself, '
                    . 'which BrightLocal does not report — enter those by hand from the client\'s profile insights.';
     }
 
@@ -2318,11 +2318,21 @@ add_action( 'wp_ajax_six_save_client_datasource', function() {
     $client_id = intval($_POST['client_id']??0);
     $key       = sanitize_key($_POST['key']??'');
     $value     = sanitize_text_field( wp_unslash( $_POST['value']??'' ) );
+    // Every key a Save button in advisor-dashboard.php can post has to be in
+    // here or the write is refused with "Not allowed." six_bl_location_id was
+    // missing: the field, the button and the BrightLocal lookup all shipped,
+    // and the save was rejected at the last step. A new Data Sources row needs
+    // a line here as well as the markup.
     $allowed   = array(
         'six_ga4_property_id','six_meta_pixel_id','six_gbp_location_id','six_gsc_site',
-        'six_client_domain','six_target_location',
+        'six_client_domain','six_target_location','six_bl_location_id',
     );
-    if(!$client_id||!in_array($key,$allowed)) wp_send_json_error('Not allowed.');
+    if ( ! $client_id ) wp_send_json_error( 'No client specified.' );
+    // Name the key. "Not allowed." gave no way to tell a permissions problem
+    // from a key this handler has never heard of, which is what it was.
+    if ( ! in_array( $key, $allowed, true ) ) {
+        wp_send_json_error( sprintf( 'Cannot save "%s" — that field is not on this handler\'s list.', $key ) );
+    }
     // Normalize a domain to a bare host so the SEO tools accept it.
     if ( $key === 'six_client_domain' && $value !== '' ) {
         $value = preg_replace('#^https?://#i','',$value);
@@ -3031,7 +3041,7 @@ function six_advisor_complete_onboarding() {
         'social-media'    => 'Social Media Marketing',
         'brand-dev'       => 'Brand Development',
         'website'         => 'Website Development',
-        'google-business' => 'Google Business Profile',
+        'google-business' => 'GMB',
     );
     $svc_slugs = array_filter( array_map( 'trim', explode( ',', $services ) ) );
     $per_svc   = count($svc_slugs) ? intval( round( $budget / count($svc_slugs) ) ) : 0;

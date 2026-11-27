@@ -220,8 +220,19 @@ LANGUAGE_LIMITS = {
     "hedges": 5,
     "vague_action": 8,
     # A share of all sentences, not a count: see the note on LONG_SENTENCE_WORDS.
-    "long_sentence_pct": 10,
-    "undefined_jargon": 3,
+    #
+    # This was 10%, and it was wrong. The client-letter benchmark in
+    # assets/client-letter-benchmark.md runs 24% of sentences over 25 words,
+    # averages 19.2 words and peaks at 42 — and it is the document the client
+    # asked us to write like. Our own rewrite ran 3% over 25 words, averaged
+    # 14.5, and he gave up on it. A 10% gate on a 25-word ceiling is what
+    # produced the telegram.
+    "long_sentence_pct": 30,
+    # Raised from 3 after the benchmark tripped it on "search intent", which
+    # that very sentence explains by example, and on "citations", which is
+    # glossed one sentence later. Three strikes in a 60-page document is not
+    # a pattern.
+    "undefined_jargon": 6,
 }
 
 # Non-commitments. Each one is a way of putting a recommendation in the
@@ -297,10 +308,23 @@ GLOSS_MARKERS = re.compile(
 # 11.4 for the competitor document it was measured against, and the client still
 # could not read it. Short words and short sentences were never the problem.
 #
-# 25 is the number from references/plain-language.md, which is the number the
-# competitor's own style guide states: "12-18 words average. Break any sentence
-# over 25 words into two."
-LONG_SENTENCE_WORDS = 25
+# 25 was the number, taken from a competitor's internal style guide: "12-18
+# words average. Break any sentence over 25 words into two."
+#
+# It came out. That guide governs an agency-audience audit — a spec sheet. The
+# strategy document is a letter to a frightened non-specialist, and the
+# client-letter benchmark we are now measured against writes 42-word sentences
+# that read straight through:
+#
+#   "There is quite a bit to cover, but we wanted to provide enough
+#    information for you to understand where the website currently stands,
+#    what opportunities we've identified, and how we plan to position Mira Law
+#    competitively across Toronto and the surrounding cities."
+#
+# Nothing is gained by cutting that into three. Length was never the fault;
+# shape was, and the SHAPE_PATTERNS below are what catch shape. 40 words is
+# where a sentence genuinely starts costing a re-read.
+LONG_SENTENCE_WORDS = 40
 
 # ---------------------------------------------------------------------------
 # Check 8: sentence shape.
@@ -345,52 +369,159 @@ SHAPE_LIMITS = [0.4, 1.0, 0.4, 1.0]
 # repeated before it is a pattern rather than a sentence.
 SHAPE_MIN_COUNT = 3
 
-# A paragraph that opens "Label: ..." — the single biggest structural difference
-# between the two documents (32% of theirs, 6% of ours). A client scanning for
-# one answer finds it from the label.
+# ── Labels: a ceiling, and no floor ───────────────────────────────────────
 #
-# Two forms count, because both are scannable and both are in use:
-#   "Title Tags: Format: [Primary Keyword] ..."   (the agency's form)
-#   "**What we build.** 17 city-and-offence pages ..."  (bold, this repo's form)
-# The bold form has to be matched BEFORE markdown stripping, or it is
-# indistinguishable from an ordinary opening sentence.
+# This block used to carry a FLOOR of 25% labelled paragraphs, on the evidence
+# that a competitor's audit ran 32%. That was the most damaging line in this
+# file, and it is now inverted. Two reasons, both measured.
+#
+# 1. That competitor document is an AUDIT written for an agency audience. It
+#    is a reference work, and a reference work is meant to be looked things up
+#    in. The strategy document is a letter the client reads front to back and
+#    forwards to a partner. The client-letter benchmark in
+#    assets/client-letter-benchmark.md labels 3% of its paragraphs, and it is
+#    the document the client told us to write like.
+# 2. The floor had no effect on the thing it was aimed at and every effect on
+#    readability. Our own strategy scored 0% here while 44% of its paragraphs
+#    actually opened with a label — because LABEL_OPENER only matched a colon
+#    or a bold run, and our habit is a bare sentence fragment and a full stop:
+#    "The year's totals. The plan delivers ...". The gate was blind to the
+#    pattern it was supposed to govern, so the model kept scoring 0, kept
+#    being told to add labels, and kept adding more of them.
+#
+# So: no floor, a ceiling, and STUB_OPENER below catches the form that was
+# invisible. Labels still earn their place in a specification block — a meta
+# standards row, a schema table. They do not belong on narrative paragraphs.
 LABEL_OPENER = re.compile(
     r"^(?:\*\*[A-Z][^*\n]{2,60}[.:]\*\*\s+\S"      # **Label.** or **Label:**
     r"|[A-Z][A-Za-z0-9 /&'()–-]{2,45}:\s+\S)")  # Label: ...
-LABEL_TARGET_PCT = 25          # theirs is 32%; 25 leaves room for narrative sections
-# And a ceiling, which is the half that was missing. A floor with no ceiling is
-# a target to max out: a strategy written against a bare "25%+" came back at
-# 91% labelled paragraphs with zero connectives, and the client called it
-# unreadable. Every paragraph a bolded stub is a filing system, not a document.
-LABEL_CEILING_PCT = 60
+
+# The form the old check could not see: a fragment, a full stop, then the real
+# sentence. "The year's totals. The plan delivers 4 service pages ..." Twenty
+# of our forty-five paragraphs opened this way; two of the benchmark's
+# sixty-six did.
+#
+STUB_OPENER = re.compile(
+    r"^(?:\*\*)?([A-Z][^.!?:\n]{2,70}?)(?:\*\*)?\.\s+[A-Z]")
+
+# Identifying a fragment needs care, and the first attempt here got it wrong
+# in a way worth recording. It used a whitelist of verbs and asked whether the
+# opener contained one. That misfired twice on correct prose:
+#
+#   "SEO isn't a one-time process."              -> "isn't" is not "is", so
+#                                                   \bis\b never matched
+#   "The profile matters more than the website." -> "matters" was not on the
+#                                                   list, and no list is
+#
+# Both are complete sentences and both were reported as fragments. A gate that
+# fails good writing gets switched off, so this is now built the other way
+# round: narrow, with the length doing most of the work.
+#
+# A label is short. "The year's totals", "The wider GTA", "Link text plan",
+# "The blog topics" — all three or four words. A real opening sentence that
+# happens to be terse is usually longer than six, and when it is not it almost
+# always carries an auxiliary. Six words plus the auxiliary test catches the
+# habit and leaves correct prose alone; a couple of longer stubs slip through
+# and are caught by the imperative ceiling instead. That trade is the right
+# way round.
+STUB_MAX_WORDS = 6
+# Auxiliaries and copulas, contractions included — "isn't", "doesn't",
+# "won't", "it's", "that's". Mandating contractions elsewhere in this file
+# while a check here cannot read them is exactly the kind of blind spot that
+# produced the label problem.
+STUB_VERB = re.compile(
+    r"\b(?:is|are|was|were|be|been|am|has|have|had|will|would|shall|should|"
+    r"can|could|may|might|must|do|does|did|goes|go|went)\b"
+    # "'s" is the trap: "it's" is a verb and "the year's totals" is a
+    # possessive, and a bare \w+'s clears both. It cleared "The year's
+    # totals." — the exact example printed in this check's own message. So
+    # only the pronouns and determiners that actually contract are listed.
+    r"|\b(?:it|that|there|here|what|who|he|she|this|one|everything|nothing|"
+    r"something|someone|nobody)(?:'|’)s\b"
+    r"|\b\w+(?:'|’)(?:re|ve|ll|d)\b"              # we've, you'll, they'd
+    r"|\b(?:is|are|was|were|has|have|had|does|do|did|wo|ca|could|should|"
+    r"would|must|need|might)(?:n(?:'|’)?t)\b"     # isn't, won't, can't
+    r"|\b\w{3,}(?:ed|ing)\b",                          # ranked, ranking
+    re.IGNORECASE)
+# Benchmark 3%, ours 44%. Ten leaves room for a genuine specification block
+# without licensing the habit.
+STUB_CEILING_PCT = 10
+# Below this many paragraphs a percentage is noise.
+STUB_MIN_PARAS = 12
+LABEL_CEILING_PCT = 15
+
+# ── One idea, one paragraph ───────────────────────────────────────────────
+#
+# The structural finding nobody was looking for. The benchmark runs 1.1
+# sentences per paragraph: almost every sentence gets its own line and its own
+# air. Ours runs 2.8, because plain-language.md said "two to four sentences,
+# then stop" — and once the paragraphs were dense, labels got bolted on to
+# make them scannable again. The labels were a symptom.
+#
+# In a 60-page document this is the single thing that decides whether anyone
+# reaches the end.
+SENTS_PER_PARA_CEILING = 1.9
+SENTS_PER_PARA_MIN_PARAS = 15
 
 # Two facts side by side with nothing between them make the reader build the
-# argument themselves. Roughly one connective per paragraph is the difference
-# between a list and an argument; the 91% document had none at all.
+# argument themselves. This was a floor of 0.35 per paragraph. The benchmark
+# runs 0.03 — with one sentence per paragraph, the connective moves to the
+# start of the next sentence ("This means ...", "To put things into
+# perspective ...") where the old pattern could not see it. Kept as an
+# informational count only; it never gates anything now.
 CONNECTIVE = re.compile(
     r"\b(?:because|so that|which means|which is why|so we|and so|therefore|"
-    r"that is why|which lets|which gives|in order to)\b", re.IGNORECASE)
-CONNECTIVE_MIN_PER_PARA = 0.35
-
-# Actions written as instructions. Theirs: 5.8 per 1,000 words. Ours: 0.6.
-# Two forms count. A bare imperative at the start of a sentence — "Build 17
-# pages." — and "we build ..." anywhere in one.
-#
-# Requiring the sentence-initial form was itself pushing toward the telegraphic
-# style this spec now warns about: "so we build 17 of them between months 2
-# and 9" is a commitment in a readable sentence and scored zero, while "Build
-# 17 pages." scored. A rule that only rewards stubs produces stubs.
-IMPERATIVE_OPENER = re.compile(
-    r"(?:(?:^|(?<=[.!?]\s))|\bwe\s+)(?:Build|Add|Create|Target|Publish|Use|Write|Rewrite|"
-    r"Expand|Launch|Set|Run|Match|Claim|Fix|Replace|Submit|Monitor|Track|Optimize|Link|"
-    r"Name|List|Keep|Start|Send|Draft|Remove|Correct|Confirm|Ask|Check|Report)\b",
+    r"that is why|which lets|which gives|in order to|this means|which is)\b",
     re.IGNORECASE)
-IMPERATIVE_TARGET = 3.0        # per 1,000 words; theirs is 5.8
 
-# Flesch-Kincaid. Not a pass/fail gate on its own — the document that caused
-# this rewrite scored 8.5 and was unreadable — but a document above 13 is hard
-# for a reason the shape checks will not catch.
-FK_CEILING = 13.0
+# ── Bare imperatives: a ceiling, and no floor ─────────────────────────────
+#
+# Also inverted. This carried a floor of 3.0 per 1,000 words against a
+# competitor's 5.8, and our document duly hit 8.9 and shipped sentences like
+# "Profile the render path in month 4, then defer the scripts that block it."
+# That is a line from an internal worklist sitting in a client document.
+#
+# The benchmark runs 0.0. It writes "we'll develop", "we'll prioritize",
+# "we'll optimize" — a commitment with somebody attached to it. A bare
+# imperative in a client letter reads as a note to the implementer, because
+# that is what it is.
+#
+# Imperatives remain correct inside a specification row ("Under 60
+# characters", "Add nine services to the profile"), which is why this measures
+# prose only and allows a non-zero rate.
+#
+# re.M matters here and its absence was a silent hole. Without it, `^` only
+# anchors at the very start of the document and the lookbehind only fires
+# mid-paragraph, because a paragraph break is "\n\n" and not "[.!?]\s". A
+# document of nothing but imperatives, one per paragraph, scored 0.0.
+IMPERATIVE_OPENER = re.compile(
+    r"(?:^|(?<=[.!?]\s)|(?<=[.!?]\n))(?:Build|Add|Create|Target|Publish|Use|Write|Rewrite|"
+    r"Expand|Launch|Set|Run|Match|Claim|Fix|Replace|Submit|Monitor|Track|Optimize|Link|"
+    r"Name|List|Keep|Start|Send|Draft|Remove|Correct|Confirm|Ask|Check|Report|"
+    r"Profile|Rotate|Join|Delete|Resolve|Hold|Leave|Cut|Take|Make|Read|Say|Measure)\b",
+    re.MULTILINE)
+IMPERATIVE_CEILING = 2.0       # per 1,000 words of prose; benchmark 0.0, ours 6.1
+IMPERATIVE_MIN_COUNT = 4
+
+# ── Contractions ──────────────────────────────────────────────────────────
+#
+# The benchmark: 24.5 per 1,000 words — we'll, we've, I've, isn't, you'll.
+# Ours: 6.1, and not one "we'll" in 4,000 words against twelve "We will".
+#
+# This is a large share of "humans don't talk like this". A document with no
+# contractions in it reads as a notice, and nobody speaks that way about work
+# they are about to start together. Nothing here licenses sloppiness: the
+# benchmark is a professional document and it contracts constantly.
+CONTRACTION = re.compile(r"\b\w+(?:'|’)(?:ll|ve|re|s|t|d|m)\b", re.IGNORECASE)
+CONTRACTION_MIN_PER_1K = 10.0
+CONTRACTION_MIN_WORDS = 400
+
+# Flesch-Kincaid. Informational only, and no longer compared against a target.
+# The benchmark scores 14.5 and reads easily; the document the client gave up
+# on scored 7.0. The metric cannot see sentence shape, which is the only thing
+# that mattered, and printing a target next to it invited writing toward the
+# number. It is printed so a wild outlier is visible, and nothing more.
+FK_REPORT_ONLY = True
 
 # ── The document is for the client, not for the reviewer ───────────────────
 # A strategy gets reviewed internally, the reviewer pushes back, the next draft
@@ -499,12 +630,125 @@ FORWARD_MARKER = re.compile(
 # be scene-setting in a section that then gets on with the plan.
 AUDIT_SECTION_MIN_FIGURES = 3
 
+
+# ── Future work is written in the future tense ────────────────────────────
+# "We optimize the website in month one" is the present tense describing
+# something that has not happened. A reader stops on it. The spec used to say
+# imperatives and "not we will be building", and the imperative metric scored
+# "we build" 1 and "we will build" 0 — so both the written rule and the
+# measured one were training the document out of the future tense.
+#
+# Imperatives stay correct in a specification row ("Add nine services"). A
+# sentence about what happens in a named month takes "will".
+MISSING_WILL = re.compile(
+    r"\bwe\s+(?!will\b|have\b|had\b|are\b|were\b|do\b|did\b|can\b|cannot\b|already\b|also\b)"
+    r"(build|write|add|publish|rewrite|optimi[sz]e|correct|claim|fix|set|take|get|run|ship|"
+    r"start|send|draft|remove|expand|split|merge|redirect|track|monitor|report|measure|re-measure)"
+    r"\b[^.!?]{0,80}?\b(?:in|from|by|during|across)\s+month", re.IGNORECASE)
+MISSING_WILL_LIMIT = 2
+
+# ── Internal shorthand in the month table ─────────────────────────────────
+# "4 Tier 1 listings". "Q&A seeded". "Profile photo set expanded". "Speed
+# work: the 9.0-second render path". Every one is planning vocabulary, and the
+# month table is the first thing a client reads.
+#
+# The generic version of this check — words that appear in a table and nowhere
+# in the prose — was tried and thrown away: it flagged 188 words in a real
+# document, most of them page names and ordinary English. There is no
+# mechanical signal that separates "4 location pages" from "Q&A seeded".
+#
+# So this is a blocklist, and a blocklist of OUR shorthand rather than of
+# jargon in general. It will not catch shorthand we have not invented yet.
+# The thing that actually governs this is the worked example and the rule in
+# plain-language.md; this list is the floor under them. When a new piece of
+# shorthand reaches a client, add it here.
+MONTH_TABLE_SHORTHAND = [
+    (r"\bTier\s*\d\b", "\"Tier 1\" means nothing to a client — say what the listing is"),
+    (r"\bQ&?A\s+seed(?:ed|ing)?\b", "\"Q&A seeded\" — say \"we write and answer eight common questions\""),
+    (r"\brender path\b", "\"render path\" — say \"how long the page takes to appear\""),
+    (r"\bcitable\b", "\"citable resource\" — say what it is and who would link to it"),
+    (r"\banchor text\b|\blink text repaired\b", "say what the words in a link will say"),
+    (r"\b(?:photo set|asset set)\s+expanded\b", "say how many photographs, and of what"),
+    (r"\bseeded\b|\bre-?measured\b(?!\s+(?:in|on|at))", "planning vocabulary — say who does what"),
+    (r"\bdisavow\b(?![^.]{0,40}(?:\u2014|-|is |means ))", "\"disavow\" needs its one-line gloss on first use"),
+    (r"\bE-?E-?A-?T\b(?![^.]{0,40}(?:\u2014|-|is |means ))", "spell it out on first use"),
+    (r"\bGBP\b", "\"GBP\" reads as pounds sterling — write Google Business Profile"),
+]
+MONTH_TABLE_SHORTHAND_LIMIT = 0
+
+# ── The monthly plan: six prohibitions ────────────────────────────────────
+#
+# The first table the client reads, and the one they came back on hardest
+# after four drafts. Every pattern below was in a rejected draft, and the
+# reasoning is in references/document-assembly.md under "The monthly plan".
+#
+# Two separate faults, kept apart because they have different fixes:
+#
+#   1. Reporting in a delivery plan. A half-year review, a quarterly review,
+#      re-running the map grid, setting next year's priorities — none of
+#      these is somebody doing something to the site that month. They belong
+#      in the reporting section. Re-OPTIMISING a published page is not in
+#      this list: that is a month of real work and it stays.
+#
+#   2. Work that waits on the client. Photographs, logins, approvals, the
+#      firm's own memberships. A month beside one of those is a promise we
+#      do not control, and the plan is then late in month two through
+#      nobody's fault.
+MONTH_PLAN_REPORTING = [
+    (r"\bhalf[- ]year review\b", "a half-year review is reporting, not work on the site"),
+    (r"\bquarterly (?:strategy )?review\b", "the quarterly review belongs in the reporting section"),
+    (r"\byear(?:ly)? review\b|\bthe year review\b", "the year review belongs in the reporting section"),
+    (r"\bset the priorities for year two\b|\bpriorities for year two\b", "planning next year is not this year's work"),
+    (r"re-?run the map (?:ranking|grid)|map (?:ranking|grid) (?:check|re-?run)",
+     "the map grid is re-checked every month — say so once in the reporting section"),
+    (r"\bmonthly report\b|\breporting:\s", "reports are not a month's deliverable in this table"),
+]
+# Client-dependent work. Matched anywhere a month is attached, not only in
+# the monthly plan, because the Links and Authority table had a Month column
+# full of the firm's own memberships.
+MONTH_PLAN_CLIENT_DEPENDENT = [
+    (r"\bphotograph", "photographs come from the client, so we cannot date them"),
+    (r"\bmembership", "the firm's memberships wait on their login details"),
+    (r"\b(?:manager )?access\b|\blogin\b|\bcredential", "access waits on the client"),
+    (r"\bapprov(?:e|al)\b|\bsign-?off\b", "an approval waits on the client"),
+    (r"\bfeedback (?:on|within)\b", "we do not schedule the client's own replies"),
+]
+MONTH_PLAN_LIMIT = 0
+
+# The columns, in order. Month, Writing, What we work on — asked for in
+# those words. The rejected drafts carried a "Links and listings" column and
+# a separate "Website and Google profile" column; both are part of what we
+# work on, and splitting them made a five-column table nobody could read.
+MONTH_PLAN_HEADER = re.compile(
+    r"^\|\s*#?\s*Month\s*\|\s*Writing\s*\|\s*What we work on\s*\|", re.IGNORECASE | re.MULTILINE)
+MONTH_PLAN_BANNED_COLS = [
+    (r"\|\s*Links and listings\s*\|", "the \"Links and listings\" column — fold it in as \"Listings:\""),
+    (r"\|\s*Website and Google profile\s*\|", "\"Website and Google profile\" IS what we work on"),
+]
+
+# Month one has to show the client something. GMB posting is the one thing
+# they can open their phone and look at, so it starts in month one; a first
+# month of titles, schema and internal links reads as a month of nothing.
+MONTH_ONE_VISIBLE = re.compile(
+    r"\bGMB\b[^|]{0,200}?\bpost", re.IGNORECASE)
+
+# ── Pink ──────────────────────────────────────────────────────────────────
+# #FF6699 is the portal's interface colour. It is not a document colour, and
+# the client asked for it out of everything we generate.
+PINK = re.compile(r"#(?:ff6699|FF6699|ff66|e91e63|ff69b4)\b|\bpink\b", re.IGNORECASE)
+
 # ── Pronouns ───────────────────────────────────────────────────────────────
 # "We" says two parties are doing this together. "You" with no "we" beside it
 # says one party is being assessed by another. Theirs: 5.3 "you" per 1,000
 # words, and the client's firm named 7.6 times. Ours: 23.3 and 2.4.
 SECOND_PERSON = re.compile(r"\b(?:you|your|you're|yours)\b", re.IGNORECASE)
-SECOND_PERSON_LIMIT = 8.0     # per 1,000 words
+# Raised from 8.0. The benchmark runs 3.0 and uses "you" warmly — "enough
+# information for you to understand", "you'll receive monthly performance
+# reports", "based on our research and your feedback". The word was never the
+# problem; institutional coldness was, and that is what the contraction floor
+# and the stub ceiling now catch. A limit tight enough to make a writer avoid
+# "you'll receive" is a limit working against the voice we want.
+SECOND_PERSON_LIMIT = 14.0    # per 1,000 words
 # A density alone cannot judge a short excerpt: two "you"s in a 68-word
 # section is 29 per 1,000 words, and failing that would make this script
 # unusable on anything but a finished document. The benchmark document carries
@@ -512,6 +756,89 @@ SECOND_PERSON_LIMIT = 8.0     # per 1,000 words
 SECOND_PERSON_MIN_COUNT = 8
 YOUR_BUSINESS = re.compile(
     r"\byour (?:company|business|firm|practice|organisation|organization)\b", re.IGNORECASE)
+
+# ── False precision ───────────────────────────────────────────────────────
+#
+# "Daniel Brown Law draws an estimated 4,501 visits a month. That traffic
+# would cost about $23,655 a month to buy." Both numbers are Ahrefs estimates
+# of somebody else's traffic. The last three digits of each are noise, and
+# printing them claims an accuracy nobody has.
+#
+# The benchmark writes "approximately 4,500 organic visits per month, traffic
+# that would cost approximately $23,600/month". Same facts, no false claim,
+# and it reads like a person talking.
+#
+# This is most of what makes our prose feel like a lab report: ours runs 6.1
+# over-precise figures per 1,000 words against the benchmark's 3.0. It is also
+# a quiet accuracy problem, which is why it fails rather than reviews once it
+# is dense — a client who checks 4,501 against their own analytics and finds
+# 4,120 has caught us being precisely wrong instead of roughly right.
+#
+# Prose only. A table of Opportunity Scores or a keyword volume column is a
+# specification and keeps its digits.
+FALSE_PRECISION = [
+    # An estimate carried to four significant figures: 4,501 / 23,655 / 1,243.
+    (r"(?<![\d.,])(?:\d,\d{3}|\d{2},\d{3})(?![\d.,])",
+     "a four-figure estimate — round it (4,501 -> about 4,500)"),
+    # Penny-or-dollar-precise money above a thousand.
+    (r"\$\s?\d{1,3},\d{3}\b",
+     "an exact dollar figure for an estimate — round it ($23,655 -> about $23,600)"),
+    # A percentage to one decimal place in prose: "9.6% of links".
+    (r"\b\d{1,3}\.\d\s?%",
+     "a percentage to one decimal — whole numbers read better in prose"),
+    # A range of exact word or item counts: "426-451 words", "53-61% the same".
+    (r"\b\d{2,4}\s?[–-]\s?\d{2,4}\s?(?:words|%|percent)\b",
+     "an exact range — say \"about 430 words\" or \"roughly half the same text\""),
+]
+# Per 1,000 words of prose. The benchmark sits at 3.0, so this allows it and a
+# little more; ours sat at 6.1.
+# With the hedge-proximity rule above doing the separating, the benchmark
+# scores a clean ZERO here and ours scores four. So these only exist to stop a
+# single stray figure in a short excerpt from failing a draft; the gap between
+# the two documents is not a matter of where the line sits.
+FALSE_PRECISION_LIMIT = 1.5
+FALSE_PRECISION_MIN_COUNT = 3
+
+# ── Provenance clutter ────────────────────────────────────────────────────
+#
+# The client asked for this out, in these words: "We don't need to tell the
+# client where everything is coming from. The information we are giving to
+# client should be fundamentally confidence giving."
+#
+# He is right about the audit trail. A sentence like "All the figures below
+# are Ahrefs estimates taken on 21 November 2026" and an "Appendix A - Where
+# every figure came from" are us showing our work to a reviewer, which is
+# Rule 1 in another costume. The client has already signed; the document's job
+# is now to say what happens next.
+#
+# What does NOT come out, and this is the line that matters: the word
+# "estimated" or "approximately" attached to the figure itself. CLAUDE.md
+# commits us to never stating a client's own traffic as fact from Ahrefs,
+# because it is the one number they can check against an analytics tab they
+# already have open and be right that we were wrong. The benchmark keeps it
+# inline too - "receives an estimated 4,500 organic visits per month" - which
+# is the proof that honesty and confidence are not in tension here.
+#
+# So: pull dates, source attributions and provenance appendices are flagged.
+# Inline hedging on a third-party figure is not, and ESTIMATE_WORDS exists so
+# nothing in this file ever starts flagging it by accident.
+PROVENANCE_CLUTTER = [
+    (r"\b(?:measured|taken|pulled|as\s+(?:of|at)|recorded|read)\s+(?:on|at)\s+\d{1,2}\s+\w+\s+\d{4}",
+     "a pull date in the prose — the client does not audit our sources"),
+    (r"\((?:Ahrefs|GA4|Google Analytics|Search Console|BrightLocal|PageSpeed)[^)]{0,30}\d{4}\)",
+     "a parenthetical source-and-date stamp — keep the word \"estimated\", drop the citation"),
+    (r"\bfigures? below (?:are|is)\b|\ball the figures\b|\bevery figure\b",
+     "a sentence about where the figures came from"),
+    (r"^#{1,4}\s*Appendix\s+[A-Z]?\s*[—–-]?\s*(?:Where|Sources?|Provenance)",
+     "a provenance appendix — the sources belong in our own notes"),
+    (r"\bmeasured or estimated\b|\bMeasured\s*\|\s*",
+     "a Measured/Estimated column — say \"estimated\" in the sentence instead"),
+]
+PROVENANCE_LIMIT = 0
+# Named so that a future widening of PROVENANCE_CLUTTER cannot swallow them.
+# These are the words that keep an Ahrefs figure honest and they stay.
+ESTIMATE_WORDS = re.compile(
+    r"\b(?:estimated?|approximately|about|roughly|around)\b", re.IGNORECASE)
 
 # A figure with no period attached. "31,400 sessions" is not a fact until it
 # says over what. Reported, never failed — too many legitimate phrasings.
@@ -636,17 +963,29 @@ def find_shape_problems(text: str) -> list:
     return out
 
 
-def paragraphs(text: str) -> list:
+# The floor was 12 words, and under the new voice that is a bug rather than a
+# tuning choice. The house style is now one idea per paragraph, usually one
+# sentence — and a one-sentence paragraph is frequently under 12 words. "We'll
+# rewrite the nine service pages in month one." is nine. A 12-word floor
+# discards most of a correctly written document, which would leave every
+# paragraph-level check reading a small and unrepresentative sample of it.
+#
+# Six is low enough to keep real prose and high enough to drop a stray caption
+# or a table remnant. Bullets and table rows are excluded by shape regardless.
+PARA_MIN_WORDS = 6
+
+
+def paragraphs(text: str, min_words: int = PARA_MIN_WORDS) -> list:
     """Body paragraphs. Blank-line separated, headings and tables already gone."""
     blocks = re.split(r"\n\s*\n", text)
     out = []
     for b in blocks:
         p = " ".join(b.split())
         # "* " and "- " are bullets. "**" is a bold label, which is one of the
-        # two forms a scannable paragraph opener takes — excluding it made
-        # label_share return "no paragraphs" on a correctly written section and
-        # skip the check entirely.
-        if len(p.split()) >= 12 and not re.match(r"[-*|]\s|\|", p):
+        # two forms a paragraph opener takes — excluding it made label_share
+        # return "no paragraphs" on a correctly written section and skip the
+        # check entirely.
+        if len(p.split()) >= min_words and not re.match(r"[-*|]\s|\|", p):
             out.append(p)
     return out
 
@@ -663,6 +1002,213 @@ def label_share(text: str):
 def imperative_density(text: str) -> float:
     n_words = max(1, len(text.split()))
     return len(IMPERATIVE_OPENER.findall(text)) * 1000 / n_words
+
+
+def find_stub_openers(text: str):
+    """Paragraphs that open with a verbless fragment and a full stop.
+
+    "The year's totals. The plan delivers 4 service pages ..." The fragment is
+    a heading pretending to be a sentence, and it is this repo's signature
+    habit: 44% of the paragraphs in the strategy the client gave up on, 3% of
+    the benchmark's.
+
+    The old LABEL_OPENER could not see it, because it only matched a colon or
+    a bold run. That blindness is why the model was told for months to add
+    labels to a document already made of them.
+
+    A fragment is identified by the absence of a verb before the full stop,
+    which is what keeps this off genuine short opening sentences — "SEO isn't
+    a one-time process." and "Mira Law ranks for none." both carry a verb and
+    both pass.
+    """
+    ps = paragraphs(text)
+    if len(ps) < STUB_MIN_PARAS:
+        return [], None, len(ps)
+    stubs = []
+    for p in ps:
+        m = STUB_OPENER.match(p)
+        if not m:
+            continue
+        frag = m.group(1).strip()
+        # Length first: it is the reliable half of the test.
+        if len(frag.split()) > STUB_MAX_WORDS:
+            continue
+        if STUB_VERB.search(frag):
+            continue
+        stubs.append(frag)
+    return stubs, len(stubs) * 100 // len(ps), len(ps)
+
+
+def sents_per_para(text: str):
+    """Average sentences per body paragraph.
+
+    The benchmark runs 1.1 — nearly every sentence on its own line. Ours ran
+    2.8 because plain-language.md asked for "two to four sentences, then
+    stop", and the labels were then bolted on to make the resulting blocks
+    scannable again.
+    """
+    ps = paragraphs(text)
+    if len(ps) < SENTS_PER_PARA_MIN_PARAS:
+        return None, len(ps)
+    total = 0
+    for p in ps:
+        total += len([s for s in re.split(r"(?<=[.!?])\s+", p) if s.strip()])
+    return total / len(ps), len(ps)
+
+
+def find_false_precision(text: str):
+    """Four-figure estimates and penny-precise money in prose.
+
+    Table rows are dropped first: a keyword volume column or an Opportunity
+    Score is a specification and keeps its digits. This is about a sentence
+    claiming an accuracy the underlying estimate does not have.
+    """
+    prose = "\n".join(
+        ln for ln in text.splitlines()
+        if not ln.lstrip().startswith("|") and not ln.lstrip().startswith("#")
+    )
+    out = []
+    for pattern, why in FALSE_PRECISION:
+        for m in re.finditer(pattern, prose):
+            # A density threshold alone could not separate the two documents:
+            # ours scored 3.9 per 1k against a 4.5 limit and slipped under,
+            # while the benchmark scored 3.0 — too close to gate on, and
+            # tightening the limit to 3.5 would have been fitting the number
+            # to one document again.
+            #
+            # The real signal is whether a rounding word sits next to the
+            # figure. "approximately 20,370 monthly searches" is honest about
+            # what it is; "4,501 visits a month" claims four significant
+            # figures of somebody else's traffic. Same digits, different
+            # claim, and the hedge is what distinguishes them.
+            lo = max(0, m.start() - 60)
+            if ESTIMATE_WORDS.search(prose[lo:m.start()]):
+                continue
+            out.append((m.group(0).strip(), why))
+    return out
+
+
+def _tables(text: str):
+    """Every markdown table, as (header_cells_lowercased, [row_cells])."""
+    out, cur = [], None
+    for ln in text.splitlines():
+        t = ln.strip()
+        if t.startswith("|") and t.endswith("|"):
+            cells = [c.strip() for c in t.strip("|").split("|")]
+            if set(t) <= set("|-: "):          # the ---|--- separator
+                continue
+            if cur is None:
+                cur = ([c.lower() for c in cells], [])
+            else:
+                cur[1].append(cells)
+        else:
+            if cur is not None:
+                out.append(cur)
+            cur = None
+    if cur is not None:
+        out.append(cur)
+    return out
+
+
+def month_rows(text: str):
+    """Rows of tables that put a month beside a piece of work.
+
+    Deliberately not "rows of the monthly plan". The Links and Authority
+    table had its own Month column full of the firm's memberships, and the
+    rule — a date is a promise, so only promise what we control — applies to
+    any table that dates work.
+
+    Found by the COLUMN HEADER, not by looking for a number that could be a
+    month. The first version scanned every cell for a bare 1-12, which made
+    a keyword table's Priority column look like a schedule and failed a
+    perfectly good document on it.
+    """
+    out = []
+    for header, rows in _tables(text):
+        idx = [i for i, h in enumerate(header)
+               if re.fullmatch(r"months?|when|by|by when|timing", h)]
+        if not idx:
+            continue
+        for cells in rows:
+            if any(i < len(cells) and re.fullmatch(
+                    r"(?:1[0-2]|[1-9])\s*[–-]?\s*(?:1[0-2]|[1-9])?", cells[i]) for i in idx):
+                out.append("| " + " | ".join(cells) + " |")
+    return out
+
+
+def find_month_plan_problems(text: str):
+    """Reporting, and client-dependent work, sitting next to a month."""
+    rows = month_rows(text)
+    hay = "\n".join(rows)
+    out = []
+    for patterns, kind in ((MONTH_PLAN_REPORTING, "reporting"),
+                           (MONTH_PLAN_CLIENT_DEPENDENT, "client-dependent")):
+        for pattern, why in patterns:
+            for m in re.finditer(pattern, hay, re.IGNORECASE):
+                out.append((m.group(0).strip(), why, kind))
+    return out
+
+
+def find_month_plan_columns(text: str):
+    """Columns the monthly plan must not have, and the order it must.
+
+    Returns (problems, header_ok). A table whose first column is Month is
+    the monthly plan, so its remaining headers are checked against the
+    order that was asked for in those words: Month, Writing, What we work
+    on. The approved document still had Writing on the right, which is why
+    the wrong order is reported rather than assumed correct.
+    """
+    bad = []
+    for pattern, why in MONTH_PLAN_BANNED_COLS:
+        if re.search(pattern, text, re.IGNORECASE):
+            bad.append(why)
+
+    header_ok = bool(MONTH_PLAN_HEADER.search(text))
+    if not header_ok:
+        for header, _rows in _tables(text):
+            if header and header[0] in ("month", "months") and len(header) >= 3:
+                if "writing" in header and header.index("writing") != 1:
+                    bad.append("Writing is column %d; it belongs second, beside the month"
+                               % (header.index("writing") + 1))
+                break
+    return bad, header_ok
+
+
+def month_one_shows_something(text: str):
+    """Is there anything visible to the client in month one?
+
+    None means there is no monthly plan to judge. True/False otherwise.
+    """
+    # The monthly plan only — a table whose FIRST column is Month. Scanning
+    # every table for a row starting "1" found the keyword table's first row
+    # and failed a good document for having no GMB post in it.
+    for header, rows in _tables(text):
+        if not header or header[0] not in ("month", "months"):
+            continue
+        for cells in rows:
+            if cells and cells[0].strip() == "1":
+                return bool(MONTH_ONE_VISIBLE.search("| " + " | ".join(cells) + " |"))
+    return None
+
+
+def find_provenance_clutter(text: str):
+    """Pull dates, source stamps and a sources appendix.
+
+    Deliberately narrow. The word "estimated" or "approximately" on a
+    third-party figure is a commitment under CLAUDE.md and must never be
+    caught here — ESTIMATE_WORDS names those so a later widening of
+    PROVENANCE_CLUTTER cannot quietly swallow them.
+    """
+    out = []
+    for pattern, why in PROVENANCE_CLUTTER:
+        for m in re.finditer(pattern, text, re.IGNORECASE | re.MULTILINE):
+            hit = " ".join(m.group(0).split())
+            # Never flag a bare hedge on a figure. Belt and braces: none of
+            # the patterns above should match one, and this guarantees it.
+            if ESTIMATE_WORDS.fullmatch(hit.strip()):
+                continue
+            out.append((hit, why))
+    return out
 
 
 def _density_group(text: str, patterns, limit, min_count):
@@ -765,6 +1311,53 @@ def find_audit_vocab_hard(text: str):
     for m in AUDIT_VOCAB_HARD.finditer(text):
         start = max(0, m.start() - 40)
         out.append(" ".join(text[start:m.end() + 40].split()))
+    return out
+
+
+def find_missing_will(text: str):
+    """Future work written in the present tense."""
+    return [" ".join(m.group(0).split()) for m in MISSING_WILL.finditer(text)]
+
+
+def find_month_table_shorthand(text: str):
+    """Our own planning vocabulary, on a page a client reads.
+
+    Scoped to table rows, because that is where terseness turns a plan into
+    notes. Prose has room to explain itself; a table cell does not.
+    """
+    rows = "\n".join(l for l in text.splitlines() if l.strip().startswith("|"))
+    if not rows:
+        # A document converted out of .docx loses its pipes, so fall back to
+        # the whole text rather than silently checking nothing.
+        rows = text
+    out = []
+    for pattern, why in MONTH_TABLE_SHORTHAND:
+        for m in re.finditer(pattern, rows, re.IGNORECASE):
+            out.append((m.group(0).strip(), why))
+    seen, uniq = set(), []
+    for term, why in out:
+        k = term.lower()
+        if k not in seen:
+            seen.add(k); uniq.append((term, why))
+    return uniq
+
+
+def find_forward_objective_refs(text: str):
+    """"Objective 7" cited before the reader has seen the objectives.
+
+    A reader meeting "Objective 1 sets the target" in the introduction has
+    no numbering to resolve it against; the table is 500 lines further on.
+    Either state the target in words where it is used, or move the table up.
+    """
+    table_at = None
+    for m in re.finditer(r"^#{1,3}\s+.*objectives?\b.*$", text, re.IGNORECASE | re.MULTILINE):
+        table_at = m.start()
+        break
+    out = []
+    for m in re.finditer(r"\bObjectives?\s+\d+\b", text):
+        if table_at is None or m.start() < table_at:
+            start = max(0, m.start() - 50)
+            out.append(" ".join(text[start:m.end() + 50].split()))
     return out
 
 
@@ -1077,60 +1670,199 @@ def main():
         else:
             print(f"\n[OK] Pronouns balanced (\"you\" {you_k:.1f} per 1k, the firm named {named_k:.1f})")
 
-        # ── Scannability ─────────────────────────────────────────────────
+        # ── Paragraph shape ──────────────────────────────────────────────
+        # Labels: a ceiling now, and no floor. See the LABEL_OPENER block.
         pct_lab, n_lab, n_par = label_share(body_md)
-        if pct_lab is not None and pct_lab < LABEL_TARGET_PCT:
-            print(f"\n[REVIEW] Only {pct_lab}% of paragraphs open with a scannable \"Label:\" "
-                  f"({n_lab} of {n_par}, target {LABEL_TARGET_PCT}%+)")
-            print("       A client looking for one answer has to read everything to find it.")
-            print("       Lead every paragraph that carries instructions with what it is about.")
-        elif pct_lab is not None and pct_lab > LABEL_CEILING_PCT:
+        if pct_lab is not None and pct_lab > LABEL_CEILING_PCT:
             print(f"\n[FAIL] {pct_lab}% of paragraphs open with a label "
                   f"({n_lab} of {n_par}, ceiling {LABEL_CEILING_PCT}%)")
             print("       Every paragraph a bolded stub is a filing system, not a document.")
-            print("       A label earns its place on a paragraph somebody will look up,")
-            print("       and gets in the way on one making an argument.")
+            print("       A label belongs in a specification block, not on narrative prose.")
             failures += 1
         elif pct_lab is not None:
-            print(f"\n[OK] {pct_lab}% of paragraphs lead with a label — scannable, and still prose")
+            print(f"\n[OK] Labels used sparingly ({pct_lab}% of paragraphs)")
 
-        # Connectives: is this an argument, or a pile of facts?
+        # The form the label check could not see: a verbless fragment, a full
+        # stop, then the real sentence. 44% of ours, 3% of the benchmark's.
+        stubs, pct_stub, n_par2 = find_stub_openers(body_md)
+        if pct_stub is not None and pct_stub > STUB_CEILING_PCT:
+            print(f"\n[FAIL] {pct_stub}% of paragraphs open with a sentence fragment "
+                  f"({len(stubs)} of {n_par2}, ceiling {STUB_CEILING_PCT}%)")
+            for s in stubs[:6]:
+                # "no verb" would be a false claim about "Claim the
+                # memberships first." — that is an imperative, grammatically
+                # complete, and still the same habit: a stub standing in for
+                # a heading in front of the real sentence.
+                print(f"       \"{s}.\" — fold it into the sentence after it")
+            print("       This is the habit the client gave up on. \"The year's totals. The plan")
+            print("       delivers 4 service pages\" is one sentence: \"The plan delivers 4 service")
+            print("       pages ...\" The fragment adds a heading nobody asked for.")
+            failures += 1
+        elif pct_stub is not None:
+            print(f"\n[OK] Paragraphs open with sentences, not fragments ({pct_stub}%)")
+
+        # One idea, one paragraph. The benchmark runs 1.1 sentences a
+        # paragraph; dense paragraphs are what labels were compensating for.
+        spp, n_par3 = sents_per_para(body_md)
+        if spp is not None and spp > SENTS_PER_PARA_CEILING:
+            print(f"\n[FAIL] {spp:.1f} sentences per paragraph across {n_par3} paragraphs "
+                  f"(ceiling {SENTS_PER_PARA_CEILING})")
+            print("       The benchmark runs 1.1 — nearly every sentence gets its own line.")
+            print("       In a 60-page document this is what decides whether anyone finishes it.")
+            print("       Break the paragraphs; do not add labels to dense ones.")
+            failures += 1
+        elif spp is not None:
+            print(f"\n[OK] One idea per paragraph ({spp:.1f} sentences each)")
+
+        # Connectives: informational only now. See the CONNECTIVE block.
         paras_n = len(paragraphs(body_md))
-        conn = len(CONNECTIVE.findall(body))
         if paras_n >= 8:
-            rate = conn / paras_n
-            if rate < CONNECTIVE_MIN_PER_PARA:
-                # REVIEW, not FAIL, and the reason is worth recording: the
-                # agency document this whole spec is calibrated against runs
-                # at 0.01 connectives a paragraph and the client holds it up
-                # as the model. Connective density does not separate good
-                # from bad on its own, so it is reported for a human to read
-                # rather than used to block. The label ceiling does separate
-                # them — 32% against 94% — and that one blocks.
-                print(f"\n[REVIEW] {conn} connectives across {paras_n} paragraphs "
-                      f"({rate:.2f} each; roughly {CONNECTIVE_MIN_PER_PARA} reads as an argument)")
-                print("       \"because\", \"so\", \"which means\". Without them a reader is handed")
-                print("       facts side by side and left to work out why they are next to each other.")
-                print("       Spec rows do not need them. Paragraphs that explain anything do.")
-            else:
-                print(f"\n[OK] The facts are connected ({rate:.2f} connectives a paragraph)")
+            print(f"\n[note]  {len(CONNECTIVE.findall(body))} connectives across {paras_n} paragraphs "
+                  f"({len(CONNECTIVE.findall(body)) / paras_n:.2f} each) — not a gate")
 
+        # Bare imperatives: a ceiling now, and no floor.
         imp = imperative_density(body)
-        if imp < IMPERATIVE_TARGET:
-            print(f"\n[REVIEW] Actions written as instructions: {imp:.1f} per 1k words "
-                  f"(target {IMPERATIVE_TARGET}+)")
-            print("       \"Build the page\", not \"a page will be built\" or \"the work involves\".")
+        imp_n = len(IMPERATIVE_OPENER.findall(body))
+        if imp > IMPERATIVE_CEILING and imp_n >= IMPERATIVE_MIN_COUNT:
+            print(f"\n[FAIL] {imp:.1f} bare instructions per 1k words "
+                  f"({imp_n} of them, ceiling {IMPERATIVE_CEILING})")
+            print("       \"Profile the render path in month 4\" is a line from our worklist.")
+            print("       Write \"we'll\" and the verb: \"We'll profile the render path in month 4.\"")
+            print("       Imperatives stay right inside a specification row, not in prose.")
+            failures += 1
         else:
-            print(f"\n[OK] Actions are written as instructions ({imp:.1f} per 1k words)")
+            print(f"\n[OK] Actions have somebody attached to them ({imp:.1f} bare instructions per 1k)")
+
+        # Contractions. The benchmark runs 24.5 per 1k; a document with none
+        # reads as a notice rather than a person.
+        n_words = len(body.split())
+        if n_words >= CONTRACTION_MIN_WORDS:
+            c_n = len(CONTRACTION.findall(body))
+            c_k = c_n / (n_words / 1000)
+            if c_k < CONTRACTION_MIN_PER_1K:
+                print(f"\n[FAIL] {c_k:.1f} contractions per 1k words "
+                      f"({c_n} in {n_words}, floor {CONTRACTION_MIN_PER_1K})")
+                print("       The benchmark runs 24.5. \"we'll\", \"we've\", \"you'll\", \"isn't\".")
+                print("       \"We will optimize\" twelve times and never \"we'll\" is most of what")
+                print("       the client meant by \"humans don't talk like this\".")
+                failures += 1
+            else:
+                print(f"\n[OK] Reads as a person talking ({c_k:.1f} contractions per 1k words)")
+
+        # False precision on somebody else's estimated numbers.
+        fp = find_false_precision(body)
+        if not fp:
+            print("\n[OK] No unhedged four-figure estimates in prose")
+        else:
+            fp_k = len(fp) / max(1.0, n_words / 1000)
+            if fp_k > FALSE_PRECISION_LIMIT and len(fp) >= FALSE_PRECISION_MIN_COUNT:
+                print(f"\n[FAIL] {len(fp)} over-precise figures in prose "
+                      f"({fp_k:.1f} per 1k, limit {FALSE_PRECISION_LIMIT})")
+                for hit, why in fp[:6]:
+                    print(f"       \"{hit}\" — {why}")
+                print("       An Ahrefs estimate carried to four figures claims an accuracy")
+                print("       nobody has, and a client who checks it has caught us being")
+                print("       precisely wrong instead of roughly right. Tables keep their digits.")
+                failures += 1
+            else:
+                print(f"\n[OK] Figures in prose are rounded ({fp_k:.1f} over-precise per 1k)")
+
+        # Provenance clutter: pull dates, source stamps, a sources appendix.
+        prov = find_provenance_clutter(text)
+        if len(prov) > PROVENANCE_LIMIT:
+            print(f"\n[FAIL] {len(prov)} piece(s) of provenance the client did not ask for:")
+            for hit, why in prov[:6]:
+                print(f"       \"{hit[:60]}\" — {why}")
+            print("       Keep the word \"estimated\" on any third-party figure; that one is a")
+            print("       commitment. Drop the dates, the source stamps and the sources appendix.")
+            failures += 1
+        else:
+            print("\n[OK] No pull dates or source stamps in the client's copy")
+
+        # Future work, in the future tense.
+        wills = find_missing_will(body)
+        if len(wills) > MISSING_WILL_LIMIT:
+            print(f"\n[FAIL] {len(wills)} sentences put future work in the present tense:")
+            for w in wills[:5]:
+                print(f"           \u2026{w[:80]}\u2026")
+            print("       \"We will optimize the website in month one\". A reader stops on the")
+            print("       present tense for something that has not happened yet.")
+            failures += 1
+        elif wills:
+            print(f"\n[REVIEW] {len(wills)} sentence(s) put future work in the present tense")
+
+        # Our own planning vocabulary, on a page a client reads.
+        shorthand = find_month_table_shorthand(text)
+        # ── The monthly plan ─────────────────────────────────────────────
+        mp = find_month_plan_problems(text)
+        if len(mp) > MONTH_PLAN_LIMIT:
+            rep = [x for x in mp if x[2] == "reporting"]
+            dep = [x for x in mp if x[2] == "client-dependent"]
+            print(f"\n[FAIL] {len(mp)} row(s) put something beside a month that should not have one:")
+            for hit, why, _ in mp[:8]:
+                print(f"       \"{hit}\" — {why}")
+            if rep:
+                print("       Reporting goes in Ongoing SEO Management & Reporting.")
+                print("       Re-optimising a published page is work and stays; reading a report is not.")
+            if dep:
+                print("       Client-dependent work gets its own section with no date. A month")
+                print("       beside it promises something we do not control.")
+            failures += 1
+        else:
+            print("\n[OK] Nothing beside a month that we cannot deliver ourselves")
+
+        bad_cols, header_ok = find_month_plan_columns(text)
+        if bad_cols:
+            print(f"\n[FAIL] The monthly plan has {len(bad_cols)} column(s) that were removed:")
+            for why in bad_cols:
+                print(f"       {why}")
+            print("       The columns are Month, Writing, What we work on — in that order.")
+            failures += 1
+        elif header_ok:
+            print("\n[OK] Monthly plan columns: Month, Writing, What we work on")
+
+        m1 = month_one_shows_something(text)
+        if m1 is False:
+            print("\n[FAIL] Month one shows the client nothing they can look at")
+            print("       GMB posting starts in month one. Titles, schema and internal")
+            print("       links are a month of invisible work, and month one is the month")
+            print("       they are deciding whether this was worth buying.")
+            failures += 1
+        elif m1:
+            print("\n[OK] Month one has something the client can see")
+
+        pink = sorted(set(m.group(0) for m in PINK.finditer(text)))
+        if pink:
+            print(f"\n[FAIL] Pink in a client document: {', '.join(pink[:6])}")
+            print("       #FF6699 is the portal's interface colour. Figures use the blue,")
+            print("       grey and green in scripts/make_figures.py.")
+            failures += 1
+
+        if len(shorthand) > MONTH_TABLE_SHORTHAND_LIMIT:
+            print(f"\n[FAIL] {len(shorthand)} piece(s) of internal shorthand a client will not follow:")
+            for term, why in shorthand[:8]:
+                print(f"       \"{term}\" \u2014 {why}")
+            print("       The month table is the first thing they read.")
+            failures += 1
+        else:
+            print("\n[OK] No internal shorthand in the tables")
+
+        # Numbered objectives cited before the objectives exist.
+        fwd = find_forward_objective_refs(text)
+        if fwd:
+            print(f"\n[FAIL] {len(fwd)} reference(s) to a numbered objective before the table that defines it:")
+            for f in fwd[:4]:
+                print(f"           \u2026{f[:84]}\u2026")
+            print("       State the target in words where it is used, or move the table up.")
+            failures += 1
 
         grade = reading_grade(body)
         if grade is not None:
-            if grade > FK_CEILING:
-                print(f"\n[REVIEW] Reading grade {grade:.1f} (target 9–10, ceiling {FK_CEILING})")
-            else:
-                print(f"\n[OK] Reading grade {grade:.1f}")
-            print("       Note: this number is a weak signal. The strategy that forced these")
-            print("       shape checks scored 8.5 and the client still could not read it.")
+            print(f"\n[note]  Reading grade {grade:.1f} — reported, not a target")
+            print("       This number is noise and it used to be a gate. The benchmark the")
+            print("       client asked us to write like scores 14.5; the document he gave up")
+            print("       on scored 7.0. Flesch-Kincaid cannot see sentence shape, and a")
+            print("       target printed next to it invited writing toward the number.")
 
         jargon = find_undefined_jargon(body)
         limit = LANGUAGE_LIMITS["undefined_jargon"]

@@ -113,9 +113,23 @@ check( 'the overview says the audit is under way',
 	strpos( $cust, 'audit is under way' ) !== false );
 check( 'it names the services being audited',
 	strpos( $cust, '$audited_slugs' ) !== false );
-check( 'it clears itself when an audit is filed',
-	strpos( $cust, "( \$r->type ?? '' ) === 'audit'" ) !== false,
+/* This used to pin the one condition the banner was built on — a report row
+ * of type 'audit'. That single signal is exactly what went wrong: NR Lawyers
+ * had the audit delivered and the build months under way while the dashboard
+ * still told them their audit was being prepared, because an audit written in
+ * a client session and handed over as a document never creates that row.
+ *
+ * So assert the behaviour — it switches itself off once work is visible —
+ * and assert that more than one thing can switch it off. Pinning the
+ * condition is how a test ends up defending the bug. */
+check( 'it clears itself once work is visible, with no advisor action',
+	strpos( $cust, '$work_started' ) !== false,
 	'a banner an advisor has to remember to switch off is a banner that stays up' );
+check( '  and any of filed reports, published tasks or logged work ends it',
+	strpos( $cust, 'Six_Tasks::summary' )      !== false
+	&& strpos( $cust, 'Six_Tracking::work_log' ) !== false
+	&& strpos( $cust, '! empty( $reports )' )    !== false,
+	'one signal missed a client six months into delivery' );
 check( 'and a website-only client never sees it',
 	strpos( $cust, "array( 'seo', 'google-ads', 'google-business' )" ) !== false );
 

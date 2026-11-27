@@ -23,9 +23,10 @@ Ctrl+P.
 Colours are the validated palette from the dataviz skill (light and dark steps
 each checked against their own surface for lightness band, chroma, colour-vision
 separation and contrast). Do not substitute hexes here without re-running that
-validator: the client series and the aqua competitor slot both sit below 3:1 on
-the light surface, which is permitted only because every series is direct-
-labelled and a table view of the chart ships with it.
+validator: the aqua competitor slot sits below 3:1 on the light surface, which
+is permitted only because every series is direct-labelled and a table view of
+the chart ships with it. There is no pink in here and there is not to be -
+see the note above SERIES_LIGHT for what was tried and why it failed.
 """
 
 import argparse
@@ -38,8 +39,26 @@ from pathlib import Path
 
 # ── Palette ───────────────────────────────────────────────────────────────
 # Validated as a set; see the module docstring before changing any value.
-SERIES_LIGHT = ["#FF6699", "#2a78d6", "#eb6834", "#1baf7a"]
-SERIES_DARK  = ["#d55181", "#3987e5", "#d95926", "#199e70"]
+# Slot 1 is the client, 2-4 are competitors. Slot 1 used to be #FF6699, the
+# portal's interface pink, and it is out of every client-facing document by
+# instruction. Violet was the obvious replacement and FAILED the validator
+# against the blue beside it (CVD deutan dE 4.4, normal-vision 11.7 against a
+# floor of 15) - which is the reason the rule is "run the script, do not
+# reason about it".
+#
+# Red, yellow and green each passed the separation checks and each collide
+# with the reserved STATUS palette below, which a series colour may never
+# reuse. So the order is the dataviz reference instance's own first three
+# hues plus violet, re-validated in both modes:
+#
+#   light  node validate_palette.js "#257de0,#eb6834,#1baf7a,#6a4ce2" --mode light
+#   dark   node validate_palette.js "#338ced,#d95926,#199e70,#9887ef" --mode dark --surface "#191919"
+#
+# Both report ALL CHECKS PASS. Light carries one contrast WARN on the aqua
+# competitor slot, which is permitted here because every series is direct-
+# labelled and a table view ships with the chart.
+SERIES_LIGHT = ["#257de0", "#eb6834", "#1baf7a", "#6a4ce2"]
+SERIES_DARK  = ["#338ced", "#d95926", "#199e70", "#9887ef"]
 
 STATUS = {
     "good":     "#0ca30c",
@@ -1217,7 +1236,7 @@ STYLE = """
   color-scheme: light;
   --page:#ffffff; --surface:#ffffff; --ink:#111111; --ink-2:#44443f; --muted:#6f6e68;
   --grid:#e4e2dc; --axis:#b9b7ad; --border:#ddd9cf; --rule:#111111; --gauge-track:#eceae4;
-  --series-1:#FF6699; --series-2:#2a78d6; --series-3:#eb6834; --series-4:#1baf7a;
+  --series-1:#257de0; --series-2:#eb6834; --series-3:#1baf7a; --series-4:#6a4ce2;
 }
 *{box-sizing:border-box}
 html{-webkit-print-color-adjust:exact;print-color-adjust:exact}

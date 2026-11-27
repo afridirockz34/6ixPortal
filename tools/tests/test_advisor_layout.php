@@ -101,5 +101,43 @@ check( 'falling back to the old split when nobody chose',
 check( 'no link points at the Activity tab',
 	strpos( $adv, 'ctab=activity' ) === false );
 
+// ── Every Save button has a handler that will accept it ─────────────────
+/* Reported from live use: typing a BrightLocal location id into Data
+ * Sources and pressing Save returned "Not allowed." in red. The field, the
+ * button and the BrightLocal lookup had all shipped; the key was simply
+ * never added to the allowlist in six_save_client_datasource, so the write
+ * was refused at the last step.
+ *
+ * Any new Data Sources row can repeat this, so the test is not about that
+ * one key: it reads every data-key the template can post and checks the
+ * handler accepts all of them. */
+echo "\n-- Data Sources: button and handler agree --\n";
+$ajax = file_get_contents( dirname( __DIR__, 2 ) . '/portal/ajax-handlers.php' );
+preg_match( '/wp_ajax_six_save_client_datasource\x27.*?\$allowed\s*=\s*array\((.*?)\);/s', $ajax, $am );
+$allowed = $am[1] ?? '';
+preg_match_all( '/data-key="([a-z0-9_]+)"/', $adv, $km );
+$keys = array_unique( $km[1] ?? array() );
+check( 'the template has Save buttons to check', count( $keys ) >= 4, count( $keys ) . ' found' );
+foreach ( $keys as $k ) {
+	check( "  the handler accepts $k", strpos( $allowed, "'" . $k . "'" ) !== false,
+		'a key the UI posts but the handler rejects fails with "Not allowed."' );
+}
+check( 'and a rejected key is named rather than just refused',
+	strpos( $ajax, 'that field is not on this handler' ) !== false,
+	'"Not allowed." could not be told apart from a permissions problem' );
+
+// ── The unread-messages card opens the messages ─────────────────────────
+/* It linked to ?tab=clients, which opens the customer list: every client,
+ * no messages. Reported as "it just opens the client section with all the
+ * customers in it". */
+echo "\n-- Today\x27s Priorities link where they say --\n";
+check( 'the unread-messages card opens the messages tab, not the client list',
+	strpos( $adv, "'u'=>'?tab=clients','c'=>'var(--pink)'" ) === false
+	&& strpos( $adv, "?tab=messages&with='" ) !== false,
+	'the button says Open and opened a list of customers' );
+check( '  and goes straight to the conversation when only one is waiting',
+	strpos( $adv, 'Six_Messaging::unread_senders' ) !== false,
+	'one unread sender is a conversation, not a search' );
+
 echo "\nPassed: $pass  Failed: $fail\n";
 exit( $fail ? 1 : 0 );

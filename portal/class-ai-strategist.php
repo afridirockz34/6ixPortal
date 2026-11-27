@@ -144,7 +144,7 @@ class Six_AI_Strategist {
         if ( get_user_meta( $client_id, 'six_gads_customer_id', true ) )   $ds[] = 'Google Ads';
         if ( get_user_meta( $client_id, 'six_ga4_property_id', true ) )    $ds[] = 'GA4';
         if ( get_user_meta( $client_id, 'six_meta_ad_account_id', true ) ) $ds[] = 'Meta Ads';
-        if ( get_user_meta( $client_id, 'six_gbp_location_id', true ) )    $ds[] = 'Google Business Profile';
+        if ( get_user_meta( $client_id, 'six_gbp_location_id', true ) )    $ds[] = 'GMB';
         if ( get_user_meta( $client_id, 'six_gsc_site', true ) )           $ds[] = 'Search Console';
         $L[] = 'Connected data sources: ' . ( $ds ? implode( ', ', $ds ) : 'none yet' );
         if ( $svcs ) {
@@ -363,7 +363,7 @@ class Six_AI_Strategist {
         $out = array( 'connected' => array(), 'services' => array(), 'kpis' => array() );
         foreach ( array(
             'Google Ads'=>'six_gads_customer_id','GA4'=>'six_ga4_property_id','Meta Ads'=>'six_meta_ad_account_id',
-            'Google Business Profile'=>'six_gbp_location_id','Search Console'=>'six_gsc_site',
+            'GMB'=>'six_gbp_location_id','Search Console'=>'six_gsc_site',
         ) as $label => $key ) {
             $v = get_user_meta( $client_id, $key, true );
             if ( $v ) $out['connected'][ $label ] = $v;
@@ -679,7 +679,7 @@ class Six_AI_Strategist {
     public static function suggest_metrics( $client_id, $service_slug ) {
         $svc_names = array(
             'google-ads' => 'Google Ads', 'seo' => 'SEO',
-            'google-business' => 'Google Business Profile', 'website' => 'Website Development',
+            'google-business' => 'GMB', 'website' => 'Website Development',
         );
         $svc  = $svc_names[ $service_slug ] ?? $service_slug;
         $live = self::snapshot_metrics( $client_id );  // real GA4/Ads/GSC/Meta totals where connected
